@@ -105,6 +105,18 @@ class DashboardStatsResponse(BaseModel):
     last_updated: str | None = None
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str | None = None
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 86400  # 24 hours
+    user: "UserProfile"
+
+
 class UserProfile(BaseModel):
     id: str
     username: str

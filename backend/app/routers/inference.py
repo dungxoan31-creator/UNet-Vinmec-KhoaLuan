@@ -31,6 +31,41 @@ from backend.schemas.schemas import ImageValidationResult, PredictionResponse
 router = APIRouter(tags=["Image & Inference"])
 
 
+def extract_dicom_calibration_spacing(file_path: str) -> float:
+    """
+    Extracts true physical millimeter spacing per pixel from DICOM tags:
+    1. Tag (0018, 6011) Sequence of Ultrasound Regions -> PhysicalDeltaX / PhysicalDeltaY
+    2. Tag (0028, 0030) Pixel Spacing -> [Row Spacing, Column Spacing]
+    Defaults to 0.1 mm/px if not present or for standard raster images.
+    """
+    if not file_path.lower().endswith(".dcm"):
+        return 0.1
+    try:
+        import pydicom
+
+        dcm = pydicom.dcmread(file_path, stop_before_pixels=True)
+        # Check Sequence of Ultrasound Regions (0018,6011)
+        us_regions = dcm.get("SequenceOfUltrasoundRegions")
+        if us_regions and len(us_regions) > 0:
+            region = us_regions[0]
+            dx = getattr(region, "PhysicalDeltaX", None)
+            if dx and float(dx) > 0:
+                unit = getattr(region, "PhysicalUnitsXDirection", 3)
+                if unit == 3:  # cm -> mm
+                    return round(float(dx) * 10.0, 4)
+                elif unit == 4:  # mm
+                    return round(float(dx), 4)
+                return round(float(dx) * 10.0, 4)
+
+        # Check standard Pixel Spacing (0028,0030)
+        pixel_spacing = dcm.get("PixelSpacing")
+        if pixel_spacing and len(pixel_spacing) >= 2:
+            return round(float(pixel_spacing[0]), 4)
+    except Exception as e:
+        print(f"[DICOM Calibration] Tag read notice: {e}")
+    return 0.1
+
+
 @router.post("/api/upload")
 async def upload_image(
     file: UploadFile = File(...),
@@ -46,7 +81,7 @@ async def upload_image(
     ext = os.path.splitext(safe_filename)[1].lower()
     if ext not in [".png", ".jpg", ".jpeg", ".dcm"]:
         raise HTTPException(
-            status_code=400, detail="Định dạng file không hợp lệ. Vui lòng chọn ảnh PNG, JPG hoặc JPEG."
+            status_code=400, detail="Định dạng file không hợp lệ. Vui lòng chọn ảnh PNG, JPG, JPEG hoặc DICOM (.dcm)."
         )
 
     contents = await file.read()
@@ -65,8 +100,23 @@ async def upload_image(
     with open(file_path, "wb") as f:
         f.write(contents)
 
+    # Extract DICOM calibration spacing if available
+    calibrated_spacing = extract_dicom_calibration_spacing(file_path)
+
     # Read image with OpenCV to get dimensions and verify validity
     img_np = cv2_imread_unicode(file_path)
+    if img_np is None and ext == ".dcm":
+        try:
+            import pydicom
+
+            dcm_data = pydicom.dcmread(file_path)
+            img_np = dcm_data.pixel_array
+            # Normalize to 8-bit uint8 if 16-bit
+            if img_np.dtype != "uint8":
+                img_np = cv2.normalize(img_np, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        except Exception:
+            img_np = None
+
     if img_np is None:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -108,7 +158,7 @@ async def upload_image(
         raw_path=file_path,
         width=w,
         height=h,
-        pixel_spacing_mm=0.1,
+        pixel_spacing_mm=calibrated_spacing,
     )
     db.add(image_record)
 
@@ -219,7 +269,8 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
     tensor, padded_gray, _transform_params, iqa_report = preprocessor.preprocess_for_inference(img_np)
 
     # 2. Run Pure Neural Network Inference via ModelRegistry
-    inference_result = model_registry.predict(tensor, padded_gray, pixel_spacing_mm=0.1)
+    pixel_spacing = getattr(img_record, "pixel_spacing_mm", 0.1) or 0.1
+    inference_result = model_registry.predict(tensor, padded_gray, pixel_spacing_mm=pixel_spacing)
 
     inference_duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 

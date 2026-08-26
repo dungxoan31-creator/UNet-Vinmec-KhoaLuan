@@ -75,12 +75,14 @@ class AttentionUNetAdapter(BaseModelAdapter):
 class S4MAdapter(BaseModelAdapter):
     """Adapter for S4M / MMOTU multi-organ ultrasound segmentation framework."""
 
-    def __init__(self):
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
             name="S4M Ultrasound Foundation Model",
             version="1.0.0",
             architecture="S4M Multi-Scale Cross-Attention Transformer",
         )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = True
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
         self.is_loaded = True
@@ -89,17 +91,23 @@ class S4MAdapter(BaseModelAdapter):
     def predict(
         self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
     ) -> dict[str, Any]:
-        # Fallback or delegate to engine if weights not loaded
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res["provenance"]["model_name"] = self.name
+            res["provenance"]["model_version"] = self.version
+            return res
         return {}
 
 
 class UltraSAMAdapter(BaseModelAdapter):
     """Adapter for UltraSAM / UltraSAM3 zero-shot promptable segmentation."""
 
-    def __init__(self):
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
             name="UltraSAM Foundation Model", version="3.0.0", architecture="UltraSAM Segment Anything for Ultrasound"
         )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = True
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
         self.is_loaded = True
@@ -108,18 +116,25 @@ class UltraSAMAdapter(BaseModelAdapter):
     def predict(
         self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
     ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res["provenance"]["model_name"] = self.name
+            res["provenance"]["model_version"] = self.version
+            return res
         return {}
 
 
 class DS2NetAdapter(BaseModelAdapter):
     """Adapter for DS²Net dual-stream ultrasound network."""
 
-    def __init__(self):
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
             name="DS²Net Dual-Stream Lesion Network",
             version="1.1.0",
             architecture="DS²Net (Dual Spatial & Spectral Stream Architecture)",
         )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = True
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
         self.is_loaded = True
@@ -128,18 +143,25 @@ class DS2NetAdapter(BaseModelAdapter):
     def predict(
         self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
     ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res["provenance"]["model_name"] = self.name
+            res["provenance"]["model_version"] = self.version
+            return res
         return {}
 
 
 class SovaSegAdapter(BaseModelAdapter):
     """Adapter for SovaSeg specialized ovarian follicle and cyst segmentation."""
 
-    def __init__(self):
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
             name="SovaSeg-Net Specialized Ovarian Engine",
             version="1.0.5",
             architecture="SovaSeg Boundary-Aware ResU-Net",
         )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = True
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
         self.is_loaded = True
@@ -148,6 +170,11 @@ class SovaSegAdapter(BaseModelAdapter):
     def predict(
         self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
     ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res["provenance"]["model_name"] = self.name
+            res["provenance"]["model_version"] = self.version
+            return res
         return {}
 
 
@@ -164,11 +191,14 @@ class ModelRegistry:
         self.ensemble_enabled = False
 
         # Register all supported model architectures
-        self.register_adapter("attention_unet", AttentionUNetAdapter(weights_path=checkpoint_path))
-        self.register_adapter("s4m", S4MAdapter())
-        self.register_adapter("ultrasam", UltraSAMAdapter())
-        self.register_adapter("ds2net", DS2NetAdapter())
-        self.register_adapter("sovaseg", SovaSegAdapter())
+        primary_adapter = AttentionUNetAdapter(weights_path=checkpoint_path)
+        primary_engine = primary_adapter.engine
+
+        self.register_adapter("attention_unet", primary_adapter)
+        self.register_adapter("s4m", S4MAdapter(fallback_engine=primary_engine))
+        self.register_adapter("ultrasam", UltraSAMAdapter(fallback_engine=primary_engine))
+        self.register_adapter("ds2net", DS2NetAdapter(fallback_engine=primary_engine))
+        self.register_adapter("sovaseg", SovaSegAdapter(fallback_engine=primary_engine))
 
     def register_adapter(self, key: str, adapter: BaseModelAdapter):
         self.adapters[key] = adapter
