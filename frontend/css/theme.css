@@ -1,0 +1,66 @@
+/* ==========================================================================
+           VINMEC HEALTHCARE DESIGN SYSTEM TOKENS
+           Official Brand Colors: #008ca8 (Cyan/Teal), #0068ab (Deep Blue), #51be9d (Green), #c59b27 (Gold)
+           ========================================================================== */
+        :root {
+            --vm-blue-start: #008ca8;
+            --vm-blue-end: #0068ab;
+            --vm-primary-blue: #0076c0;
+            --vm-primary-dark: #005a96;
+            --vm-teal: #00a8b5;
+            --vm-green: #51be9d;
+            --vm-green-hover: #43a788;
+            --vm-green-light: #e8f8f3;
+            --vm-gold: #c59b27;
+            --vm-gold-light: #fef8eb;
+            
+            --vm-bg-gray: #f3f7fb;
+            --vm-bg-alt: #eef4f9;
+            --vm-card-white: #ffffff;
+            
+            --vm-text-dark: #1e293b;
+            --vm-text-heading: #0f172a;
+            --vm-text-muted: #64748b;
+            --vm-text-dim: #94a3b8;
+            
+            --vm-border: #e2e8f0;
+            --vm-border-focus: #008ca8;
+            
+            --vm-accent-cyan: #06b6d4;
+            --vm-accent-green: #10b981;
+            --vm-accent-amber: #f59e0b;
+            --vm-accent-red: #ef4444;
+            
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --radius-pill: 9999px;
+            
+            --shadow-subtle: 0 2px 8px rgba(0, 104, 171, 0.06);
+            --shadow-card: 0 4px 16px rgba(0, 104, 171, 0.08);
+            --shadow-card-hover: 0 8px 24px rgba(0, 104, 171, 0.14);
+            --shadow-header: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--vm-bg-gray);
+            color: var(--vm-text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            line-height: 1.5;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }

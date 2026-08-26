@@ -1,0 +1,378 @@
+/* ==========================================================================
+           1. TOP EMERGENCY RIBBON (VINMEC BLUE GRADIENT)
+           ========================================================================== */
+        .top-emergency-ribbon {
+            background: linear-gradient(135deg, var(--vm-blue-start) 0%, var(--vm-blue-end) 100%);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 7px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .ribbon-left, .ribbon-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ribbon-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0.95;
+        }
+
+        .ribbon-hotline {
+            font-weight: 700;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .ribbon-link {
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .ribbon-link:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .lang-switch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 3px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 11.5px;
+            cursor: pointer;
+        }
+
+/* ==========================================================================
+           2. MAIN VINMEC STICKY HEADER
+           ========================================================================== */
+        header.main-header {
+            background: var(--vm-card-white);
+            border-bottom: 1px solid var(--vm-border);
+            box-shadow: var(--shadow-header);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 0 20px;
+            min-height: 68px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .vinmec-logo-img {
+            height: 50px;
+            width: auto;
+            object-fit: contain;
+            flex-shrink: 0;
+            display: block;
+        }
+
+        .brand-divider {
+            width: 1px;
+            height: 38px;
+            background: var(--vm-border);
+            margin: 0 2px;
+        }
+
+        .brand-titles {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-main-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--vm-blue-end);
+            letter-spacing: 0.5px;
+            line-height: 1.1;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .brand-main-title span.tag-ai {
+            background: linear-gradient(135deg, var(--vm-blue-start), var(--vm-green));
+            color: #ffffff;
+            font-size: 9.5px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            letter-spacing: 0.5px;
+        }
+
+        .brand-sub-title {
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--vm-text-muted);
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+        }
+
+        /* Navigation Links */
+        .main-nav {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 100%;
+        }
+
+        .nav-item-btn {
+            background: transparent;
+            border: none;
+            color: var(--vm-text-dark);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-item-btn:hover {
+            color: var(--vm-primary-blue);
+            background: var(--vm-bg-alt);
+        }
+
+        .nav-item-btn.active {
+            color: var(--vm-primary-blue);
+            background: #e8f4fc;
+            font-weight: 700;
+        }
+
+        .nav-item-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -11px;
+            left: 14px;
+            right: 14px;
+            height: 3px;
+            background: var(--vm-primary-blue);
+            border-radius: 3px 3px 0 0;
+        }
+
+        /* Header Right Actions */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn-create-case-nav {
+            background: var(--vm-green);
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: var(--radius-pill);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            box-shadow: 0 3px 10px rgba(81, 190, 157, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .btn-create-case-nav:hover {
+            background: var(--vm-green-hover);
+            box-shadow: 0 5px 14px rgba(81, 190, 157, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .doctor-badge-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--vm-bg-alt);
+            border: 1px solid var(--vm-border);
+            padding: 5px 12px;
+            border-radius: var(--radius-pill);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--vm-text-dark);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .doc-avatar-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--vm-blue-start), var(--vm-blue-end));
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 12px;
+        }
+
+        .pulse-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--vm-green);
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px rgba(81, 190, 157, 0.3);
+            animation: pulseAnim 2s infinite;
+        }
+
+        @keyframes pulseAnim {
+            0% { box-shadow: 0 0 0 0 rgba(81, 190, 157, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(81, 190, 157, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(81, 190, 157, 0); }
+        }
+
+/* ==========================================================================
+           3. MAIN CONTAINER & SCREEN SYSTEM
+           ========================================================================== */
+        main.app-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        .screen-container {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            animation: screenFadeIn 0.25s ease-out;
+        }
+
+        .screen-container.active {
+            display: flex;
+        }
+
+        @keyframes screenFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+/* ==========================================================================
+           10. VINMEC OFFICIAL 4-COLUMN FOOTER
+           ========================================================================== */
+        footer.vinmec-footer {
+            background: #ffffff;
+            border-top: 1px solid var(--vm-border);
+            margin-top: auto;
+            padding: 48px 24px 20px;
+            color: var(--vm-text-dark);
+        }
+
+        .footer-content-grid {
+            max-width: 1400px;
+            margin: 0 auto 36px;
+            display: grid;
+            grid-template-columns: 1.5fr 1.2fr 1fr 1.2fr;
+            gap: 32px;
+        }
+
+        .footer-col h3 {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-col p {
+            font-size: 13px;
+            color: var(--vm-text-muted);
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col ul li {
+            font-size: 13px;
+            color: var(--vm-text-dark);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .footer-col ul li strong {
+            color: var(--vm-blue-end);
+        }
+
+        .jci-partner-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--vm-bg-alt);
+            padding: 12px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--vm-border);
+            margin-top: 12px;
+        }
+
+        .footer-bottom-bar {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--vm-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--vm-text-muted);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1024px) {
+            .results-workspace-grid {
+                grid-template-columns: 1fr;
+            }
+            .quick-services-grid, .stats-grid-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .footer-content-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }

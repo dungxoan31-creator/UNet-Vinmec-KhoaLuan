@@ -1,0 +1,23 @@
+{
+  "pathology_id": "PATH-CYSTADENOMA-001",
+  "pathology_name": "Serous & Mucinous Cystadenoma",
+  "category": "Benign Epithelial Ovarian Neoplasms",
+  "epidemiology": "Accounts for 60% of benign ovarian epithelial neoplasms. Most common in women aged 30-50 years.",
+  "serous_cystadenoma_features": {
+    "morphology": "Unilocular or multilocular cyst with thin, smooth septa (< 3 mm).",
+    "fluid": "Anechoic clear fluid with posterior acoustic enhancement.",
+    "wall": "Smooth outer and inner margins, no papillary projections or solid tissue.",
+    "size": "Typically 30 - 100 mm.",
+    "orads_category": "O-RADS 2 (if unilocular < 10 cm) or O-RADS 3 (if multilocular < 10 cm or unilocular ≥ 10 cm)."
+  },
+  "mucinous_cystadenoma_features": {
+    "morphology": "Large, multilocular cyst with multiple locules exhibiting variable internal echogenicity (honeycomb appearance).",
+    "fluid": "Mucinous fluid with fine low-level echoes, dense particulate, or varying brightness across locules.",
+    "size": "Frequently large (> 100 mm, occasionally > 200 mm).",
+    "orads_category": "O-RADS 3 (if < 10 cm smooth multilocular) or O-RADS 4 (if ≥ 10 cm multilocular)."
+  },
+  "doppler_characteristics": "Color Score 1-2 (Avascular or minimal flow restricted strictly to thin septa). Absence of thick vascularized solid mural nodules.",
+  "evidence_source": "SRC-IOTA-CONSENSUS-2026",
+  "evidence_level": "Tier-1 Validated Clinical Knowledge",
+  "confidence": "high"
+}

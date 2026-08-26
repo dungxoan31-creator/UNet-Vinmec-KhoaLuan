@@ -1,0 +1,72 @@
+{
+  "domain": "IOTA",
+  "topic": "ADNEX Model (Assessment of Different NEoplasias in the adneXa)",
+  "version": "v2014-BMJ",
+  "source_reference": "SRC-IOTA-ADNEX-BMJ-2014",
+  "intended_population": "Patients with an adnexal mass deemed to require surgical intervention or specialized oncological evaluation.",
+  "predictor_variables": [
+    {
+      "name": "age",
+      "type": "continuous",
+      "unit": "years",
+      "description": "Patient age at clinical examination."
+    },
+    {
+      "name": "oncology_center",
+      "type": "binary",
+      "values": [0, 1],
+      "description": "1 if referral cancer center, 0 if general hospital."
+    },
+    {
+      "name": "max_lesion_diameter",
+      "type": "continuous",
+      "unit": "mm",
+      "description": "Maximum diameter of the adnexal mass."
+    },
+    {
+      "name": "max_solid_diameter",
+      "type": "continuous",
+      "unit": "mm",
+      "description": "Maximum diameter of the largest solid component (0 if no solid component)."
+    },
+    {
+      "name": "more_than_10_locules",
+      "type": "binary",
+      "values": [0, 1],
+      "description": "1 if cyst contains > 10 distinct locules, 0 otherwise."
+    },
+    {
+      "name": "papillary_projections",
+      "type": "ordinal",
+      "values": ["0", "1", "2", "3", ">3"],
+      "description": "Number of papillary projections with height ≥ 3 mm."
+    },
+    {
+      "name": "acoustic_shadows",
+      "type": "binary",
+      "values": [0, 1],
+      "description": "1 if acoustic shadowing present, 0 if absent."
+    },
+    {
+      "name": "ascites",
+      "type": "binary",
+      "values": [0, 1],
+      "description": "1 if fluid detected outside pouch of Douglas, 0 if absent."
+    },
+    {
+      "name": "ca125",
+      "type": "continuous",
+      "unit": "U/mL",
+      "description": "Serum CA-125 level (Optional; model computes polytomous probabilities with or without CA-125)."
+    }
+  ],
+  "output_probabilities": {
+    "p_benign": "Probability of Benign ovarian neoplasm or non-neoplastic cyst",
+    "p_borderline": "Probability of Borderline ovarian tumor (BOT)",
+    "p_stage1": "Probability of Stage I primary invasive ovarian carcinoma",
+    "p_stage2_4": "Probability of Stage II-IV advanced primary invasive ovarian carcinoma",
+    "p_metastatic": "Probability of Secondary metastatic cancer to the ovary",
+    "total_malignancy_risk": "Sum of (p_borderline + p_stage1 + p_stage2_4 + p_metastatic)"
+  },
+  "recommended_clinical_cutoff": "10% total malignancy risk cutoff provides optimal trade-off (Sensitivity 96.5%, Specificity 71.3%)."
+}

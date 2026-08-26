@@ -1,0 +1,82 @@
+{
+  "domain": "IOTA",
+  "topic": "Standardized Terminology and Lexicon",
+  "version": "IOTA-2026-v2.1",
+  "source_reference": "SRC-IOTA-CONSENSUS-2026",
+  "terms": [
+    {
+      "term_id": "IOTA-TERM-001",
+      "term_name": "Adnexal Lesion",
+      "definition": "The part of an ovary or adnexal mass that is judged not to be normal ovarian stroma or physiological follicle/corpus luteum.",
+      "measurement_protocol": "Assessed in two perpendicular planes and measured in three orthogonal dimensions (D1, D2, D3 in mm).",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-002",
+      "term_name": "Solid Component",
+      "definition": "A structure exhibiting parenchymal tissue-like echogenicity (not fluid). Internal vascularity on Color/Power Doppler or acoustic shadowing confirms solid tissue. Avascular echogenic contents with movement on gentle probe pressure represent blood clots or mucin.",
+      "exclusion_criteria": "Avascular retracting blood clots in hemorrhagic cysts, floating dermoid hair balls, dense mucinous debris.",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-003",
+      "term_name": "Papillary Projection",
+      "definition": "Any solid protrusion arising from the cyst wall or internal septum and extending into the cyst cavity with height ≥ 3.0 mm measured from the base to the apex perpendicular to the wall.",
+      "clinical_significance": "Key sonographic hallmark of borderline ovarian tumors (BOT) and early-stage cystadenocarcinomas.",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-004",
+      "term_name": "Unilocular Cyst",
+      "definition": "A cyst possessing a single fluid-filled cavity with no internal septa and no solid components or papillary projections.",
+      "malignancy_risk": "Very low (< 1% if anechoic or classic benign features).",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-005",
+      "term_name": "Unilocular-Solid Tumor",
+      "definition": "A single-cavity cyst containing one or more solid components or papillary projections.",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-006",
+      "term_name": "Multilocular Cyst",
+      "definition": "A cyst containing at least two distinct fluid cavities separated by one or more complete septa, without solid tissue or papillary projections.",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-007",
+      "term_name": "Multilocular-Solid Tumor",
+      "definition": "A cyst with two or more internal locules and at least one solid component or papillary projection.",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-008",
+      "term_name": "Solid Tumor",
+      "definition": "A tumor in which solid tissue components constitute ≥ 80% of the entire mass on cross-sectional ultrasound evaluation.",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-009",
+      "term_name": "Acoustic Shadows",
+      "definition": "Loss of acoustic echo transmission distal to a highly sound-attenuating structure (calcifications, dense fibrous tissue, sebaceous content). Strongly indicates benign pathology (dermoid, fibroma).",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    },
+    {
+      "term_id": "IOTA-TERM-010",
+      "term_name": "Ascites",
+      "definition": "Fluid collection outside the pouch of Douglas (extending into the peritoneal cavity, uterovesical pouch, or perihepatic space). Fluid strictly confined to the pouch of Douglas in premenopausal women is physiological and not ascites.",
+      "evidence_level": "Tier-1 Guideline",
+      "confidence": "high"
+    }
+  ]
+}

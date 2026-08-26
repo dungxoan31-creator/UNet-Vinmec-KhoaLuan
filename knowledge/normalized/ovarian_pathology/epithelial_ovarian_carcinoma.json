@@ -1,0 +1,22 @@
+{
+  "pathology_id": "PATH-CARCINOMA-001",
+  "pathology_name": "Epithelial Ovarian Carcinoma (High-Grade Serous Carcinoma / Mucinous / Clear Cell / Endometrioid)",
+  "icd_code": "C56.9",
+  "category": "Malignant Epithelial Ovarian Neoplasm",
+  "epidemiology": "Leading cause of gynecologic cancer death. 75% of patients present at advanced stage (FIGO Stage III/IV). Peak incidence in postmenopausal women (55-75 years).",
+  "pathophysiology": "Heterogeneous group comprising High-Grade Serous (HGSC - originating mostly from distal fimbrial epithelium of fallopian tube), Low-Grade Serous, Clear Cell, Endometrioid, and Mucinous carcinomas.",
+  "classic_malignant_ultrasound_features": {
+    "feature_1": "Multilocular-Solid or Completely Solid mass with irregular external contours and inhomogeneous parenchymal texture.",
+    "feature_2": "Multiple (≥ 4) vascularized papillary projections arising from cyst wall and thick irregular septa (thickness ≥ 3 mm).",
+    "feature_3": "High vascularity on Color/Power Doppler (Color Score 3-4) with low-resistance neo-vascular flow (Resistive Index RI < 0.40, Pulsatility Index PI < 0.80).",
+    "feature_4": "Ascites (fluid in pouch of Douglas and upper abdominal perihepatic/perisplenic spaces).",
+    "feature_5": "Peritoneal carcinomatosis: hypoechoic nodular implants on omentum ('omental cake') or parietal peritoneum."
+  },
+  "orads_category": "O-RADS 5 (High Risk of Malignancy, Risk ≥ 50%).",
+  "iota_simple_rules_alignment": "Meets multiple M-rules: M1 (Irregular solid tumor), M2 (Ascites), M3 (≥ 4 papillary projections), M4 (Irregular multilocular-solid ≥ 100 mm), M5 (Color Score 4).",
+  "iota_adnex_alignment": "High predicted probability for Stage II-IV invasive ovarian carcinoma (typically > 60-80%).",
+  "clinical_management": "Urgent referral to Gynecologic Oncology. Staging CT Chest/Abdomen/Pelvis, serum CA-125 + HE4, and primary debulking cytoreductive surgery followed by platinum-taxane chemotherapy +/- PARP inhibitors.",
+  "evidence_source": "SRC-ESGO-ISUOG-IOTA-ESGE-2021",
+  "evidence_level": "Tier-1 Validated Clinical Knowledge",
+  "confidence": "high"
+}

@@ -1,0 +1,31 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.ruff_cache/
+.pytest_cache/
+
+# Local databases & logs
+ovarian_ai.db
+*.sqlite3
+*.log
+
+# Runtime uploads & temporary reports (preserve folders via .gitkeep)
+data/uploads/*
+!data/uploads/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
+
+# Large pre-trained checkpoints (tracked via Git LFS or external storage)
+# checkpoints/*.pth
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+.venv/
+env/

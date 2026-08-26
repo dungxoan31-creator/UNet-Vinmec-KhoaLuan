@@ -1,0 +1,50 @@
+{
+  "source_id": "SRC-IOTA-ADNEX-BMJ-2014",
+  "title": "Evaluating the risk of ovarian cancer before surgery using the ADNEX model to differentiate between benign, borderline, early and advanced stage invasive, and secondary metastatic tumors: prospective multicentre diagnostic study",
+  "organization": "IOTA Group",
+  "authors": [
+    "Ben Van Calster",
+    "Dirk Timmerman",
+    "Lil Valentin",
+    "Ignace Vergote",
+    "Wouter Froyman",
+    "Sabine Van Huffel"
+  ],
+  "publication_journal": "BMJ",
+  "publication_year": 2014,
+  "volume": "349",
+  "pages": "g5920",
+  "doi": "10.1136/bmj.g5920",
+  "source_type": "Multicenter Prospective Diagnostic Validation",
+  "evidence_level": "Tier-1 Validated Multiclass Clinical Prediction Model (N=5,914 patients across 24 clinical centers)",
+  "nine_predictor_variables": {
+    "clinical_predictors": [
+      {"name": "age", "unit": "years", "description": "Patient age at ultrasound examination."},
+      {"name": "ca125_level", "unit": "U/mL", "description": "Serum CA-125 level (Optional: ADNEX model can operate with or without CA-125)."},
+      {"name": "center_type", "type": "binary", "description": "Type of center: Oncology Referral Center (tertiary) vs Secondary Community Hospital."}
+    ],
+    "ultrasound_predictors": [
+      {"name": "max_lesion_diameter_mm", "unit": "mm", "description": "Maximum diameter of the whole adnexal mass in 3 orthogonal planes."},
+      {"name": "max_solid_component_diameter_mm", "unit": "mm", "description": "Maximum diameter of the largest solid component in mm. If no solid component, value is 0."},
+      {"name": "more_than_10_locules", "type": "binary (0/1)", "description": "Presence of more than 10 cystic locules separated by complete septa."},
+      {"name": "papillary_projection_count", "type": "categorical", "description": "Number of papillary projections (0, 1, 2, 3, >3)."},
+      {"name": "acoustic_shadows", "type": "binary (0/1)", "description": "Presence of acoustic shadowing behind the lesion (characteristic of benign teratomas, fibromas)."},
+      {"name": "ascites", "type": "binary (0/1)", "description": "Presence of peritoneal fluid extending outside the pouch of Douglas."}
+    ]
+  },
+  "predicted_subgroups": [
+    "Benign tumor",
+    "Borderline ovarian tumor (BOT)",
+    "Stage I primary invasive ovarian carcinoma",
+    "Stage II-IV primary invasive ovarian carcinoma",
+    "Secondary metastatic cancer (Krukenberg / non-ovarian primary)"
+  ],
+  "diagnostic_performance": {
+    "auc_benign_vs_malignant": 0.943,
+    "multiclass_polytomous_discrimination_index": 0.813,
+    "sensitivity_at_10pct_cutoff": 0.965,
+    "specificity_at_10pct_cutoff": 0.713
+  },
+  "retrieved_at": "2026-08-26T18:45:00Z",
+  "audit_status": "VERIFIED_PRIMARY_SOURCE"
+}

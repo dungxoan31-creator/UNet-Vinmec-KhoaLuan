@@ -1,0 +1,34 @@
+{
+    "model_name": "Attention U-Net Ovarian Lesion Segmentation Engine",
+    "model_version": "1.2.0",
+    "training_dataset": "MMOTU / OTU_2D Benchmark",
+    "training_samples": 700,
+    "validation_samples": 120,
+    "test_samples": 382,
+    "input_resolution": [
+        256,
+        256
+    ],
+    "in_channels": 1,
+    "num_classes": 1,
+    "class_mapping": {
+        "0": "Background / Normal Tissue",
+        "1": "Ovarian Lesion"
+    },
+    "test_metrics": {
+        "mean_dice": 0.7615,
+        "std_dice": 0.2178,
+        "mean_iou": 0.656,
+        "std_iou": 0.238,
+        "mean_hd95_mm": 3.5,
+        "inference_time_cpu_ms": 131.3
+    },
+    "training_parameters": {
+        "epochs": 6,
+        "batch_size": 16,
+        "learning_rate": 0.0003,
+        "optimizer": "AdamW",
+        "loss_function": "ComboLoss (0.5 Dice + 0.3 Focal + 0.2 BCE)"
+    },
+    "exported_at": "2026-08-26T07:23:58Z"
+}

@@ -1,0 +1,26 @@
+{
+  "pathology_id": "PATH-ENDOMETRIOMA-001",
+  "pathology_name": "Ovarian Endometrioma (Chocolate Cyst)",
+  "icd_code": "N80.1",
+  "category": "Benign Endometriotic Pseudocyst",
+  "epidemiology": "Affects 17-44% of women with pelvic endometriosis. Predominantly seen in reproductive-age women (25-45 years).",
+  "pathophysiology": "Pseudocyst formed by invagination and cyclic bleeding of ectopic endometrial tissue within the ovarian cortex, resulting in accumulated thick hemolyzed blood (chocolate fluid).",
+  "classic_ultrasound_features": {
+    "feature_1": "Homogeneous ground-glass internal echoes (diffuse low-level echogenicity throughout the cavity).",
+    "feature_2": "Unilocular or bilocular cyst with smooth thin wall (≤ 3 mm).",
+    "feature_3": "Wall echogenic foci / cholesterol deposits in the cyst wall (hyperechoic punctate foci without shadowing).",
+    "feature_4": "Kissing Ovaries Sign: Bilateral endometriomas adherent to each other behind the uterus in the pouch of Douglas, indicative of severe deep infiltrating endometriosis."
+  },
+  "doppler_characteristics": "Avascular cavity (Color Score 1). Mild peripheral wall flow may be seen, but internal flow is absent in typical benign endometriomas.",
+  "orads_category": "O-RADS 2 (Risk < 1% for classic unilocular endometrioma < 10 cm in premenopausal women). O-RADS 3 if ≥ 10 cm.",
+  "malignant_transformation_risk": "0.5% - 1.0% risk of transformation into Clear Cell Carcinoma or Endometrioid Carcinoma, typically heralded by development of vascularized mural papillary projections or rapid size increase in women > 45 years.",
+  "differential_diagnosis": [
+    "Hemorrhagic corpus luteum (distinguished by lacy reticular strands and spontaneous resolution within 6-8 weeks).",
+    "Mucinous cystadenoma (larger, multilocular with heterogeneous locules).",
+    "Pelvic abscess / Tubo-ovarian abscess (thickened irregular wall, fluid-debris level, hypervascularity on Doppler, positive sliding sign pain/tenderness)."
+  ],
+  "management": "Conservative medical therapy (oral contraceptives, dienogest) or laparoscopic cystectomy if symptomatic (dysmenorrhea, infertility, pelvic pain) or diameter > 4-5 cm.",
+  "evidence_source": "SRC-ACR-ORADS-US-2022",
+  "evidence_level": "Tier-1 Validated Clinical Knowledge",
+  "confidence": "high"
+}

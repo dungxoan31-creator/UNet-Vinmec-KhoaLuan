@@ -1,0 +1,494 @@
+/* ==========================================================================
+           13. VINMEC OFFICIAL MEDICAL DIAGNOSIS REPORT SHEET (A4 1:1 PHYSICALLY SCALED)
+           ========================================================================== */
+        .report-output-workspace {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0 40px 0;
+            width: 100%;
+        }
+
+        .report-output-toolbar {
+            width: 210mm;
+            max-width: 100%;
+            background: linear-gradient(135deg, var(--vm-blue-start) 0%, var(--vm-blue-end) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-lg);
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: var(--shadow-header);
+        }
+
+        .report-toolbar-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .report-toolbar-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .report-toolbar-subtitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.88);
+            font-weight: 500;
+        }
+
+        .report-toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .report-sheet-wrapper {
+            width: 210mm;
+            height: 297mm;
+            position: relative;
+            background: var(--vm-card-white);
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0, 104, 171, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .report-sheet {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 467px;
+            height: 661px;
+            transform-origin: top left;
+            transform: scale(1.6995734);
+            background: #ffffff;
+            overflow: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--vm-text-dark);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* REPORT HEADER */
+        .logo-box {
+            position: absolute;
+            left: 26px;
+            top: 16px;
+            width: 68px;
+            height: auto;
+        }
+
+        .logo-img, .logo-svg {
+            width: 64px;
+            height: auto;
+            display: block;
+        }
+
+        .hosp-info {
+            position: absolute;
+            left: 104px;
+            top: 16px;
+            width: 342px;
+            text-align: center;
+        }
+
+        .hosp-name {
+            font-size: 8.6px;
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            line-height: 1.15;
+            letter-spacing: -0.1px;
+            text-transform: uppercase;
+        }
+
+        .dept-name {
+            font-size: 8.2px;
+            font-weight: 700;
+            color: var(--vm-blue-start);
+            line-height: 1.15;
+            margin-top: 2.5px;
+            margin-bottom: 2px;
+        }
+
+        .hosp-addr {
+            font-size: 5.6px;
+            color: var(--vm-text-muted);
+            line-height: 1.2;
+            margin-top: 1px;
+        }
+
+        .hosp-tel {
+            font-size: 5.3px;
+            color: var(--vm-text-muted);
+            line-height: 1.2;
+            white-space: nowrap;
+            margin-top: 1.5px;
+        }
+
+        /* REPORT TITLE */
+        .report-title {
+            position: absolute;
+            left: 0;
+            width: 467px;
+            top: 67px;
+            text-align: center;
+            font-size: 12.5px;
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            letter-spacing: 0.3px;
+        }
+
+        /* REPORT PATIENT TABLE */
+        .pt-table {
+            position: absolute;
+            left: 24px;
+            top: 86px;
+            border-collapse: collapse;
+            font-size: 7.1px;
+            line-height: 1.15;
+            width: 421px;
+        }
+
+        .pt-table tr {
+            height: 10px;
+            line-height: 10px;
+        }
+
+        .pt-table td {
+            padding: 0;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .pt-table .lbl {
+            color: var(--vm-text-muted);
+            font-weight: 500;
+        }
+
+        .pt-table .val {
+            font-weight: 700;
+            color: var(--vm-text-dark);
+        }
+
+        .col-lbl1 { width: 84px; }
+        .col-val1 { width: 172px; }
+        .col-lbl2 { width: 42px; }
+        .col-val2 { width: auto; }
+
+        /* EXAM 3-COLS */
+        .exam-area {
+            position: absolute;
+            left: 24px;
+            top: 160px;
+            width: 421px;
+            font-size: 7.1px;
+        }
+
+        .exam-hdr {
+            display: flex;
+            line-height: 9px;
+            color: var(--vm-text-muted);
+        }
+
+        .exam-val {
+            display: flex;
+            line-height: 9px;
+            margin-top: 1px;
+            color: var(--vm-text-dark);
+            font-weight: 700;
+        }
+
+        .ec1 { width: 210px; padding-right: 4px; }
+        .ec2 { width: 105px; }
+        .ec3 { width: auto; }
+
+        /* CLINICAL DIAGNOSIS */
+        .cd-area {
+            position: absolute;
+            left: 24px;
+            top: 192px;
+            width: 421px;
+            font-size: 7.1px;
+            line-height: 9px;
+        }
+
+        .cd-h {
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            margin-bottom: 1.5px;
+        }
+
+        .cd-p {
+            color: #334155;
+        }
+
+        /* TECHNIQUE */
+        .tech-area {
+            position: absolute;
+            left: 24px;
+            top: 216px;
+            width: 421px;
+            font-size: 7.1px;
+            line-height: 9px;
+        }
+
+        .tech-h {
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            margin-bottom: 1.5px;
+        }
+
+        .tech-p {
+            color: #334155;
+        }
+
+        /* DESCRIPTION (SPECIALIZED OVARIAN ONLY) */
+        .desc-area {
+            position: absolute;
+            left: 24px;
+            top: 248px;
+            width: 421px;
+            font-size: 6.9px;
+            line-height: 8.8px;
+        }
+
+        .desc-h {
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            margin-bottom: 1px;
+        }
+
+        .desc-area .sub-h {
+            font-weight: 700;
+            color: var(--vm-primary-blue);
+            margin-top: 1.5px;
+            margin-bottom: 1px;
+        }
+
+        .desc-p {
+            color: #334155;
+            line-height: 8.8px;
+            margin-bottom: 1px;
+        }
+
+        /* CONCLUSION */
+        .conc-area {
+            position: absolute;
+            left: 24px;
+            top: 384px;
+            width: 425px;
+            font-size: 6.8px;
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            line-height: 9.5px;
+        }
+
+        .conc-h {
+            margin-bottom: 1px;
+        }
+
+        .conc-l1, .conc-l2 {
+            white-space: nowrap;
+            letter-spacing: -0.12px;
+        }
+
+        .conc-l1 {
+            margin-bottom: 1px;
+            color: #b91c1c;
+        }
+
+        /* DOCTOR STAMP */
+        .doc-title {
+            position: absolute;
+            left: 290px;
+            top: 428px;
+            width: 95px;
+            text-align: center;
+            font-size: 7.2px;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .doc-name {
+            position: absolute;
+            left: 285px;
+            top: 476px;
+            width: 105px;
+            text-align: center;
+            font-size: 7.5px;
+            font-weight: 800;
+            color: var(--vm-blue-end);
+            z-index: 10;
+        }
+
+        /* REPORT FOOTER */
+        .report-sheet .footer {
+            position: absolute;
+            left: 24px;
+            right: 24px;
+            bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 5.6px;
+            color: var(--vm-text-dim);
+            border-top: 1px solid #f1f5f9;
+            padding-top: 4px;
+        }
+
+        /* LIVE DATA EDITOR MODAL */
+        .editor-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .editor-modal.active {
+            display: flex;
+        }
+
+        .editor-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 860px;
+            max-height: 90vh;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 25px 50px -12px rgba(0, 104, 171, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--vm-border);
+        }
+
+        .editor-card-header {
+            padding: 16px 24px;
+            background: linear-gradient(135deg, var(--vm-blue-start) 0%, var(--vm-blue-end) 100%);
+            color: #ffffff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-card-header h3 {
+            font-size: 15px;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 0.3px;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: #ffffff;
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .editor-card-body {
+            padding: 20px 24px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            font-size: 13px;
+            background: var(--vm-bg-gray);
+        }
+
+        .editor-card-footer {
+            padding: 14px 24px;
+            background: #ffffff;
+            border-top: 1px solid var(--vm-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0mm;
+            }
+
+            body, html {
+                background: #ffffff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+            }
+
+            .top-emergency-ribbon,
+            header.main-header,
+            .clinical-stepper-bar,
+            .report-output-toolbar,
+            .editor-modal,
+            footer.main-footer,
+            .nav-item-btn,
+            .header-actions,
+            .mobile-drawer-overlay {
+                display: none !important;
+            }
+
+            main.app-main {
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                display: block !important;
+            }
+
+            .screen-container {
+                display: none !important;
+            }
+
+            #screenReportComplete {
+                display: flex !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                align-items: flex-start !important;
+                justify-content: flex-start !important;
+            }
+
+            .report-output-workspace {
+                padding: 0 !important;
+                margin: 0 !important;
+                align-items: flex-start !important;
+            }
+
+            .report-sheet-wrapper {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                page-break-after: avoid !important;
+                page-break-inside: avoid !important;
+            }
+        }

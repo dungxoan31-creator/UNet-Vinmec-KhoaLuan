@@ -1,0 +1,45 @@
+# Core Deep Learning & Computer Vision
+torch>=2.1.0
+torchvision>=0.16.0
+monai>=1.3.0
+opencv-python>=4.8.0
+scikit-image>=0.22.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
+numpy>=1.26.0
+albumentations>=1.4.0
+
+# Medical Imaging & DICOM
+pydicom>=2.4.0
+simpleitk>=2.3.0
+nibabel>=5.2.0
+
+# Web Backend & Application API
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-multipart>=0.0.9
+starlette>=0.36.0
+
+# Database & Persistence
+SQLAlchemy>=2.0.0
+alembic>=1.13.0
+
+# Security & Authentication
+PyJWT>=2.8.0
+cryptography>=42.0.0
+
+# Medical Reporting & Documentation
+reportlab>=4.1.0
+pillow>=10.2.0
+
+# Knowledge Base & NLP
+qdrant-client>=1.8.0
+httpx>=0.27.0
+Jinja2>=3.1.0
+
+# Testing & Quality Assurance
+ruff>=0.3.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

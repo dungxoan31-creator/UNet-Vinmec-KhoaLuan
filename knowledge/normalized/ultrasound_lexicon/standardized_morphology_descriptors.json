@@ -1,0 +1,62 @@
+{
+  "domain": "Ultrasound_Lexicon",
+  "topic": "Standardized Morphology and Sonographic Descriptors",
+  "version": "v1.2-2026",
+  "sources": [
+    "SRC-IOTA-CONSENSUS-2026",
+    "SRC-ACR-ORADS-US-2022"
+  ],
+  "descriptors": [
+    {
+      "descriptor_id": "DESC-001",
+      "category": "Cyst Fluid Echogenicity",
+      "values": [
+        {"name": "Anechoic", "definition": "Completely black fluid without internal echoes; sound transmission is enhanced posterior to fluid (typical simple cyst)."},
+        {"name": "Low-level / Ground-glass", "definition": "Homogeneous fine particulate internal echoes throughout the cyst cavity without acoustic streaming (pathognomonic of endometrioma)."},
+        {"name": "Hemorrhagic / Lacy reticular", "definition": "Internal fine fibrinous strands creating a web/fishnet meshwork with non-vascular retracting clot (typical corpus luteum hemorrhage)."},
+        {"name": "Mixed / Hyperechoic components", "definition": "Heterogeneous fluid with floating echogenic lines and dots (dermoid mesh) or fluid-fluid interface (typical mature cystic teratoma)."},
+        {"name": "Mucinous / Low-level heterogeneous", "definition": "Dependent fine echoes or multilocular honey-comb appearance (typical mucinous cystadenoma)."}
+      ]
+    },
+    {
+      "descriptor_id": "DESC-002",
+      "category": "Internal Septations",
+      "values": [
+        {"name": "No septa", "definition": "Cyst is strictly unilocular."},
+        {"name": "Thin smooth septum", "definition": "Complete septum crossing cavity with thickness < 3 mm and smooth margins."},
+        {"name": "Thick or irregular septum", "definition": "Complete septum with thickness ≥ 3 mm or nodular irregular contours."},
+        {"name": "Incomplete septum", "definition": "Septum arising from one wall that does not reach the opposite wall (Cogwheel sign / waist sign in hydrosalpinx)."}
+      ]
+    },
+    {
+      "descriptor_id": "DESC-003",
+      "category": "Solid Component & Papillary Projections",
+      "values": [
+        {"name": "None", "definition": "No parenchymal solid tissue present inside or on the wall of the cyst."},
+        {"name": "Small solid component", "definition": "Solid tissue with largest diameter < 7 mm (IOTA Rule B2)."},
+        {"name": "Papillary projection 1-3", "definition": "1 to 3 solid projections with height ≥ 3 mm arising from the wall/septum."},
+        {"name": "Papillary projections ≥ 4", "definition": "4 or more discrete papillary projections (IOTA Rule M3)."},
+        {"name": "Predominantly solid mass", "definition": "Solid component comprises ≥ 80% of the entire lesion."}
+      ]
+    },
+    {
+      "descriptor_id": "DESC-004",
+      "category": "Posterior Acoustic Features",
+      "values": [
+        {"name": "Acoustic enhancement", "definition": "Increased brightness distal to fluid-filled structures due to low ultrasound attenuation."},
+        {"name": "Acoustic shadowing", "definition": "Bands of reduced echo distal to sound-attenuating structures (calcifications, dense collagen/fibrous tissue, sebaceous plugs). Strongly indicates benignity."},
+        {"name": "No posterior acoustic change", "definition": "Equal sound transmission through the lesion compared to surrounding stroma."}
+      ]
+    },
+    {
+      "descriptor_id": "DESC-005",
+      "category": "Color Doppler Vascularity",
+      "values": [
+        {"score": 1, "name": "Avascular", "definition": "No color Doppler signal detectable inside the mass or on the cyst wall."},
+        {"score": 2, "name": "Minimal flow", "definition": "Only 1-2 small color pixels or subtle vessel segments visible with PRF 0.3-0.6 kHz."},
+        {"score": 3, "name": "Moderate flow", "definition": "Definite vessel branches with pulsatile flow visible in septa or solid areas."},
+        {"score": 4, "name": "Strong / Chaotic flow", "definition": "Extensive chaotic vascular network with low-resistance neo-angiogenesis signals."}
+      ]
+    }
+  ]
+}

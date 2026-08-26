@@ -1,0 +1,78 @@
+{
+  "domain": "O-RADS_US",
+  "topic": "ACR O-RADS Ultrasound Risk Stratification System",
+  "version": "v2022",
+  "source_reference": "SRC-ACR-ORADS-US-2022",
+  "categories": [
+    {
+      "category_id": "ORADS-0",
+      "name": "O-RADS 0: Incomplete Evaluation",
+      "risk_of_malignancy": "N/A",
+      "criteria": "Examination technically compromised due to severe bowel gas, morbid obesity, non-cooperation, or mass exceeding transvaginal field of view.",
+      "management_premenopausal": "Repeat ultrasound or perform pelvic MRI / transabdominal ultrasound with full bladder.",
+      "management_postmenopausal": "Repeat ultrasound or perform pelvic MRI."
+    },
+    {
+      "category_id": "ORADS-1",
+      "name": "O-RADS 1: Normal Ovary",
+      "risk_of_malignancy": "0% (Physiological)",
+      "criteria": "Normal ovarian stroma with physiological simple follicle ≤ 30 mm or physiological corpus luteum ≤ 30 mm in premenopausal women.",
+      "management_premenopausal": "No follow-up required (Normal physiological finding).",
+      "management_postmenopausal": "Not applicable (Postmenopausal ovaries should not contain active follicles)."
+    },
+    {
+      "category_id": "ORADS-2",
+      "name": "O-RADS 2: Almost Certainly Benign",
+      "risk_of_malignancy": "< 1%",
+      "subtypes": [
+        {"name": "Simple cyst", "criteria": "Smooth thin wall, anechoic, no internal echoes/septa/solid tissue, ≤ 10 cm in premenopausal or ≤ 5 cm in postmenopausal women."},
+        {"name": "Bilocular cyst", "criteria": "Single thin smooth septum, no solid component, < 10 cm."},
+        {"name": "Classic Dermoid / Mature Teratoma", "criteria": "Echogenic focal nodule with acoustic shadowing (Rokitansky nodule), dermoid mesh (echogenic lines/dots), or fat-fluid level, < 10 cm, no vascularized solid tissue."},
+        {"name": "Classic Endometrioma", "criteria": "Homogeneous low-level ground-glass echoes, no vascularized solid component, < 10 cm."},
+        {"name": "Classic Hemorrhagic Cyst", "criteria": "Reticular lacy fishnet pattern or retracting non-vascularized clot, smooth wall, < 10 cm (premenopausal)."},
+        {"name": "Simple Paratubal / Inclusion Cyst", "criteria": "Smooth thin-walled anechoic cyst separate from the ovary, any size."}
+      ],
+      "management_premenopausal": "No follow-up for simple cysts ≤ 5 cm; follow-up ultrasound in 6-12 months for 5-10 cm simple cysts or classic benign lesions.",
+      "management_postmenopausal": "No follow-up for simple cysts ≤ 3 cm; follow-up ultrasound in 1 year for 3-5 cm cysts; pelvic MRI or gynecologist consult if > 5 cm."
+    },
+    {
+      "category_id": "ORADS-3",
+      "name": "O-RADS 3: Low Risk of Malignancy",
+      "risk_of_malignancy": "1% to < 10%",
+      "subtypes": [
+        {"name": "Large Simple Cyst", "criteria": "Simple cyst > 10 cm in premenopausal or 5-10 cm in postmenopausal women."},
+        {"name": "Multilocular Cyst < 10 cm", "criteria": "Smooth inner walls/septa, no solid components, Color Score 1-3."},
+        {"name": "Atypical Dermoid / Endometrioma / Hemorrhagic Cyst", "criteria": "Mass ≥ 10 cm without internal vascularized solid component."},
+        {"name": "Solid Mass with Smooth Contour and Shadowing", "criteria": "Any size solid lesion with smooth contour demonstrating distinct acoustic shadowing, Color Score 1-2 (Typical fibroma/thecoma/Brenner tumor)."}
+      ],
+      "management_premenopausal": "Management by general gynecologist. Ultrasound follow-up in 3-6 months or surgical excision depending on symptoms.",
+      "management_postmenopausal": "Management by gynecologist. Pelvic MRI or surgical consult."
+    },
+    {
+      "category_id": "ORADS-4",
+      "name": "O-RADS 4: Intermediate Risk of Malignancy",
+      "risk_of_malignancy": "10% to < 50%",
+      "subtypes": [
+        {"name": "Multilocular Cyst ≥ 10 cm", "criteria": "Smooth inner walls and septa without solid components, but largest diameter ≥ 10 cm."},
+        {"name": "Multilocular Cyst with Irregular Wall", "criteria": "Irregular septa or wall thickening < 3 mm, Color Score 1-3."},
+        {"name": "Unilocular or Multilocular Cyst with Solid Component", "criteria": "Cyst with 1-3 papillary projections (height ≥ 3 mm) or non-shadowing solid component, Color Score 1-2."},
+        {"name": "Solid Mass without Shadowing", "criteria": "Smooth contour solid mass without shadowing, Color Score 1-2."}
+      ],
+      "management_premenopausal": "Referral to Gynecologic Oncologist or consultation with specialized Gynecologist. Pelvic MRI with contrast recommended for characterization.",
+      "management_postmenopausal": "Referral to Gynecologic Oncologist. Pelvic MRI with contrast strongly recommended."
+    },
+    {
+      "category_id": "ORADS-5",
+      "name": "O-RADS 5: High Risk of Malignancy",
+      "risk_of_malignancy": "≥ 50%",
+      "subtypes": [
+        {"name": "Solid Mass with Irregular Contour", "criteria": "Solid mass with irregular/lobulated contour and Color Score 1-4."},
+        {"name": "Solid Mass with Abundant Blood Flow", "criteria": "Solid mass with Color Score 4 (chaotic strong vascularity), regardless of contour."},
+        {"name": "Multilocular-Solid with High Papillary Count", "criteria": "Multilocular cyst with ≥ 4 papillary projections or extensive solid tissue, Color Score 3-4."},
+        {"name": "Presence of Ascites or Peritoneal Nodules", "criteria": "Any adnexal mass with ascites (fluid outside pelvis) or nodular peritoneal carcinomatosis."}
+      ],
+      "management_premenopausal": "Immediate referral to Gynecologic Oncologist for staging and multidisciplinary surgical planning.",
+      "management_postmenopausal": "Immediate referral to Gynecologic Oncologist for surgical oncological intervention."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+/* ==========================================================================
+   VINMEC OVARIAN ULTRASOUND AI SYSTEM - MASTER STYLESHEET
+   Aggregates all modular stylesheets for design system, layout, components,
+   HITL workstation viewer, admin governance, and printable reports.
+   ========================================================================== */
+
+@import url('theme.css');
+@import url('layout.css');
+@import url('components.css');
+@import url('viewer.css');
+@import url('admin.css');
+@import url('report.css');

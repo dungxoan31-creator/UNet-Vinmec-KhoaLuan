@@ -1,0 +1,26 @@
+[project]
+name = "ovarian-ultrasound-ai"
+version = "1.2.0"
+description = "Ovarian Ultrasound AI Decision Support System"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "B008",  # Do not perform function call `Depends` in argument defaults (FastAPI standard)
+    "E501",  # Line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]

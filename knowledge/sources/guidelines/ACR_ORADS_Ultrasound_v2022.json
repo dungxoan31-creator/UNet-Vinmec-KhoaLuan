@@ -1,0 +1,42 @@
+{
+  "source_id": "SRC-ACR-ORADS-US-2022",
+  "title": "O-RADS US v2022: An Update of the American College of Radiology Ovarian-Adnexal Reporting and Data System Ultrasound Risk Stratification and Management System",
+  "organization": "American College of Radiology (ACR)",
+  "authors": [
+    "Rochelle F. Andreotti",
+    "Dirk Timmerman",
+    "Douglas L. Brown",
+    "Wouter Froyman",
+    "Beryl R. Benacerraf",
+    "Arthur C. Fleischer",
+    "Evis Sala",
+    "Caroline Reinhold"
+  ],
+  "publication_journal": "Radiology",
+  "publication_year": 2022,
+  "volume": "304",
+  "issue": "1",
+  "pages": "1-12",
+  "doi": "10.1148/radiol.2022212952",
+  "source_type": "Clinical Practice Guideline",
+  "evidence_level": "Tier-1 Clinical Guideline & Multidisciplinary Consensus",
+  "target_population": "Adult female patients (pre- and postmenopausal) presenting with asymptomatic or symptomatic ovarian/adnexal masses.",
+  "intended_use": "Standardizing sonographic lexicon, risk stratification into 6 categories (O-RADS 0 to 5), and directing patient triage and management recommendations.",
+  "key_updates_v2022": [
+    "Refined definitions for solid lesions with smooth contour and acoustic shadowing (favoring O-RADS 2/3).",
+    "Refined criteria for bilocular cysts with smooth thin walls (categorized as O-RADS 2 if < 10 cm without solid components).",
+    "Clarified ultrasound follow-up intervals for O-RADS 3 lesions in pre- and postmenopausal women.",
+    "Integrated MRI triage recommendation for indeterminate O-RADS 3/4 lesions with equivocal solid tissue components."
+  ],
+  "categories_summary": {
+    "O-RADS 0": {"name": "Incomplete Evaluation", "risk_of_malignancy_pct": null, "description": "Obscured by bowel gas, technical inadequacy, or large mass exceeding field of view."},
+    "O-RADS 1": {"name": "Normal Premenopausal Ovary", "risk_of_malignancy_pct": 0.0, "description": "Normal follicles ≤ 30 mm, physiological corpus luteum ≤ 30 mm."},
+    "O-RADS 2": {"name": "Almost Certainly Benign", "risk_of_malignancy_pct": "< 1%", "description": "Simple cyst ≤ 10 cm, classic unilocular endometrioma, dermoid cyst, or hemorrhagic cyst ≤ 10 cm without vascularized solid component."},
+    "O-RADS 3": {"name": "Low Risk of Malignancy", "risk_of_malignancy_pct": "1% to < 10%", "description": "Unilocular cyst > 10 cm, multilocular cyst < 10 cm with smooth inner wall, solid lesion with smooth contour and shadowing."},
+    "O-RADS 4": {"name": "Intermediate Risk of Malignancy", "risk_of_malignancy_pct": "10% to < 50%", "description": "Multilocular cyst ≥ 10 cm with smooth wall, multilocular cyst with irregular wall, cystic lesion with 1-3 papillary projections, solid mass without shadowing and Color Score 1-3."},
+    "O-RADS 5": {"name": "High Risk of Malignancy", "risk_of_malignancy_pct": "≥ 50%", "description": "Solid mass with Color Score 4, multilocular cyst with solid component/papillary projections ≥ 4, presence of ascites or peritoneal nodules."}
+  },
+  "retrieved_at": "2026-08-26T18:45:00Z",
+  "license_status": "Open Access / ACR Official Publication Metadata",
+  "audit_status": "VERIFIED_PRIMARY_SOURCE"
+}

@@ -1,0 +1,149 @@
+ĐỀ XUẤT Ý TƯỞNG KHÓA LUẬN TỐT NGHIỆP – Vòng 1
+Chuyên ngành: Hệ thống Thông tin Quản lý (MIS)
+A. THÔNG TIN SINH VIÊN
+Họ và tên
+Nguyễn Hữu Dũng
+Mã sinh viên / Lớp
+11235559 / HTTTQL 65A
+Chuyên ngành
+Hệ thống Thông tin Quản lý 
+Nơi thực tập hiện tại
+Vinsmart Future
+Vị trí thực tập / công việc
+PO (Product Owner)
+Định hướng nghề nghiệp chính
+ITBA / PO
+Lĩnh vực mong muốn phát triển qua KLTN
+Ứng dụng AI/ML, phân tích dữ liệu và xây dựng hệ thống hỗ trợ ra quyết định trong lĩnh vực y tế.
+Email / Số điện thoại
+dungxoan31@gmail.com / 0856532915
+Link hồ sơ / GitHub / Portfolio
+https://github.com/dungxoan31-creator
+B. TÌM VẤN ĐỀ TRƯỚC KHI CHỌN ĐỀ TÀI
+Nội dung
+Vấn đề 1
+Vấn đề 2
+Vấn đề 3
+Vấn đề cụ thể là gì?
+Quy trình đọc ảnh siêu âm phụ khoa thủ công có thể tốn thời gian khi số lượng ca tăng, do bác sĩ phải xem xét và đánh giá từng hình ảnh.
+Việc xác định và khoanh vùng ranh giới vùng nghi ngờ tổn thương (ví dụ nang/khối u buồng trứng) trên ảnh siêu âm có thể khó chuẩn hóa và phụ thuộc vào kinh nghiệm người đọc.
+Kết quả AI nếu chỉ thể hiện nhãn/dự đoán mà không có trực quan hóa vùng ảnh liên quan sẽ khó để bác sĩ kiểm tra và đánh giá; cần cơ chế bác sĩ review/xác nhận.
+Ai đang gặp vấn đề này?
+Bác sĩ chẩn đoán hình ảnh, Bác sĩ sản phụ khoa, Bệnh nhân chờ kết quả.
+Bác sĩ chẩn đoán hình ảnh, bác sĩ sản phụ khoa.
+Bác sĩ chẩn đoán hình ảnh, bác sĩ sản phụ khoa và người sử dụng kết quả AI.
+Hiện được xử lý thế nào? Bất cập chính?
+Bác sĩ soi từng ảnh bằng mắt thường -> Dễ bỏ sót tổn thương khi mệt mỏi, không có công cụ tự động sàng lọc sơ bộ. 
+Việc phân loại chủ yếu dựa trên đánh giá của chuyên gia. Nếu xây dựng được mô hình AI phù hợp, hệ thống có thể hỗ trợ sàng lọc và đưa ra kết quả phân loại để bác sĩ tham khảo.
+Một số mô hình có thể đưa ra nhãn dự đoán nhưng thiếu khả năng giải thích trực quan. Điều này làm giảm khả năng kiểm tra và đánh giá kết quả AI trong quá trình sử dụng.
+C. BA PHƯƠNG ÁN Ý TƯỞNG KLTN
+Nội dung
+Phương án A
+Phương án B
+Phương án C
+Vấn đề muốn giải quyết
+Thời gian đọc ảnh siêu âm phụ khoa thủ công kéo dài, gây quá tải khi số lượng bệnh nhân lớn
+Khó phát hiện, phân đoạn chính xác ranh giới vùng tổn thương (nang/khối u buồng trứng) do phụ thuộc kinh nghiệm chủ quan 
+Mô hình AI đóng vai trò "hộp đen", không chỉ ra căn cứ hình ảnh, khiến bác sĩ thiếu tin tưởng, chưa có cơ chế HITL 
+Bối cảnh/doanh nghiệp/lĩnh vực
+Khoa Chẩn đoán hình ảnh / Sản phụ khoa – Bệnh viện Đa khoa Quốc tế Vinmec Times City, nơi có khối lượng ca siêu âm phụ khoa lớn.
+Khoa Chẩn đoán hình ảnh / Sản phụ khoa – Bệnh viện Đa khoa Quốc tế Vinmec Times City, nơi có khối lượng ca siêu âm phụ khoa lớn.
+Khoa Chẩn đoán hình ảnh / Sản phụ khoa – Bệnh viện Đa khoa Quốc tế Vinmec Times City, nơi có khối lượng ca siêu âm phụ khoa lớn.
+Đối tượng/người sử dụng kết quả
+Bác sĩ chẩn đoán hình ảnh, bác sĩ sản phụ khoa (người dùng chính); bệnh nhân hưởng lợi gián tiếp qua thời gian chờ kết quả.
+Bác sĩ chẩn đoán hình ảnh, bác sĩ sản phụ khoa (người dùng chính); bệnh nhân hưởng lợi gián tiếp qua thời gian chờ kết quả.
+Bác sĩ chẩn đoán hình ảnh, bác sĩ sản phụ khoa (người dùng chính); bệnh nhân hưởng lợi gián tiếp qua thời gian chờ kết quả.
+Dữ liệu/thông tin cần có
+Ảnh siêu âm kèm nhãn mức độ bất thường/ưu tiên đọc (nếu có), hoặc tối thiểu nhãn bình thường/nghi ngờ bất thường.
+Ảnh siêu âm có khoanh vùng tổn thương (nhãn phân đoạn) được bác sĩ xác nhận.
+Kết quả dự đoán của mô hình AI ( và phản hồi đánh giá của bác sĩ đối với các kết quả đó.
+Nguồn dữ liệu dự kiến
+Ảnh siêu âm phụ khoa từ Vinmec Times City, quy mô dự kiến 100–200 bộ (đã ẩn danh).
+Ảnh siêu âm phụ khoa từ Vinmec Times City, quy mô dự kiến 100–200 bộ (đã ẩn danh).
+Ảnh siêu âm phụ khoa từ Vinmec Times City, quy mô dự kiến 100–200 bộ (đã ẩn danh), kèm phản hồi thu thập từ bác sĩ trong quá trình thử nghiệm.
+Giải pháp/phương pháp dự kiến
+Xây dựng mô hình phân loại sơ bộ để xếp hạng thứ tự ưu tiên đọc ảnh, tích hợp vào quy trình As-Is/To-Be.
+Xây dựng mô hình phân đoạn ảnh (segmentation) hỗ trợ khoanh vùng nghi ngờ tổn thương để bác sĩ tham khảo.
+Bổ sung cơ chế trực quan hóa căn cứ dự đoán (ví dụ overlay/heatmap vùng ảnh mô hình dựa vào) và quy trình Bác sĩ Review/Xác nhận trước khi lưu kết quả cuối (HITL).
+Sản phẩm cuối cùng
+Tài liệu, kèm sản phẩm đầu ra
+Tài liệu, kèm sản phẩm đầu ra.
+Tài liệu, kèm sản phẩm đầu ra
+Cách đánh giá kết quả
+So sánh thời gian/số bước xử lý trước–sau; Accuracy/Recall của mô hình phân loại.
+Chỉ số phân đoạn (IoU/Dice) so với vùng bác sĩ đã xác nhận; mức độ đồng thuận của bác sĩ với kết quả mô hình.
+Tỷ lệ bác sĩ đồng ý/chỉnh sửa kết quả AI; khảo sát mức độ tin tưởng (usability/user evaluation).
+Mức khả thi (Cao/TB/Thấp)
+Trung bình (phụ thuộc việc có đủ nhãn mức độ ưu tiên trong dữ liệu).
+Trung bình–Cao (cần đủ dữ liệu đã gán nhãn phân đoạn).
+Trung bình (phụ thuộc kết quả của Phương án B).
+Mức ưu tiên (1/2/3)
+2
+1
+1
+D. PHƯƠNG ÁN EM MUỐN ƯU TIÊN 
+(Em muốn kết hợp cả 3 phương án, vì mỗi phần đều bổ trợ cho nhau)
+1. Vì sao vấn đề này đáng để làm KLTN?
+Việc xác định và khoanh vùng vùng nghi ngờ tổn thương trên ảnh siêu âm phụ khoa là một công đoạn đòi hỏi bác sĩ phải quan sát và đánh giá hình ảnh một cách thủ công. Đề tài có ý nghĩa thực tiễn ở việc ứng dụng AI để hỗ trợ bác sĩ thực hiện công đoạn này, tạo ra vùng tổn thương được khoanh trực quan trên ảnh thay vì chỉ cung cấp một kết quả dự đoán. Đồng thời, bác sĩ có thể kiểm tra, chỉnh sửa và xác nhận kết quả AI trước khi sử dụng, giúp giải pháp phù hợp hơn với quy trình thực tế và vẫn đảm bảo bác sĩ là người đưa ra kết luận cuối cùng..
+2. Em có bằng chứng nào cho thấy vấn đề thực sự tồn tại?
+Khối lượng dữ liệu quá tải & Áp lực thời gian: Y tế hiện đại phát sinh khối lượng dữ liệu hình ảnh rất lớn và phức tạp; số lượng bệnh nhân tăng cao gây áp lực lớn lên y bác sĩ, dễ dẫn đến sai sót hoặc bỏ sót các chi tiết bất thường nhỏ nếu chỉ nhìn bằng mắt thường. 
+Thực trạng chẩn đoán thủ công: Bác sĩ mất nhiều thời gian phân tích thủ công từng hình ảnh, trong khi yêu cầu thực tế đòi hỏi phải tối ưu hóa quy trình làm việc và rút ngắn thời gian chẩn đoán.
+Xu hướng và giải pháp thực tế: Các bệnh viện lớn (như Bệnh viện Hữu Nghị Việt-Xô) đã triển khai ứng dụng AI vào chẩn đoán hình ảnh để tự động hóa khâu phân tích, phát hiện sớm tổn thương nhỏ và hỗ trợ bác sĩ đưa ra kết quả chính xác, nhanh chóng. 
+Nguồn : Ứng dụng AI trong chẩn đoán hình ảnh
+3. Dữ liệu hoặc thông tin em có thể tiếp cận
+☐ Đã có dữ liệu   ☐ Chưa có  
+Nguồn: Bệnh viện Đa khoa Quốc tế Vinmec Times City 
+Quy mô dự kiến: 100-200 bộ
+Được phép sử dụng trong KLTN?  ☒ Có   ☐ Chưa xác định   ☐ Không
+Cần ẩn danh dữ liệu?  ☒ Có   ☐ Không
+Nếu chưa có dữ liệu, dự định lấy ở đâu và khả năng lấy được: Không áp dụng – đã có nguồn dữ liệu dự kiến (xem mục trên).
+4. Sản phẩm/kết quả cuối cùng dự kiến
+☐ Prototype hệ thống   
+☒ Quy trình As-Is/To-Be   
+☐ DWH/Data Mart/Pipeline   
+☐ Dashboard/BI   
+☒ AI/ML   
+☒ Decision Support  
+☐ RPA/Automation   
+☒ SRS + prototype kiểm thử  
+☒ Khác: Sản phẩm thực tế (chạy trên Local)
+Mô tả ngắn:  Sản phẩm dự kiến gồm: (1) mô hình AI hỗ trợ phát hiện/phân đoạn vùng nghi ngờ tổn thương trên ảnh siêu âm phụ khoa; (2) giao diện cho bác sĩ xem kết quả AI kèm vùng ảnh minh họa căn cứ dự đoán và xác nhận/chỉnh sửa (HITL); (3) tài liệu SRS và sơ đồ quy trình As-Is/To-Be mô tả sự thay đổi trong quy trình đọc ảnh khi có hỗ trợ của AI.
+5. Em sẽ chứng minh giải pháp của mình “tốt” bằng cách nào?
+Chỉ tiêu dự kiến: Đánh giá mức độ cải thiện thông qua hai nhóm chỉ tiêu, không đặt ngưỡng số cụ thể ở giai đoạn này do chưa có dữ liệu benchmark: (1) chỉ số kỹ thuật của mô hình phân đoạn (IoU/Dice) so với vùng tổn thương do bác sĩ xác nhận; (2) mức độ chấp nhận của bác sĩ đối với kết quả AI kèm giải thích trực quan, đo qua tỷ lệ đồng ý/chỉnh sửa và khảo sát mức độ tin tưởng (usability/user evaluation) trước–sau khi áp dụng. Ngưỡng cụ thể sẽ được xác định sau khi có kết quả thử nghiệm sơ bộ trên tập dữ liệu thu thập được.
+E. TỰ ĐÁNH GIÁ TÍNH KHẢ THI
+Tiêu chí
+Điểm 1–5
+Ghi chú ngắn
+Em hiểu rõ vấn đề nghiệp vụ
+5
+Đã có trao đổi nghiệp vụ với bác sĩ Vinmec Times City; nội dung chi tiết cần tiếp tục xác nhận nếu cần.
+Có khả năng tiếp cận dữ liệu/thông tin cần thiết
+5
+Có khả năng tiếp cận/đã trao đổi về nguồn dữ liệu; 
+Kiến thức và kỹ năng hiện tại phù hợp
+3
+Có kinh nghiệm PO và đã có tiếp cận với việc train mô hình AI
+Có thể tạo sản phẩm thực tế trong thời gian KLTN
+4
+Tối ưu phạm vi ở dạng Web Application mô phỏng quy trình Capture-to-Report.
+Có phương pháp đánh giá kết quả rõ ràng
+5
+Có phương pháp đánh giá rõ cho segmentation (IoU/Dice) và đánh giá người dùng (bác sĩ đồng ý/chỉnh sửa, usability); cần xác nhận khả năng đánh giá với bác sĩ.
+Phù hợp định hướng nghề nghiệp
+5
+Phù hợp định hướng ITBA/PO và ứng dụng AI trong y tế.
+Tổng điểm: 27/30     
+Rủi ro lớn nhất: Khó triển khai và huấn luyện dữ liệu thực tế với các mô hình Vision-Language Models (VLM) do đòi hỏi hạ tầng phần cứng cao (GPU) và thiếu kinh nghiệm thực chiến sâu về việc fine-tune VLM trong mảng hình ảnh y khoa.
+Phương án dự phòng nếu rủi ro xảy ra:  Chuyển sang sử dụng các mô hình Deep Learning/Computer Vision mã nguồn mở phổ biến, nhẹ và đã chứng minh hiệu quả cao trong bài toán phân đoạn/phân loại ảnh y tế (như U-Net, YOLOv8, ResNet/EfficientNet) kết hợp với thuật toán tạo bản đồ nhiệt Grad-CAM để làm Explainable AI (XAI).
+F. MINH CHỨNG KÈM THEO
+GitHub/Personal project:  https://github.com/dungxoan31-creator
+Dashboard/Figma/Demo: ........................................   
+Dataset/Tài liệu nghiệp vụ khác: ........................................
+LƯU Ý KHI HOÀN THIỆN PHIẾU NÀY
+1. Bắt đầu từ một vấn đề thực tế, không bắt đầu từ “tên đề tài hay”.
+2. Ưu tiên vấn đề em đã trực tiếp quan sát/tham gia hoặc có khả năng tiếp cận người dùng, nghiệp vụ, dữ liệu thực tế.
+3. KLTN không nên chỉ dừng ở Use Case/UML, thiết kế CSDL/giao diện, dashboard từ dataset có sẵn, hoặc chạy một thuật toán AI/ML rồi báo cáo Accuracy.
+4. Một ý tưởng tốt cần trả lời được: Vấn đề gì? → Vì sao cần giải quyết? → Dữ liệu/thông tin nào? → Giải pháp gì? → Sản phẩm gì? → Đánh giá bằng cách nào?
+5. Viết ngắn gọn, cụ thể và trung thực về khả năng tiếp cận dữ liệu cũng như phạm vi có thể hoàn thành.
+Thời hạn gửi: trước 23h59 11/8/2026     Tên file: MSV_HoTen_DeXuatKLTN_Vong1     
+Hình thức gửi: Zalo + Email to haitt@neu.edu.vn

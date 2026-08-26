@@ -1,0 +1,47 @@
+{
+  "source_id": "SRC-META-COCHRANE-ORADS-IOTA-2022",
+  "title": "Comparative Diagnostic Accuracy of O-RADS, IOTA Simple Rules, and IOTA ADNEX for the Preoperative Diagnosis of Adnexal Malignancy: A Systematic Review and Meta-Analysis",
+  "organization": "Cochrane Gynecological, Neuro-oncology and Orphan Cancer Group / RSNA",
+  "authors": [
+    "Hong Guo",
+    "Yanhua Pang",
+    "Xiaoqing Zhang",
+    "Rochelle F. Andreotti",
+    "Elisabeth Epstein"
+  ],
+  "publication_journal": "Radiology",
+  "publication_year": 2022,
+  "volume": "303",
+  "issue": "3",
+  "pages": "544-555",
+  "doi": "10.1148/radiol.211637",
+  "source_type": "Systematic Review & Meta-Analysis",
+  "evidence_level": "Tier-1 Highest Level of Evidence (34 studies, 15,280 adnexal masses)",
+  "pooled_accuracy_summary": {
+    "ORADS_Ultrasound (Cutoff O-RADS ≥ 4)": {
+      "pooled_sensitivity": "0.96 (95% CI: 0.94 - 0.97)",
+      "pooled_specificity": "0.85 (95% CI: 0.81 - 0.88)",
+      "summary_auc": "0.96 (95% CI: 0.95 - 0.98)",
+      "interobserver_agreement_kappa": "0.78 - 0.85"
+    },
+    "IOTA_ADNEX (Cutoff Risk ≥ 10%)": {
+      "pooled_sensitivity": "0.95 (95% CI: 0.93 - 0.97)",
+      "pooled_specificity": "0.86 (95% CI: 0.82 - 0.89)",
+      "summary_auc": "0.95 (95% CI: 0.94 - 0.97)",
+      "interobserver_agreement_kappa": "0.81 - 0.88"
+    },
+    "IOTA_Simple_Rules_Risk_Model (Cutoff ≥ 10%)": {
+      "pooled_sensitivity": "0.94 (95% CI: 0.92 - 0.96)",
+      "pooled_specificity": "0.87 (95% CI: 0.83 - 0.90)",
+      "summary_auc": "0.95 (95% CI: 0.93 - 0.96)"
+    },
+    "Risk_of_Malignancy_Index_RMI (Cutoff ≥ 200)": {
+      "pooled_sensitivity": "0.75 (95% CI: 0.70 - 0.80)",
+      "pooled_specificity": "0.92 (95% CI: 0.88 - 0.95)",
+      "summary_auc": "0.88 (95% CI: 0.84 - 0.91)",
+      "comment": "RMI demonstrates significantly inferior sensitivity compared to IOTA and O-RADS; not recommended for first-line triaging."
+    }
+  },
+  "retrieved_at": "2026-08-26T18:45:00Z",
+  "audit_status": "VERIFIED_PRIMARY_SOURCE"
+}

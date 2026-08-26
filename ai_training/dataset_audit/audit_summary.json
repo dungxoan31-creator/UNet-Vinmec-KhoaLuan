@@ -1,0 +1,71 @@
+{
+    "OTU_2D_train": {
+        "total_images": 820,
+        "total_masks": 820,
+        "matched_pairs": 820,
+        "missing_masks_count": 0,
+        "missing_images_count": 0,
+        "empty_masks_count": 0,
+        "corrupted_count": 0,
+        "top_resolutions": [
+            "958x534 (15 imgs)",
+            "959x532 (11 imgs)",
+            "958x532 (11 imgs)",
+            "958x533 (11 imgs)",
+            "959x536 (10 imgs)"
+        ],
+        "unique_mask_values": {
+            "0": 820,
+            "255": 820
+        },
+        "min_aspect_ratio": 0.74,
+        "max_aspect_ratio": 2.062,
+        "mean_aspect_ratio": 1.416
+    },
+    "OTU_2D_test": {
+        "total_images": 382,
+        "total_masks": 382,
+        "matched_pairs": 382,
+        "missing_masks_count": 0,
+        "missing_images_count": 0,
+        "empty_masks_count": 0,
+        "corrupted_count": 0,
+        "top_resolutions": [
+            "959x535 (7 imgs)",
+            "958x534 (7 imgs)",
+            "958x533 (6 imgs)",
+            "958x535 (6 imgs)",
+            "480x535 (5 imgs)"
+        ],
+        "unique_mask_values": {
+            "0": 382,
+            "255": 382
+        },
+        "min_aspect_ratio": 0.724,
+        "max_aspect_ratio": 2.096,
+        "mean_aspect_ratio": 1.427
+    },
+    "OTU_CEUS": {
+        "total_images": 170,
+        "total_masks": 170,
+        "matched_pairs": 170,
+        "missing_masks_count": 0,
+        "missing_images_count": 0,
+        "empty_masks_count": 0,
+        "corrupted_count": 0,
+        "top_resolutions": [
+            "553x550 (3 imgs)",
+            "553x553 (3 imgs)",
+            "339x352 (2 imgs)",
+            "556x552 (2 imgs)",
+            "552x551 (2 imgs)"
+        ],
+        "unique_mask_values": {
+            "0": 170,
+            "255": 170
+        },
+        "min_aspect_ratio": 0.79,
+        "max_aspect_ratio": 2.058,
+        "mean_aspect_ratio": 1.027
+    }
+}
