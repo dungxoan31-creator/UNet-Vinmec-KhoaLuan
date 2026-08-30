@@ -5,54 +5,131 @@
 
 function initResultsWorkspace(data) {
     const meas = data.measurements || {};
-    const dmax = meas.max_diameter_mm || 0;
-    const dorth = meas.ortho_diameter_mm || 0;
-    const d3Default = meas.d3_mm || (dmax > 0 ? parseFloat(((dmax + dorth) / 2.0).toFixed(1)) : 0);
+    const dmax = typeof meas.max_diameter_mm === 'number' ? meas.max_diameter_mm.toFixed(1) : (meas.max_diameter_mm || "0.0");
+    const dorth = typeof meas.ortho_diameter_mm === 'number' ? meas.ortho_diameter_mm.toFixed(1) : (meas.ortho_diameter_mm || "0.0");
+    const dmaxNum = parseFloat(dmax) || 0;
+    const dorthNum = parseFloat(dorth) || 0;
+    const d3Default = meas.d3_mm ? (typeof meas.d3_mm === 'number' ? meas.d3_mm.toFixed(1) : meas.d3_mm) : (dmaxNum > 0 ? parseFloat(((dmaxNum + dorthNum) / 2.0).toFixed(1)) : "0.0");
+    const areaVal = typeof meas.total_area_cm2 === 'number' ? meas.total_area_cm2.toFixed(2) : (meas.total_area_cm2 || "0.00");
 
     document.getElementById('resDmax').innerText = `${dmax} mm`;
     document.getElementById('resDorth').innerText = `${dorth} mm`;
     document.getElementById('inputD3').value = d3Default;
-    document.getElementById('resArea').innerText = `${meas.total_area_cm2 || 0} cm²`;
+    document.getElementById('resArea').innerText = `${areaVal} cm²`;
     
-    currentCase.d3_mm = d3Default;
+    currentCase.d3_mm = parseFloat(d3Default) || 0;
     recalculateVolume();
 
-    // Display AI Confidence
+    // Display AI Confidence & Quality Gate
     const badgeConf = document.getElementById('badgeConfidence');
+    const isQualityPassed = data.quality_gate ? data.quality_gate.passed : (data.confidence_score >= 0.70);
+    
     if (badgeConf) {
-        badgeConf.innerText = `Độ tin cậy của AI: ${(data.confidence_score * 100).toFixed(1)}%`;
+        badgeConf.innerText = `Độ tin cậy AI: ${(data.confidence_score * 100).toFixed(1)}%`;
+        if (!isQualityPassed) {
+            badgeConf.style.background = '#fef2f2';
+            badgeConf.style.color = '#dc2626';
+            badgeConf.style.border = '1px solid #fecaca';
+        } else {
+            badgeConf.style.background = '#e0f2fe';
+            badgeConf.style.color = '#0369a1';
+            badgeConf.style.border = '1px solid #bae6fd';
+        }
     }
 
-    // Display Uncertainty & OOD Alert
-    if (data.uncertainty) {
-        const uncertEl = document.getElementById('hudUncertaintyBadge');
-        if (uncertEl) {
-            uncertEl.innerText = `Bất định: ${data.uncertainty.uncertainty_level} (Entropy: ${data.uncertainty.entropy_score})`;
+    // Display Uncertainty & Quality Gate Clinical Alert
+    const uncertEl = document.getElementById('hudUncertaintyBadge');
+    if (uncertEl) {
+        if (data.quality_gate && !data.quality_gate.passed) {
+            const failReason = (data.confidence_score < 0.70) ? '< 70%' : 'Bất định';
+            uncertEl.innerText = `Quality Gate: ${failReason}`;
+            uncertEl.style.background = '#fef2f2';
+            uncertEl.style.color = '#991b1b';
+            uncertEl.style.border = '1px solid #fecaca';
+            uncertEl.style.display = 'inline-block';
+        } else if (data.uncertainty) {
+            uncertEl.innerText = `Bất định: ${data.uncertainty.uncertainty_level}`;
+            uncertEl.style.background = '#fef3c7';
+            uncertEl.style.color = '#92400e';
+            uncertEl.style.border = '1px solid #fde68a';
             uncertEl.style.display = 'inline-block';
         }
-        const alertEl = document.getElementById('clinicalUncertaintyAlert');
-        if (alertEl) {
+    }
+
+    const alertEl = document.getElementById('clinicalUncertaintyAlert');
+    if (alertEl) {
+        if (data.quality_gate && !data.quality_gate.passed) {
+            alertEl.innerHTML = `<strong>⚠️ Chú ý Quality Gate:</strong> ${data.quality_gate.alert}`;
+            alertEl.style.display = 'block';
+            alertEl.style.background = '#fef2f2';
+            alertEl.style.borderLeftColor = '#ef4444';
+            alertEl.style.color = '#991b1b';
+        } else if (data.uncertainty && data.uncertainty.is_uncertain) {
             alertEl.innerHTML = `<strong>⚠️ Lưu ý Bác sĩ:</strong> ${data.uncertainty.clinical_alert}`;
-            alertEl.style.display = data.uncertainty.is_uncertain ? 'block' : 'none';
+            alertEl.style.display = 'block';
+            alertEl.style.background = '#fff7ed';
+            alertEl.style.borderLeftColor = '#f97316';
+            alertEl.style.color = '#9a3412';
+        } else {
+            alertEl.style.display = 'none';
         }
     }
 
-    // Display Model Provenance
+    // Display Model Provenance (Compact string to avoid line breaking)
     if (data.provenance) {
         const provEl = document.getElementById('hudProvenanceTag');
         if (provEl) {
             const shortSum = data.provenance.model_checksum ? data.provenance.model_checksum.substring(0, 8) : 'v1.2';
-            provEl.innerText = `${data.provenance.model_name} (${data.provenance.model_version} • SHA: ${shortSum})`;
+            provEl.innerText = `Attention U-Net • ${shortSum}`;
         }
     }
 
-    // Setup pathology recommendation
-    if (meas.total_lesions === 0) {
-        document.getElementById('selectPathology').value = "Buồng trứng bình thường (Normal Control)";
+    // Dynamic AI Pathology Recommendation & Acoustic Profile
+    const cdss = data.cdss_classification || {};
+    const acoustic = data.acoustic_profile || {};
+    const selectElem = document.getElementById('selectPathology');
+    const aiTextElem = document.getElementById('aiSuggestedPathologyText');
+    const acousticBadge = document.getElementById('aiAcousticPatternBadge');
+
+    let suggestedPathology = cdss.primary_suspicion || (meas.total_lesions === 0 ? "Buồng trứng bình thường (Normal Control)" : "U nang thanh dịch buồng trứng (Simple Serous Cyst)");
+    
+    if (aiTextElem) {
+        if (!isQualityPassed) {
+            aiTextElem.innerHTML = `<span style="color: #dc2626; font-weight: 700;">[CHỜ DUYỆT] Bác sĩ cần thẩm định & chọn phân loại thủ công</span>`;
+        } else {
+            const confPct = Math.round((cdss.confidence_score || data.confidence_score || 0.9) * 100);
+            const oradsTag = cdss.orads_category ? `[${cdss.orads_category}]` : '';
+            aiTextElem.innerText = `${oradsTag} ${suggestedPathology} (${confPct}% tin cậy)`;
+        }
+    }
+
+    if (acousticBadge) {
+        acousticBadge.innerText = acoustic.echogenicity_label ? acoustic.echogenicity_label.split('(')[0].trim() : (meas.total_lesions === 0 ? 'Bình thường' : 'Dịch trong');
+    }
+
+    // Dropdown pathology selection
+    if (selectElem) {
+        if (!isQualityPassed) {
+            selectElem.value = "U nang thanh dịch buồng trứng (Simple Serous Cyst)";
+        } else if (meas.total_lesions === 0 || (suggestedPathology && suggestedPathology.includes('bình thường'))) {
+            selectElem.value = "Buồng trứng bình thường (Normal Control)";
+        } else if (suggestedPathology.includes('lạc nội mạc') || suggestedPathology.includes('Endometrioma')) {
+            selectElem.value = "U lạc nội mạc tử cung (Endometrioma / Chocolate Cyst)";
+        } else if (suggestedPathology.includes('bì') || suggestedPathology.includes('quái') || suggestedPathology.includes('Dermoid')) {
+            selectElem.value = "U bì buồng trứng / U quái (Dermoid Cyst / Teratoma)";
+        } else if (suggestedPathology.includes('nhầy') || suggestedPathology.includes('Mucinous')) {
+            selectElem.value = "U nang nhầy buồng trứng (Mucinous Cystadenoma)";
+        } else if (suggestedPathology.includes('đặc') || suggestedPathology.includes('Solid') || suggestedPathology.includes('ác tính')) {
+            selectElem.value = "Khối u buồng trứng nghi ngờ / Khối đặc (Suspicious Solid Mass)";
+        } else if (suggestedPathology.includes('xuất huyết')) {
+            selectElem.value = "Nang xuất huyết buồng trứng (Hemorrhagic Cyst)";
+        } else {
+            selectElem.value = "U nang thanh dịch buồng trứng (Simple Serous Cyst)";
+        }
     }
 
     // Update O-RADS indicator
-    updateOradsIndicator(document.getElementById('selectPathology').value);
+    updateOradsIndicator(selectElem ? selectElem.value : suggestedPathology);
     resetZoomCanvas();
     setCanvasViewMode(currentViewMode);
 
@@ -62,13 +139,18 @@ function initResultsWorkspace(data) {
     }
 
     // Load Background & Mask
-    bgImage.onload = () => {
+    const onBgImageLoaded = () => {
         renderMaskFromRLE(data.rle_mask);
         saveCanvasHistory();
         redrawMainCanvas();
         saveLocalDraft();
     };
-    bgImage.src = data.original_image_base64;
+
+    bgImage.onload = onBgImageLoaded;
+    bgImage.src = data.original_image_base64 || (typeof currentCase !== 'undefined' && currentCase && (currentCase.original_image_base64 || currentCase.image_base64)) || '';
+    if (bgImage.complete && bgImage.naturalWidth > 0) {
+        onBgImageLoaded();
+    }
 }
 
 function setCanvasViewMode(mode) {
@@ -204,103 +286,143 @@ function renderMaskFromRLE(rle) {
         }
 
 function redrawMainCanvas() {
-            // 1. Redraw Single/Main Canvas
-            ctx.clearRect(0, 0, 512, 512);
+    // 1. Redraw Single/Main Canvas
+    ctx.clearRect(0, 0, 512, 512);
 
-            // 1.1 Draw base ultrasound image
-            if (bgImage.complete && bgImage.naturalWidth > 0) {
-                ctx.drawImage(bgImage, 0, 0, 512, 512);
-            }
-
-            // 1.2 Draw mask layer
-            if (currentViewMode === 'curtain') {
-                // Curtain clip on the right side of curtainSplitPercent
-                const splitPx = (curtainSplitPercent / 100.0) * 512;
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(splitPx, 0, 512 - splitPx, 512);
-                ctx.clip();
-
-                if (isMaskVisible) {
-                    ctx.globalAlpha = maskOpacity;
-                    ctx.drawImage(maskCanvas, 0, 0);
-                }
-                drawCalipersOnContext(ctx);
-                ctx.restore();
-
-                // Draw hairline on canvas
-                ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(splitPx, 0);
-                ctx.lineTo(splitPx, 512);
-                ctx.stroke();
-
-            } else {
-                if (isMaskVisible) {
-                    ctx.save();
-                    ctx.globalAlpha = maskOpacity;
-                    ctx.drawImage(maskCanvas, 0, 0);
-                    ctx.restore();
-                }
-                drawCalipersOnContext(ctx);
-            }
-
-            // 2. Split-Screen Mode Dual Rendering
-            const origCanvas = document.getElementById('originalCanvas');
-            const splitEditCanvas = document.getElementById('splitEditorCanvas');
-            if (origCanvas && splitEditCanvas && bgImage.complete) {
-                // Render Original clean viewport
-                const oCtx = origCanvas.getContext('2d');
-                oCtx.clearRect(0, 0, 512, 512);
-                oCtx.drawImage(bgImage, 0, 0, 512, 512);
-                drawCalipersOnContext(oCtx);
-
-                // Render AI & Doctor Mask edited viewport
-                const seCtx = splitEditCanvas.getContext('2d');
-                seCtx.clearRect(0, 0, 512, 512);
-                seCtx.drawImage(bgImage, 0, 0, 512, 512);
-                if (isMaskVisible) {
-                    seCtx.save();
-                    seCtx.globalAlpha = maskOpacity;
-                    seCtx.drawImage(maskCanvas, 0, 0);
-                    seCtx.restore();
-                }
-                drawCalipersOnContext(seCtx);
-            }
+    // 1.1 Draw base ultrasound image
+    if (bgImage && bgImage.src && (bgImage.naturalWidth > 0 || bgImage.complete)) {
+        try {
+            ctx.drawImage(bgImage, 0, 0, 512, 512);
+        } catch (e) {
+            console.error("Canvas drawImage notice:", e);
         }
+    }
+
+    // 1.2 Draw mask layer
+    if (currentViewMode === 'curtain') {
+        // Curtain clip on the right side of curtainSplitPercent
+        const splitPx = (curtainSplitPercent / 100.0) * 512;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(splitPx, 0, 512 - splitPx, 512);
+        ctx.clip();
+
+        if (isMaskVisible) {
+            ctx.globalAlpha = maskOpacity;
+            ctx.drawImage(maskCanvas, 0, 0);
+        }
+        drawCalipersOnContext(ctx);
+        ctx.restore();
+
+        // Draw hairline on canvas
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(splitPx, 0);
+        ctx.lineTo(splitPx, 512);
+        ctx.stroke();
+
+    } else {
+        if (isMaskVisible) {
+            ctx.save();
+            ctx.globalAlpha = maskOpacity;
+            ctx.drawImage(maskCanvas, 0, 0);
+            ctx.restore();
+        }
+        drawCalipersOnContext(ctx);
+    }
+
+    // 2. Split-Screen Mode Dual Rendering
+    const origCanvas = document.getElementById('originalCanvas');
+    const splitEditCanvas = document.getElementById('splitEditorCanvas');
+    if (origCanvas && splitEditCanvas && bgImage && bgImage.src) {
+        // Render Original clean viewport WITHOUT AI overlays or duplicate calipers
+        const oCtx = origCanvas.getContext('2d');
+        oCtx.clearRect(0, 0, 512, 512);
+        oCtx.drawImage(bgImage, 0, 0, 512, 512);
+
+        // Render AI & Doctor Mask edited viewport
+        const seCtx = splitEditCanvas.getContext('2d');
+        seCtx.clearRect(0, 0, 512, 512);
+        seCtx.drawImage(bgImage, 0, 0, 512, 512);
+        if (isMaskVisible) {
+            seCtx.save();
+            seCtx.globalAlpha = maskOpacity;
+            seCtx.drawImage(maskCanvas, 0, 0);
+            seCtx.restore();
+        }
+        drawCalipersOnContext(seCtx);
+    }
+}
 
 function drawCalipersOnContext(targetCtx) {
-            if (currentPrediction && currentPrediction.measurements) {
-                for (let lesion of currentPrediction.measurements.lesions || []) {
-                    if (lesion.caliper_dmax_points && lesion.caliper_dmax_points.length === 2) {
-                        const [p1, p2] = lesion.caliper_dmax_points;
-                        targetCtx.strokeStyle = '#facc15';
-                        targetCtx.lineWidth = 2;
-                        targetCtx.beginPath();
-                        targetCtx.moveTo(p1[0], p1[1]);
-                        targetCtx.lineTo(p2[0], p2[1]);
-                        targetCtx.stroke();
+    if (currentPrediction && currentPrediction.measurements) {
+        const lesions = currentPrediction.measurements.lesions || [];
+        if (lesions.length === 0) return;
 
-                        drawCrosshair(targetCtx, p1[0], p1[1]);
-                        drawCrosshair(targetCtx, p2[0], p2[1]);
+        targetCtx.save();
+        targetCtx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        targetCtx.shadowBlur = 4;
+        targetCtx.shadowOffsetX = 1;
+        targetCtx.shadowOffsetY = 1;
 
-                        targetCtx.fillStyle = '#facc15';
-                        targetCtx.font = 'bold 12px JetBrains Mono';
-                        targetCtx.fillText(`D1: ${lesion.max_diameter_mm}mm`, lesion.center[0] - 25, lesion.center[1] - 10);
-                    }
-                }
-            }
+        // Clinical standard: Draw calipers on the primary (dominant) lesion
+        const primaryLesion = lesions.reduce((maxL, l) => (l.area_cm2 > maxL.area_cm2 ? l : maxL), lesions[0]);
+
+        // Draw D1 (Max Diameter) in Yellow
+        if (primaryLesion.caliper_dmax_points && primaryLesion.caliper_dmax_points.length === 2) {
+            const [p1, p2] = primaryLesion.caliper_dmax_points;
+            targetCtx.strokeStyle = '#facc15';
+            targetCtx.lineWidth = 2;
+            targetCtx.beginPath();
+            targetCtx.moveTo(p1[0], p1[1]);
+            targetCtx.lineTo(p2[0], p2[1]);
+            targetCtx.stroke();
+
+            drawCrosshair(targetCtx, p1[0], p1[1], '#facc15');
+            drawCrosshair(targetCtx, p2[0], p2[1], '#facc15');
+
+            const d1Val = typeof primaryLesion.max_diameter_mm === 'number' ? primaryLesion.max_diameter_mm.toFixed(1) : primaryLesion.max_diameter_mm;
+            targetCtx.fillStyle = '#facc15';
+            targetCtx.font = 'bold 11px JetBrains Mono, monospace';
+            const labelX = Math.max(10, Math.min(460, (primaryLesion.center ? primaryLesion.center[0] : (p1[0] + p2[0])/2) - 25));
+            const labelY = Math.max(15, Math.min(495, (primaryLesion.center ? primaryLesion.center[1] : (p1[1] + p2[1])/2) - 8));
+            targetCtx.fillText(`D1: ${d1Val}mm`, labelX, labelY);
         }
 
-function drawCrosshair(c, x, y) {
-            c.strokeStyle = '#facc15';
-            c.lineWidth = 2;
-            c.beginPath();
-            c.moveTo(x - 4, y); c.lineTo(x + 4, y);
-            c.moveTo(x, y - 4); c.lineTo(x, y + 4);
-            c.stroke();
+        // Draw D2 (Orthogonal Diameter) in Cyan
+        if (primaryLesion.caliper_dorth_points && primaryLesion.caliper_dorth_points.length === 2) {
+            const [p1, p2] = primaryLesion.caliper_dorth_points;
+            targetCtx.strokeStyle = '#38bdf8';
+            targetCtx.lineWidth = 1.5;
+            targetCtx.beginPath();
+            targetCtx.moveTo(p1[0], p1[1]);
+            targetCtx.lineTo(p2[0], p2[1]);
+            targetCtx.stroke();
+
+            drawCrosshair(targetCtx, p1[0], p1[1], '#38bdf8');
+            drawCrosshair(targetCtx, p2[0], p2[1], '#38bdf8');
+
+            const d2Val = typeof primaryLesion.ortho_diameter_mm === 'number' ? primaryLesion.ortho_diameter_mm.toFixed(1) : primaryLesion.ortho_diameter_mm;
+            targetCtx.fillStyle = '#38bdf8';
+            targetCtx.font = 'bold 10.5px JetBrains Mono, monospace';
+            const d2LabelX = Math.max(10, Math.min(460, p2[0] + 5));
+            const d2LabelY = Math.max(15, Math.min(495, p2[1] + 12));
+            targetCtx.fillText(`D2: ${d2Val}mm`, d2LabelX, d2LabelY);
         }
+
+        targetCtx.restore();
+    }
+}
+
+function drawCrosshair(c, x, y, color = '#facc15') {
+    c.strokeStyle = color;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(x - 4, y); c.lineTo(x + 4, y);
+    c.moveTo(x, y - 4); c.lineTo(x, y + 4);
+    c.stroke();
+}
 
 function setupCanvasEngine() {
     canvas = document.getElementById('editorCanvas');

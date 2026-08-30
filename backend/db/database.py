@@ -163,7 +163,19 @@ def init_db():
     # Seed default user accounts if not exist
     try:
         db = SessionLocal()
-        if db.query(UserModel).count() == 0:
+        if not db.query(UserModel).filter(UserModel.username == "doctor").first():
+            doc_user_alt = UserModel(
+                id=str(uuid.uuid4()),
+                username="doctor",
+                full_name="BS.CKI Nguyễn Văn A",
+                role="DOCTOR",
+                department="Khoa Chẩn đoán Hình ảnh & Phụ sản",
+                title="Bác Sĩ Khám & Ký Duyệt",
+                hospital="Vinmec Times City (Hà Nội)",
+                avatar="doctor_a",
+            )
+            db.add(doc_user_alt)
+        if not db.query(UserModel).filter(UserModel.username == "bacsi").first():
             doc_user = UserModel(
                 id=str(uuid.uuid4()),
                 username="bacsi",
@@ -174,6 +186,8 @@ def init_db():
                 hospital="Vinmec Times City (Hà Nội)",
                 avatar="doctor_a",
             )
+            db.add(doc_user)
+        if not db.query(UserModel).filter(UserModel.username == "admin").first():
             admin_user = UserModel(
                 id=str(uuid.uuid4()),
                 username="admin",
@@ -184,10 +198,10 @@ def init_db():
                 hospital="Vinmec Healthcare System",
                 avatar="admin_avatar",
             )
-            db.add(doc_user)
             db.add(admin_user)
-            db.commit()
+        db.commit()
         db.close()
+
     except Exception as e:
         print("[Database] Seed users notice:", e)
 

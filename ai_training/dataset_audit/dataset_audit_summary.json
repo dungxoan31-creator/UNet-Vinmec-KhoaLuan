@@ -1,0 +1,83 @@
+{
+    "dataset_name": "OTU (Ovarian Tumor Ultrasound Benchmark)",
+    "total_images_scanned": 1372,
+    "total_masks_scanned": 1372,
+    "total_verified_pairs": 1372,
+    "total_valid_annotations": 1372,
+    "total_invalid_annotations": 0,
+    "total_empty_masks": 0,
+    "total_corrupted": 0,
+    "duplicate_images_count": 0,
+    "subsets": {
+        "OTU_2D_train": {
+            "total_images": 820,
+            "total_masks": 820,
+            "matched_pairs": 820,
+            "unpaired_images": 0,
+            "unpaired_masks": 0,
+            "valid_annotations": 820,
+            "empty_masks": 0,
+            "corrupted": 0,
+            "invalid_annotations": 0,
+            "common_resolutions": [
+                "958x534 (15 imgs)",
+                "959x532 (11 imgs)",
+                "958x532 (11 imgs)",
+                "958x533 (11 imgs)",
+                "959x536 (10 imgs)"
+            ],
+            "aspect_ratio_range": [
+                0.74,
+                2.062
+            ],
+            "mean_lesion_area_px": 67966.8
+        },
+        "OTU_2D_test": {
+            "total_images": 382,
+            "total_masks": 382,
+            "matched_pairs": 382,
+            "unpaired_images": 0,
+            "unpaired_masks": 0,
+            "valid_annotations": 382,
+            "empty_masks": 0,
+            "corrupted": 0,
+            "invalid_annotations": 0,
+            "common_resolutions": [
+                "959x535 (7 imgs)",
+                "958x534 (7 imgs)",
+                "958x533 (6 imgs)",
+                "958x535 (6 imgs)",
+                "480x535 (5 imgs)"
+            ],
+            "aspect_ratio_range": [
+                0.724,
+                2.096
+            ],
+            "mean_lesion_area_px": 69709.3
+        },
+        "OTU_CEUS": {
+            "total_images": 170,
+            "total_masks": 170,
+            "matched_pairs": 170,
+            "unpaired_images": 0,
+            "unpaired_masks": 0,
+            "valid_annotations": 170,
+            "empty_masks": 0,
+            "corrupted": 0,
+            "invalid_annotations": 0,
+            "common_resolutions": [
+                "553x550 (3 imgs)",
+                "553x553 (3 imgs)",
+                "339x352 (2 imgs)",
+                "556x552 (2 imgs)",
+                "552x551 (2 imgs)"
+            ],
+            "aspect_ratio_range": [
+                0.79,
+                2.058
+            ],
+            "mean_lesion_area_px": 55335.4
+        }
+    },
+    "generated_preview_panels": 30
+}

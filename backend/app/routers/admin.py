@@ -118,3 +118,27 @@ def export_ground_truth_dataset(db: Session = Depends(get_db)):
         content=data_export,
         headers={"Content-Disposition": "attachment; filename=Vinmec_Ovarian_AI_GroundTruth_Dataset.json"},
     )
+
+
+@router.post("/api/admin/backups/create")
+def trigger_backup(include_images: bool = True, db: Session = Depends(get_db)):
+    """
+    Creates an on-demand full database & media backup archive.
+    """
+    from backend.services.backup_service import BackupService
+
+    backup_service = BackupService()
+    result = backup_service.create_backup(include_images=include_images)
+    return result
+
+
+@router.get("/api/admin/backups/list")
+def list_backups():
+    """
+    Returns list of all available system backups.
+    """
+    from backend.services.backup_service import BackupService
+
+    backup_service = BackupService()
+    return backup_service.list_backups()
+

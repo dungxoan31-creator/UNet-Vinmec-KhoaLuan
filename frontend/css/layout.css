@@ -1,378 +1,524 @@
 /* ==========================================================================
-           1. TOP EMERGENCY RIBBON (VINMEC BLUE GRADIENT)
-           ========================================================================== */
-        .top-emergency-ribbon {
-            background: linear-gradient(135deg, var(--vm-blue-start) 0%, var(--vm-blue-end) 100%);
-            color: #ffffff;
-            font-size: 12px;
-            font-weight: 500;
-            padding: 7px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        }
+   VINMEC OVARIAN ULTRASOUND AI SYSTEM - CORE LAYOUT SYSTEM
+   Responsive, Fluid, Medical Grade, Zero Overflow (1366x768 & 1280x720 Tested)
+   ========================================================================== */
 
-        .ribbon-left, .ribbon-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
+/* 1. TOP EMERGENCY & NETWORK RIBBON */
+.top-emergency-ribbon {
+    background: linear-gradient(135deg, var(--vm-blue-start) 0%, var(--vm-blue-end) 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow: hidden;
+}
 
-        .ribbon-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            opacity: 0.95;
-        }
+.ribbon-left, .ribbon-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
 
-        .ribbon-hotline {
-            font-weight: 700;
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 2px 8px;
-            border-radius: var(--radius-sm);
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            letter-spacing: 0.5px;
-        }
+.ribbon-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.95;
+    white-space: nowrap;
+}
 
-        .ribbon-link {
-            cursor: pointer;
-            transition: opacity 0.2s ease;
-        }
+.ribbon-hotline {
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
 
-        .ribbon-link:hover {
-            opacity: 1;
-            text-decoration: underline;
-        }
+.ribbon-link {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    padding: 0;
+}
 
-        .lang-switch {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.15);
-            padding: 3px 10px;
-            border-radius: var(--radius-pill);
-            font-size: 11.5px;
-            cursor: pointer;
-        }
+.ribbon-link:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
 
-/* ==========================================================================
-           2. MAIN VINMEC STICKY HEADER
-           ========================================================================== */
-        header.main-header {
-            background: var(--vm-card-white);
-            border-bottom: 1px solid var(--vm-border);
-            box-shadow: var(--shadow-header);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            padding: 0 20px;
-            min-height: 68px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
+.lang-switch {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 1.5px 6px;
+    border-radius: var(--radius-pill);
+    font-size: 10.5px;
+    cursor: pointer;
+    white-space: nowrap;
+}
 
-        .brand-container {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
+/* 2. MAIN VINMEC STICKY HEADER */
+header.main-header {
+    background: var(--vm-card-white);
+    border-bottom: 1px solid var(--vm-border);
+    box-shadow: var(--shadow-header);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    padding: 0 14px;
+    min-height: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
 
-        .vinmec-logo-img {
-            height: 50px;
-            width: auto;
-            object-fit: contain;
-            flex-shrink: 0;
-            display: block;
-        }
+.brand-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    padding: 0;
+    text-align: left;
+}
 
-        .brand-divider {
-            width: 1px;
-            height: 38px;
-            background: var(--vm-border);
-            margin: 0 2px;
-        }
+.vinmec-logo-img {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+    display: block;
+}
 
-        .brand-titles {
-            display: flex;
-            flex-direction: column;
-        }
+.brand-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--vm-border);
+    margin: 0 1px;
+}
 
-        .brand-main-title {
-            font-size: 16px;
-            font-weight: 900;
-            color: var(--vm-blue-end);
-            letter-spacing: 0.5px;
-            line-height: 1.1;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+.brand-titles {
+    display: flex;
+    flex-direction: column;
+}
 
-        .brand-main-title span.tag-ai {
-            background: linear-gradient(135deg, var(--vm-blue-start), var(--vm-green));
-            color: #ffffff;
-            font-size: 9.5px;
-            font-weight: 800;
-            padding: 2px 6px;
-            border-radius: var(--radius-sm);
-            letter-spacing: 0.5px;
-        }
+.brand-main-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--vm-blue-end);
+    letter-spacing: 0.2px;
+    line-height: 1.1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
 
-        .brand-sub-title {
-            font-size: 10.5px;
-            font-weight: 600;
-            color: var(--vm-text-muted);
-            letter-spacing: 0.2px;
-            text-transform: uppercase;
-        }
+.brand-main-title span.tag-ai {
+    background: linear-gradient(135deg, var(--vm-blue-start), var(--vm-green));
+    color: #ffffff;
+    font-size: 8.5px;
+    font-weight: 800;
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.4px;
+}
 
-        /* Navigation Links */
-        .main-nav {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            height: 100%;
-        }
+.brand-sub-title {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--vm-text-muted);
+    letter-spacing: 0.1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
 
-        .nav-item-btn {
-            background: transparent;
-            border: none;
-            color: var(--vm-text-dark);
-            font-size: 13px;
-            font-weight: 600;
-            padding: 8px 14px;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-            transition: all 0.2s ease;
-            position: relative;
-        }
+/* Navigation Links */
+.main-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 100%;
+    flex-shrink: 0;
+}
 
-        .nav-item-btn:hover {
-            color: var(--vm-primary-blue);
-            background: var(--vm-bg-alt);
-        }
+.nav-item-btn {
+    background: transparent;
+    border: none;
+    color: var(--vm-text-dark);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, color 0.15s ease;
+    position: relative;
+    user-select: none;
+}
 
-        .nav-item-btn.active {
-            color: var(--vm-primary-blue);
-            background: #e8f4fc;
-            font-weight: 700;
-        }
+.nav-item-btn:hover {
+    color: var(--vm-primary-blue);
+    background: var(--vm-bg-alt);
+    transform: translateY(-1px);
+}
 
-        .nav-item-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: -11px;
-            left: 14px;
-            right: 14px;
-            height: 3px;
-            background: var(--vm-primary-blue);
-            border-radius: 3px 3px 0 0;
-        }
+.nav-item-btn:active {
+    transform: translateY(0px) scale(0.97);
+}
 
-        /* Header Right Actions */
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-shrink: 0;
-        }
+.nav-item-btn.active {
+    color: var(--vm-primary-blue);
+    background: #e8f4fc;
+    font-weight: 700;
+}
 
-        .btn-create-case-nav {
-            background: var(--vm-green);
-            color: #ffffff;
-            border: none;
-            padding: 8px 16px;
-            border-radius: var(--radius-pill);
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
-            box-shadow: 0 3px 10px rgba(81, 190, 157, 0.3);
-            transition: all 0.2s ease;
-        }
+.nav-item-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 8px;
+    right: 8px;
+    height: 3px;
+    background: var(--vm-primary-blue);
+    border-radius: 3px 3px 0 0;
+}
 
-        .btn-create-case-nav:hover {
-            background: var(--vm-green-hover);
-            box-shadow: 0 5px 14px rgba(81, 190, 157, 0.4);
-            transform: translateY(-1px);
-        }
+/* Header Right Actions */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
 
-        .doctor-badge-box {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--vm-bg-alt);
-            border: 1px solid var(--vm-border);
-            padding: 5px 12px;
-            border-radius: var(--radius-pill);
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--vm-text-dark);
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
+.btn-create-case-nav {
+    background: var(--vm-green);
+    color: #ffffff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(81, 190, 157, 0.25);
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, filter 0.15s ease;
+    user-select: none;
+}
 
-        .doc-avatar-circle {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--vm-blue-start), var(--vm-blue-end));
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 12px;
-        }
+.btn-create-case-nav:hover {
+    transform: scale(1.04);
+}
 
-        .pulse-indicator {
-            width: 8px;
-            height: 8px;
-            background: var(--vm-green);
-            border-radius: 50%;
-            box-shadow: 0 0 0 2px rgba(81, 190, 157, 0.3);
-            animation: pulseAnim 2s infinite;
-        }
+.btn-create-case-nav:active {
+    transform: scale(0.98);
+}
 
-        @keyframes pulseAnim {
-            0% { box-shadow: 0 0 0 0 rgba(81, 190, 157, 0.6); }
-            70% { box-shadow: 0 0 0 8px rgba(81, 190, 157, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(81, 190, 157, 0); }
-        }
+.role-switch-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    flex-shrink: 0;
+}
 
-/* ==========================================================================
-           3. MAIN CONTAINER & SCREEN SYSTEM
-           ========================================================================== */
-        main.app-main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 24px 20px;
-        }
+.doctor-badge-box {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--vm-bg-alt);
+    border: 1px solid var(--vm-border);
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vm-text-dark);
+    font-family: inherit;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
 
-        .screen-container {
-            display: none;
-            flex-direction: column;
-            flex: 1;
-            animation: screenFadeIn 0.25s ease-out;
-        }
+.doctor-badge-box:hover {
+    border-color: var(--vm-blue-start);
+    background: #eef7fa;
+}
 
-        .screen-container.active {
-            display: flex;
-        }
+.doc-avatar-circle {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--vm-blue-start), var(--vm-blue-end));
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 10px;
+    flex-shrink: 0;
+}
 
-        @keyframes screenFadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+.pulse-indicator {
+    width: 6px;
+    height: 6px;
+    background: var(--vm-green);
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(81, 190, 157, 0.3);
+    animation: pulseAnim 2s infinite;
+    flex-shrink: 0;
+}
 
-/* ==========================================================================
-           10. VINMEC OFFICIAL 4-COLUMN FOOTER
-           ========================================================================== */
-        footer.vinmec-footer {
-            background: #ffffff;
-            border-top: 1px solid var(--vm-border);
-            margin-top: auto;
-            padding: 48px 24px 20px;
-            color: var(--vm-text-dark);
-        }
+@keyframes pulseAnim {
+    0% { box-shadow: 0 0 0 0 rgba(81, 190, 157, 0.6); }
+    70% { box-shadow: 0 0 0 5px rgba(81, 190, 157, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(81, 190, 157, 0); }
+}
 
-        .footer-content-grid {
-            max-width: 1400px;
-            margin: 0 auto 36px;
-            display: grid;
-            grid-template-columns: 1.5fr 1.2fr 1fr 1.2fr;
-            gap: 32px;
-        }
+.role-pill-badge {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1.5px 5px;
+    border-radius: var(--radius-pill);
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
 
-        .footer-col h3 {
-            font-size: 14px;
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+.role-pill-doctor {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+}
 
-        .footer-col p {
-            font-size: 13px;
-            color: var(--vm-text-muted);
-            line-height: 1.6;
-            margin-bottom: 12px;
-        }
+.role-pill-admin {
+    background: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #d8b4fe;
+}
 
-        .footer-col ul {
-            list-style: none;
-        }
+.btn-switch-role-header {
+    background: #ffffff;
+    border: 1px solid var(--vm-border);
+    padding: 3px 7px;
+    border-radius: var(--radius-pill);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--vm-blue-end);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
 
-        .footer-col ul li {
-            font-size: 13px;
-            color: var(--vm-text-dark);
-            margin-bottom: 8px;
-            display: flex;
-            align-items: flex-start;
-            gap: 6px;
-        }
+.btn-switch-role-header:hover {
+    background: var(--vm-bg-alt);
+    border-color: var(--vm-blue-start);
+}
 
-        .footer-col ul li strong {
-            color: var(--vm-blue-end);
-        }
+/* Mobile Hamburger Button */
+.mobile-menu-btn {
+    display: none;
+    background: var(--vm-bg-alt);
+    border: 1px solid var(--vm-border);
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    cursor: pointer;
+    color: var(--vm-text-dark);
+    align-items: center;
+    justify-content: center;
+}
 
-        .jci-partner-badge {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: var(--vm-bg-alt);
-            padding: 12px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--vm-border);
-            margin-top: 12px;
-        }
+/* 3. MAIN CONTAINER & SCREEN SYSTEM */
+main.app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 14px 16px;
+    box-sizing: border-box;
+}
 
-        .footer-bottom-bar {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding-top: 20px;
-            border-top: 1px solid var(--vm-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 12px;
-            color: var(--vm-text-muted);
-            flex-wrap: wrap;
-            gap: 12px;
-        }
+.screen-container {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    animation: screenFadeIn 0.2s ease-out;
+}
 
-        /* Responsive Breakpoints */
-        @media (max-width: 1024px) {
-            .results-workspace-grid {
-                grid-template-columns: 1fr;
-            }
-            .quick-services-grid, .stats-grid-row {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .footer-content-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
+.screen-container.active {
+    display: flex;
+}
+
+@keyframes screenFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 4. CLINICAL STEPPER BAR (COMPACT & SLEEK) */
+.clinical-stepper-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--vm-card-white);
+    border: 1px solid var(--vm-border);
+    border-radius: var(--radius-md);
+    padding: 6px 14px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-subtle);
+    gap: 6px;
+    overflow-x: auto;
+}
+
+.step-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--vm-text-muted);
+    padding: 3px 8px;
+    border-radius: var(--radius-pill);
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.step-pill.active {
+    background: #e8f4fc;
+    color: var(--vm-primary-blue);
+    font-weight: 700;
+}
+
+.step-pill.completed {
+    color: var(--vm-green);
+}
+
+.step-num-badge {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--vm-bg-alt);
+    color: var(--vm-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9.5px;
+    font-weight: 800;
+}
+
+.step-pill.active .step-num-badge {
+    background: var(--vm-primary-blue);
+    color: #ffffff;
+}
+
+.step-pill.completed .step-num-badge {
+    background: var(--vm-green);
+    color: #ffffff;
+}
+
+.step-line-sep {
+    width: 16px;
+    height: 1px;
+    background: var(--vm-border);
+    flex-shrink: 0;
+}
+
+/* 5. STREAMLINED MEDICAL FOOTER */
+footer.vinmec-footer {
+    background: var(--vm-card-white);
+    border-top: 1px solid var(--vm-border);
+    margin-top: auto;
+    padding: 10px 16px;
+    color: var(--vm-text-dark);
+    font-size: 11.5px;
+}
+
+.footer-bottom-bar {
+    max-width: 1440px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--vm-text-muted);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.footer-bottom-bar strong {
+    color: var(--vm-blue-end);
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1180px) {
+    .brand-sub-title {
+        display: none;
+    }
+    #headerUserDept {
+        display: none;
+    }
+}
+
+@media (max-width: 1024px) {
+    .main-nav {
+        display: none;
+    }
+    .mobile-menu-btn {
+        display: inline-flex;
+    }
+    .results-workspace-grid {
+        grid-template-columns: 1fr;
+    }
+    .stats-grid-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .top-emergency-ribbon {
+        display: none;
+    }
+    .stats-grid-row {
+        grid-template-columns: 1fr;
+    }
+    .footer-bottom-bar {
+        flex-direction: column;
+        text-align: center;
+    }
+}

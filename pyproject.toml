@@ -24,3 +24,10 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::starlette.testclient.StarletteDeprecationWarning",
+    "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
+]

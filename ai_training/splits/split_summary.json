@@ -1,0 +1,19 @@
+{
+    "split_protocol_1_standard": {
+        "train_cases": 700,
+        "val_cases": 120,
+        "test_cases": 382,
+        "ceus_cases": 170,
+        "total": 1372,
+        "seed": 42,
+        "leakage_test_passed": true
+    },
+    "split_protocol_2_unified": {
+        "train_cases": 960,
+        "val_cases": 206,
+        "test_cases": 206,
+        "total": 1372,
+        "seed": 42,
+        "leakage_test_passed": true
+    }
+}

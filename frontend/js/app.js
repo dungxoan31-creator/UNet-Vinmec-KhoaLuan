@@ -6,9 +6,13 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Vinmec AI] Application Initializing...');
 
-    // 1. Check & Prompt for Local Draft Recovery
+    // 1. Check & Prompt for Local Draft Recovery & Initialize Defaults
     if (typeof checkDraftOnLoad === 'function') {
         checkDraftOnLoad();
+    }
+    const studyDateInput = document.getElementById('inputStudyDate');
+    if (studyDateInput && !studyDateInput.value) {
+        studyDateInput.value = new Date().toISOString().split('T')[0];
     }
 
     // 2. Load User Profile & Header Info
@@ -39,8 +43,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupKeyboardShortcuts();
     }
 
-    // 7. Handle Initial URL Hash Routing (e.g. #admin, #history, #workspace)
-    const initialHash = window.location.hash.replace('#', '') || (window.location.pathname === '/admin' ? 'admin' : 'dashboard');
+    // 7. Apply RBAC Access Controls & Handle Initial URL Hash Routing
+    if (typeof applyRoleRBAC === 'function') {
+        applyRoleRBAC();
+    }
+    const defaultScreen = (typeof currentRole !== 'undefined' && currentRole === 'ADMIN') ? 'dashboard' : 'create_case';
+    const initialHash = window.location.hash.replace('#', '') || (window.location.pathname === '/admin' ? 'admin_portal' : defaultScreen);
     if (typeof navigateTo === 'function') {
         navigateTo(initialHash);
     }

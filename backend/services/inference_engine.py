@@ -18,6 +18,7 @@ import numpy as np
 import torch
 
 from backend.models.attention_unet import AttentionUNet
+from backend.services.morphology_extractor import MorphologicalFeatureExtractor
 
 
 class InferenceEngine:
@@ -35,7 +36,7 @@ class InferenceEngine:
         device=None,
         threshold=0.5,
         default_pixel_spacing_mm=0.1,
-        uncertainty_entropy_threshold=0.55,
+        uncertainty_entropy_threshold=0.75,
     ):
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         self.threshold = float(threshold)
@@ -44,6 +45,7 @@ class InferenceEngine:
         self.model_weights_path = model_weights_path
         self.model_checksum = None
         self.is_model_ready = False
+        self.morph_extractor = MorphologicalFeatureExtractor(default_pixel_spacing_mm=self.default_pixel_spacing_mm)
 
         # Initialize model architecture
         self.model = AttentionUNet(in_channels=1, num_classes=1).to(self.device)
@@ -168,7 +170,7 @@ class InferenceEngine:
                 "Độ bất định mô hình cao (Ranh giới tổn thương không điển hình hoặc độ tương phản thấp). "
                 "Bác sĩ cần đối chiếu kỹ ảnh gốc B-Mode và hiệu chỉnh Caliper thủ công."
             )
-        elif overall_entropy >= 0.35:
+        elif overall_entropy >= 0.60:
             uncertainty_level = "MODERATE"
             clinical_alert = "Độ bất định trung bình. Bác sĩ vui lòng kiểm tra lại kích thước đường kính lớn nhất."
         else:
@@ -186,10 +188,12 @@ class InferenceEngine:
         """
         Extracts clinical calipers (Dmax, Dorth, Area, Perimeter, Center) and measurement endpoints.
         """
-        if pixel_spacing_mm is None:
+        if pixel_spacing_mm is None or pixel_spacing_mm <= 0:
             pixel_spacing_mm = self.default_pixel_spacing_mm
+        pixel_spacing_mm = max(0.0001, float(pixel_spacing_mm))
 
         contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
         lesions = []
 
         if not contours:
@@ -323,10 +327,16 @@ class InferenceEngine:
         b64_str = base64.b64encode(buffer).decode("utf-8")
         return f"data:image/png;base64,{b64_str}"
 
-    def run_inference(self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1) -> dict:
+    def run_inference(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        roi_mask: np.ndarray | None = None,
+    ) -> dict:
         """
         Executes full medical inference pipeline:
-        Tensor -> Model logits with TTA (Test-Time Augmentation) -> Sigmoid -> Post-processing -> Uncertainty -> Calipers -> RLE -> Base64
+        Tensor -> Model logits with TTA (Test-Time Augmentation) -> Sigmoid -> ROI Masking -> Post-processing -> Uncertainty -> Calipers -> Quality Gate -> RLE -> Base64
         """
         tensor_gpu = tensor_512.to(self.device)
 
@@ -343,6 +353,10 @@ class InferenceEngine:
             else:
                 probs = prob_orig
 
+        # Zero-out any out-of-sector or background margin probabilities via strict ROI mask
+        if roi_mask is not None:
+            probs = probs * (roi_mask > 0).astype(np.float32)
+
         # Clean binary mask via morphological filtering
         clean_mask = self.post_process_mask(probs)
 
@@ -352,12 +366,45 @@ class InferenceEngine:
         else:
             confidence = float(1.0 - np.mean(probs))  # Confidence for normal empty mask
 
-
         # Calculate Uncertainty & OOD Metric
         uncertainty = self.calculate_uncertainty(probs, clean_mask)
 
+        # Clinical Quality Gate Evaluation (Min confidence 70%, no high uncertainty)
+        is_quality_valid = bool(
+            confidence >= 0.70
+            and not uncertainty.get("is_uncertain", False)
+            and uncertainty.get("uncertainty_level") != "HIGH"
+        )
+
+        quality_gate = {
+            "passed": is_quality_valid,
+            "min_confidence_required": 0.70,
+            "actual_confidence": round(float(confidence), 3),
+            "uncertainty_level": uncertainty.get("uncertainty_level", "LOW"),
+            "status": "APPROVED_BY_QUALITY_GATE" if is_quality_valid else "REJECTED_QUALITY_GATE",
+            "alert": (
+                "Chất lượng phân đoạn AI đạt chuẩn tin cậy cao."
+                if is_quality_valid
+                else "Chất lượng phân đoạn AI không đạt ngưỡng an toàn (< 70% hoặc độ bất định cao). "
+                "Hệ thống đề xuất Bác sĩ đối chiếu kỹ ảnh gốc B-Mode và điều chỉnh thủ công."
+            ),
+        }
+
         # Extract clinical measurements and calipers
         measurements = self.extract_calipers_and_measurements(clean_mask, pixel_spacing_mm=pixel_spacing_mm)
+        measurements["is_valid_caliper"] = is_quality_valid
+        if not is_quality_valid:
+            measurements["quality_alert"] = quality_gate["alert"]
+
+        # Extract morphological & acoustic biomarkers + CDSS classification
+        morph_analysis = self.morph_extractor.extract_features(
+            padded_gray, clean_mask, pixel_spacing_mm=pixel_spacing_mm
+        )
+        cdss = morph_analysis.get("cdss_classification", {})
+        if not is_quality_valid:
+            cdss["status"] = "BLOCKED_BY_QUALITY_GATE"
+            cdss["primary_suspicion"] = "Chưa thể kết luận tự động (Yêu cầu Bác sĩ thẩm định thủ công)"
+            cdss["orads_category"] = "CHỜ BÁC SĨ DUYỆT"
 
         # Encode RLE and Overlay
         rle = self.mask_to_rle(clean_mask)
@@ -378,8 +425,12 @@ class InferenceEngine:
             "rle_mask": rle,
             "confidence_score": round(float(confidence), 3),
             "uncertainty": uncertainty,
+            "quality_gate": quality_gate,
             "measurements": measurements,
+            "acoustic_profile": morph_analysis.get("acoustic_profile", {}),
+            "cdss_classification": cdss,
             "overlay_base64": overlay_base64,
             "binary_mask_np": clean_mask,
             "provenance": provenance,
         }
+

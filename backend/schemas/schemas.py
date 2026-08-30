@@ -59,11 +59,16 @@ class PredictionResponse(BaseModel):
     overlay_base64: str
     original_image_base64: str
     uncertainty: dict[str, Any] | None = None
+    quality_gate: dict[str, Any] | None = None
+
     provenance: dict[str, Any] | None = None
+    acoustic_profile: dict[str, Any] | None = None
+    cdss_classification: dict[str, Any] | None = None
     clinical_disclaimer: str = (
         "Kết quả phân tích hình ảnh AI chỉ mang tính chất hỗ trợ chẩn đoán lâm sàng. "
         "Bắt buộc có Bác sĩ Chuyên khoa thẩm định và ký duyệt."
     )
+
 
 
 class DoctorReviewRequest(BaseModel):

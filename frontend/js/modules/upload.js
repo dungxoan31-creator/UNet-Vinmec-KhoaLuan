@@ -26,10 +26,10 @@ function handleFileSelected(e) {
         }
 
 async function processUploadedFile(file) {
-    const validExts = ['.png', '.jpg', '.jpeg'];
+    const validExts = ['.png', '.jpg', '.jpeg', '.dcm'];
     const ext = '.' + file.name.split('.').pop().toLowerCase();
     if (!validExts.includes(ext)) {
-        showToast("Định dạng file không hỗ trợ. Vui lòng chọn PNG hoặc JPG.", false);
+        showToast("Định dạng file không hỗ trợ. Vui lòng chọn PNG, JPG, JPEG hoặc DICOM (.dcm).", false);
         return;
     }
 

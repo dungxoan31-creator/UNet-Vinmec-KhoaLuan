@@ -2,6 +2,7 @@
 Clinical Cases CRUD and Sample Cases endpoints.
 """
 
+import os
 import uuid
 from datetime import datetime
 
@@ -104,7 +105,9 @@ def list_cases(
                 "lesion_type": last_review.lesion_type
                 if last_review
                 else (
-                    pred.measurements.get("lesions", [{}])[0].get("lesion_type", "Chưa phân tích")
+                    (pred.measurements.get("lesions", [{}])[0].get("lesion_type", "Chưa phân tích")
+                     if (pred.measurements.get("lesions") and len(pred.measurements.get("lesions")) > 0 and isinstance(pred.measurements.get("lesions")[0], dict))
+                     else "Chưa phân tích")
                     if (pred and isinstance(pred.measurements, dict))
                     else "Chưa phân tích"
                 ),
@@ -185,15 +188,85 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/api/samples")
+def get_sample_cases(db: Session = Depends(get_db)):
+    """
+    Returns curated clinical sample cases across major pathology categories for demo and testing.
+    """
+    return [
+        {
+            "id": "SAMPLE-01",
+            "patient_id": "BN-VINMEC-8899",
+            "study_code": "STD-SAMPLE-SEROUS",
+            "study_date": "2026-08-25",
+            "patient_age": "28 (Tuổi sinh sản)",
+            "pathology": "Serous Cystadenoma (U nang thanh dịch)",
+            "clinical_notes": "Siêu âm tầm soát u buồng trứng phải. Vùng echo trống, vỏ mỏng đều.",
+            "status": "APPROVED",
+            "max_diameter_mm": 42.5,
+            "ortho_diameter_mm": 35.2,
+            "image_filename": "sample_serous.png",
+        },
+        {
+            "id": "SAMPLE-02",
+            "patient_id": "BN-VINMEC-4421",
+            "study_code": "STD-SAMPLE-DERMOID",
+            "study_date": "2026-08-26",
+            "patient_age": "34 (Tuổi sinh sản)",
+            "pathology": "Dermoid Cyst (U quái bì buồng trứng)",
+            "clinical_notes": "Phát hiện khối hỗn hợp âm, nút Rokitansky tăng âm kèm bóng lưng.",
+            "status": "APPROVED",
+            "max_diameter_mm": 51.0,
+            "ortho_diameter_mm": 38.6,
+            "image_filename": "sample_dermoid.png",
+        },
+        {
+            "id": "SAMPLE-03",
+            "patient_id": "BN-VINMEC-7712",
+            "study_code": "STD-SAMPLE-ENDOMETRIOMA",
+            "study_date": "2026-08-27",
+            "patient_age": "31 (Tuổi sinh sản)",
+            "pathology": "Endometrioma (U lạc nội mạc / Nang sô cô la)",
+            "clinical_notes": "Đau bụng kinh mạn tính. Nang phản âm kém dạng kính mờ (Ground glass).",
+            "status": "PENDING",
+            "max_diameter_mm": 38.2,
+            "ortho_diameter_mm": 30.1,
+            "image_filename": "sample_endometrioma.png",
+        },
+        {
+            "id": "SAMPLE-04",
+            "patient_id": "BN-VINMEC-1205",
+            "study_code": "STD-SAMPLE-NORMAL",
+            "study_date": "2026-08-28",
+            "patient_age": "26 (Tuổi sinh sản)",
+            "pathology": "Normal / Follicular Cyst (Nang noãn buồng trứng)",
+            "clinical_notes": "Khám sức khỏe tiền hôn nhân. Buồng trứng hai bên kích thước bình thường.",
+            "status": "APPROVED",
+            "max_diameter_mm": 18.0,
+            "ortho_diameter_mm": 14.5,
+            "image_filename": "sample_normal.png",
+        },
+    ]
+
+
 @router.delete("/api/cases/{study_id}")
 def delete_case(study_id: str, db: Session = Depends(get_db)):
     """
-    Delete a case record.
+    Delete a case record and clean up associated image files.
     """
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy ca khám để xóa.")
 
+    # Clean up physical files from upload directory if not sample assets
+    for img in study.images:
+        if img.raw_path and os.path.exists(img.raw_path) and not os.path.basename(img.raw_path).startswith("sample_"):
+            try:
+                os.remove(img.raw_path)
+            except Exception:
+                pass
+
     db.delete(study)
     db.commit()
     return {"status": "SUCCESS", "message": "Đã xóa ca khám thành công."}
+

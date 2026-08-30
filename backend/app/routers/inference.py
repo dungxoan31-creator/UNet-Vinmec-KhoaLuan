@@ -266,11 +266,14 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
     start_time = datetime.now()
 
     # 1. Preprocess & IQA
-    tensor, padded_gray, _transform_params, iqa_report = preprocessor.preprocess_for_inference(img_np)
+    tensor, padded_gray, transform_params, iqa_report = preprocessor.preprocess_for_inference(img_np)
 
     # 2. Run Pure Neural Network Inference via ModelRegistry
     pixel_spacing = getattr(img_record, "pixel_spacing_mm", 0.1) or 0.1
-    inference_result = model_registry.predict(tensor, padded_gray, pixel_spacing_mm=pixel_spacing)
+    roi_mask = transform_params.get("roi_mask")
+    inference_result = model_registry.predict(
+        tensor, padded_gray, pixel_spacing_mm=pixel_spacing, roi_mask=roi_mask
+    )
 
     inference_duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -308,6 +311,7 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
                 "model_version": inference_result.get("provenance", {}).get("model_version"),
                 "model_checksum": inference_result.get("provenance", {}).get("model_checksum"),
                 "confidence_score": inference_result["confidence_score"],
+                "quality_gate_passed": inference_result.get("quality_gate", {}).get("passed", False),
                 "uncertainty_level": inference_result.get("uncertainty", {}).get("uncertainty_level"),
                 "total_lesions": inference_result.get("measurements", {}).get("total_lesions", 0),
                 "max_diameter_mm": inference_result.get("measurements", {}).get("max_diameter_mm", 0.0),
@@ -325,9 +329,13 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
         "inference_time_ms": inference_duration_ms,
         "iqa": iqa_report,
         "measurements": inference_result["measurements"],
+        "acoustic_profile": inference_result.get("acoustic_profile"),
+        "cdss_classification": inference_result.get("cdss_classification"),
         "rle_mask": inference_result["rle_mask"],
         "overlay_base64": inference_result["overlay_base64"],
         "original_image_base64": orig_b64,
         "uncertainty": inference_result.get("uncertainty"),
+        "quality_gate": inference_result.get("quality_gate"),
         "provenance": inference_result.get("provenance"),
     }
+

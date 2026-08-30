@@ -313,13 +313,50 @@ class UltrasoundPreprocessor:
             "message": suitability["error_message"],
         }
 
+    def compute_roi_mask(self, padded_gray, transform_params):
+        """
+        Generates a strict binary ROI mask isolating the ultrasound imaging cone
+        and zeroing out all letterbox black margins and out-of-sector background.
+        """
+        target_h, target_w = self.target_size
+        pad_x = transform_params["pad_x"]
+        pad_y = transform_params["pad_y"]
+        orig_w = transform_params["orig_w"]
+        orig_h = transform_params["orig_h"]
+        scale = transform_params["scale"]
+
+        new_w = int(orig_w * scale)
+        new_h = int(orig_h * scale)
+
+        roi_mask = np.zeros((target_h, target_w), dtype=np.uint8)
+        roi_mask[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = 1
+
+        # Extract beam sector inside active area
+        active_area = padded_gray[pad_y : pad_y + new_h, pad_x : pad_x + new_w]
+        if active_area.size > 0:
+            _, beam_thresh = cv2.threshold(active_area, 5, 255, cv2.THRESH_BINARY)
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
+            beam_closed = cv2.morphologyEx(beam_thresh, cv2.MORPH_CLOSE, kernel)
+
+            # Find largest sector contour
+            contours, _ = cv2.findContours(beam_closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest_c = max(contours, key=cv2.contourArea)
+                if cv2.contourArea(largest_c) > 0.15 * (new_w * new_h):
+                    hull = cv2.convexHull(largest_c)
+                    sector_mask = np.zeros_like(active_area)
+                    cv2.drawContours(sector_mask, [hull], -1, 1, -1)
+                    roi_mask[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = sector_mask
+
+        return roi_mask
+
     def preprocess_for_inference(self, image_np):
         """
         Full end-to-end preprocessing pipeline for deep learning inference.
         Returns:
             - normalized_tensor: torch.Tensor of shape (1, 1, 512, 512), range [0, 1]
             - padded_gray: np.ndarray (512, 512)
-            - transform_params: dict with scaling & padding offsets for inverse mapping
+            - transform_params: dict with scaling, padding offsets and strict ROI mask
             - iqa_report: dict with quality scores
         """
         if len(image_np.shape) == 3:
@@ -333,11 +370,16 @@ class UltrasoundPreprocessor:
         # 2. Letterbox resize to 512x512
         padded_gray, transform_params = self.letterbox_resize(gray, self.target_size)
 
-        # 3. Contrast enhancement
+        # 3. Compute strict ultrasound field-of-view (FOV) ROI mask
+        roi_mask = self.compute_roi_mask(padded_gray, transform_params)
+        transform_params["roi_mask"] = roi_mask
+
+        # 4. Contrast enhancement
         enhanced = self.enhance_contrast_and_denoise(padded_gray)
 
-        # 4. Normalize to [0, 1] float tensor
+        # 5. Normalize to [0, 1] float tensor
         norm_float = enhanced.astype(np.float32) / 255.0
         tensor = torch.from_numpy(norm_float).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
 
         return tensor, padded_gray, transform_params, iqa_report
+

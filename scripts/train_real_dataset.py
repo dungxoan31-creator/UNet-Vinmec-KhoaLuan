@@ -392,22 +392,24 @@ def run_experiment(
     def save_eval_visualization(cases, category):
         for idx, item in enumerate(cases):
             raw_gray = (item["img_tensor"] * 255.0).astype(np.uint8)
-            gt_mask = item["target"] * 255
-            pred_mask = item["pred_bin"] * 255
+            gt_mask = (item["target"] * 255).astype(np.uint8)
+            pred_mask = (item["pred_bin"] * 255).astype(np.uint8)
+
+            color_base = cv2.cvtColor(raw_gray, cv2.COLOR_GRAY2BGR)
+            p4_raw = color_base.copy()
+            pred_bool = item["pred_bin"] == 1
+
+            p4_raw[pred_bool] = cv2.addWeighted(p4_raw[pred_bool], 0.4, np.full_like(p4_raw[pred_bool], (0, 0, 255)), 0.6, 0)
+            gt_cnts, _ = cv2.findContours(item["target"].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(p4_raw, gt_cnts, -1, (0, 255, 0), 2)
+            pred_cnts, _ = cv2.findContours(item["pred_bin"].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(p4_raw, pred_cnts, -1, (0, 255, 255), 2)
 
             disp_h, disp_w = 384, 384
             p1 = cv2.resize(cv2.cvtColor(raw_gray, cv2.COLOR_GRAY2BGR), (disp_w, disp_h))
             p2 = cv2.resize(cv2.cvtColor(gt_mask, cv2.COLOR_GRAY2BGR), (disp_w, disp_h))
             p3 = cv2.resize(cv2.cvtColor(pred_mask, cv2.COLOR_GRAY2BGR), (disp_w, disp_h))
-
-            p4 = p1.copy()
-            pred_bool = item["pred_bin"] == 1
-
-            p4[pred_bool] = cv2.addWeighted(p4[pred_bool], 0.4, np.full_like(p4[pred_bool], (0, 0, 255)), 0.6, 0)
-            gt_cnts, _ = cv2.findContours(item["target"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            cv2.drawContours(p4, gt_cnts, -1, (0, 255, 0), 2)
-            pred_cnts, _ = cv2.findContours(item["pred_bin"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            cv2.drawContours(p4, pred_cnts, -1, (0, 255, 255), 2)
+            p4 = cv2.resize(p4_raw, (disp_w, disp_h))
 
             cv2.putText(p1, f"ORIGINAL: {item['case_id']}", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.putText(p2, "GROUND TRUTH", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
@@ -419,6 +421,7 @@ def run_experiment(
             combined = np.hstack([p1, p2, p3, p4])
             fn = os.path.join(eval_dir, f"{category}_{idx + 1:02d}_{item['case_id']}_dice_{item['dice']:.3f}.png")
             cv2_imwrite_unicode(fn, combined)
+
 
     save_eval_visualization(best_cases, "best")
     save_eval_visualization(avg_cases, "average")

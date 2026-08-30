@@ -7,7 +7,9 @@ scikit-image>=0.22.0
 scikit-learn>=1.3.0
 scipy>=1.11.0
 numpy>=1.26.0
+pandas>=2.0.0
 albumentations>=1.4.0
+
 
 # Medical Imaging & DICOM
 pydicom>=2.4.0

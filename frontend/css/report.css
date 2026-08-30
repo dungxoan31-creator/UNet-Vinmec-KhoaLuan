@@ -1,494 +1,654 @@
 /* ==========================================================================
-           13. VINMEC OFFICIAL MEDICAL DIAGNOSIS REPORT SHEET (A4 1:1 PHYSICALLY SCALED)
-           ========================================================================== */
-        .report-output-workspace {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 10px 0 40px 0;
-            width: 100%;
-        }
+   VINMEC OFFICIAL CLINICAL DIAGNOSIS REPORT SHEET (UNIFIED A4 STANDARD)
+   ========================================================================== */
 
-        .report-output-toolbar {
-            width: 210mm;
-            max-width: 100%;
-            background: linear-gradient(135deg, var(--vm-blue-start) 0%, var(--vm-blue-end) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: var(--radius-lg);
-            padding: 16px 24px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            box-shadow: var(--shadow-header);
-        }
+:root {
+    --vm-primary: #0068ab;
+    --vm-primary-dark: #004d80;
+    --vm-secondary: #008ca8;
+    --vm-teal: #00a8b5;
+    --vm-gold: #c59b27;
+    --vm-green: #15803d;
+    --vm-danger: #b91c1c;
+    
+    --vm-text-main: #0f172a;
+    --vm-text-body: #1e293b;
+    --vm-text-muted: #475569;
+    --vm-text-dim: #64748b;
+    
+    --vm-border: #cbd5e1;
+    --vm-border-light: #e2e8f0;
+    --vm-bg-subtle: #f8fafc;
+    --vm-bg-hover: #f1f5f9;
+}
 
-        .report-toolbar-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
+.report-output-workspace {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0 40px 0;
+    width: 100%;
+}
 
-        .report-toolbar-title {
-            font-size: 15px;
-            font-weight: 800;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+.report-output-toolbar {
+    width: 210mm;
+    max-width: 100%;
+    background: linear-gradient(135deg, #0068ab 0%, #008ca8 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    box-shadow: 0 4px 16px rgba(0, 50, 100, 0.12);
+    box-sizing: border-box;
+}
 
-        .report-toolbar-subtitle {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.88);
-            font-weight: 500;
-        }
+.report-toolbar-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
 
-        .report-toolbar-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
+.report-toolbar-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
-        .report-sheet-wrapper {
-            width: 210mm;
-            height: 297mm;
-            position: relative;
-            background: var(--vm-card-white);
-            border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0, 104, 171, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
-            overflow: hidden;
-        }
+.report-toolbar-subtitle {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.88);
+    font-weight: 500;
+}
 
-        .report-sheet {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 467px;
-            height: 661px;
-            transform-origin: top left;
-            transform: scale(1.6995734);
-            background: #ffffff;
-            overflow: hidden;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: var(--vm-text-dark);
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
+.report-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
 
-        /* REPORT HEADER */
-        .logo-box {
-            position: absolute;
-            left: 26px;
-            top: 16px;
-            width: 68px;
-            height: auto;
-        }
+/* ==========================================================================
+   A4 PHYSICAL CONTAINER (FLOW-BASED, 100% SHARP & PRINT ACCURATE)
+   ========================================================================== */
+.report-sheet-wrapper {
+    width: 210mm;
+    min-height: 297mm;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 50, 100, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+    border-radius: 4px;
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+}
 
-        .logo-img, .logo-svg {
-            width: 64px;
-            height: auto;
-            display: block;
-        }
+.report-page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #ffffff;
+    padding: 12mm 15mm 12mm 15mm;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #1e293b;
+    font-size: 9.5pt;
+    line-height: 1.4;
+}
 
-        .hosp-info {
-            position: absolute;
-            left: 104px;
-            top: 16px;
-            width: 342px;
-            text-align: center;
-        }
+.document-body {
+    flex: 1 0 auto;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
 
-        .hosp-name {
-            font-size: 8.6px;
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            line-height: 1.15;
-            letter-spacing: -0.1px;
-            text-transform: uppercase;
-        }
+/* ==========================================================================
+   1. HEADER (BRANDING & HOSPITAL IDENTITY)
+   ========================================================================== */
+.doc-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding-bottom: 8px !important;
+    border-bottom: 2px solid #0068ab !important;
+    margin-bottom: 8px !important;
+    position: static !important;
+    width: 100% !important;
+}
 
-        .dept-name {
-            font-size: 8.2px;
-            font-weight: 700;
-            color: var(--vm-blue-start);
-            line-height: 1.15;
-            margin-top: 2.5px;
-            margin-bottom: 2px;
-        }
+.header-left {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px !important;
+    flex: 1 !important;
+    position: static !important;
+}
 
-        .hosp-addr {
-            font-size: 5.6px;
-            color: var(--vm-text-muted);
-            line-height: 1.2;
-            margin-top: 1px;
-        }
+.logo-container {
+    width: 60px !important;
+    min-width: 60px !important;
+    max-width: 60px !important;
+    flex-shrink: 0 !important;
+    display: block !important;
+    position: static !important;
+}
 
-        .hosp-tel {
-            font-size: 5.3px;
-            color: var(--vm-text-muted);
-            line-height: 1.2;
-            white-space: nowrap;
-            margin-top: 1.5px;
-        }
+.logo-svg {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+}
 
-        /* REPORT TITLE */
-        .report-title {
-            position: absolute;
-            left: 0;
-            width: 467px;
-            top: 67px;
-            text-align: center;
-            font-size: 12.5px;
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            letter-spacing: 0.3px;
-        }
+.hosp-info {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1px !important;
+    position: static !important;
+    text-align: left !important;
+    width: auto !important;
+    left: auto !important;
+    top: auto !important;
+}
 
-        /* REPORT PATIENT TABLE */
-        .pt-table {
-            position: absolute;
-            left: 24px;
-            top: 86px;
-            border-collapse: collapse;
-            font-size: 7.1px;
-            line-height: 1.15;
-            width: 421px;
-        }
+.hosp-name {
+    font-size: 10.5pt !important;
+    font-weight: 800 !important;
+    color: #0068ab !important;
+    letter-spacing: -0.2px !important;
+    line-height: 1.2 !important;
+    text-transform: uppercase !important;
+    margin: 0 !important;
+}
 
-        .pt-table tr {
-            height: 10px;
-            line-height: 10px;
-        }
+.dept-name {
+    font-size: 8.8pt !important;
+    font-weight: 700 !important;
+    color: #008ca8 !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+}
 
-        .pt-table td {
-            padding: 0;
-            vertical-align: middle;
-            white-space: nowrap;
-        }
+.hosp-meta {
+    font-size: 7.2pt !important;
+    color: #475569 !important;
+    line-height: 1.3 !important;
+    margin-top: 1px !important;
+}
 
-        .pt-table .lbl {
-            color: var(--vm-text-muted);
-            font-weight: 500;
-        }
+.header-right {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    padding-left: 12px !important;
+    position: static !important;
+}
 
-        .pt-table .val {
-            font-weight: 700;
-            color: var(--vm-text-dark);
-        }
+.qr-badge {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 3px 6px !important;
+    border-radius: 3px !important;
+    background: #f8fafc !important;
+    text-align: center !important;
+    position: static !important;
+}
 
-        .col-lbl1 { width: 84px; }
-        .col-val1 { width: 172px; }
-        .col-lbl2 { width: 42px; }
-        .col-val2 { width: auto; }
+.qr-badge .qr-title {
+    font-size: 6.5pt !important;
+    font-weight: 700 !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+}
 
-        /* EXAM 3-COLS */
-        .exam-area {
-            position: absolute;
-            left: 24px;
-            top: 160px;
-            width: 421px;
-            font-size: 7.1px;
-        }
+.qr-badge .rpid-text {
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 7.8pt !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    letter-spacing: 0.3px !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
 
-        .exam-hdr {
-            display: flex;
-            line-height: 9px;
-            color: var(--vm-text-muted);
-        }
+/* ==========================================================================
+   2. TITLE SECTION
+   ========================================================================== */
+.title-section {
+    text-align: center !important;
+    margin: 6px 0 8px 0 !important;
+    width: 100% !important;
+    position: static !important;
+}
 
-        .exam-val {
-            display: flex;
-            line-height: 9px;
-            margin-top: 1px;
-            color: var(--vm-text-dark);
-            font-weight: 700;
-        }
+.report-main-title {
+    font-size: 12.5pt !important;
+    font-weight: 800 !important;
+    color: #004d80 !important;
+    letter-spacing: 0.3px !important;
+    text-transform: uppercase !important;
+    margin: 0 0 2px 0 !important;
+    position: static !important;
+}
 
-        .ec1 { width: 210px; padding-right: 4px; }
-        .ec2 { width: 105px; }
-        .ec3 { width: auto; }
+.report-sub-line {
+    font-size: 7.8pt !important;
+    color: #64748b !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin: 0 !important;
+    position: static !important;
+}
 
-        /* CLINICAL DIAGNOSIS */
-        .cd-area {
-            position: absolute;
-            left: 24px;
-            top: 192px;
-            width: 421px;
-            font-size: 7.1px;
-            line-height: 9px;
-        }
+/* ==========================================================================
+   3. PATIENT ADMINISTRATIVE TABLE
+   ========================================================================== */
+.patient-grid {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 7px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    position: static !important;
+}
 
-        .cd-h {
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            margin-bottom: 1.5px;
-        }
+.patient-grid td {
+    padding: 3px 6px !important;
+    vertical-align: middle !important;
+    font-size: 8.5pt !important;
+    line-height: 1.3 !important;
+    border: 1px solid #e2e8f0 !important;
+}
 
-        .cd-p {
-            color: #334155;
-        }
+.patient-grid .col-lbl {
+    color: #475569 !important;
+    font-weight: 500 !important;
+    background: #f8fafc !important;
+    width: 18% !important;
+    white-space: nowrap !important;
+}
 
-        /* TECHNIQUE */
-        .tech-area {
-            position: absolute;
-            left: 24px;
-            top: 216px;
-            width: 421px;
-            font-size: 7.1px;
-            line-height: 9px;
-        }
+.patient-grid .col-val {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+    width: 32% !important;
+}
 
-        .tech-h {
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            margin-bottom: 1.5px;
-        }
+.patient-grid .col-val.patient-name {
+    font-size: 9.2pt !important;
+    font-weight: 800 !important;
+    color: #0068ab !important;
+    text-transform: uppercase !important;
+}
 
-        .tech-p {
-            color: #334155;
-        }
+.code-font {
+    font-family: 'JetBrains Mono', monospace !important;
+    letter-spacing: 0.2px !important;
+}
 
-        /* DESCRIPTION (SPECIALIZED OVARIAN ONLY) */
-        .desc-area {
-            position: absolute;
-            left: 24px;
-            top: 248px;
-            width: 421px;
-            font-size: 6.9px;
-            line-height: 8.8px;
-        }
+/* ==========================================================================
+   4. INDICATION & TECHNIQUE SECTION
+   ========================================================================== */
+.info-strip {
+    background: #f8fafc !important;
+    border-left: 3px solid #0068ab !important;
+    padding: 4px 8px !important;
+    margin-bottom: 7px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    border-radius: 0 3px 3px 0 !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-right: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    position: static !important;
+}
 
-        .desc-h {
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            margin-bottom: 1px;
-        }
+.info-strip-row {
+    display: flex !important;
+    font-size: 8.2pt !important;
+    line-height: 1.35 !important;
+}
 
-        .desc-area .sub-h {
-            font-weight: 700;
-            color: var(--vm-primary-blue);
-            margin-top: 1.5px;
-            margin-bottom: 1px;
-        }
+.info-strip-lbl {
+    width: 130px !important;
+    flex-shrink: 0 !important;
+    font-weight: 700 !important;
+    color: #004d80 !important;
+    text-transform: uppercase !important;
+    font-size: 7.5pt !important;
+}
 
-        .desc-p {
-            color: #334155;
-            line-height: 8.8px;
-            margin-bottom: 1px;
-        }
+.info-strip-val {
+    flex: 1 !important;
+    color: #1e293b !important;
+}
 
-        /* CONCLUSION */
-        .conc-area {
-            position: absolute;
-            left: 24px;
-            top: 384px;
-            width: 425px;
-            font-size: 6.8px;
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            line-height: 9.5px;
-        }
+/* ==========================================================================
+   5. CLINICAL FINDINGS
+   ========================================================================== */
+.section-block {
+    margin-bottom: 7px !important;
+    page-break-inside: avoid !important;
+    position: static !important;
+}
 
-        .conc-h {
-            margin-bottom: 1px;
-        }
+.section-head {
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    color: #0068ab !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.2px !important;
+    padding-bottom: 2px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    margin-bottom: 3px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
 
-        .conc-l1, .conc-l2 {
-            white-space: nowrap;
-            letter-spacing: -0.12px;
-        }
+.findings-content {
+    font-size: 8.3pt !important;
+    line-height: 1.35 !important;
+    color: #1e293b !important;
+}
 
-        .conc-l1 {
-            margin-bottom: 1px;
-            color: #b91c1c;
-        }
+.finding-sub {
+    font-weight: 700 !important;
+    color: #004d80 !important;
+    margin-top: 2px !important;
+    margin-bottom: 1px !important;
+    font-size: 8.3pt !important;
+}
 
-        /* DOCTOR STAMP */
-        .doc-title {
-            position: absolute;
-            left: 290px;
-            top: 428px;
-            width: 95px;
-            text-align: center;
-            font-size: 7.2px;
-            font-weight: 700;
-            color: #475569;
-        }
+.finding-item {
+    margin-left: 6px !important;
+    margin-bottom: 1px !important;
+    color: #1e293b !important;
+}
 
-        .doc-name {
-            position: absolute;
-            left: 285px;
-            top: 476px;
-            width: 105px;
-            text-align: center;
-            font-size: 7.5px;
-            font-weight: 800;
-            color: var(--vm-blue-end);
-            z-index: 10;
-        }
+/* ==========================================================================
+   6. ULTRASOUND IMAGE GALLERY (BEFORE / AFTER)
+   ========================================================================== */
+.gallery-container {
+    margin-bottom: 7px !important;
+    page-break-inside: avoid !important;
+    position: static !important;
+    width: 100% !important;
+}
 
-        /* REPORT FOOTER */
-        .report-sheet .footer {
-            position: absolute;
-            left: 24px;
-            right: 24px;
-            bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            font-size: 5.6px;
-            color: var(--vm-text-dim);
-            border-top: 1px solid #f1f5f9;
-            padding-top: 4px;
-        }
+.gallery-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-top: 3px !important;
+    width: 100% !important;
+    position: static !important;
+}
 
-        /* LIVE DATA EDITOR MODAL */
-        .editor-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.65);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
+.img-card {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 3px !important;
+    overflow: hidden !important;
+    background: #000000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: static !important;
+}
 
-        .editor-modal.active {
-            display: flex;
-        }
+.img-header {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    padding: 3px 8px !important;
+    font-size: 7pt !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
 
-        .editor-card {
-            background: #ffffff;
-            width: 100%;
-            max-width: 860px;
-            max-height: 90vh;
-            border-radius: var(--radius-lg);
-            box-shadow: 0 25px 50px -12px rgba(0, 104, 171, 0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border: 1px solid var(--vm-border);
-        }
+.img-tag-before {
+    background: #475569 !important;
+    color: #ffffff !important;
+    font-size: 6.5pt !important;
+    font-weight: 800 !important;
+    padding: 0.5px 4px !important;
+    border-radius: 2px !important;
+}
 
-        .editor-card-header {
-            padding: 16px 24px;
-            background: linear-gradient(135deg, var(--vm-blue-start) 0%, var(--vm-blue-end) 100%);
-            color: #ffffff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+.img-tag-after {
+    background: #008ca8 !important;
+    color: #ffffff !important;
+    font-size: 6.5pt !important;
+    font-weight: 800 !important;
+    padding: 0.5px 4px !important;
+    border-radius: 2px !important;
+}
 
-        .editor-card-header h3 {
-            font-size: 15px;
-            font-weight: 800;
-            color: #ffffff;
-            letter-spacing: 0.3px;
-        }
+.img-viewport {
+    width: 100% !important;
+    height: 110px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #000000 !important;
+    cursor: pointer !important;
+    overflow: hidden !important;
+    position: relative !important;
+}
 
-        .close-btn {
-            background: rgba(255, 255, 255, 0.15);
-            border: none;
-            color: #ffffff;
-            font-size: 20px;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-        .close-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
+.us-display-img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 auto !important;
+}
 
-        .editor-card-body {
-            padding: 20px 24px;
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 14px;
-            font-size: 13px;
-            background: var(--vm-bg-gray);
-        }
+.img-footer {
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 2.5px 6px !important;
+    font-size: 7pt !important;
+    color: #475569 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
 
-        .editor-card-footer {
-            padding: 14px 24px;
-            background: #ffffff;
-            border-top: 1px solid var(--vm-border);
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-        }
+.caliper-badge {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 6.8pt !important;
+    font-weight: 700 !important;
+    padding: 1px 4px !important;
+    border-radius: 2px !important;
+    border: 1px solid #bae6fd !important;
+}
 
-        /* PRINT STYLES */
-        @media print {
-            @page {
-                size: A4 portrait;
-                margin: 0mm;
-            }
+/* ==========================================================================
+   7. CONCLUSION SECTION
+   ========================================================================== */
+.conclusion-container {
+    border: 1.5px solid #0068ab !important;
+    border-radius: 3px !important;
+    background: #f8fafc !important;
+    padding: 5px 8px !important;
+    margin-bottom: 7px !important;
+    page-break-inside: avoid !important;
+    position: static !important;
+}
 
-            body, html {
-                background: #ffffff !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 210mm !important;
-                height: 297mm !important;
-            }
+.conclusion-head {
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    color: #004d80 !important;
+    text-transform: uppercase !important;
+    margin-bottom: 2px !important;
+    letter-spacing: 0.2px !important;
+}
 
-            .top-emergency-ribbon,
-            header.main-header,
-            .clinical-stepper-bar,
-            .report-output-toolbar,
-            .editor-modal,
-            footer.main-footer,
-            .nav-item-btn,
-            .header-actions,
-            .mobile-drawer-overlay {
-                display: none !important;
-            }
+.conclusion-text-l1 {
+    font-size: 8.3pt !important;
+    font-weight: 700 !important;
+    color: #b91c1c !important;
+    line-height: 1.35 !important;
+    margin-bottom: 2px !important;
+}
 
-            main.app-main {
-                padding: 0 !important;
-                margin: 0 !important;
-                max-width: 100% !important;
-                display: block !important;
-            }
+.conclusion-text-l2 {
+    font-size: 8pt !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    line-height: 1.35 !important;
+}
 
-            .screen-container {
-                display: none !important;
-            }
+/* ==========================================================================
+   8. SIGNATURE & STAMP BLOCK
+   ========================================================================== */
+.signature-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    margin-top: 4px !important;
+    page-break-inside: avoid !important;
+    position: static !important;
+    width: 100% !important;
+}
 
-            #screenReportComplete {
-                display: flex !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                align-items: flex-start !important;
-                justify-content: flex-start !important;
-            }
+.sig-meta-left {
+    font-size: 7pt !important;
+    color: #64748b !important;
+    max-width: 52% !important;
+    line-height: 1.3 !important;
+}
 
-            .report-output-workspace {
-                padding: 0 !important;
-                margin: 0 !important;
-                align-items: flex-start !important;
-            }
+.sig-right-block {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 220px !important;
+    text-align: center !important;
+}
 
-            .report-sheet-wrapper {
-                box-shadow: none !important;
-                border-radius: 0 !important;
-                margin: 0 !important;
-                width: 210mm !important;
-                height: 297mm !important;
-                page-break-after: avoid !important;
-                page-break-inside: avoid !important;
-            }
-        }
+.sig-date {
+    font-size: 7.5pt !important;
+    color: #475569 !important;
+    margin-bottom: 2px !important;
+}
+
+.sig-role {
+    font-size: 8pt !important;
+    font-weight: 700 !important;
+    color: #004d80 !important;
+    margin-bottom: 2px !important;
+}
+
+.sig-seal-box {
+    margin: 2px 0 !important;
+}
+
+.digital-seal-tag {
+    display: inline-block !important;
+    border: 1.5px solid #15803d !important;
+    color: #15803d !important;
+    font-size: 6.8pt !important;
+    font-weight: 800 !important;
+    padding: 1.5px 5px !important;
+    border-radius: 3px !important;
+    letter-spacing: 0.3px !important;
+    background: #f0fdf4 !important;
+}
+
+.sig-name {
+    font-size: 9pt !important;
+    font-weight: 800 !important;
+    color: #0068ab !important;
+    margin-top: 2px !important;
+    text-transform: uppercase !important;
+}
+
+/* ==========================================================================
+   9. FOOTER
+   ========================================================================== */
+.doc-footer {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border-top: 1px solid #cbd5e1 !important;
+    padding-top: 4px !important;
+    font-size: 6.8pt !important;
+    color: #64748b !important;
+    margin-top: 4px !important;
+    width: 100% !important;
+    position: static !important;
+}
+
+/* ==========================================================================
+   PRINT MEDIA QUERY: EXACT A4 1:1 PRINT PREVIEW
+   ========================================================================== */
+@media print {
+    body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .screen-toolbar,
+    .report-output-toolbar,
+    .navbar,
+    .main-header,
+    .top-emergency-ribbon,
+    .editor-modal,
+    .modal-backdrop {
+        display: none !important;
+    }
+
+    .report-output-workspace {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
+    .report-sheet-wrapper {
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+    }
+
+    .report-page {
+        width: 100% !important;
+        min-height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+}

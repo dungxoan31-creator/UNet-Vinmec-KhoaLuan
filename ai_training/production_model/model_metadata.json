@@ -1,34 +1,42 @@
 {
-    "model_name": "Attention U-Net Ovarian Lesion Segmentation Engine",
-    "model_version": "1.2.0",
-    "training_dataset": "MMOTU / OTU_2D Benchmark",
-    "training_samples": 700,
-    "validation_samples": 120,
-    "test_samples": 382,
-    "input_resolution": [
-        256,
-        256
+    "model_name": "Attention U-Net Dual Attention Gates (Ovarian Lesion Segmentation)",
+    "model_version": "v1.2.0-verified",
+    "model_sha256": "5a7692d61c7c3eeebbd11c9e86bc154461b5d9024deb3b4d7742033a2aa6ff6e",
+    "dataset_protocol": "unified",
+    "dataset_total_cases": 1372,
+    "train_samples": 960,
+    "val_samples": 206,
+    "test_samples": 206,
+    "input_tensor_shape": [
+        1,
+        1,
+        512,
+        512
     ],
-    "in_channels": 1,
-    "num_classes": 1,
-    "class_mapping": {
-        "0": "Background / Normal Tissue",
-        "1": "Ovarian Lesion"
-    },
-    "test_metrics": {
-        "mean_dice": 0.7615,
-        "std_dice": 0.2178,
-        "mean_iou": 0.656,
-        "std_iou": 0.238,
-        "mean_hd95_mm": 3.5,
-        "inference_time_cpu_ms": 131.3
-    },
-    "training_parameters": {
-        "epochs": 6,
+    "training_hyperparameters": {
         "batch_size": 16,
-        "learning_rate": 0.0003,
-        "optimizer": "AdamW",
-        "loss_function": "ComboLoss (0.5 Dice + 0.3 Focal + 0.2 BCE)"
+        "initial_lr": 0.00025,
+        "loss_function": "ComboLoss(0.5*Dice + 0.3*Focal + 0.2*BCE)",
+        "optimizer": "AdamW (weight_decay=1e-4)",
+        "lr_scheduler": "CosineAnnealingLR"
     },
-    "exported_at": "2026-08-26T07:23:58Z"
+    "independent_test_metrics": {
+        "mean_dice": 0.7122,
+        "std_dice": 0.2456,
+        "mean_iou": 0.601,
+        "std_iou": 0.2574,
+        "mean_precision": 0.7396,
+        "mean_recall_sensitivity": 0.7953,
+        "mean_specificity": 0.9661,
+        "mean_hd95_mm": 3.77,
+        "mean_latency_ms": 1305.2
+    },
+    "error_distribution": {
+        "EXCELLENT_MATCH": 80,
+        "GOOD_MATCH": 58,
+        "FALSE_NEGATIVE_UNDERSEGMENT": 38,
+        "FALSE_POSITIVE_OVERSEGMENT": 28,
+        "MODERATE_DEVIATION": 2
+    },
+    "generated_at": "2026-08-28T15:01:15Z"
 }

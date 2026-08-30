@@ -73,6 +73,15 @@ let currentCase = {
 // Global predictions, view mode, and tool states
 let currentPrediction = null;
 let currentActiveUser = null;
+let currentUser = {
+    full_name: "BS.CKII. Trương Thị Phượng",
+    role: "DOCTOR",
+    title: "Bác sĩ chuyên khoa Chẩn đoán hình ảnh",
+    department: "Khoa Chẩn đoán Hình ảnh & Đơn nguyên Siêu âm Phụ khoa",
+    hospital: "Vinmec Times City (Hà Nội)",
+    avatar: "BS"
+};
+let currentRole = "DOCTOR";
 let currentStudyId = null;
 let currentImageId = null;
 let uploadedFileObj = null;
@@ -81,6 +90,7 @@ let aiPredictionData = null;
 let doctorActionChoice = "ACCEPTED_RAW";
 let selectedPathology = "CYSTIC";
 let activeFacilityKey = "times_city";
+let currentFacilityKey = "times_city";
 
 // Caliper globals
 let currentDmaxMm = 0.0;

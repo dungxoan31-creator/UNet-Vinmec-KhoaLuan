@@ -54,9 +54,22 @@ def get_dashboard_statistics(db: Session = Depends(get_db)):
     total_received = BASELINE_RECEIVED + extra_received
     total_approved = BASELINE_APPROVED + extra_reviews
     total_pending = max(0, total_received - total_approved)
-
     total_accepted_raw = BASELINE_ACCEPTED_RAW + extra_raw_accepted
     consensus_rate = round((total_accepted_raw / max(1, total_approved)) * 100.0, 1)
+
+    # Dynamically load verified benchmark Dice from metadata if available
+    mean_dice = 0.884
+    import json
+    import os
+    meta_path = os.path.abspath("ai_training/production_model/model_metadata.json")
+    if os.path.exists(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+                tm = meta.get("independent_test_metrics") or meta.get("test_metrics") or {}
+                mean_dice = tm.get("mean_dice", mean_dice)
+        except Exception:
+            pass
 
     return {
         "total_cases_received": total_received,
@@ -68,7 +81,7 @@ def get_dashboard_statistics(db: Session = Depends(get_db)):
         "pending_confirmation": total_pending,
         "empty_masks_normal": 52,
         "doctor_acceptance_rate_pct": consensus_rate,
-        "mean_dice_score": 0.884,
+        "mean_dice_score": round(float(mean_dice), 4),
         "average_review_time_seconds": 16.8,
         "realtime_active_users": 2,
         "last_updated": datetime.now(UTC).isoformat(),

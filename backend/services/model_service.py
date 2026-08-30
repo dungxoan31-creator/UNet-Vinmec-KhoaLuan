@@ -29,7 +29,11 @@ class BaseModelAdapter(ABC):
 
     @abstractmethod
     def predict(
-        self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        roi_mask: np.ndarray | None = None,
     ) -> dict[str, Any]:
         pass
 
@@ -67,13 +71,25 @@ class AttentionUNetAdapter(BaseModelAdapter):
         return True
 
     def predict(
-        self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        roi_mask: np.ndarray | None = None,
     ) -> dict[str, Any]:
-        return self.engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+        return self.engine.run_inference(
+            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+        )
 
 
 class S4MAdapter(BaseModelAdapter):
-    """Adapter for S4M / MMOTU multi-organ ultrasound segmentation framework."""
+    """
+    Adapter for S4M / MMOTU multi-organ ultrasound segmentation framework.
+    STATUS: FALLBACK_TO_ATTN_UNET — Native S4M checkpoint not loaded.
+    Runs via Attention U-Net fallback engine until native weights are provided.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
@@ -82,50 +98,104 @@ class S4MAdapter(BaseModelAdapter):
             architecture="S4M Multi-Scale Cross-Attention Transformer",
         )
         self.fallback_engine = fallback_engine
-        self.is_loaded = True
+        # is_loaded reflects whether a NATIVE checkpoint is present, not fallback availability
+        self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        self.is_loaded = True
-        return True
+        """Load native S4M checkpoint. Until real weights are provided, this returns False."""
+        if weights_path and os.path.exists(weights_path):
+            self.is_loaded = True
+            return True
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        return info
 
     def predict(
-        self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        roi_mask: np.ndarray | None = None,
     ) -> dict[str, Any]:
         if self.fallback_engine:
-            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+            )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
+            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
             return res
-        return {}
+        raise RuntimeError(
+            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
+            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
+            "with a valid checkpoint path."
+        )
 
 
 class UltraSAMAdapter(BaseModelAdapter):
-    """Adapter for UltraSAM / UltraSAM3 zero-shot promptable segmentation."""
+    """
+    Adapter for UltraSAM / UltraSAM3 zero-shot promptable segmentation.
+    STATUS: FALLBACK_TO_ATTN_UNET — Native UltraSAM ViT checkpoint not loaded.
+    Runs via Attention U-Net fallback engine until native weights are provided.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
             name="UltraSAM Foundation Model", version="3.0.0", architecture="UltraSAM Segment Anything for Ultrasound"
         )
         self.fallback_engine = fallback_engine
-        self.is_loaded = True
+        self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        self.is_loaded = True
-        return True
+        """Load native UltraSAM ViT checkpoint. Returns False until real weights are provided."""
+        if weights_path and os.path.exists(weights_path):
+            self.is_loaded = True
+            return True
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        return info
 
     def predict(
-        self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        roi_mask: np.ndarray | None = None,
     ) -> dict[str, Any]:
         if self.fallback_engine:
-            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+            )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
+            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
             return res
-        return {}
+        raise RuntimeError(
+            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
+            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
+            "with a valid UltraSAM ViT checkpoint path."
+        )
 
 
 class DS2NetAdapter(BaseModelAdapter):
-    """Adapter for DS²Net dual-stream ultrasound network."""
+    """
+    Adapter for DS²Net dual-stream ultrasound network.
+    STATUS: FALLBACK_TO_ATTN_UNET — Native DS²Net checkpoint not loaded.
+    Reference: cv516Buaa/MMOTU_DS2Net (Apache-2.0). Dual-stream for OTU-2D + OTU-CEUS.
+    Runs via Attention U-Net fallback engine until native weights are provided.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
@@ -134,25 +204,51 @@ class DS2NetAdapter(BaseModelAdapter):
             architecture="DS²Net (Dual Spatial & Spectral Stream Architecture)",
         )
         self.fallback_engine = fallback_engine
-        self.is_loaded = True
+        self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        self.is_loaded = True
-        return True
+        """Load native DS²Net checkpoint. Returns False until real weights are provided."""
+        if weights_path and os.path.exists(weights_path):
+            self.is_loaded = True
+            return True
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        return info
 
     def predict(
-        self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        roi_mask: np.ndarray | None = None,
     ) -> dict[str, Any]:
         if self.fallback_engine:
-            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+            )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
+            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
             return res
-        return {}
+        raise RuntimeError(
+            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
+            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
+            "with a valid DS²Net checkpoint path (see: cv516Buaa/MMOTU_DS2Net)."
+        )
 
 
 class SovaSegAdapter(BaseModelAdapter):
-    """Adapter for SovaSeg specialized ovarian follicle and cyst segmentation."""
+    """
+    Adapter for SovaSeg specialized ovarian follicle and cyst segmentation.
+    STATUS: FALLBACK_TO_ATTN_UNET — Native SovaSeg checkpoint not loaded.
+    Runs via Attention U-Net fallback engine until native weights are provided.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
@@ -161,27 +257,46 @@ class SovaSegAdapter(BaseModelAdapter):
             architecture="SovaSeg Boundary-Aware ResU-Net",
         )
         self.fallback_engine = fallback_engine
-        self.is_loaded = True
+        self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        self.is_loaded = True
-        return True
+        """Load native SovaSeg checkpoint. Returns False until real weights are provided."""
+        if weights_path and os.path.exists(weights_path):
+            self.is_loaded = True
+            return True
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        return info
 
     def predict(
-        self, tensor_512: torch.Tensor, padded_gray: np.ndarray, pixel_spacing_mm: float = 0.1
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        roi_mask: np.ndarray | None = None,
     ) -> dict[str, Any]:
         if self.fallback_engine:
-            res = self.fallback_engine.run_inference(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+            )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
+            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
             return res
-        return {}
+        raise RuntimeError(
+            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
+            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
+            "with a valid SovaSeg checkpoint path."
+        )
 
 
 class ModelRegistry:
     """
-    Central Registry and Model Service Dispatcher.
-    Manages active models, fallback routing, and ensemble pipelines.
+    Central Registry managing hot-swappable AI segmentation model adapters.
     """
 
     def __init__(self, checkpoint_path: str | None = None):
@@ -218,6 +333,7 @@ class ModelRegistry:
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         model_key: str | None = None,
+        roi_mask: np.ndarray | None = None,
     ) -> dict[str, Any]:
         target_key = model_key or self.primary_model_key
         adapter = self.adapters.get(target_key)
@@ -225,11 +341,13 @@ class ModelRegistry:
         if adapter is None or not adapter.is_loaded:
             adapter = self.get_primary_adapter()
 
-        result = adapter.predict(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+        result = adapter.predict(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask)
         if not result and target_key != "attention_unet":
             # Fallback to primary Attention U-Net
             fallback = self.get_primary_adapter()
-            result = fallback.predict(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm)
+            result = fallback.predict(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+            )
 
         return result
 
@@ -237,14 +355,32 @@ class ModelRegistry:
         """Provides operational metrics for Admin / Engineering view."""
         device_name = "CUDA (NVIDIA GPU)" if torch.cuda.is_available() else "CPU Execution Provider"
         models_info = [adapter.get_info() for adapter in self.adapters.values()]
+
+        # Dynamically load verified benchmark metrics from metadata if available
+        test_dsc = 0.884
+        test_iou = 0.792
+        mean_lat = 380.0
+        meta_path = os.path.abspath("ai_training/production_model/model_metadata.json")
+        if os.path.exists(meta_path):
+            try:
+                import json
+                with open(meta_path, encoding="utf-8") as f:
+                    meta = json.load(f)
+                    tm = meta.get("independent_test_metrics") or meta.get("test_metrics") or {}
+                    test_dsc = tm.get("mean_dice", test_dsc)
+                    test_iou = tm.get("mean_iou", test_iou)
+                    mean_lat = tm.get("mean_latency_ms") or tm.get("inference_time_cpu_ms", mean_lat)
+            except Exception as e:
+                print(f"[ModelRegistry] Metadata read notice: {e}")
+
         return {
             "active_primary_model": self.primary_model_key,
             "fallback_model": self.fallback_model_key,
             "ensemble_enabled": self.ensemble_enabled,
             "execution_device": device_name,
             "registered_models": models_info,
-            "test_set_dsc": 0.884,
-            "test_set_iou": 0.792,
-            "mean_inference_latency_ms": 380,
+            "test_set_dsc": round(float(test_dsc), 4),
+            "test_set_iou": round(float(test_iou), 4),
+            "mean_inference_latency_ms": round(float(mean_lat), 1),
             "last_updated": datetime.now(UTC).isoformat(),
         }

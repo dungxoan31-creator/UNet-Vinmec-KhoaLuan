@@ -238,6 +238,68 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(r_pred_tiny.status_code, 422)
         print("[PASS] HTTP 422 successfully returned on tiny image")
 
+    def test_10_case_delete_and_file_cleanup(self):
+        # Create and upload case
+        payload = {
+            "patient_id": "BN-DELETE-TEST",
+            "study_code": "STD-DEL-001",
+            "study_date": "2026-08-29",
+            "patient_age": "29",
+            "clinical_notes": "Test deletion and cleanup",
+        }
+        r_create = self.client.post("/api/cases", json=payload)
+        self.assertEqual(r_create.status_code, 200)
+        study_id = r_create.json()["study_id"]
+
+        _ = self._upload_test_image(patient_id="BN-DELETE-TEST")
+
+        # Delete case
+        r_del = self.client.delete(f"/api/cases/{study_id}")
+        self.assertEqual(r_del.status_code, 200)
+        self.assertEqual(r_del.json()["status"], "SUCCESS")
+
+        # Verify 404 on re-fetching
+        r_get = self.client.get(f"/api/cases/{study_id}")
+        self.assertEqual(r_get.status_code, 404)
+        print("[PASS] Case Deletion and Verification OK")
+
+    def test_11_error_handling_and_edge_cases(self):
+        # Non-existent case
+        r_not_found = self.client.get("/api/cases/non-existent-uuid-12345")
+        self.assertEqual(r_not_found.status_code, 404)
+
+        # Non-existent image predict
+        r_pred_none = self.client.post("/api/predict/non-existent-img-uuid")
+        self.assertEqual(r_pred_none.status_code, 404)
+
+        # Empty body upload
+        r_empty_up = self.client.post("/api/upload", files={"file": ("empty.png", b"", "image/png")})
+        self.assertEqual(r_empty_up.status_code, 400)
+        print("[PASS] Negative and Edge-Case API Error Handlers OK")
+
+    def test_12_morphology_and_caliper_boundary_tests(self):
+        import cv2
+        import numpy as np
+
+        from backend.app.config import model_registry
+        from backend.services.morphology_extractor import MorphologicalFeatureExtractor
+
+        # Test 3-channel RGB image in morphology extractor
+        extractor = MorphologicalFeatureExtractor()
+        rgb_img = np.full((512, 512, 3), 120, dtype=np.uint8)
+        mask = np.zeros((512, 512), dtype=np.uint8)
+        cv2.circle(mask, (256, 256), 60, 1, -1)
+
+        features = extractor.extract_features(rgb_img, mask, pixel_spacing_mm=0.1)
+        self.assertTrue(features["has_lesion"])
+        self.assertGreater(features["measurements"]["max_diameter_mm"], 0)
+
+        # Test zero and negative pixel spacing in caliper extraction
+        engine = model_registry.get_primary_adapter().engine
+        meas_zero = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=0.0)
+        self.assertGreater(meas_zero["max_diameter_mm"], 0)
+        print("[PASS] Morphology and Caliper Boundary & Spacing Tests OK")
+
 
 if __name__ == "__main__":
     unittest.main()

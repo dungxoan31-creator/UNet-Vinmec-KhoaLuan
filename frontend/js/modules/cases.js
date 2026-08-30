@@ -53,33 +53,43 @@ async function loadDashboardCases() {
         }
 
 function renderRecentCasesTable(cases) {
-    const tbody = document.getElementById('recentCasesTableBody');
-    if (!tbody) return;
+    const tbodies = [
+        document.getElementById('recentCasesTableBody'),
+        document.getElementById('dashboardRecentCasesTableBody')
+    ].filter(Boolean);
+    if (tbodies.length === 0) return;
+
     if (!cases || cases.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--vm-text-muted); padding: 24px;">Chưa có ca khám nào. Hãy bấm "+ Phân Tích Ca Mới" để bắt đầu.</td></tr>`;
+        tbodies.forEach(tbody => {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--vm-text-muted); padding: 24px;">Chưa có ca khám nào. Hãy bấm "+ Phân Tích Ca Mới" để bắt đầu.</td></tr>`;
+        });
         return;
     }
 
-            tbody.innerHTML = cases.slice(0, 8).map(c => `
-                <tr>
-                    <td><strong style="font-family: 'JetBrains Mono'; color: var(--vm-blue-end);">${c.study_code}</strong></td>
-                    <td><strong>${c.patient_id}</strong></td>
-                    <td>${c.study_date}</td>
-                    <td><span style="color: var(--vm-primary-blue); font-weight: 600;">${c.lesion_type || 'Chưa phân tích'}</span></td>
-                    <td><strong>${c.max_diameter_mm ? c.max_diameter_mm + ' mm' : '-'}</strong></td>
-                    <td>
-                        <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : (c.status === 'ANALYZED' ? 'badge-info' : 'badge-warning')}">
-                            ${c.status === 'REVIEWED' ? '✓ Đã ký duyệt' : (c.status === 'ANALYZED' ? '⚡ Đã chạy AI' : '⏳ Chờ phân tích')}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm" onclick="openCaseDetailModal('${c.id}')">
-                            👁️ Mở hồ sơ
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+    const html = cases.slice(0, 8).map(c => `
+        <tr>
+            <td><strong style="font-family: 'JetBrains Mono'; color: var(--vm-blue-end);">${c.study_code}</strong></td>
+            <td><strong>${c.patient_id}</strong></td>
+            <td>${c.study_date}</td>
+            <td><span style="color: var(--vm-primary-blue); font-weight: 600;">${c.lesion_type || 'Chưa phân tích'}</span></td>
+            <td><strong>${c.max_diameter_mm ? c.max_diameter_mm + ' mm' : '-'}</strong></td>
+            <td>
+                <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : (c.status === 'ANALYZED' ? 'badge-info' : 'badge-warning')}">
+                    ${c.status === 'REVIEWED' ? '✓ Đã ký duyệt' : (c.status === 'ANALYZED' ? '⚡ Đã chạy AI' : '⏳ Chờ phân tích')}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm" onclick="openCaseDetailModal('${c.id}')">
+                    👁️ Mở hồ sơ
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    tbodies.forEach(tbody => {
+        tbody.innerHTML = html;
+    });
+}
 
 async function handleCreateCaseSubmit(e) {
             e.preventDefault();
@@ -93,7 +103,7 @@ async function handleCreateCaseSubmit(e) {
             const payload = {
                 patient_id: pid,
                 study_code: document.getElementById('inputStudyCode').value.trim() || null,
-                study_date: document.getElementById('inputStudyDate').value,
+                study_date: document.getElementById('inputStudyDate').value || new Date().toISOString().split('T')[0],
                 patient_age: document.getElementById('inputPatientAge').value,
                 clinical_notes: document.getElementById('inputClinicalNotes').value.trim()
             };
@@ -205,7 +215,7 @@ async function openCaseDetailModal(studyId) {
                         <div><strong>Kỹ thuật:</strong> ${data.probe_type}</div>
                         <div><strong>Chỉ định:</strong> ${data.clinical_indication}</div>
                         <div><strong>Chẩn đoán:</strong> <span style="color: var(--vm-primary-blue); font-weight: 700;">${review ? review.lesion_type : (pred ? 'Đã chạy phân tích' : 'Chưa có')}</span></div>
-                        <div><strong>Kích thước Dmax:</strong> <strong>${review ? review.max_diameter_mm + ' mm' : (pred ? pred.measurements.max_diameter_mm + ' mm' : '-')}</strong></div>
+                        <div><strong>Kích thước Dmax:</strong> <strong>${review ? review.max_diameter_mm + ' mm' : (pred && pred.measurements && pred.measurements.max_diameter_mm ? pred.measurements.max_diameter_mm + ' mm' : '-')}</strong></div>
                     </div>
                     <div style="font-size: 13px; color: var(--vm-text-dark); background: var(--vm-card-white); border: 1px solid var(--vm-border); padding: 14px; border-radius: var(--radius-md);">
                         <strong>Mô tả lâm sàng của Bác sĩ:</strong> ${review ? review.clinical_notes : 'Chưa có ghi chú'}

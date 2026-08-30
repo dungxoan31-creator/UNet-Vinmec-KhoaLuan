@@ -1,0 +1,22 @@
+[
+    {
+        "epoch": 1,
+        "train_loss": 0.3698,
+        "val_dice": 0.6838,
+        "val_iou": 0.5601,
+        "val_precision": 0.6417,
+        "val_recall": 0.8505,
+        "val_specificity": 0.9285,
+        "duration_sec": 847.0
+    },
+    {
+        "epoch": 2,
+        "train_loss": 0.3322,
+        "val_dice": 0.7081,
+        "val_iou": 0.6017,
+        "val_precision": 0.7562,
+        "val_recall": 0.7627,
+        "val_specificity": 0.9664,
+        "duration_sec": 36414.7
+    }
+]

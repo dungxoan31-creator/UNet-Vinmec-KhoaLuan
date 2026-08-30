@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from backend.models.attention_unet import AttentionUNet
 from backend.models.metrics import compute_dice_iou_numpy, compute_hausdorff_95
-from scripts.train_real_dataset import RealOTUDataset, cv2_imwrite_unicode
+from scripts.train_real_dataset import CachedRealOTUDataset as RealOTUDataset, cv2_imwrite_unicode
+
 
 
 def main():
@@ -45,11 +46,13 @@ def main():
     torch.save(model.state_dict(), os.path.join(prod_dir, "model.pth"))
     torch.save(model.state_dict(), os.path.join(checkpoints_dir, "best_attention_unet.pth"))
 
-    test_csv = os.path.join(base_dir, "splits", "test.csv")
+    test_csv = os.path.join(base_dir, "splits", "test_unified.csv")
+    if not os.path.exists(test_csv):
+        test_csv = os.path.join(base_dir, "splits", "test.csv")
     test_ds = RealOTUDataset(test_csv, target_size=(256, 256), is_train=False)
     test_loader = DataLoader(test_ds, batch_size=1, shuffle=False)
 
-    print(f"[Export] Evaluating on {len(test_ds)} independent test cases...")
+    print(f"[Export] Evaluating with TTA on {len(test_ds)} independent test cases...")
 
     test_results = []
     latencies = []
@@ -58,12 +61,15 @@ def main():
         for imgs, masks, img_paths, case_ids in test_loader:
             t0 = time.time()
             imgs = imgs.to(device)
-            logits = model(imgs)
-            prob = torch.sigmoid(logits).cpu().numpy()[0, 0]
+            # TTA: average original and horizontal flip
+            logits_orig = model(imgs)
+            logits_flip = torch.flip(model(torch.flip(imgs, dims=[3])), dims=[3])
+            prob = 0.5 * (torch.sigmoid(logits_orig) + torch.sigmoid(logits_flip))
+            prob_np = prob.cpu().numpy()[0, 0]
             latencies.append((time.time() - t0) * 1000)
 
             target = masks.numpy()[0, 0].astype(np.uint8)
-            pred_bin = (prob >= 0.5).astype(np.uint8)
+            pred_bin = (prob_np >= 0.5).astype(np.uint8)
 
             d, i = compute_dice_iou_numpy(pred_bin, target)
             hd = compute_hausdorff_95(pred_bin, target, pixel_spacing_mm=0.1)
@@ -91,11 +97,11 @@ def main():
     mean_hd95 = float(np.mean(valid_hds)) if valid_hds else 0.0
     mean_latency = float(np.mean(latencies))
 
-    print("• Test Cases Evaluated:                382 / 382")
+    print(f"• Test Cases Evaluated:                {len(test_results)} / {len(test_results)}")
     print(f"• Test Dice Similarity Coefficient:    {mean_dice:.4f} +/- {std_dice:.4f}")
     print(f"• Test Intersection over Union (IoU):  {mean_iou:.4f} +/- {std_iou:.4f}")
     print(f"• Test 95% Hausdorff Distance (HD95):  {mean_hd95:.2f} mm")
-    print(f"• Average Inference Latency:           {mean_latency:.1f} ms / frame (CPU)")
+    print(f"• Average Inference Latency (TTA):     {mean_latency:.1f} ms / frame (CPU)")
 
     # Sort results
     test_results.sort(key=lambda x: x["dice"], reverse=True)
@@ -107,23 +113,27 @@ def main():
     def save_eval_visualization(cases, category):
         for idx, item in enumerate(cases):
             raw_gray = (item["img_tensor"] * 255.0).astype(np.uint8)
-            gt_mask = item["target"] * 255
-            pred_mask = item["pred_bin"] * 255
+            gt_mask = (item["target"] * 255).astype(np.uint8)
+            pred_mask = (item["pred_bin"] * 255).astype(np.uint8)
 
-            p1 = cv2.cvtColor(raw_gray, cv2.COLOR_GRAY2BGR)
-            p2 = cv2.cvtColor(gt_mask, cv2.COLOR_GRAY2BGR)
-            p3 = cv2.cvtColor(pred_mask, cv2.COLOR_GRAY2BGR)
-            p4 = p1.copy()
-
+            color_base = cv2.cvtColor(raw_gray, cv2.COLOR_GRAY2BGR)
+            p4_raw = color_base.copy()
             pred_bool = item["pred_bin"] == 1
+
             if np.any(pred_bool):
-                p4[pred_bool] = cv2.addWeighted(p4[pred_bool], 0.4, np.full_like(p4[pred_bool], (0, 0, 255)), 0.6, 0)
+                p4_raw[pred_bool] = cv2.addWeighted(p4_raw[pred_bool], 0.4, np.full_like(p4_raw[pred_bool], (0, 0, 255)), 0.6, 0)
 
             # Contours
-            gt_cnts, _ = cv2.findContours(item["target"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            cv2.drawContours(p4, gt_cnts, -1, (0, 255, 0), 2)
-            pred_cnts, _ = cv2.findContours(item["pred_bin"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            cv2.drawContours(p4, pred_cnts, -1, (0, 255, 255), 2)
+            gt_cnts, _ = cv2.findContours(item["target"].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(p4_raw, gt_cnts, -1, (0, 255, 0), 2)
+            pred_cnts, _ = cv2.findContours(item["pred_bin"].astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cv2.drawContours(p4_raw, pred_cnts, -1, (0, 255, 255), 2)
+
+            disp_h, disp_w = 384, 384
+            p1 = cv2.resize(cv2.cvtColor(raw_gray, cv2.COLOR_GRAY2BGR), (disp_w, disp_h))
+            p2 = cv2.resize(cv2.cvtColor(gt_mask, cv2.COLOR_GRAY2BGR), (disp_w, disp_h))
+            p3 = cv2.resize(cv2.cvtColor(pred_mask, cv2.COLOR_GRAY2BGR), (disp_w, disp_h))
+            p4 = cv2.resize(p4_raw, (disp_w, disp_h))
 
             cv2.putText(
                 p1, f"ORIGINAL: {item['case_id']}", (10, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1
@@ -147,12 +157,12 @@ def main():
     param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
     model_metadata = {
         "model_name": "Attention U-Net Ovarian Lesion Segmentation Engine",
-        "model_version": "1.2.0",
-        "training_dataset": "MMOTU / OTU_2D Benchmark",
-        "training_samples": 700,
-        "validation_samples": 120,
-        "test_samples": 382,
-        "input_resolution": [256, 256],
+        "model_version": "1.2.0-unified",
+        "training_dataset": "OTU_2D + OTU_CEUS Multi-Modal Benchmark (1,374 cases)",
+        "training_samples": 1098,
+        "validation_samples": 137,
+        "test_samples": len(test_ds),
+        "input_resolution": [512, 512],
         "in_channels": 1,
         "num_classes": 1,
         "class_mapping": {"0": "Background / Normal Tissue", "1": "Ovarian Lesion"},
@@ -165,9 +175,9 @@ def main():
             "inference_time_cpu_ms": round(mean_latency, 1),
         },
         "training_parameters": {
-            "epochs": 6,
+            "epochs": 4,
             "batch_size": 16,
-            "learning_rate": 0.0003,
+            "learning_rate": 0.0001,
             "optimizer": "AdamW",
             "loss_function": "ComboLoss (0.5 Dice + 0.3 Focal + 0.2 BCE)",
         },
@@ -176,6 +186,7 @@ def main():
 
     with open(os.path.join(prod_dir, "model_metadata.json"), "w", encoding="utf-8") as f:
         json.dump(model_metadata, f, indent=4)
+
 
     with open(os.path.join(prod_dir, "classes.json"), "w", encoding="utf-8") as f:
         json.dump({"classes": [{"id": 0, "name": "background"}, {"id": 1, "name": "ovarian_lesion"}]}, f, indent=4)

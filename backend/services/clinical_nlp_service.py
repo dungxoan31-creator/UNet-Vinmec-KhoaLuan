@@ -58,8 +58,10 @@ class ClinicalNLPService:
         b_rules = iota.get("b_rules_met", [])
         m_rules = iota.get("m_rules_met", [])
 
-        # Pathology mapping
-        pathology_name = doctor_pathology or "U nang buồng trứng"
+        # Dynamic pathology from CDSS classification or doctor choice
+        cdss_class = vision_findings.get("cdss_classification", {})
+        auto_suspicion = cdss_class.get("primary_suspicion")
+        pathology_name = doctor_pathology or auto_suspicion or "U nang buồng trứng (Ovarian Cyst)"
 
         # 2. Compose Standardized Vietnamese Clinical Findings Description
         findings_paragraphs = []
