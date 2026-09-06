@@ -29,3 +29,11 @@ Thumbs.db
 venv/
 .venv/
 env/
+
+# Office temporary lock and backup files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+*.bak
+*.tmp
+

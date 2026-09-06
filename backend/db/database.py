@@ -143,7 +143,10 @@ class UserModel(Base):
 
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+    except Exception as e:
+        print("[Database] Schema create notice:", e)
 
     # Auto-migration check for SQLite columns in case existing DB was created with older schema
     try:

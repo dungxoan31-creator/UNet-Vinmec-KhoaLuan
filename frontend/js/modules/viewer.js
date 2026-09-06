@@ -451,7 +451,7 @@ function setupCanvasEngine() {
             if (hud) hud.innerText = `X: ${Math.round(curX)} Y: ${Math.round(curY)}`;
 
             if (isDrawing) {
-                paintOnMask(curX, curY);
+                paintOnMask(curX, curY, lastX, lastY);
                 lastX = curX;
                 lastY = curY;
             }
@@ -481,7 +481,7 @@ function setupCanvasEngine() {
                     document.getElementById('hudCoords').innerText = `X: ${Math.round(curX)} Y: ${Math.round(curY)}`;
 
                     if (isDrawing) {
-                        paintOnMask(curX, curY);
+                        paintOnMask(curX, curY, lastX, lastY);
                         lastX = curX;
                         lastY = curY;
                     }
@@ -501,18 +501,32 @@ function setupCanvasEngine() {
             });
         }
 
-function paintOnMask(x, y) {
+function paintOnMask(x, y, prevX = null, prevY = null) {
             maskCtx.save();
+            maskCtx.lineCap = 'round';
+            maskCtx.lineJoin = 'round';
+            maskCtx.lineWidth = brushSize;
+
             if (currentTool === 'brush') {
+                maskCtx.strokeStyle = 'rgb(6, 182, 212)';
                 maskCtx.fillStyle = 'rgb(6, 182, 212)';
                 maskCtx.globalCompositeOperation = 'source-over';
             } else if (currentTool === 'eraser') {
+                maskCtx.strokeStyle = 'rgba(0, 0, 0, 1)';
+                maskCtx.fillStyle = 'rgba(0, 0, 0, 1)';
                 maskCtx.globalCompositeOperation = 'destination-out';
             }
 
-            maskCtx.beginPath();
-            maskCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-            maskCtx.fill();
+            if (typeof prevX === 'number' && typeof prevY === 'number') {
+                maskCtx.beginPath();
+                maskCtx.moveTo(prevX, prevY);
+                maskCtx.lineTo(x, y);
+                maskCtx.stroke();
+            } else {
+                maskCtx.beginPath();
+                maskCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+                maskCtx.fill();
+            }
             maskCtx.restore();
 
             redrawMainCanvas();

@@ -191,3 +191,47 @@ class ImageValidationResult(BaseModel):
     iqa_score: float
     details: list[dict[str, Any]]
     message: str
+
+
+class CDSSEvaluateRequest(BaseModel):
+    vision_findings: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "max_diameter_mm": 35.0,
+            "ortho_diameter_mm": 25.0,
+            "has_solid_component": False,
+            "papillary_projections_count": 0,
+            "acoustic_shadowing": False,
+            "fluid_echogenicity": "anechoic",
+            "locules_count": 1,
+            "color_score": 1,
+            "has_ascites": False,
+        }
+    )
+    patient_context: dict[str, Any] | None = Field(
+        default_factory=lambda: {"age": 32, "is_postmenopausal": False}
+    )
+
+
+class CaseConfirmRequest(BaseModel):
+    image_id: str
+    study_id: str | None = None
+    prediction_id: str | None = None
+    doctor_id: str = "BS. Nguyễn Văn A"
+    doctor_action: str = "ACCEPTED_RAW"  # "ACCEPTED_RAW", "MODIFIED", "REJECTED_ALL"
+    verified_mask_rle: dict[str, Any]
+    lesion_type: str = "U nang thanh dịch buồng trứng"
+    clinical_notes: str = ""
+    time_spent_seconds: int = 15
+
+
+class SegmentAPIResponse(BaseModel):
+    success: bool = True
+    image_id: str | None = None
+    rle_mask: dict[str, Any]
+    binary_mask_base64: str
+    confidence_score: float
+    measurements: dict[str, Any]
+    quality_gate: dict[str, Any] | None = None
+    uncertainty: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+

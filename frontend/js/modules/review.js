@@ -198,9 +198,10 @@ async function executeDoctorSignOff() {
             }
             counts.push(run);
 
+            const activeDoctorName = (typeof currentUser !== 'undefined' && currentUser && currentUser.full_name) ? currentUser.full_name : "BS. Nguyễn Văn A";
             const payload = {
                 image_id: currentCase.image_id,
-                doctor_id: "BS. Nguyễn Văn A",
+                doctor_id: activeDoctorName,
                 doctor_action: currentCase.doctor_action || "ACCEPTED_RAW",
                 verified_mask_rle: { shape: [512, 512], counts: counts, first_val: flat[0] || 0, encoding: "standard_rle" },
                 lesion_type: document.getElementById('selectPathology').value,

@@ -1,13 +1,14 @@
 """
 Clinical NLP & Narrative Generation Service.
-Synthesizes Computer Vision findings (Attention U-Net) + Medical Knowledge Base (IOTA / O-RADS / Pathology Lexicon)
-into standardized, publication-grade Vietnamese Clinical Ultrasound Reports and Diagnostic Conclusions.
+Synthesizes Computer Vision findings (Attention U-Net) + Medical Knowledge Base (IOTA / O-RADS / Pathology Lexicon) + Ollama Local LLM Reasoning.
+Includes fail-safe automatic fallback to deterministic Medical KB.
 """
 
 from typing import Any
 
 from knowledge.retrieval.cdss_reasoning_layer import CDSSReasoningEngine
 from knowledge.retrieval.medical_knowledge_retriever import MedicalKnowledgeRetriever
+from backend.services.ollama_service import OllamaService, OllamaServiceException
 
 
 class ClinicalNLPService:
@@ -15,18 +16,22 @@ class ClinicalNLPService:
         self,
         retriever: MedicalKnowledgeRetriever | None = None,
         cdss_engine: CDSSReasoningEngine | None = None,
+        ollama_service: OllamaService | None = None,
     ):
         self.retriever = retriever or MedicalKnowledgeRetriever()
         self.cdss = cdss_engine or CDSSReasoningEngine(self.retriever)
+        self.ollama = ollama_service or OllamaService()
 
     def generate_clinical_narrative(
         self,
         vision_findings: dict[str, Any],
         patient_info: dict[str, Any] | None = None,
         doctor_pathology: str | None = None,
+        use_ollama: bool = True,
     ) -> dict[str, Any]:
         """
         Generates structured ultrasound description text and clinical conclusion.
+        Uses Ollama Local LLM when available & enabled; falls back to Deterministic KB if unavailable.
         """
         patient_info = patient_info or {}
         patient_age = patient_info.get("patient_age", "30")
@@ -41,6 +46,34 @@ class ClinicalNLPService:
             vision_findings, patient_context={"age": age_int, "is_postmenopausal": is_postmenopausal}
         )
 
+        # 2. Attempt Ollama Local LLM Reasoning if enabled
+        if use_ollama:
+            try:
+                ollama_res = self.ollama.generate_narrative(
+                    cdss_findings=cdss_result,
+                    patient_info=patient_info
+                )
+                return {
+                    "sonographic_findings_text": ollama_res["sonographic_findings_text"],
+                    "clinical_conclusion_text": ollama_res["clinical_conclusion_text"],
+                    "cdss_summary": {
+                        "orads_code": cdss_result.get("orads_stratification", {}).get("category_code"),
+                        "orads_name": cdss_result.get("orads_stratification", {}).get("category_name"),
+                        "malignancy_risk": cdss_result.get("orads_stratification", {}).get("malignancy_risk"),
+                        "iota_verdict": cdss_result.get("iota_evaluation", {}).get("verdict"),
+                    },
+                    "generation_mode": f"Ollama Local LLM Clinical Reasoning ({ollama_res.get('model_used', 'qwen2.5:7b')})",
+                    "guideline_provenance": [
+                        "SRC-ACR-ORADS-US-2022",
+                        "SRC-IOTA-CONSENSUS-2026",
+                        "SRC-OLLAMA-LOCAL-LLM"
+                    ],
+                    "disclaimer": "Văn bản chẩn đoán được tổng hợp tự động bởi Ollama Local LLM & CDSS Engine. Bác sĩ cần thẩm định trước khi ký duyệt."
+                }
+            except OllamaServiceException as e:
+                print(f"[ClinicalNLPService] Ollama LLM notice: {e} -> Reverting to Deterministic Medical KB Engine.")
+
+        # 3. Deterministic Fallback Pipeline
         meas = cdss_result.get("measurements_summary", {})
         dmax = meas.get("dmax_mm", 0.0)
         dorth = meas.get("dorth_mm", 0.0)
@@ -63,7 +96,7 @@ class ClinicalNLPService:
         auto_suspicion = cdss_class.get("primary_suspicion")
         pathology_name = doctor_pathology or auto_suspicion or "U nang buồng trứng (Ovarian Cyst)"
 
-        # 2. Compose Standardized Vietnamese Clinical Findings Description
+        # Compose Standardized Vietnamese Clinical Findings Description
         findings_paragraphs = []
 
         # Paragraph 1: Overview & Location
@@ -124,7 +157,7 @@ class ClinicalNLPService:
             "Các cơ quan vùng chậu lân cận (tử cung, bàng quang) nằm đúng vị trí giải phẫu."
         )
 
-        # 3. Compose Diagnostic Conclusion
+        # Compose Diagnostic Conclusion
         conclusion_lines = []
         if dmax == 0:
             conclusion_lines.append("1. Hình ảnh siêu âm buồng trứng hai bên bình thường (O-RADS 1).")
@@ -165,3 +198,4 @@ class ClinicalNLPService:
             ],
             "disclaimer": "Đoạn văn mô tả và kết luận được tự động tổng hợp từ mô hình Attention U-Net & Cơ sở Tri thức Y khoa. Bác sĩ chuyên khoa cần kiểm tra và chỉnh sửa trước khi ký duyệt.",
         }
+

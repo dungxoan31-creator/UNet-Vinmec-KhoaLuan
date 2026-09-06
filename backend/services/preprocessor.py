@@ -47,10 +47,11 @@ class UltrasoundPreprocessor:
         cropped = image_np[y : y + h, x : x + w]
         return cropped, (x, y, w, h)
 
-    def letterbox_resize(self, image_np, target_size=None):
+    def letterbox_resize(self, image_np, target_size=None, is_mask=False):
         """
-        Resizes image to target_size (default 512x512) preserving aspect ratio via black padding.
-        Returns: padded_image, (scale, pad_x, pad_y, orig_w, orig_h)
+        Resizes image or binary mask to target_size (default 512x512) preserving aspect ratio via black padding.
+        Uses cv2.INTER_LINEAR (Bilinear) for images and cv2.INTER_NEAREST (Nearest Neighbor) for masks.
+        Returns: padded_image, transform_params
         """
         if target_size is None:
             target_size = self.target_size
@@ -62,17 +63,18 @@ class UltrasoundPreprocessor:
         new_w = int(orig_w * scale)
         new_h = int(orig_h * scale)
 
-        resized = cv2.resize(image_np, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+        interp = cv2.INTER_NEAREST if is_mask else cv2.INTER_LINEAR
+        resized = cv2.resize(image_np, (new_w, new_h), interpolation=interp)
 
         # Create padded canvas
         pad_x = (target_w - new_w) // 2
         pad_y = (target_h - new_h) // 2
 
         if len(image_np.shape) == 3:
-            padded = np.zeros((target_h, target_w, 3), dtype=np.uint8)
+            padded = np.zeros((target_h, target_w, 3), dtype=image_np.dtype)
             padded[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = resized
         else:
-            padded = np.zeros((target_h, target_w), dtype=np.uint8)
+            padded = np.zeros((target_h, target_w), dtype=image_np.dtype)
             padded[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = resized
 
         transform_params = {
@@ -85,6 +87,29 @@ class UltrasoundPreprocessor:
             "target_h": target_h,
         }
         return padded, transform_params
+
+    def inverse_letterbox_mask(self, mask_512: np.ndarray, transform_params: dict) -> np.ndarray:
+        """
+        Restores a 512x512 padded binary mask back to its original image dimensions
+        using Nearest Neighbor interpolation (cv2.INTER_NEAREST) to preserve exact binary mask edges.
+        """
+        pad_x = transform_params["pad_x"]
+        pad_y = transform_params["pad_y"]
+        orig_w = transform_params["orig_w"]
+        orig_h = transform_params["orig_h"]
+        scale = transform_params["scale"]
+
+        new_w = int(orig_w * scale)
+        new_h = int(orig_h * scale)
+
+        # Crop active unpadded region
+        cropped_mask = mask_512[pad_y : pad_y + new_h, pad_x : pad_x + new_w]
+        if cropped_mask.size == 0:
+            return np.zeros((orig_h, orig_w), dtype=np.uint8)
+
+        # Resize to original resolution with Nearest Neighbor
+        orig_mask = cv2.resize(cropped_mask, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
+        return orig_mask
 
     def enhance_contrast_and_denoise(self, gray_np):
         """

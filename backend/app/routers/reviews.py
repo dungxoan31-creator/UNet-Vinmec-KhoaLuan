@@ -85,11 +85,13 @@ def generate_clinical_narrative(payload: dict):
         vision_findings = payload.get("vision_findings", {})
         patient_info = payload.get("patient_info", {})
         doctor_pathology = payload.get("pathology_name", None)
+        use_ollama = payload.get("use_ollama", True)
 
         result = nlp_service.generate_clinical_narrative(
             vision_findings=vision_findings,
             patient_info=patient_info,
             doctor_pathology=doctor_pathology,
+            use_ollama=use_ollama,
         )
         return result
     except Exception as e:

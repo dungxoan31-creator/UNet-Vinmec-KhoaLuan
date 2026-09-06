@@ -26,6 +26,7 @@ from backend.app.routers import (
     health_router,
     inference_router,
     reviews_router,
+    v1_router,
 )
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
 from backend.db.database import init_db
@@ -50,6 +51,7 @@ app.add_middleware(
 )
 
 # Register API Routers
+app.include_router(v1_router)
 app.include_router(health_router)
 app.include_router(cases_router)
 app.include_router(inference_router)

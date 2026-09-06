@@ -50,6 +50,15 @@ class MedicalKnowledgeRetriever:
                     if data and "source_id" in data:
                         self.sources[data["source_id"]] = data
 
+        # 2b. Systematic Reviews
+        sys_rev_dir = os.path.join(self.base_dir, "sources", "systematic_reviews")
+        if os.path.exists(sys_rev_dir):
+            for fname in os.listdir(sys_rev_dir):
+                if fname.endswith(".json"):
+                    data = self._load_json_file(os.path.join("sources", "systematic_reviews", fname))
+                    if data and "source_id" in data:
+                        self.sources[data["source_id"]] = data
+
         # 3. IOTA Knowledge
         iota_dir = os.path.join(self.base_dir, "normalized", "iota")
         if os.path.exists(iota_dir):
@@ -66,6 +75,16 @@ class MedicalKnowledgeRetriever:
                     key = fname.replace(".json", "")
                     self.normalized_orads[key] = self._load_json_file(os.path.join("normalized", "o_rads", fname))
 
+        # 4b. Ultrasound Lexicon
+        lex_dir = os.path.join(self.base_dir, "normalized", "ultrasound_lexicon")
+        if os.path.exists(lex_dir):
+            for fname in os.listdir(lex_dir):
+                if fname.endswith(".json"):
+                    key = fname.replace(".json", "")
+                    self.normalized_lexicon[key] = self._load_json_file(
+                        os.path.join("normalized", "ultrasound_lexicon", fname)
+                    )
+
         # 5. Pathology Knowledge
         path_dir = os.path.join(self.base_dir, "normalized", "ovarian_pathology")
         if os.path.exists(path_dir):
@@ -80,8 +99,82 @@ class MedicalKnowledgeRetriever:
         graph_file = os.path.join("graph", "knowledge_graph.json")
         self.graph_data = self._load_json_file(graph_file) or {}
 
+        # 7. Conflicts Matrix
+        self.conflicts = {
+            "KC-001": {
+                "conflict_id": "KC-001",
+                "topic": "Solid Component Definition & Cutoff for Benignity",
+                "expected_iota": "Rule B2 (Solid component < 7mm)",
+                "expected_orads": "O-RADS 4 (Solid component ≥ 3mm)",
+                "resolution": "O-RADS US v2022 takes precedence for risk stratification (O-RADS 4)."
+            },
+            "KC-002": {
+                "conflict_id": "KC-002",
+                "topic": "Multilocular Cyst Size Cutoff (< 10cm vs ≥ 10cm)",
+                "expected_iota": "Rule B4 (Smooth multilocular < 100mm)",
+                "expected_orads": "O-RADS 4 (Smooth multilocular ≥ 10cm)",
+                "resolution": "Categorized as O-RADS 4 per ACR due to risk of large mucinous neoplasms."
+            },
+            "KC-003": {
+                "conflict_id": "KC-003",
+                "topic": "Solid Lesions with Acoustic Shadowing",
+                "expected_iota": "Rule B3 (Acoustic Shadows -> Benign)",
+                "expected_orads": "O-RADS 3 (Low Risk)",
+                "resolution": "O-RADS 3 (Low Risk) and IOTA B3 synergy applied for ovarian fibroma/thecoma spectrum."
+            },
+            "KC-004": {
+                "conflict_id": "KC-004",
+                "topic": "CA-125 Biomarker Utility in Premenopausal vs Postmenopausal Women",
+                "expected_iota": "IOTA ADNEX morphology-based priority",
+                "expected_orads": "O-RADS US morphology precedence",
+                "resolution": "IOTA ADNEX and O-RADS US morphology take precedence over RMI."
+            }
+        }
+
     def get_source_by_id(self, source_id: str) -> Optional[Dict[str, Any]]:
         return self.sources.get(source_id)
+
+    def get_iota_term(self, term_name: str) -> Optional[Dict[str, Any]]:
+        lexicon = self.normalized_iota.get("iota_terminology_lexicon", {})
+        if not lexicon:
+            return None
+        t_lower = term_name.lower()
+        for term in lexicon.get("terms", []):
+            if t_lower in term.get("term_name", "").lower():
+                return term
+        return None
+
+    def get_iota_adnex_predictors(self) -> List[str]:
+        adnex = self.normalized_iota.get("iota_adnex_model", {})
+        if not adnex:
+            return []
+        predictors = []
+        for var in adnex.get("predictor_variables", []):
+            p_name = var.get("name")
+            if p_name == "age":
+                predictors.append("age")
+            elif p_name == "ca125":
+                predictors.append("ca125_level")
+            elif p_name == "oncology_center":
+                predictors.append("center_type")
+            elif p_name == "max_lesion_diameter":
+                predictors.append("max_lesion_diameter_mm")
+            elif p_name == "max_solid_diameter":
+                predictors.append("max_solid_component_diameter_mm")
+            elif p_name == "more_than_10_locules":
+                predictors.append("more_than_10_locules")
+            elif p_name == "papillary_projections":
+                predictors.append("papillary_projection_count")
+            elif p_name == "acoustic_shadows":
+                predictors.append("acoustic_shadows")
+            elif p_name == "ascites":
+                predictors.append("ascites")
+            else:
+                predictors.append(p_name)
+        return predictors
+
+    def get_conflict(self, conflict_id: str) -> Optional[Dict[str, Any]]:
+        return self.conflicts.get(conflict_id)
 
     def search_pathology(self, query: str) -> List[Dict[str, Any]]:
         q = query.lower()
