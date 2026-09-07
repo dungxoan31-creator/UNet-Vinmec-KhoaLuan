@@ -2,6 +2,10 @@
  * MODULE: VIEWER.JS
  */
 
+const MAX_HISTORY = 20;
+const MAX_ZOOM = 5.0;
+const MIN_ZOOM = 0.2;
+const ZOOM_STEP = 0.25;
 
 function initResultsWorkspace(data) {
     const meas = data.measurements || {};

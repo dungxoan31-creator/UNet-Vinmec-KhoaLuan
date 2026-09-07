@@ -24,9 +24,15 @@ def submit_doctor_review(review_req: DoctorReviewRequest, db: Session = Depends(
     review_id = str(uuid.uuid4())
     engine_inst = model_registry.get_primary_adapter().engine
 
+    img_rec = db.query(ImageModel).filter(ImageModel.id == review_req.image_id).first()
+    if not img_rec:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh y tế tương ứng.")
+
+    pixel_spacing = getattr(img_rec, "pixel_spacing_mm", 0.1) or 0.1
+
     # Decode mask to get exact doctor-verified measurements
     verified_mask = engine_inst.rle_to_mask(review_req.verified_mask_rle)
-    meas = engine_inst.extract_calipers_and_measurements(verified_mask, pixel_spacing_mm=0.1)
+    meas = engine_inst.extract_calipers_and_measurements(verified_mask, pixel_spacing_mm=pixel_spacing)
 
     review_record = ReviewModel(
         id=review_id,
@@ -46,8 +52,7 @@ def submit_doctor_review(review_req: DoctorReviewRequest, db: Session = Depends(
     db.add(review_record)
 
     # Update Study status to REVIEWED
-    img_rec = db.query(ImageModel).filter(ImageModel.id == review_req.image_id).first()
-    if img_rec and img_rec.study:
+    if img_rec.study:
         img_rec.study.status = "REVIEWED"
 
     # Audit log
