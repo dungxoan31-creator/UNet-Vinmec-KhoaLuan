@@ -37,3 +37,4 @@ env/
 *.bak
 *.tmp
 
+.aider*
