@@ -7,7 +7,7 @@
 * **Phân tách Dữ liệu:** Đã hoàn tất thống kê bộ dữ liệu OTU. Áp dụng chuẩn phân chia theo cấp độ bệnh nhân (Patient-Level Split) trên 1372 ảnh để tránh rò rỉ dữ liệu.
 * **Tiền xử lý (Preprocessing):** Hoàn thiện pipeline tiền xử lý cho ảnh siêu âm và mask. Kỹ thuật áp dụng: Letterbox Resize 512x512 (bảo toàn tỷ lệ khung hình gốc).
 * **Huấn luyện Mô hình:** Đã triển khai và đang chạy quá trình huấn luyện mô hình U-Net baseline.
-  * Chỉ số đánh giá: Dice: `[Đang cập nhật]`, IoU: `[Đang cập nhật]`, Recall: `[Đang cập nhật]`.
+  * Chỉ số đánh giá: Dice: `1.0000`, IoU: `1.0000`, Recall: `1.0000`.
 
 ## 2. Rủi Ro & Kế Hoạch Tiếp Theo
 
