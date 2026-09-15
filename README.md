@@ -1,1540 +1,227 @@
-BÁO CÁO TIẾN ĐỘ THỰC HIỆN KHÓA LUẬN TỐT NGHIỆP
+<div align="center">
 
-CỘT MỐC 1 (06/09/2026 – 20/09/2026)
+# HỆ THỐNG HỖ TRỢ PHÂN ĐOẠN TỔN THƯƠNG TRÊN ẢNH SIÊU ÂM BUỒNG TRỨNG
+### ỨNG DỤNG DEEP LEARNING THEO MÔ HÌNH HUMAN-IN-THE-LOOP
+**KHÓA LUẬN TỐT NGHIỆP — CHUYÊN NGÀNH HỆ THỐNG THÔNG TIN QUẢN LÝ (MIS 65A)**  
+*Trường Đại học Kinh tế Quốc dân (NEU) • Trường Công nghệ • Khoa Hệ thống Thông tin Quản lý*
 
-Tên đề tài: “Xây dựng hệ thống hỗ trợ phân đoạn tổn thương trên ảnh siêu âm buồng trứng ứng dụng Deep Learning theo mô hình Human-in-the-Loop”
+---
 
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.6.0%2Bcu124-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![CUDA](https://img.shields.io/badge/NVIDIA-RTX_3050_Laptop-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
+[![Tests](https://img.shields.io/badge/Tests-87%2F87_Passed-brightgreen?logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![Status](https://img.shields.io/badge/Milestone_1-100%25_Verified-blue)](docs/reports/Bao_Cao_Tien_Do_Moc_1_NguyenHuuDung.md)
+[![License](https://img.shields.io/badge/Research-Academic_Only-lightgrey)](#-đạo-đức-nghiên-cứu--bảo-mật-dữ-liệu)
 
+</div>
 
+---
 
+## 📌 THÔNG TIN ĐỀ TÀI & TÁC GIẢ
 
-Sinh viên thực hiện: Nguyễn Hữu Dũng — Mã sinh viên: 11235559
+* **Sinh viên thực hiện**: **Nguyễn Hữu Dũng**
+* **Mã sinh viên**: `11235559` — **Lớp**: Hệ thống Thông tin Quản lý 65A (HTTTQL 65A)
+* **Giảng viên hướng dẫn**: **ThS. Trần Thanh Hải**
+* **Định hướng chuyên môn**: IT Business Analyst / Product Owner (ITBA / PO)
+* **Cơ sở đào tạo**: Khoa Hệ thống Thông tin Quản lý — Trường Công nghệ — Đại học Kinh tế Quốc dân
+* **Bối cảnh khảo sát**: Bệnh viện Đa khoa Quốc tế Vinmec Times City (Bản mẫu chức năng nghiên cứu học thuật)
 
+---
 
+## 🎯 GIỚI THIỆU & MỤC TIÊU NGHIÊN CỨU
 
-Lớp chuyên ngành: Hệ thống Thông tin Quản lý 65A (HTTTQL 65A)
+Trong quy trình chẩn đoán hình ảnh phụ khoa, siêu âm buồng trứng là kỹ thuật phổ biến nhất nhưng gặp phải 3 rào cản lâm sàng lớn:
+1. **Đặc điểm hình ảnh phức tạp**: Độ tương phản mô mềm thấp, nhiễu đốm âm học (*speckle noise*) dày đặc, ranh giới giữa tổn thương và mô đệm buồng trứng thường mờ nhạt hoặc bị bóng cản âm (*acoustic shadowing*) che khuất.
+2. **Thời gian thao tác & tính biến thiên**: Việc bác sĩ phải khoanh vùng thủ công từng ca làm tăng thời gian đọc ảnh và tiềm ẩn sự biến thiên theo kinh nghiệm chủ quan.
+3. **Nhu cầu trực quan hóa minh bạch**: Bác sĩ cần mặt nạ phân đoạn dạng lớp phủ (*Mask/Overlay*) trực quan để kiểm soát và tinh chỉnh, thay vì chấp nhận một nhãn phân loại dạng hộp đen (*black-box*).
 
+### Phát biểu bài toán cốt lõi:
+Xây dựng bản mẫu chức năng Web (*Web Functional Prototype*) hỗ trợ phân đoạn tổn thương nhị phân (*Binary Lesion Segmentation*) trên ảnh siêu âm buồng trứng 2D B-mode, hiển thị đồng thời ảnh gốc và lớp phủ ranh giới u nang, kết hợp bộ công cụ tương tác Người – Máy (**Human-in-the-Loop**) cho phép bác sĩ rà soát, tinh chỉnh (cọ vẽ/tẩy xóa/opacity) và xác nhận kết quả thử nghiệm trong thời gian thực ($<500\text{ ms}$). Hệ thống đóng vai trò công cụ trợ lý phân đoạn, tuyệt đối không thay thế vai trò chẩn đoán y khoa của bác sĩ.
 
+---
 
-Giảng viên hướng dẫn: ThS. Trần Thanh Hải
+## 🏗️ KIẾN TRÚC ĐƯỜNG ỐNG XỬ LÝ (END-TO-END PIPELINE)
 
+Hệ thống được thiết kế theo kiến trúc mô-đun hóa cao, phân tách độc lập giữa tầng tiền xử lý hình ảnh y tế, động cơ mô hình học sâu, dịch vụ suy luận FastAPI và giao diện tương tác:
 
+```mermaid
+flowchart LR
+    A["Raw Ultrasound (B-mode)"] --> B["ROI Cropping & Letterbox 512x512"]
+    B --> C["CLAHE Contrast Enhancement"]
+    C --> D["Standard U-Net Baseline (7.76M Params)"]
+    D --> E["Probability Sigmoid & Threshold 0.5"]
+    E --> F["Inverse Letterbox to Original Size"]
+    F --> G["Interactive Dual-layer Canvas (HITL)"]
+    G --> H["Morphology & Caliper D1/D2 Extraction"]
+    H --> I["Export Research Summary"]
+```
 
-Định hướng nghề nghiệp: IT Business Analyst / Product Owner
+---
 
+## 📊 DỮ LIỆU & ĐÓNG BĂNG PHÂN VÙNG (ZERO-LEAKAGE PROTOCOL)
 
+Dữ liệu nghiên cứu gồm **1.387 ảnh siêu âm thực tế đã được ẩn danh hoàn toàn (100% De-identified)**, tuân thủ nghiêm ngặt chuẩn phân chia cấp độ Bệnh nhân (*Patient-level Split*), cam kết **0.0% rò rỉ dữ liệu (Zero Data Leakage)**:
 
-Thời gian báo cáo: 15/09/2026
-
-
-
-Trạng thái Cột mốc 1: HOÀN THÀNH 100% CÁC TIÊU CHÍ (COMPLETED WITH FULL EVIDENCE)
-
-
-
-I. TỔNG QUAN ĐỀ TÀI & CĂN CỨ THEO ĐỀ CƯƠNG ĐÃ PHÊ DUYỆT
-
-1. Bối cảnh & Vấn đề Nghiên cứu
-
-Trong quy trình khám phụ khoa, siêu âm buồng trứng là kỹ thuật hình ảnh quan trọng nhất nhưng gặp 3 thách thức thực tế:
-
-
-
-
-
-Độ tương phản thấp và nhiễu đốm: Ảnh siêu âm buồng trứng có độ tương phản mô mềm kém, nhiều nhiễu đốm (speckle noise), ranh giới khối u và mô lành thường mờ nhạt hoặc biến dạng.
-
-
-
-Thời gian thao tác và tính biến thiên: Việc khoanh vùng tổn thương thủ công tốn nhiều thời gian và phụ thuộc kinh nghiệm chủ quan của bác sĩ.
-
-
-
-Nhu cầu trực quan minh bạch: Bác sĩ cần lớp phủ trực quan (Mask/Overlay) để kiểm tra, đánh giá trực tiếp vùng u thay vì nhận nhãn phân loại hộp đen (black-box).
-
-2. Phát biểu Bài toán Cốt lõi
-
-Xây dựng giải pháp AI phân đoạn tổn thương nhị phân (Binary Lesion Segmentation) tự động dự đoán và khoanh vùng tổn thương trên ảnh siêu âm buồng trứng, trực quan hóa kết quả dưới dạng lớp phủ (Mask/Overlay) và tích hợp vào bản mẫu chức năng web (Web Functional Prototype) theo cơ chế Người – Máy phối hợp (Human-in-the-Loop): bác sĩ kiểm tra, tinh chỉnh ranh giới nếu cần và xác nhận kết quả trong môi trường thử nghiệm. Hệ thống đóng vai trò công cụ hỗ trợ phân đoạn, không tự động đưa ra chẩn đoán y khoa.
-
-3. Mục tiêu Tổng quát & 5 Mục tiêu Cụ thể
-
-
-
-
-
-Mục tiêu tổng quát: Nghiên cứu, thiết kế và xây dựng bản mẫu chức năng web (Web Functional Prototype) hỗ trợ phân đoạn tổn thương buồng trứng trên ảnh siêu âm ứng dụng Deep Learning theo cơ chế Human-in-the-Loop, hỗ trợ bác sĩ khoanh vùng trực quan, giảm thời gian thao tác và duy trì quyền kiểm soát chuyên môn cao nhất.
-
-
-
-Mục tiêu 1 (Nghiệp vụ): Mô hình hóa As-Is, To-Be; xây dựng tài liệu SRS (Use Cases, User Stories, Acceptance Criteria).
-
-
-
-Mục tiêu 2 (Dữ liệu): Chuẩn hóa Letterbox 512×512, cắt ROI khung quét; đóng băng 307 ảnh Ground Truth (từ 185 bệnh nhân trên tổng kho 1.387 ảnh tiếp nhận), phân chia Patient-level split triệt tiêu rò rỉ dữ liệu.
-
-
-
-Mục tiêu 3 (Mô hình AI): Huấn luyện Baseline Standard U-Net (7.76M tham số) và thực nghiệm mô hình cải tiến Attention U-Net, so sánh bằng Dice, IoU, Recall.
-
-
-
-Mục tiêu 4 (Bản mẫu web): Phát triển Web Functional Prototype (FastAPI + React.js + HTML5 Canvas) tương tác Human-in-the-Loop.
-
-
-
-Mục tiêu 5 (Đánh giá): Đo lường hiệu năng kỹ thuật và khảo sát độ hữu dụng theo thang đo SUS và thời gian thao tác.
-
-
-
-II. PHẦN A: CÁC HẠNG MỤC ĐÃ HOÀN THÀNH (COMPLETED WORK)
-
-Theo đúng kế hoạch Cột mốc 1 (06/09 – 20/09), sinh viên đã hoàn thành và kiểm chứng thực nghiệm 100% các hạng mục kỹ thuật:
-
-
-
-
-
-
-
-STT
-
-
-
-Hạng mục Kỹ thuật Cột mốc 1
-
-
-
-Trạng thái Thực hiện
-
-
-
-Mã nguồn & Vị trí Lưu trữ
-
-
-
-
-
-1
-
-
-
-Kiểm toán & Đóng băng Dữ liệu (1.387 ảnh tiếp nhận, 307 Ground Truth / 185 bệnh nhân, 35 empty masks)
-
-
-
-COMPLETED
-
-
-
-ai_training/splits/, protocol_1_manifest_summary.json
-
-
-
-
-
-2
-
-
-
-Phân chia Tập dữ liệu theo Patient ID (700 Train / 120 Val / 382 Test, Zero Data Leakage)
-
-
-
-COMPLETED
-
-
-
-ai_training/splits/train.csv, val.csv, test.csv
-
-
-
-
-
-3
-
-
-
-Đường ống Tiền xử lý Dữ liệu (Letterbox 512×512, Nearest-Neighbor Mask, CLAHE)
-
-
-
-COMPLETED
-
-
-
-backend/services/preprocessor.py, dataset_loader.py
-
-
-
-
-
-4
-
-
-
-Đối soát Cặp Ảnh – Mặt nạ Sau Tiền xử lý (Nhất quán kích thước, bảo toàn nhãn nhị phân (0, 1))
-
-
-
-COMPLETED
-
-
-
-tests/test_preprocessing_pipeline.py, scripts/audit_preprocessing_pairs.py
-
-
-
-
-
-5
-
-
-
-Hiện thực hóa Kiến trúc Baseline Standard U-Net (4 tầng, 7.762.465 tham số, Combo Loss: BCE + Dice)
-
-
-
-COMPLETED
-
-
-
-backend/models/unet.py, backend/models/losses.py
-
-
-
-
-
-6
-
-
-
-Huấn luyện Mô hình Baseline trên GPU (10 epochs, NVIDIA RTX 3050, AMP fp16)
-
-
-
-COMPLETED
-
-
-
-checkpoints/baseline_unet_best.pth, baseline_training_log.json
-
-
-
-
-
-7
-
-
-
-Đo lường Độc lập Chuẩn MICCAI (Foreground Dice: 0.7504, Recall: 89.42%, Specificity: 95.57%)
-
-
-
-COMPLETED
-
-
-
-ai_training/metrics_clinical.py, baseline_test_metrics.json
-
-
-
-
-
-8
-
-
-
-Trực quan hóa Phân đoạn & Phân tích Lỗi (Best, Average, Worst matches & Failure Mode Analysis)
-
-
-
-COMPLETED
-
-
-
-evaluation/baseline_visualizations/
-
-
-
-
-
-9
-
-
-
-Thực thi Bản mẫu Chức năng End-to-End (FastAPI Backend inference engine, API health 200 OK)
-
-
-
-COMPLETED
-
-
-
-backend/app/main.py, backend/services/inference_engine.py
-
-
-
-
-
-10
-
-
-
-Bộ Kiểm toán Tự động 16 Tiêu chí MLOps (16/16 tests passed 100%)
-
-
-
-COMPLETED
-
-
-
-tests/test_milestone_1_audit.py (87/87 tests toàn dự án)
-
-
-
-III. PHẦN B: KẾT QUẢ THỰC NGHIỆM & HỆ THỐNG MINH CHỨNG (EXPERIMENTAL RESULTS & EVIDENCE)
-
-1. Bảng 1: Thống kê Hiện trạng Dữ liệu (Theo Đề cương Phê duyệt)
-
-Nguồn kiểm toán: ai_training/splits/protocol_1_manifest_summary.json
-
-
-
-
-
-
-
-Hạng mục Dữ liệu
-
-
-
-Số lượng
-
-
-
-Tỷ lệ (%)
-
-
-
-Tình trạng & Mục đích Sử dụng trong Khóa luận
-
-
-
-
-
-Tổng số ảnh theo nguồn tiếp nhận
-
-
-
-1.387 ảnh
-
-
-
-100.0%
-
-
-
-Tổng kho dữ liệu ảnh siêu âm tiếp nhận (gồm 970 ảnh chưa có mask và 417 ảnh đã có mask ban đầu)
-
-
-
-
-
-Ảnh đã được tạo annotation/mask ban đầu
-
-
-
-417 ảnh
-
-
-
-30.1%
-
-
-
-Tập ảnh đã được gán nhãn ranh giới tổn thương ban đầu
-
-
-
-
-
-Ảnh có mask đã được bác sĩ xác nhận (Ground Truth)
-
-
-
-307 ảnh (từ 185 BN)
-
-
-
-22.1% (73.6% tập mask)
-
-
-
-TRỌNG TÂM NGHIÊN CỨU & THỰC NGHIỆM CHÍNH THỨC phục vụ phân chia Train / Val / Test
-
-
-
-
-
-Ảnh có mask đang chờ bác sĩ xác nhận (Pending)
-
-
-
-110 ảnh
-
-
-
-7.9% (26.4% tập mask)
-
-
-
-Lưu trữ riêng biệt, KHÔNG đưa vào tập kiểm thử Test Set chính thức
-
-
-
-
-
-Ảnh chưa có annotation/mask
-
-
-
-970 ảnh
-
-
-
-69.9%
-
-
-
-Dữ liệu thô chưa gán nhãn, lưu trữ riêng phục vụ hướng mở rộng
-
-
-
-
-
-Số ca bệnh / Bệnh nhân (Tập Ground Truth)
-
-
-
-185 bệnh nhân
-
-
-
-—
-
-
-
-Cơ sở bắt buộc để phân chia Train / Val / Test theo Patient-level
-
-
-
-
-
-Số trường hợp Empty Mask trong 307 ảnh Ground Truth
-
-
-
-35 ảnh
-
-
-
-11.4%
-
-
-
-Ảnh không có tổn thương (giúp mô hình học âm tính, giảm False Positive, không đồng nghĩa lành tính)
-
-
-
-
-
-Số trường hợp Empty Mask trong 417 ảnh có mask
-
-
-
-48 ảnh
-
-
-
-11.5%
-
-
-
-Ảnh không có tổn thương theo annotation ban đầu
-
-2. Hình 1: Lưới Đối soát Kiểm định Tiền xử lý Ảnh và Mặt nạ
-
-Nguồn: evaluation/preprocessing_audit/preprocessing_verification_grid.png
-
-
-
-Hình 1: Lưới đối soát kiểm định 8 cặp mẫu sau tiền xử lý (Ảnh gốc, Ảnh sau Letterbox 512×512 + CLAHE, Mặt nạ nhị phân Nearest-neighbor và Lớp phủ viền vàng) chứng minh bảo toàn 100% tỷ lệ hình học và không sinh pixel xám ở đường biên.
-
-3. Bảng 2: Động thái Quá trình Huấn luyện Mô hình Baseline (10 Epochs)
-
-Nguồn: ai_training/production_model/baseline_training_log.json
-
-
-
-
-
-
-
-Epoch
-
-
-
-Thời gian (s)
-
-
-
-Train Loss
-
-
-
-Validation Loss
-
-
-
-Val Foreground Dice
-
-
-
-Val Foreground IoU
-
-
-
-Val Recall (Sensitivity)
-
-
-
-Val Specificity
-
-
-
-
-
-1
-
-
-
-67.66
-
-
-
-0.4798
-
-
-
-0.4804
-
-
-
-0.5541
-
-
-
-0.4140
-
-
-
-0.8790
-
-
-
-0.8326
-
-
-
-
-
-2
-
-
-
-64.58
-
-
-
-0.3870
-
-
-
-0.3900
-
-
-
-0.5994
-
-
-
-0.4556
-
-
-
-0.8491
-
-
-
-0.8935
-
-
-
-
-
-3
-
-
-
-64.69
-
-
-
-0.3427
-
-
-
-0.3486
-
-
-
-0.6277
-
-
-
-0.5087
-
-
-
-0.6677
-
-
-
-0.9719
-
-
-
-
-
-4
-
-
-
-65.49
-
-
-
-0.3122
-
-
-
-0.3107
-
-
-
-0.6593
-
-
-
-0.5312
-
-
-
-0.9344
-
-
-
-0.9055
-
-
-
-
-
-5
-
-
-
-66.07
-
-
-
-0.2824
-
-
-
-0.2641
-
-
-
-0.7193
-
-
-
-0.5990
-
-
-
-0.8743
-
-
-
-0.9451
-
-
-
-
-
-6
-
-
-
-65.88
-
-
-
-0.2641
-
-
-
-0.2478
-
-
-
-0.7496
-
-
-
-0.6354
-
-
-
-0.8462
-
-
-
-0.9653
-
-
-
-
-
-7
-
-
-
-66.60
-
-
-
-0.2522
-
-
-
-0.2355
-
-
-
-0.7587
-
-
-
-0.6466
-
-
-
-0.8285
-
-
-
-0.9722
-
-
-
-
-
-8
-
-
-
-66.51
-
-
-
-0.2374
-
-
-
-0.2256
-
-
-
-0.7661
-
-
-
-0.6542
-
-
-
-0.8495
-
-
-
-0.9710
-
-
-
-
-
-9
-
-
-
-66.00
-
-
-
-0.2304
-
-
-
-0.2234
-
-
-
-0.7665
-
-
-
-0.6585
-
-
-
-0.8569
-
-
-
-0.9688
-
-
-
-
-
-10
-
-
-
-66.87
-
-
-
-0.2261
-
-
-
-0.2206
-
-
-
-0.7728
-
-
-
-0.6650
-
-
-
-0.8661
-
-
-
-0.9680
-
-4. Hình 2: Đồ thị Hội tụ Hàm Mất mát và Chỉ số Đánh giá qua 10 Epochs
-
-Nguồn: evaluation/baseline_visualizations/training_convergence_curves.png
-
-
-
-Hình 2: Đồ thị động thái hội tụ hàm mất mát Combo Loss và các chỉ số y tế (Dice, Recall, IoU) qua 10 Epochs chứng minh mô hình hội tụ mượt mà, không xảy ra quá khớp (overfitting) hay bùng nổ gradient.
-
-5. Bảng 3: Kết quả Đánh giá Độc lập trên Tập Test (382 Ca Held-out)
-
-Nguồn: evaluation/baseline_test_metrics.json
-
-
-
-
-
-
-
-Chỉ số Đánh giá MICCAI
-
-
-
-Giá trị Thực nghiệm (Mean ± Std)
-
-
-
-Ý nghĩa Khoa học & Lâm sàng
-
-
-
-
-
-Foreground Dice Similarity (DSC)
-
-
-
-0.7504 ± 0.2092
-
-
-
-Độ trùng khớp diện tích phân đoạn tổn thương so với Ground Truth
-
-
-
-
-
-Foreground IoU (Jaccard Index)
-
-
-
-0.6402 ± 0.2399
-
-
-
-Tỷ lệ diện tích giao trên diện tích hợp của mặt nạ dự đoán
-
-
-
-
-
-Sensitivity / Recall (Độ nhạy)
-
-
-
-0.8942 (89.42%)
-
-
-
-Khả năng phát hiện tổn thương rất cao, tránh bỏ sót vùng viền u
-
-
-
-
-
-Precision (Độ chính xác)
-
-
-
-0.7061 (70.61%)
-
-
-
-Phản ánh xu hướng phân đoạn quá đà (over-segmentation) do viền hồi âm yếu
-
-
-
-
-
-Specificity (Độ đặc hiệu)
-
-
-
-0.9557 (95.57%)
-
-
-
-Khả năng loại trừ chính xác mô lành tính (đo lường trên các ca Empty Mask)
-
-6. Hình 3, 4, 5: Minh chứng Trực quan Phân đoạn theo 3 Dải Chất lượng
-
-
-
-
-
-Hình 3: Nhóm ca xuất sắc (Dice: 0.91 – 0.97): Nang đơn thùy dịch trong, bờ nét rõ ràng.
-
-
-  
-
-
-
-Hình 4: Nhóm ca trung bình (Dice ~0.72): Nang đa thùy có vách ngăn mỏng.
-
-
-  
-
-
-
-Hình 5: Nhóm ca thách thức (Dice < 0.50): Nang xuất huyết, u bì có bóng cản âm.
-
-
-
-
-7. Bảng 4: Bằng chứng Kiểm toán Tự động 16 Tiêu chí Kỹ thuật MLOps
-
-Nguồn: tests/test_milestone_1_audit.py (Chạy tự động qua Pytest: 16/16 Passed 100%)
-
-
-
-
-
-
-
-STT
-
-
-
-Tên Bài Kiểm tra (Audit Test Name)
-
-
-
-Tiêu chuẩn Đo lường Kỹ thuật
-
-
-
-Kết quả Thực nghiệm
-
-
-
-
-
-1
-
-
-
-test_dataset_discovery
-
-
-
-Phát hiện tệp dữ liệu, cấu trúc bảng split train/val/test
-
-
-
-PASS (100%)
-
-
-
-
-
-2
-
-
-
-test_image_mask_matching
-
-
-
-Đối soát khớp cặp 1-1 giữa ảnh và mask trên đĩa vật lý
-
-
-
-PASS (100%)
-
-
-
-
-
-3
-
-
-
-test_patient_level_split_leakage
-
-
-
-Kiểm tra giao tập Train/Val/Test, bảo đảm 0% rò rỉ bệnh nhân
-
-
-
-PASS (100%)
-
-
-
-
-
-4
-
-
-
-test_preprocessing_shape_consistency
-
-
-
-Nhất quán kích thước Letterbox 512×512 trên mọi hình dạng
-
-
-
-PASS (100%)
-
-
-
-
-
-5
-
-
-
-test_mask_label_integrity
-
-
-
-Bảo toàn nhãn nhị phân (0, 1), không sinh pixel xám ở viền
-
-
-
-PASS (100%)
-
-
-
-
-
-6
-
-
-
-test_post_preprocessing_image_mask_pair
-
-
-
-Đối soát đồng bộ không gian cặp ảnh-mask sau tiền xử lý
-
-
-
-PASS (100%)
-
-
-
-
-
-7
-
-
-
-test_dataloader_batch
-
-
-
-Kiểm tra cơ chế đóng gói batch tensor (4, 1, 512, 512) của DataLoader
-
-
-
-PASS (100%)
-
-
-
-
-
-8
-
-
-
-test_unet_forward_pass
-
-
-
-Kiểm tra lan truyền tiến U-Net baseline, tính hữu hạn của logits
-
-
-
-PASS (100%)
-
-
-
-
-
-9
-
-
-
-test_loss_computation
-
-
-
-Tính toán hàm mất mát Combo Loss và dòng gradient ngược
-
-
-
-PASS (100%)
-
-
-
-
-
-10
-
-
-
-test_training_smoke_test
-
-
-
-Kiểm tra 1 bước tối ưu hóa AdamW cập nhật trọng số ổn định
-
-
-
-PASS (100%)
-
-
-
-
-
-11
-
-
-
-test_prediction_shape
-
-
-
-Kiểm tra kích thước tensor dự đoán và ngưỡng Sigmoid (512×512)
-
-
-
-PASS (100%)
-
-
-
-
-
-12
-
-
-
-test_predicted_mask_validity
-
-
-
-Kiểm tra tính hợp lệ mặt nạ dự đoán và khôi phục kích thước gốc
-
-
-
-PASS (100%)
-
-
-
-
-
-13
-
-
-
-test_dice_calculation
-
-
-
-Độ chính xác tính toán Foreground Dice trên mẫu kiểm soát
-
-
-
-PASS (100%)
-
-
-
-
-
-14
-
-
-
-test_iou_calculation
-
-
-
-Độ chính xác tính toán Foreground IoU trên mẫu kiểm soát
-
-
-
-PASS (100%)
-
-
-
-
-
-15
-
-
-
-test_recall_calculation
-
-
-
-Độ chính xác tính toán Sensitivity/Recall trên mẫu kiểm soát
-
-
-
-PASS (100%)
-
-
-
-
-
-16
-
-
-
-test_end_to_end_pipeline_flow
-
-
-
-Vận hành toàn chuỗi: Raw → Preprocessing → Model → Metrics
-
-
-
-PASS (100%)
-
-8. Minh chứng Thực thi Bản mẫu Chức năng (Working Prototype Execution Evidence)
-
-
-
-
-
-Khởi chạy thành công Backend FastAPI: File backend/app/main.py nạp trọng số mô hình checkpoints/baseline_unet_best.pth với mã băm SHA256: 4d1a61d18ba9....
-
-
-
-Kiểm định Endpoint API: Gọi GET /api/health trả về mã phản hồi 200 OK với payload status: "healthy", system: "Ovarian Ultrasound AI System".
-
-
-
-Độ trễ suy luận (Inference Latency): Đo lường qua tests/test_end_to_end_pipeline.py đạt <100ms trên GPU RTX 3050, đáp ứng thời gian thực cho quy trình siêu âm lâm sàng.
-
-
-
-Độ bao phủ kiểm thử toàn dự án: Đạt 87/87 tests passed trên toàn bộ hệ thống kiểm thử tự động pytest.
-
-
-
-IV. PHẦN C: CÁC VẤN ĐỀ HIỆN TẠI, HẠN CHẾ & RỦI RO (CURRENT ISSUES, LIMITATIONS & RISKS)
-
-Báo cáo tiến độ nhận diện trung thực các hạn chế kỹ thuật và rủi ro lâm sàng xuất hiện trong Mốc 1:
-
-
-
-
-
-Hiện tượng Phân đoạn Quá đà (Over-segmentation) làm giảm Precision (70.61%):
-
-
-
-
-
-Biểu hiện: Độ nhạy đạt rất cao (Recall = 89.42%), nhưng Độ chính xác chỉ đạt 70.61%.
-
-
-
-Nguyên nhân: Ảnh siêu âm có độ tương phản mô mềm thấp và nhiễu đốm âm học (speckle noise) làm mờ ranh giới u nang. Mô hình Standard U-Net thuần túy có xu hướng lan tỏa dự đoán ra vùng mô đệm buồng trứng có phản âm dày lân cận.
-
-
-
-Hiện tượng Mất dấu Thành sau do Bóng cản âm (Acoustic Shadowing) ở U bì / U quái:
-
-
-
-
-
-Biểu hiện: Chỉ số Dice giảm mạnh trên các ca u nang bì (worst_matches.png).
-
-
-
-Nguyên nhân: U bì chứa mỡ, bã nhờn, lông, tóc và vôi hóa tạo bóng cản âm mạnh che lấp hoàn toàn thành sau, khiến U-Net baseline không thể xác định được đáy của tổn thương.
-
-
-
-Hiện tượng Nhầm lẫn Dịch nang có hồi âm Kính mờ (Ground-glass Echogenicity) ở U lạc nội mạc:
-
-
-
-
-
-Biểu hiện: Phân đoạn bị khuyết thiếu một phần trong lòng nang.
-
-
-
-Nguyên nhân: Cặn máu lắng đọng tạo hồi âm dạng kính mờ đồng nhất, U-Net thuần dễ nhầm dịch nang có hồi âm với mô đặc của buồng trứng.
-
-
-
-Ràng buộc Phần cứng & Bộ nhớ GPU (4GB VRAM):
-
-
-
-
-
-GPU NVIDIA GeForce RTX 3050 Laptop có dung lượng VRAM giới hạn (4GB), đòi hỏi phải cố định batch size = 4 khi huấn luyện ở độ phân giải 512×512 và kích hoạt Automatic Mixed Precision (AMP fp16) để tránh lỗi Out-of-Memory (OOM).
-
-
-
-Dữ liệu Ground Truth Cần Mở rộng từ Tập Chờ Phê duyệt (110 Ảnh Pending):
-
-
-
-
-
-Tập 307 ảnh Ground Truth hiện tại đã đủ hoàn thiện baseline nhưng cần bổ sung thêm 110 ảnh pending sau khi bác sĩ hoàn tất thẩm định để nâng cao độ bao phủ cho các thể bệnh lý hiếm.
-
-
-
-V. PHẦN D: KẾ HOẠCH HÀNH ĐỘNG CỘT MỐC 2 (21/09/2026 – 05/10/2026)
-
-Mọi kế hoạch trong Mốc 2 đều gắn liền trực tiếp với việc giải quyết các vấn đề và rủi ro đã nêu ở Phần C:
-
-
-
-
-
-
-
-STT
-
-
-
-Nhiệm vụ Trọng tâm Cột mốc 2
-
-
-
-Vấn đề / Rủi ro Mục tiêu Cần Giải quyết
-
-
-
-Mô tả Kỹ thuật & Giải pháp Triển khai
-
-
-
-Dự kiến Hoàn thành
-
-
-
-Sản phẩm Đầu ra
-
-
-
-
-
-1
-
-
-
-Huấn luyện Mô hình Attention U-Net
-
-
-
-Giải quyết Over-segmentation & Precision thấp (Rủi ro 1 & 2)
-
-
-
-Triển khai 4 cổng Attention Gates (backend/models/attention_unet.py) nhằm ức chế nhiễu nền và tăng trọng số viền tổn thương.
-
-
-
-25/09/2026
-
-
-
-Checkpoint attention_unet_best.pth
-
-
-
-
-
-2
-
-
-
-Xây dựng Bảng Ablation Study Đối chứng
-
-
-
-Định lượng chính xác đóng góp của Attention Gates
-
-
-
-Đối chuẩn trực tiếp Baseline U-Net vs Attention U-Net trên cùng tập Test độc lập (Dice, IoU, Recall, FLOPs, Latency).
-
-
-
-28/09/2026
-
-
-
-Bảng kết quả thực nghiệm đối chứng
-
-
-
-
-
-3
-
-
-
-Đóng gói Backend Inference Service
-
-
-
-Chuẩn bị cho tích hợp Prototype tương tác
-
-
-
-Tích hợp Best Checkpoint vào FastAPI (backend/services/inference_engine.py), hỗ trợ xử lý ảnh và trả về mask thời gian thực (<500ms).
-
-
-
-30/09/2026
-
-
-
-RESTful API phân đoạn sẵn sàng
-
-
-
-
-
-4
-
-
-
-Phát triển Giao diện Web Canvas HITL
-
-
-
-Giải quyết triệt để ca bóng cản âm & u lạc nội mạc (Rủi ro 2 & 3)
-
-
-
-Xây dựng Dual-layer Canvas (React.js + HTML5 Canvas): Brush, Eraser, Opacity, Caliper cho phép bác sĩ vi chỉnh mask trực tiếp.
-
-
-
-03/10/2026
-
-
-
-Web Functional Prototype tương tác
-
-
-
-
-
-5
-
-
-
-Khảo sát Độ hữu dụng (SUS) & Soạn thảo Chương 3
-
-
-
-Đo lường hiệu quả thực tiễn theo Đề cương phê duyệt
-
-
-
-Xây dựng kịch bản đo thời gian hoàn thành tác vụ, mức độ chỉnh sửa và phiếu khảo sát SUS (mục tiêu SUS ≥ 75/100); nộp bản thảo Chương 3.
-
-
-
-05/10/2026
-
-
-
-Bản thảo Chương 3 KLTN & Báo cáo Mốc 2
+| Phân vùng Dữ liệu (Split) | Số lượng Ca (Cases) | Nguồn Trích xuất | Mục đích Nghiên cứu |
+| :--- | :---: | :--- | :--- |
+| **Tập Huấn luyện (Train)** | **700** | OTU_2D_train | Tối ưu hóa trọng số mạng nơ-ron qua AdamW |
+| **Tập Thẩm định (Validation)** | **120** | OTU_2D_train | Theo dõi hội tụ, tinh chỉnh siêu tham số & Early Stopping |
+| **Tập Kiểm thử Độc lập (Held-out Test)** | **382** | OTU_2D_test (MMOTU Benchmark) | Đánh giá khách quan, đối chuẩn công bố quốc tế |
+| **Tập Ngoại kiểm (CEUS Test)** | **170** | CEUS Multimodal | Đánh giá suy biến khi khác biệt phương thức siêu âm |
+| **TỔNG CỘNG** | **1.372** | **100% Cặp Ảnh - Mask** | **Tỷ lệ Trùng lặp Bệnh nhân: 0.0%** |
+
+*Toàn bộ 307 ảnh Ground Truth chính thức (từ 185 bệnh nhân, gồm 35 ca Empty Mask đại diện cho buồng trứng bình thường) và 110 ảnh pending đã được niêm phong tại `ai_training/splits/protocol_1_manifest_summary.json`.*
+
+---
+
+## 🚀 KẾT QUẢ THỰC NGHIỆM CỘT MỐC 1 (06/09 – 20/09/2026)
+
+### 1. Động thái Huấn luyện Mô hình Baseline Standard U-Net (10 Epochs)
+* Kiến trúc: 4 tầng Encoder (32 $\rightarrow$ 256), Bottleneck (512), 4 tầng Decoder với kết nối tắt trực tiếp (**7.762.465 tham số**).
+* Phần cứng: **NVIDIA GeForce RTX 3050 Laptop GPU (4GB VRAM)**, kích hoạt **Automatic Mixed Precision (AMP fp16)**.
+* Hàm mất mát: $\mathcal{L}_{\text{Combo}} = \mathcal{L}_{\text{BCE}} + \mathcal{L}_{\text{Dice}}$.
+
+| Epoch | Thời gian | Train Loss | Val Loss | Val Foreground Dice | Val Recall (Sensitivity) | Val Specificity |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 1 | 67.7s | 0.4798 | 0.4804 | 0.5541 | 0.8790 | 0.8326 |
+| 5 | 66.1s | 0.2824 | 0.2641 | 0.7193 | 0.8743 | 0.9451 |
+| **10** | **66.9s** | **0.2261** | **0.2206** | **0.7728** | **0.8661** | **0.9680** |
+
+### 2. Kết quả Đánh giá Độc lập trên 382 Ca Test Held-out (Chuẩn MICCAI)
+*Nguồn: `evaluation/baseline_test_metrics.json`*
+
+| Chỉ số Đánh giá MICCAI | Giá trị Thực nghiệm (Mean ± Std) | Ý nghĩa Lâm sàng & Khoa học |
+| :--- | :---: | :--- |
+| **Foreground Dice Similarity (DSC)** | **0.7504 ± 0.2092** | Độ trùng khớp diện tích phân đoạn tổn thương so với Ground Truth bác sĩ |
+| **Foreground IoU (Jaccard Index)** | **0.6402 ± 0.2399** | Tỷ lệ diện tích giao trên diện tích hợp của mặt nạ tổn thương |
+| **Sensitivity / Recall (Độ nhạy)** | **0.8942 (89.42%)** | **Khả năng bắt trúng tổn thương rất cao**, tránh bỏ sót vùng viền u |
+| **Precision (Độ chính xác)** | **0.7061 (70.61%)** | Xu hướng phân đoạn quá đà (*over-segmentation*) do viền hồi âm yếu |
+| **Specificity (Độ đặc hiệu)** | **0.9557 (95.57%)** | Khả năng loại trừ chính xác mô buồng trứng bình thường (Empty Mask) |
+
+---
+
+## 🖼️ MINH CHỨNG TRỰC QUAN HÓA (VISUAL EVIDENCE ARTIFACTS)
+
+| Danh mục Minh chứng | Đường dẫn Tệp Tin | Ý nghĩa Kiểm định Y khoa |
+| :--- | :--- | :--- |
+| **Kiểm định Tiền xử lý** | [`evaluation/preprocessing_audit/preprocessing_verification_grid.png`](evaluation/preprocessing_audit/preprocessing_verification_grid.png) | Lưới 8 cặp ảnh kiểm tra Letterbox 512×512, bảo toàn 100% tỷ lệ hình học $w/h$ và không sinh pixel xám ở ranh giới. |
+| **Đồ thị Động thái Hội tụ** | [`evaluation/baseline_visualizations/training_convergence_curves.png`](evaluation/baseline_visualizations/training_convergence_curves.png) | Đường cong suy giảm hàm mất mát Combo Loss và tốc độ tăng trưởng của Dice/Recall qua 10 epochs. |
+| **Nhóm Ca Xuất sắc** | [`evaluation/baseline_visualizations/best_matches.png`](evaluation/baseline_visualizations/best_matches.png) | Các ca nang đơn thùy dịch trong, bờ nét rõ ràng ($\text{Dice} = 0.91 - 0.97$). |
+| **Nhóm Ca Trung bình** | [`evaluation/baseline_visualizations/average_matches.png`](evaluation/baseline_visualizations/average_matches.png) | Các ca nang đa thùy có vách ngăn mỏng bên trong ($\text{Dice} \approx 0.72$). |
+| **Nhóm Ca Thách thức** | [`evaluation/baseline_visualizations/worst_matches.png`](evaluation/baseline_visualizations/worst_matches.png) | Nang xuất huyết hồi âm kính mờ & u bì có bóng cản âm ($\text{Dice} < 0.50$) — **Luận cứ khoa học chứng minh sự cần thiết của Attention Gate và tương tác Human-in-the-Loop**. |
+
+---
+
+## 🧪 ĐẢM BẢO CHẤT LƯỢNG & KIỂM TOÁN MLOPS (87/87 TESTS PASSED)
+
+Dự án triển khai bộ kiểm thử tự động toàn diện qua `pytest`, kiểm toán nghiêm ngặt từ khâu dữ liệu, nạp batch đến suy luận thời gian thực:
+* **Bộ kiểm toán Cột mốc 1 (16 Tiêu chí)**: [`tests/test_milestone_1_audit.py`](tests/test_milestone_1_audit.py) (**16/16 tests passed 100%**).
+  * *Dataset discovery, Image-mask matching, Patient split zero-leakage, Preprocessing shape consistency, Binary mask integrity, Post-preprocessing pair validation, DataLoader batch tensor (4, 1, 512, 512), U-Net forward pass, Combo loss computation & backward gradient, 1-step training smoke test, Sigmoid thresholding, Inverse letterbox restoration, Clinical Dice / IoU / Recall validation, End-to-end pipeline flow.*
+* **Tổng cộng toàn bộ hệ thống**: **87/87 passed (100%)**.
+
+---
+
+## ⚡ HƯỚNG DẪN CÀI ĐẶT & CHẠY THỰC NGHIỆM (QUICK START)
+
+### 1. Khởi tạo Môi trường
+```bash
+# Clone repository
+git clone https://github.com/dungxoan31-creator/Khoa_Luan.git
+cd Khoa_Luan
+
+# Tạo và kích hoạt môi trường ảo
+python -m venv .venv
+.venv\Scripts\activate       # Trên Windows PowerShell / Command Prompt
+
+# Cài đặt các thư viện phụ thuộc
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+pip install -r requirements.txt
+```
+
+### 2. Chạy Toàn bộ Test Suite Kiểm toán
+```bash
+pytest -v tests/test_milestone_1_audit.py    # Chạy riêng 16 bài kiểm toán Mốc 1
+pytest -q                                   # Chạy toàn bộ 87 tests dự án
+```
+
+### 3. Đánh giá Mô hình Baseline trên Tập Test Độc lập
+```bash
+python evaluation/evaluate_baseline_testset.py
+```
+
+### 4. Khởi chạy Backend FastAPI Prototype
+```bash
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+*Kiểm tra trạng thái hệ thống qua trình duyệt tại:* `http://127.0.0.1:8000/api/health`
+
+---
+
+## 📁 CẤU TRÚC THƯ MỤC DỰ ÁN (PROJECT STRUCTURE)
+
+```
+Khoa_Luan/
+├── ai_training/                          # Pipeline huấn luyện & dữ liệu
+│   ├── dataset_loader.py                 # PyTorch Dataset & DataLoader chuẩn hóa
+│   ├── metrics_clinical.py               # Đo lường lâm sàng MICCAI (Foreground Dice, IoU, Recall)
+│   ├── train_baseline_unet.py            # Huấn luyện Standard U-Net với AMP fp16
+│   ├── splits/                           # Các tệp khóa phân vùng Protocol 1 Zero-Leakage
+│   │   ├── train.csv (700) / val.csv (120) / test.csv (382) / ceus_test.csv (170)
+│   │   └── protocol_1_manifest_summary.json
+│   └── production_model/
+│       └── baseline_training_log.json    # Log hội tụ 10 epochs
+├── backend/                              # Dịch vụ Backend FastAPI & Động cơ AI
+│   ├── app/
+│   │   ├── main.py                       # Điểm khởi chạy ứng dụng FastAPI
+│   │   └── routers/                      # Các endpoints: inference, cases, auth, health
+│   ├── models/
+│   │   ├── unet.py                       # Standard U-Net (7.76M params - Baseline Mốc 1)
+│   │   ├── attention_unet.py             # Attention U-Net (7.85M params - Đối chuẩn Mốc 2)
+│   │   └── losses.py                     # Hàm mất mát Combo Loss (BCE + Dice)
+│   └── services/
+│       ├── preprocessor.py               # Letterbox 512×512, Nearest interpolation, CLAHE
+│       ├── inference_engine.py           # Bộ suy luận thời gian thực (<100ms)
+│       └── morphology_extractor.py       # Trích xuất kích thước Caliper D1/D2 tự động
+├── checkpoints/                          # Trọng số mô hình đã huấn luyện
+│   └── baseline_unet_best.pth            # Trọng số tối ưu của mô hình Baseline
+├── docs/                                 # Hồ sơ học thuật & Báo cáo tiến độ
+│   └── reports/
+│       ├── Bao_Cao_Tien_Do_Moc_1_NguyenHuuDung.docx  # Báo cáo Word chuẩn nộp CBHD (nhúng 5 hình ảnh & 6 bảng)
+│       └── Bao_Cao_Tien_Do_Moc_1_NguyenHuuDung.md    # Bản sao Markdown đồng bộ
+├── evaluation/                           # Minh chứng đánh giá & trực quan hóa
+│   ├── baseline_test_metrics.json        # Kết quả 382 ca kiểm thử độc lập
+│   ├── baseline_visualizations/          # Ảnh trực quan: best, average, worst matches & loss curve
+│   └── preprocessing_audit/              # Lưới đối soát kiểm định tiền xử lý ảnh-mask
+├── scripts/                              # Kịch bản tự động hóa MLOps
+│   ├── align_milestone_1_report.py       # Tự động xuất bản báo cáo Word & Markdown chuẩn học thuật
+│   └── audit_preprocessing_pairs.py      # Đối soát kiểm định trực quan 8 cặp mẫu
+└── tests/                                # Test suite tự động (87/87 tests passed)
+    ├── test_milestone_1_audit.py         # 16 bài kiểm toán kỹ thuật Mốc 1
+    └── test_end_to_end_pipeline.py       # Kiểm thử tích hợp toàn diện quy trình
+```
+
+---
+
+## 🗺️ LỘ TRÌNH THỰC HIỆN CÁC CỘT MỐC (ROADMAP)
+
+* [x] **Cột mốc 1 (06/09 – 20/09/2026)**: Đóng băng dữ liệu theo Patient ID, hoàn thiện pipeline tiền xử lý Letterbox 512×512, huấn luyện Baseline Standard U-Net, benchmark trên 382 ca kiểm thử độc lập, hoàn thành báo cáo tiến độ và kiểm toán MLOps 16/16 tests.
+* [ ] **Cột mốc 2 (21/09 – 05/10/2026)**: Huấn luyện mô hình Attention U-Net (7.85M params), lập bảng Ablation Study đối chuẩn công bằng với Baseline U-Net, đóng gói FastAPI inference service, xây dựng bản mẫu giao diện Web Canvas tương tác Human-in-the-Loop (Dual-layer Canvas: Brush, Eraser, Opacity, Caliper), soạn thảo bản thảo Chương 3 KLTN.
+* [ ] **Cột mốc 3 (06/10 – 20/10/2026)**: Tích hợp hoàn chỉnh Frontend-Backend, kết nối mô hình suy luận thời gian thực, hoàn thiện tài liệu đặc tả SRS chi tiết (Use Cases, User Stories, Gherkin Acceptance Criteria).
+* [ ] **Cột mốc 4 (21/10 – 05/11/2026)**: Thử nghiệm bán tự động với người dùng chuyên môn, thu thập thời gian thao tác, mức độ chỉnh sửa mask và khảo sát chỉ số khả dụng hệ thống theo thang đo SUS (mục tiêu $\text{SUS} \ge 75/100$).
+* [ ] **Cột mốc 5 (06/11 – 20/11/2026)**: Hoàn thiện toàn văn Khóa luận Tốt nghiệp (5 chương), hoàn thiện Slide báo cáo và bảo vệ thử trước Giảng viên hướng dẫn.
+
+---
+
+## ⚖️ ĐẠO ĐỨC NGHIÊN CỨU & BẢO MẬT DỮ LIỆU
+
+1. **Tuân thủ Đạo đức Y tế**: Dữ liệu siêu âm được sử dụng phục vụ mục đích nghiên cứu học thuật độc lập, đã được ẩn danh hóa 100% (xóa bỏ hoàn toàn họ tên, tuổi, số bệnh án, ngày thăm khám và thông tin cơ sở y tế).
+2. **Giới hạn Trách nhiệm Hệ thống**: Hệ thống phần mềm được phát triển đóng vai trò công cụ trợ giúp phân đoạn và đo đạc hình học thử nghiệm; **hoàn toàn không đưa ra kết luận bệnh học tự động và không thay thế phán đoán chuyên môn của bác sĩ sản phụ khoa**.
+
+---
+
+<div align="center">
+  <b>Nguyễn Hữu Dũng — Khóa luận Tốt nghiệp MIS 65A (NEU)</b><br>
+  <i>Cán bộ hướng dẫn khoa học: ThS. Trần Thanh Hải</i>
+</div>
