@@ -43,10 +43,19 @@ class OvarianUltrasoundDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
+    def _resolve_path(self, p):
+        p_str = str(p).replace("\\", "/")
+        idx = p_str.find("dataset/dataset/")
+        if idx != -1:
+            rel = p_str[idx:]
+        else:
+            rel = p_str
+        return os.path.normpath(os.path.join(os.getcwd(), rel))
+
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        img_path = row["image_path"]
-        mask_path = row["mask_path"]
+        img_path = self._resolve_path(row["image_path"])
+        mask_path = self._resolve_path(row["mask_path"])
         case_id = row.get("case_id", row.get("sample_id", f"case_{idx}"))
 
         # 1. Read Image and Mask
@@ -123,7 +132,7 @@ class OvarianUltrasoundDataset(Dataset):
             "orig_w": orig_w
         }
 
-def get_dataloaders(protocol="unified", batch_size=8, target_size=(512, 512), num_workers=0):
+def get_dataloaders(protocol="standard", batch_size=8, target_size=(512, 512), num_workers=0):
     """
     Returns train, val, and test DataLoaders for the specified protocol.
     protocol: 'unified' (70/15/15) or 'standard' (700/120/382)

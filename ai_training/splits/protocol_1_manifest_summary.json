@@ -1,0 +1,16 @@
+{
+    "protocol": "Protocol 1: Standard MMOTU Benchmark",
+    "random_seed": 42,
+    "train_count": 700,
+    "val_count": 120,
+    "test_count": 382,
+    "ceus_test_count": 170,
+    "total_dataset_size": 1372,
+    "zero_leakage_verified": true,
+    "manifest_paths": {
+        "train": "ai_training/splits/train.csv",
+        "val": "ai_training/splits/val.csv",
+        "test": "ai_training/splits/test.csv",
+        "ceus_test": "ai_training/splits/ceus_test.csv"
+    }
+}

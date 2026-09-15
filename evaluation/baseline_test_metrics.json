@@ -1,0 +1,13 @@
+{
+    "total_cases_evaluated": 382,
+    "lesion_cases_count": 382,
+    "normal_cases_count": 0,
+    "foreground_dice_mean": 0.750421509398912,
+    "foreground_dice_std": 0.20921388736958946,
+    "foreground_iou_mean": 0.6401964544150105,
+    "foreground_iou_std": 0.23988650082024968,
+    "recall_sensitivity_mean": 0.8942120313619437,
+    "precision_mean": 0.7061280411163964,
+    "specificity_normal_cases": 1.0,
+    "specificity_all_cases": 0.9556711930555405
+}

@@ -1,0 +1,122 @@
+[
+    {
+        "epoch": 1,
+        "duration_sec": 67.66,
+        "train_loss": 0.4798,
+        "val_loss": 0.4804,
+        "val_foreground_dice": 0.5541,
+        "val_foreground_iou": 0.414,
+        "val_recall": 0.879,
+        "val_specificity": 0.8326,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 2,
+        "duration_sec": 64.58,
+        "train_loss": 0.387,
+        "val_loss": 0.39,
+        "val_foreground_dice": 0.5994,
+        "val_foreground_iou": 0.4556,
+        "val_recall": 0.8491,
+        "val_specificity": 0.8935,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 3,
+        "duration_sec": 64.69,
+        "train_loss": 0.3427,
+        "val_loss": 0.3486,
+        "val_foreground_dice": 0.6277,
+        "val_foreground_iou": 0.5087,
+        "val_recall": 0.6677,
+        "val_specificity": 0.9719,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 4,
+        "duration_sec": 65.49,
+        "train_loss": 0.3122,
+        "val_loss": 0.3107,
+        "val_foreground_dice": 0.6593,
+        "val_foreground_iou": 0.5312,
+        "val_recall": 0.9344,
+        "val_specificity": 0.9055,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 5,
+        "duration_sec": 66.07,
+        "train_loss": 0.2824,
+        "val_loss": 0.2641,
+        "val_foreground_dice": 0.7193,
+        "val_foreground_iou": 0.599,
+        "val_recall": 0.8743,
+        "val_specificity": 0.9451,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 6,
+        "duration_sec": 65.88,
+        "train_loss": 0.2641,
+        "val_loss": 0.2478,
+        "val_foreground_dice": 0.7496,
+        "val_foreground_iou": 0.6354,
+        "val_recall": 0.8462,
+        "val_specificity": 0.9653,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 7,
+        "duration_sec": 66.6,
+        "train_loss": 0.2522,
+        "val_loss": 0.2355,
+        "val_foreground_dice": 0.7587,
+        "val_foreground_iou": 0.6466,
+        "val_recall": 0.8285,
+        "val_specificity": 0.9722,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 8,
+        "duration_sec": 66.51,
+        "train_loss": 0.2374,
+        "val_loss": 0.2256,
+        "val_foreground_dice": 0.7661,
+        "val_foreground_iou": 0.6542,
+        "val_recall": 0.8495,
+        "val_specificity": 0.971,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 9,
+        "duration_sec": 66.0,
+        "train_loss": 0.2304,
+        "val_loss": 0.2234,
+        "val_foreground_dice": 0.7665,
+        "val_foreground_iou": 0.6585,
+        "val_recall": 0.8569,
+        "val_specificity": 0.9688,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    },
+    {
+        "epoch": 10,
+        "duration_sec": 66.87,
+        "train_loss": 0.2261,
+        "val_loss": 0.2206,
+        "val_foreground_dice": 0.7728,
+        "val_foreground_iou": 0.665,
+        "val_recall": 0.8661,
+        "val_specificity": 0.968,
+        "lesion_cases": 120,
+        "normal_cases": 0
+    }
+]
