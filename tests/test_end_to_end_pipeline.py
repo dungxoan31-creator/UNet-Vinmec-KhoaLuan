@@ -27,7 +27,9 @@ def test_full_pipeline_smoke_flow():
     morphology = MorphologicalFeatureExtractor(default_pixel_spacing_mm=0.1)
 
     # 2. Load an actual ultrasound image
-    sample_img_path = "dataset/dataset/OTU_2D/train/train_image/1.JPG"
+    sample_img_path = "dataset/vinmec_ovarian/OTU_2D/train/train_image/1.JPG"
+    if not os.path.exists(sample_img_path):
+        sample_img_path = "dataset/dataset/OTU_2D/train/train_image/1.JPG"
     if os.path.exists(sample_img_path):
         raw_img = cv2.imread(sample_img_path, cv2.IMREAD_GRAYSCALE)
     else:

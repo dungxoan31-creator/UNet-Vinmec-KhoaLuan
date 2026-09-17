@@ -62,7 +62,8 @@ def evaluate_test_set(checkpoint_path="checkpoints/baseline_unet_best.pth", test
 
     def _resolve_path(p):
         p_str = str(p).replace("\\", "/")
-        idx = p_str.find("dataset/dataset/")
+        p_str = p_str.replace("dataset/dataset/", "dataset/vinmec_ovarian/")
+        idx = p_str.find("dataset/vinmec_ovarian/")
         if idx != -1:
             rel = p_str[idx:]
         else:

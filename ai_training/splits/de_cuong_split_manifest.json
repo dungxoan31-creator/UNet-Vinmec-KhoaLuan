@@ -1,0 +1,41 @@
+{
+  "title": "KLTN Ovarian Ultrasound Dataset Splits (De Cuong So Bo)",
+  "clinical_site": "Vinmec Times City International Hospital",
+  "author": "Nguyen Huu Dung (MIS 65A - NEU)",
+  "supervisor": "ThS. Tran Thanh Hai",
+  "random_seed": 42,
+  "table_1_metrics": {
+    "total_images_collected": 1387,
+    "images_with_initial_masks": 417,
+    "ground_truth_images_verified": 307,
+    "pending_review_images": 110,
+    "raw_unannotated_images": 970,
+    "unique_patients_ground_truth": 185,
+    "empty_masks_in_ground_truth": 35,
+    "empty_masks_in_417_masks": 48
+  },
+  "ground_truth_patient_split": {
+    "train": {
+      "patients": 130,
+      "images": 215,
+      "empty_masks": 25,
+      "percentage_images": 70.03,
+      "file": "ai_training/splits/train.csv"
+    },
+    "validation": {
+      "patients": 27,
+      "images": 46,
+      "empty_masks": 5,
+      "percentage_images": 14.98,
+      "file": "ai_training/splits/val.csv"
+    },
+    "test": {
+      "patients": 28,
+      "images": 46,
+      "empty_masks": 5,
+      "percentage_images": 14.98,
+      "file": "ai_training/splits/test.csv"
+    }
+  },
+  "zero_leakage_verified": true
+}

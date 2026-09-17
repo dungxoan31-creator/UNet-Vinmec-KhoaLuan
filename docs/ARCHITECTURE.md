@@ -1,17 +1,27 @@
 # ARCHITECTURE OVERVIEW & SPECIFICATION
 ## Ovarian Ultrasound AI Decision Support & HITL Clinical Review System
+> **Dự án**: Khóa luận Tốt nghiệp — Trường Công nghệ & Kinh tế số, Đại học Kinh tế Quốc dân (NEU)  
+> **Đề tài**: *“Xây dựng hệ thống hỗ trợ phân đoạn tổn thương trên ảnh siêu âm buồng trứng ứng dụng Deep Learning theo mô hình Human-in-the-Loop”*  
+> **Sinh viên**: Nguyễn Hữu Dũng — MSV: 11235559 — Lớp: HTTTQL 65A  
+> **Cán bộ hướng dẫn**: ThS. Trần Thanh Hải  
+> **Bối cảnh & Dữ liệu lâm sàng**: Bệnh viện Đa khoa Quốc tế Vinmec Times City  
+> **Bản chất phần mềm**: Bản mẫu nghiên cứu thực nghiệm (Academic Research Prototype)
 
 ---
 
 ## 1. System Overview & Core Objectives
 
-The **Ovarian Ultrasound AI System** is a production-grade, human-in-the-loop (HITL) clinical decision support platform for gynecological ultrasound analysis. The system combines:
-1. **Automated Deep Learning Inference**: Deep supervision segmentation using an Attention U-Net neural network architecture.
-2. **Automated Quality & Modality Verification (IQA)**: Pre-inference screening against blur, saturation, non-ultrasound modalities, and contrast degradation.
-3. **Automated Caliper & Geometric Extraction**: Bounding rotated calipers ($D_{max}$, $D_{orth}$), orthogonal third-axis estimation ($D_3$), lesion surface area, and ellipsoidal volume calculations.
-4. **Human-in-the-Loop Doctor Sign-Off**: Interactive canvas workstation allowing radiologists and gynecologists to accept raw AI results, manually edit segmentation contours, or record discrepancy notes.
-5. **Standardized Clinical Reporting**: Automated generation of official Vinmec Hospital PDF reports with 1:1 A4 scaling, QR codes, and institutional branding.
-6. **Regulatory & Telemetry Governance**: Complete audit trails, model registry versioning, doctor productivity analytics, and ground truth dataset export for continuous model retraining.
+Hệ thống **Ovarian Ultrasound AI System** là một bản mẫu nghiên cứu thực nghiệm (Research/Experimental Prototype) được phát triển trong khuôn khổ Khóa luận Tốt nghiệp. Toàn bộ bối cảnh nghiệp vụ, quy trình lâm sàng, bộ dữ liệu siêu âm, nhãn chú thích và mặt nạ Ground Truth được thu thập và thẩm định từ **Bệnh viện Đa khoa Quốc tế Vinmec Times City**. 
+
+Hệ thống hoạt động như một công cụ **hỗ trợ phân đoạn tổn thương và đo đạc kích thước u buồng trứng theo mô hình Human-in-the-Loop (HITL)**, tuyệt đối không tự động chẩn đoán bệnh thay bác sĩ.
+
+Hệ thống bao gồm 6 trụ cột kỹ thuật:
+1. **Automated Deep Learning Segmentation**: Kiến trúc mô hình đường cơ sở bắt buộc (**Standard U-Net**, `checkpoints/baseline_unet_best.pth`) và mô hình so sánh thực nghiệm (**Attention U-Net**, `checkpoints/best_attention_unet.pth`).
+2. **Automated Quality & Modality Verification (IQA)**: Tiền kiểm định chất lượng 4 lớp trước suy luận (chống mờ, lệch tương phản, bão hòa màu, sai dạng siêu âm B-mode).
+3. **Automated Caliper & Geometric Extraction**: Tự động ước lượng hộp bao xoay, trích xuất cặp đường kính trực giao ($D_{max}, D_{orth}$), diện tích bề mặt ($\text{mm}^2$) và thể tích elip khối ($V$).
+4. **Human-in-the-Loop Doctor Review & Interactive Editing**: Giao diện Dual-Layer Canvas cho phép bác sĩ rà soát, dùng cọ vẽ/tẩy xóa hiệu chỉnh bờ viền tổn thương trước khi ký duyệt (`ACCEPTED_RAW`, `MODIFIED`).
+5. **Standardized Clinical Reporting**: Tự động kết xuất phiếu kết quả siêu âm định dạng A4 chuẩn Vinmec Hospital với tỷ lệ 1:1, mã QR tra cứu và thông tin cơ sở.
+6. **Regulatory Governance & Traceability**: Lưu vết kiểm toán (Audit Trail) bất biến, bảo toàn dữ liệu Ground Truth sau hiệu chỉnh để phục vụ tái huấn luyện và đánh giá mô hình.
 
 ---
 
@@ -70,15 +80,24 @@ The codebase is organized into clean, decoupled layers following Separation of C
 ## 3. Directory Layout & Module Responsibilities
 
 ```text
-Khóa luận/
+├── dataset/
+│   └── vinmec_ovarian/              # Niêm phong dữ liệu siêu âm buồng trứng Vinmec Times City
+│       ├── vinmec_dataset_manifest.json # Manifest niêm phong 5 số liệu (1.387 ảnh, 307 GT, 185 BN)
+│       ├── OTU_2D/                  # Siêu âm 2D B-mode (train, test)
+│       └── OTU_CEUS/                # Siêu âm tương phản cản âm (CEUS test)
+│
+├── knowledge/                       # Cơ sở tri thức lâm sàng siêu âm buồng trứng (IOTA, O-RADS)
+│   ├── ovarian_ultrasound_knowledge_base.md
+│   └── ovarian_ultrasound_sources.csv
+│
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                  # Entry point: CORS, router registration, static mounts
-│   │   ├── config.py                # File paths, singletons, baseline statistics
+│   │   ├── config.py                # File paths, singletons, baseline statistics (Vinmec context)
 │   │   └── routers/
 │   │       ├── __init__.py
-│   │       ├── health.py            # Healthcheck & live dashboard telemetry
+│   │       ├── health.py            # Healthcheck & live dashboard telemetry (Research prototype info)
 │   │       ├── cases.py             # Clinical studies & sample cases CRUD
 │   │       ├── inference.py         # Image upload, IQA quality filter & model inference
 │   │       ├── reviews.py           # Doctor sign-off & PDF report generation
@@ -92,7 +111,8 @@ Khóa luận/
 │   │   └── database.py              # SQLite ORM models, session providers & auto-seeding
 │   ├── models/
 │   │   ├── __init__.py
-│   │   ├── attention_unet.py        # PyTorch Attention U-Net network architecture
+│   │   ├── unet.py                  # Standard U-Net architecture (Compulsory Baseline)
+│   │   ├── attention_unet.py        # PyTorch Attention U-Net network architecture (Comparative)
 │   │   ├── losses.py                # ComboLoss, DiceLoss, FocalLoss
 │   │   └── metrics.py               # Dice, IoU, HD95 calculations
 │   ├── schemas/
@@ -101,13 +121,13 @@ Khóa luận/
 │   └── services/
 │       ├── __init__.py
 │       ├── preprocessor.py          # Ultrasound preprocessing, aspect preserving resize, IQA
-│       ├── inference_engine.py      # Neural inference, RLE masks, caliper extraction
+│       ├── inference_engine.py      # Dual-model neural inference (Baseline + Attention), calipers
 │       ├── model_service.py         # Model lifecycle, adapter registry & telemetry
 │       └── report_generator.py      # Standardized ReportLab medical PDF generator
 │
 ├── frontend/
-│   ├── index.html                   # Clean, semantic SPA HTML layout
-│   ├── vinmec_logo.svg              # Vinmec official vector logo
+│   ├── index.html                   # Clean, semantic SPA HTML layout (Vinmec Prototype branding)
+│   ├── vinmec_logo.svg              # Vinmec vector logo
 │   ├── css/
 │   │   ├── main.css                 # Master stylesheet aggregator
 │   │   ├── theme.css                # Design system tokens, CSS variables, typography
@@ -136,20 +156,28 @@ Khóa luận/
 │
 ├── docs/
 │   ├── ARCHITECTURE.md              # System architecture and design specification
+│   ├── CLINICAL_VALIDATION_STANDARDS.md # Clinical validation & HITL safety standards
+│   ├── KLTN_THESIS_EXECUTION_PLAN.md    # 4-milestone thesis execution plan
 │   ├── CLEANUP_REPORT.md            # Refactoring, modularization and cleanup report
 │   ├── CLEANUP_CANDIDATES.md        # File deletion/keep audit rationale
 │   ├── TECHNICAL_DEBT.md            # Documented technical debt and future considerations
+│   ├── dataset/                     # Báo cáo kiểm kê và đề xuất nguồn dữ liệu
+│   │   ├── RESOURCE_AUDIT.md
+│   │   ├── RECOMMENDED_RESOURCES.md
+│   │   └── dataset_recommendation.md
 │   ├── ovarian-ultrasound-ai/       # Product and SRS specifications
 │   └── thesis_proposal/             # Thesis proposal documents and document generator
 │
-├── ai_training/                     # Training experiments, splits, evaluations, previews
-├── checkpoints/                     # Model weights (best_attention_unet.pth)
+├── ai_training/                     # Training experiments, splits (Patient-level), previews
+├── checkpoints/
+│   ├── baseline_unet_best.pth       # Standard U-Net weights (31.1 MB - Compulsory Baseline)
+│   └── best_attention_unet.pth      # Attention U-Net weights (31.5 MB - Comparative Model)
 ├── scripts/                         # Operational training, evaluation & preprocessing scripts
-├── tests/                           # Unit, pipeline & E2E clinical workflow test suite
+├── tests/                           # 87 automated tests (Unit, pipeline & E2E clinical workflow)
 ├── data/                            # Uploads, reports, sample cases & runtime data
 ├── pyproject.toml                   # Project metadata & Ruff linter configuration
-├── MODEL_CARD.md                    # AI Model Card (Attention U-Net v1.2)
-└── ovarian_ai.db                    # Production SQLite Database
+├── MODEL_CARD.md                    # AI Model Card (Baseline U-Net + Attention U-Net)
+└── ovarian_ai.db                    # SQLite Database
 ```
 
 ---

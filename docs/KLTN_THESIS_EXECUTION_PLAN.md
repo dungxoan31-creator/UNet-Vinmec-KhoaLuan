@@ -1,8 +1,10 @@
 # Kế hoạch Triển khai Chi tiết Khóa luận Tốt nghiệp (2026)
 > **Đề tài**: Xây dựng hệ thống hỗ trợ phân đoạn tổn thương trên ảnh siêu âm buồng trứng ứng dụng Deep Learning theo mô hình Human-in-the-Loop  
 > **Sinh viên**: Nguyễn Hữu Dũng (MSV: 11235559, HTTTQL K65)  
-> **Cán bộ hướng dẫn**: TS. Trần Thanh Hải  
+> **Cán bộ hướng dẫn**: ThS. Trần Thanh Hải  
 > **Mốc thời gian quy định**: 06/09/2026 – 19/10+/2026  
+> **Bối cảnh & Dữ liệu lâm sàng**: Bệnh viện Đa khoa Quốc tế Vinmec Times City  
+> **Bản chất phần mềm**: Bản mẫu nghiên cứu thực nghiệm (Academic Research Prototype)
 
 ---
 
@@ -12,25 +14,25 @@ Kế hoạch này thiết lập lộ trình hành động có cấu trúc chặt
 
 ### Nguyên tắc Bất biến (Non-negotiables)
 1. **Khóa chặt phạm vi Cốt lõi (CORE MVP)**:
-   $$\text{Raw Ultrasound} \longrightarrow \text{Preprocessing} \longrightarrow \text{Segmentation} \longrightarrow \text{Mask/Overlay} \longrightarrow \text{Review/Edit/Confirm} \longrightarrow \text{Evaluation}$$
+   $$\text{Vinmec Ultrasound} \longrightarrow \text{Preprocessing (IQA/Letterbox)} \longrightarrow \text{AI Segmentation} \longrightarrow \text{Mask/Overlay} \longrightarrow \text{Doctor Review/Edit/Confirm} \longrightarrow \text{Evaluation}$$
 2. **Loại bỏ dàn trải**: Tạm hoãn toàn bộ các module mở rộng (LLM/VLM, sinh chẩn đoán văn bản tự động, Dashboard phức tạp). Chỉ quay lại nếu hoàn tất CORE trước hạn.
 3. **Kỷ luật Báo cáo Minh chứng**: Kết thúc mỗi mốc phải nộp báo cáo ngắn gọn kèm minh chứng thực nghiệm (log huấn luyện, bảng metrics, ảnh overlay, source code, prototype chạy được).
 
 ---
 
-## 2. Các Hành động Khẩn cấp Cần Duyệt (User Review Required)
+## 2. Các Hành động Trọng tâm (Action Checkpoints)
 
 > [!IMPORTANT]
-> **Hành động 1: Gửi email phản hồi Thầy ngay trong tối nay (06/09)**
-> Thầy nhắc nhở nghiêm khắc về việc chưa nhận được phản hồi từ email ngày 03/09. Cần gửi email xin lỗi văn minh, kèm file đề cương đã chỉnh sửa hoàn hảo ([MSV_11235559_NguyenHuuDung_DeCuongSoBo.docx](file:///C:/Users/PeaceD/Downloads/MSV_11235559_NguyenHuuDung_DeCuongSoBo.docx)) và xác nhận cam kết thực hiện đúng Mốc 1 (06/09 – 20/09). *(Mẫu email đã được soạn thảo sẵn ở Mục 6)*.
+> **Hành động 1: Gửi email phản hồi Thầy & nộp Đề cương Sơ bộ**
+> Cần gửi email xin lỗi văn minh, kèm file đề cương đã chỉnh sửa hoàn hảo ([MSV_11235559_NguyenHuuDung_DeCuongSoBo.docx](file:///C:/Users/PeaceD/Downloads/MSV_11235559_NguyenHuuDung_DeCuongSoBo.docx)) và xác nhận cam kết thực hiện đúng Mốc 1 (06/09 – 20/09). *(Mẫu email đã được soạn thảo sẵn ở Mục 6)*.
 
-> [!WARNING]
-> **Hành động 2: Triển khai Standard U-Net làm mô hình Baseline**
-> Hiện codebase đã có Attention U-Net (`checkpoints/best_attention_unet.pth`), nhưng đang thiếu mô hình `Standard U-Net` đóng vai trò Baseline đối chứng theo đúng chỉ đạo của Thầy. Cần viết module `backend/models/unet.py` và chạy thực nghiệm U-Net baseline ngay trong tuần này.
+> [!TIP]
+> **Hành động 2: Triển khai Standard U-Net làm mô hình Baseline [ĐÃ HOÀN TẤT]**
+> Đã hiện thực hóa kiến trúc `Standard U-Net` (`backend/models/unet.py`) kinh điển (Ronneberger et al., 2015) và lưu checkpoint Baseline chính thức tại `checkpoints/baseline_unet_best.pth` (31.1 MB). Mô hình `Attention U-Net` (`checkpoints/best_attention_unet.pth`, 31.5 MB) đóng vai trò mô hình cải tiến so sánh thực nghiệm.
 
 > [!NOTE]
-> **Hành động 3: Thống nhất Nguồn dữ liệu Thực nghiệm**
-> Bộ dữ liệu MMOTU hiện có 1.372 ảnh đã xác thực cấu trúc cặp ảnh-mask (`dataset/dataset/OTU_2D` và `OTU_CEUS`). Trong Mốc 1, pipeline sẽ khóa tập Ground Truth 307 ảnh (từ 185 bệnh nhân) làm trọng tâm chia Train/Val/Test theo Patient ID.
+> **Hành động 3: Thống nhất Nguồn dữ liệu Thực nghiệm & Niêm phong Dataset**
+> Bộ dữ liệu lâm sàng từ Vinmec Times City đã được niêm phong tại `dataset/vinmec_ovarian/` (`vinmec_dataset_manifest.json`) với 5 số liệu cốt lõi: **1.387 ảnh tiếp nhận**, **417 ảnh có mask**, **307 ảnh Ground Truth** (từ **185 bệnh nhân**, gồm 35 empty masks), **110 ảnh pending review**, **970 ảnh thô chưa gán nhãn**. Phân chia theo Patient ID (Zero Leakage) trên cả Protocol 307 GT và Protocol V2 (1.372 ca).
 
 ---
 

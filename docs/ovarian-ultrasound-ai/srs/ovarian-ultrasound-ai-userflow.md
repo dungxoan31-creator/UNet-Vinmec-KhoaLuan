@@ -10,7 +10,11 @@ flow_hash: "b59a8421"
 
 # Ovarian Ultrasound AI Decision Support — User Flow
 
-> Nguồn phân định luồng người dùng chính thức và chuẩn mực cho hệ thống AI hỗ trợ phân tích hình ảnh siêu âm buồng trứng (Human-in-the-Loop) & In phiếu kết quả chẩn đoán chuyên sâu Vinmec.
+> **Khóa luận Tốt nghiệp**: *“Xây dựng hệ thống hỗ trợ phân đoạn tổn thương trên ảnh siêu âm buồng trứng ứng dụng Deep Learning theo mô hình Human-in-the-Loop”*  
+> **Sinh viên**: Nguyễn Hữu Dũng — MSV: 11235559 — Lớp: HTTTQL 65A, ĐH Kinh tế Quốc dân  
+> **Cán bộ hướng dẫn**: ThS. Trần Thanh Hải  
+> **Bối cảnh & Dữ liệu lâm sàng**: Bệnh viện Đa khoa Quốc tế Vinmec Times City  
+> **Bản chất phần mềm**: Bản mẫu nghiên cứu thực nghiệm (Academic Research Prototype)
 
 ## 1. User Flow (Tổng Thể)
 
@@ -26,7 +30,7 @@ flowchart TD
     n7["[6] Kiểm Tra Chất Lượng Ảnh<br/>(IQA: Độ nét, Tương phản, Trường nhìn)"]
     n8{"Ảnh đạt chuẩn?"}
     n9["Cảnh báo: Ảnh mờ / tương phản thấp<br/>(Gợi ý chọn ảnh nét hơn)"]
-    n10["[7] Tiến Trình Phân Tích AI<br/>(Attention U-Net Inference)"]
+    n10["[7] Tiến Trình Phân Tích AI<br/>(Baseline U-Net / Attention U-Net)"]
     n11{"Suy luận thành công?"}
     n12["Báo lỗi suy luận<br/>(Nút Thử lại / Quay lại)"]
     n13["[8] Xem Kết Quả & Đo Đạc AI<br/>(Ảnh gốc, Overlay, Mask, D1, D2, Diện tích)"]
@@ -84,13 +88,13 @@ flowchart TD
 | 4 | `create-case` | Tạo ca khám mới | Nhập mã bệnh nhân, mã lần khám, ngày siêu âm và lý do khám | `analysis-workflow` |
 | 5 | `upload-image` | Tải ảnh siêu âm | Kéo thả hoặc chọn file ảnh siêu âm PNG/JPG hoặc chọn ca mẫu | `analysis-workflow` |
 | 6 | `quality-check` | Kiểm tra chất lượng (IQA) | Đánh giá độ nét, độ tương phản và trường nhìn siêu âm trước khi chạy AI | `analysis-workflow` |
-| 7 | `ai-inference` | Tiến trình phân tích AI | Hiển thị trạng thái suy luận từng bước của mô hình Attention U-Net | `analysis-workflow` |
+| 7 | `ai-inference` | Tiến trình phân tích AI | Hiển thị trạng thái suy luận từng bước của mô hình (Baseline U-Net / Attention U-Net) | `analysis-workflow` |
 | 8 | `results-view` | Xem kết quả AI | Hiển thị ảnh gốc, overlay vùng u nang và bảng số đo D1, D2, Diện tích | `analysis-workflow` |
 | 9 | `mask-editor` | Bộ biên tập Mask (HITL) | Cho phép Bác sĩ dùng cọ/tẩy/undo/redo/zoom để tinh chỉnh ranh giới mask | `analysis-workflow` |
 | 10 | `confirm-signoff` | Xác nhận & Ký duyệt | Bác sĩ xác nhận an toàn chuyên môn, ghi chú mô tả Buồng trứng (Phải/Trái/Douglas) và lưu Ground Truth | `analysis-workflow` |
 | 11 | `report-complete` | Hoàn tất & Xuất báo cáo | Xem trước & In phiếu kết quả chẩn đoán chuyên biệt buồng trứng (chuẩn A4 Vinmec 1:1), Xuất PDF hoặc khám ca mới | `report-flow` |
 | 12 | `case-history` | Lịch sử ca khám | Tìm kiếm, lọc theo ngày/trạng thái và mở lại toàn bộ hồ sơ ca cũ | `history-flow` |
-| 13 | `admin-telemetry` | Quản trị kỹ thuật | Theo dõi Model Registry (Attention U-Net, S4M, UltraSAM), phần cứng và benchmark | `admin-flow` |
+| 13 | `admin-telemetry` | Quản trị kỹ thuật | Theo dõi Model Registry (Standard U-Net Baseline, Attention U-Net), phần cứng và benchmark | `admin-flow` |
 
 ## 3. Danh Sách Flow
 

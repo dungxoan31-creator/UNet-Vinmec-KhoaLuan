@@ -2,7 +2,7 @@
 import os
 
 def generate_kb():
-    filename = 'ovarian_ultrasound_knowledge_base.md'
+    filename = os.path.join(os.path.dirname(__file__), '..', 'knowledge', 'ovarian_ultrasound_knowledge_base.md')
     lines = []
     
     # Header

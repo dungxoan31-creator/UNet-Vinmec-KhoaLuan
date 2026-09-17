@@ -5,6 +5,15 @@
 const API_BASE_URL = window.location.origin;
 const API_BASE = API_BASE_URL;
 
+// System Information & Academic Positioning
+const SYSTEM_INFO = {
+    name: "Hệ thống Hỗ trợ Phân đoạn Tổn thương Siêu âm Buồng trứng Human-in-the-Loop",
+    nature: "Bản mẫu nghiên cứu thực nghiệm (Research Prototype - Không phải hệ thống thương mại chính thức của Vinmec)",
+    academic_context: "Khóa luận Tốt nghiệp MIS 65A - Đại học Kinh tế Quốc dân (NEU)",
+    clinical_data_source: "Bệnh viện Đa khoa Quốc tế Vinmec Times City",
+    core_functionality: "Hỗ trợ phân đoạn viền tổn thương và đo đạc kích thước khách quan (Segmentation & Measurement Assist)"
+};
+
 // Vinmec 7-Hospital Facility Metadata
 const FACILITIES_METADATA = {
     "times_city": {

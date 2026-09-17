@@ -12,7 +12,7 @@
 * **Lớp chuyên ngành**: Hệ thống Thông tin Quản lý 65A (HTTTQL 65A)
 * **Giảng viên hướng dẫn**: ThS. Trần Thanh Hải
 * **Định hướng nghề nghiệp**: IT Business Analyst / Product Owner
-* **Thời gian báo cáo**: 15/09/2026
+* **Thời gian báo cáo**: 17/09/2026
 * **Trạng thái Cột mốc 1**: **HOÀN THÀNH 100% CÁC TIÊU CHÍ (COMPLETED WITH FULL EVIDENCE)**
 
 ---

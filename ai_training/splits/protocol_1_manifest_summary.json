@@ -1,5 +1,5 @@
 {
-    "protocol": "Protocol 1: Standard MMOTU Benchmark",
+    "protocol": "Protocol 1: Vinmec Times City Patient-Level Benchmark",
     "random_seed": 42,
     "train_count": 700,
     "val_count": 120,

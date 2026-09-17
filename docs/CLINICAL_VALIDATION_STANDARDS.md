@@ -1,13 +1,21 @@
 # CLINICAL VALIDATION & MEDICAL AI SAFETY STANDARDS
-## Ovarian Ultrasound AI Decision Support System (Vinmec Healthcare Protocol)
+## Ovarian Ultrasound AI Decision Support System (Vinmec Times City Clinical Context)
 
-This document establishes the clinical governance, AI validation standards, and safety guardrails implemented within the Ovarian Ultrasound AI Decision Support System.
+> **Khóa luận Tốt nghiệp**: *“Xây dựng hệ thống hỗ trợ phân đoạn tổn thương trên ảnh siêu âm buồng trứng ứng dụng Deep Learning theo mô hình Human-in-the-Loop”*  
+> **Sinh viên**: Nguyễn Hữu Dũng — MSV: 11235559 — Lớp: HTTTQL 65A, Trường Công nghệ & Kinh tế số, ĐH Kinh tế Quốc dân  
+> **Cán bộ hướng dẫn**: ThS. Trần Thanh Hải  
+> **Bối cảnh lâm sàng & Dữ liệu**: Bệnh viện Đa khoa Quốc tế Vinmec Times City  
+> **Bản chất phần mềm**: Bản mẫu nghiên cứu thực nghiệm (Academic Research Prototype) — Không phải hệ thống thương mại chính thức đã triển khai tại Vinmec
+
+This document establishes the clinical governance, AI validation standards, and safety guardrails implemented within the Ovarian Ultrasound AI Decision Support System research prototype.
 
 ---
 
 ## 1. Clinical Decision Support System (CDSS) Framing
-- **Role of AI**: The system operates strictly as a **Class II SaMD (Software as a Medical Device) Clinical Decision Support Assistant**. It provides preliminary mass localization, boundary segmentation, and automated caliper measurements (D1, D2, D3, Volume).
-- **Clinician Supremacy**: AI inference outputs are explicitly flagged as `ANALYZED — REQUIRES CLINICIAN REVIEW`. Final diagnostic conclusions, O-RADS categorization, and medical reports require active verification, editing (if necessary), and formal sign-off by a credentialed Specialist Physician.
+- **Role of AI**: The system operates strictly as an **Academic Research Prototype for Lesion Segmentation Assist (Class II SaMD-oriented)**. It provides preliminary mass localization, boundary segmentation, and automated caliper measurements ($D_1, D_2, D_3$, Volume).
+- **Human-in-the-Loop (HITL) Protocol**: AI outputs are strictly suggestions requiring the 5-step clinical workflow:
+  $$\text{Ultrasound Image} \longrightarrow \text{Pre-IQA} \longrightarrow \text{AI Segmentation} \longrightarrow \text{Doctor Review/Edit} \longrightarrow \text{Doctor Confirmation}$$
+- **Clinician Supremacy**: AI inference outputs are explicitly flagged as `ANALYZED — REQUIRES CLINICIAN REVIEW`. Final diagnostic conclusions, O-RADS categorization, and medical reports require active verification, editing (if necessary), and formal sign-off by a credentialed Specialist Physician. AI never autonomously diagnoses pathologies.
 - **Safety Precedence**: `Clinical Safety > Diagnostic Accuracy > Traceability > Reliability > Usability > UI Aesthetics`.
 
 ---
@@ -36,28 +44,35 @@ $$H(p) = -p \log_2(p) - (1-p) \log_2(1-p)$$
 ---
 
 ## 4. Model Versioning, Provenance & Reproducibility
-Every inference result, database prediction record, and exported report is permanently stamped with:
-- **Model Name**: `Attention U-Net Dual Attention Gates`
-- **Model Version**: `v1.2.0-clinical`
-- **Checkpoint SHA-256 Checksum**: `81dcac9db4c5feb3ddfc82325bcfab95e4b6fc92e39f133640b6e5bfeb5dd668`
+Every inference result, database prediction record, and exported report is permanently stamped with model metadata:
+- **Baseline Architecture**: `Standard U-Net (Ronneberger et al., 2015)` (`checkpoints/baseline_unet_best.pth`)
+- **Comparative Architecture**: `Attention U-Net Dual Attention Gates` (`checkpoints/best_attention_unet.pth`)
+- **Model Version**: `v1.2.0-clinical` / `v1.0-baseline`
 - **Inference Hardware**: `CPU` / `CUDA GPU`
 - **Inference Latency**: Exact millisecond execution timer
-- **Preprocessing Version**: `UltrasoundPreprocessor-v1.2`
+- **Preprocessing Version**: `UltrasoundPreprocessor-v1.2` (Letterbox 512x512, Normalization [0, 1])
 
 ---
 
 ## 5. Patient-Level Data Stratification (Zero Leakage)
-Official model training and evaluation partitions (`ai_training/splits/`) strictly enforce **patient-level separation**:
-- **Training Set (`train.csv`)**: 700 images (OTU_2D Train)
-- **Validation Set (`val.csv`)**: 120 images (OTU_2D Validation)
-- **Independent Test Set (`test.csv`)**: 382 images (OTU_2D Test)
-- **CEUS Extended Test Set (`ceus_test.csv`)**: 170 images (OTU_CEUS)
-- **Total Evaluated**: 1,372 clinical images without patient cross-contamination.
+Official model training and evaluation partitions (`ai_training/splits/` and `dataset/vinmec_ovarian/`) strictly enforce **patient-level separation**:
+- **Dataset Niêm phong (5 số liệu cốt lõi)**:
+  - **1.387 ảnh tiếp nhận tổng cộng** từ Vinmec Times City
+  - **417 ảnh có mask sơ bộ**
+  - **307 ảnh Ground Truth** (từ **185 bệnh nhân**, gồm 35 empty masks)
+  - **110 ảnh pending review**
+  - **970 ảnh thô chưa gán nhãn**
+- **Cấu hình Phân vùng Đánh giá (Evaluation Partitions)**:
+  - **Training Set (`train.csv` / `train_v2.csv`)**: 700 ảnh (OTU_2D Train)
+  - **Validation Set (`val.csv` / `val_v2.csv`)**: 120 ảnh (OTU_2D Validation)
+  - **Independent Test Set (`test.csv` / `test_v2.csv`)**: 382 ảnh (OTU_2D Test)
+  - **CEUS Extended Test Set (`ceus_test.csv`)**: 170 ảnh (OTU_CEUS)
+  - **Total Evaluated**: 1,372 clinical images without patient cross-contamination (Zero Data Leakage).
 
 ---
 
 ## 6. Audit Trail & Regulatory Compliance
-The SQLite/PostgreSQL database logs an immutable audit trail (`audit_logs` table) for all clinical events:
+The SQLite database logs an immutable audit trail (`audit_logs` table) for all clinical events:
 - `UPLOAD_IMAGE`: Timestamp, sanitized filename, dimensions, study association.
 - `VALIDATE_IQA`: Quality score, sharpness, contrast std, validation status.
 - `RUN_PREDICTION`: Model version, checksum, confidence, uncertainty level, lesion count.

@@ -1,11 +1,12 @@
 # ĐẶC TẢ YÊU CẦU PHẦN MỀM (SOFTWARE REQUIREMENTS SPECIFICATION - SRS)
-## Hệ Thống Hỗ Trợ Chẩn Đoán Phân Đoạn U Buồng Trứng Trực Quan Theo Mô Hình Human-In-The-Loop (Ovarian Ultrasound AI CDSS)
+## Hệ Thống Hỗ Trợ Phân Đoạn Tổn Thương U Buồng Trứng Trực Quan Theo Mô Hình Human-In-The-Loop (Ovarian Ultrasound AI Prototype)
 
-> **Dự án**: Khóa luận Tốt nghiệp Đại học Chuyên ngành Hệ thống Thông tin Quản lý (MIS)  
-> **Tác giả**: Nguyễn Hữu Dũng — MSV: 11235559 — Lớp: HTTTQL 65A (Trường Đại học Kinh tế Quốc dân)  
-> **Giảng viên hướng dẫn**: TS. Trần Triệu Hải / ThS. Trần Thanh Hải  
-> **Đơn vị phối hợp nghiệp vụ**: Hệ thống Y tế Vinmec (Vinmec Healthcare System) / VinSmart Future  
-> **Phiên bản SRS**: `v2.0-final` | **Ngày cập nhật**: `2026-09-01`  
+> **Dự án**: Khóa luận Tốt nghiệp Đại học — Ngành Hệ thống Thông tin Quản lý (MIS)  
+> **Tác giả**: Nguyễn Hữu Dũng — MSV: 11235559 — Lớp: HTTTQL 65A, Trường Công nghệ & Kinh tế số, ĐH Kinh tế Quốc dân  
+> **Giảng viên hướng dẫn**: ThS. Trần Thanh Hải  
+> **Bối cảnh & Dữ liệu lâm sàng**: Bệnh viện Đa khoa Quốc tế Vinmec Times City  
+> **Bản chất phần mềm**: Bản mẫu nghiên cứu thực nghiệm (Academic Research Prototype) — Không phải hệ thống thương mại chính thức đã triển khai tại Vinmec  
+> **Phiên bản SRS**: `v2.1-vinmec-thesis` | **Ngày cập nhật**: `2026-09-16`  
 > **Định hướng chuyên môn**: IT Business Analyst (ITBA) / Product Owner (PO)
 
 ---
@@ -18,12 +19,12 @@ Trong quy trình chẩn đoán hình ảnh sản phụ khoa, siêu âm 2D (B-mod
 2. **Biến thiên phụ thuộc kinh nghiệm bác sĩ (Inter/Intra-observer variability)**: Kết quả đo đạc đường kính ($D_1, D_2$) và diện tích tổn thương lệch đáng kể giữa các lần khám hoặc giữa các bác sĩ khác nhau.
 3. **Áp lực thời gian & Giới hạn của AI "Hộp Đen" (Black-Box AI)**: Bác sĩ chịu tải công việc cao. Các hệ thống AI phân loại nhãn đơn thuần không hiển thị đường viền minh bạch khiến bác sĩ không thể tin tưởng hoặc kiểm soát kết quả chẩn đoán.
 
-### 1.2. Giải pháp Hệ thống To-Be (Human-in-the-Loop CDSS)
-Hệ thống **Ovarian Ultrasound AI CDSS** được thiết kế theo chuẩn **Class II SaMD (Software as a Medical Device)** hỗ trợ chẩn đoán lâm sàng. Hệ thống kết hợp:
-* **Thuật toán Deep Learning Attention U-Net**: Phân đoạn nhị phân (Binary Semantic Segmentation) tự động khoanh vùng bờ viền u buồng trứng, hỗ trợ Test-Time Augmentation (TTA) và trích xuất thước đo Caliper tự động.
-* **Bộ kiểm định chất lượng ảnh đầu vào (IQA - Image Quality Assessment)**: Tự động sàng lọc ảnh mờ, sai lệch độ tương phản hoặc không phải ảnh siêu âm trước khi suy luận.
-* **Mô hình Tương tác Người – Máy (Human-in-the-Loop Workstation)**: Cung cấp bộ công cụ vẽ/tẩy/zoom/opacity mượt màng trên HTML5 Dual-Layer Canvas, cho phép bác sĩ rà soát, tinh chỉnh trực tiếp viền mask AI trước khi ký duyệt.
-* **Báo cáo Chẩn đoán Chuẩn Vinmec (1:1 A4 PDF)**: Tự động tổng hợp kết quả chẩn đoán, hình ảnh minh chứng, mã QR và thông tin cơ sở Vinmec xuất bản ngay sau khi bác sĩ phê duyệt.
+### 1.2. Giải pháp Bản Mẫu Nghiên Cứu To-Be (Human-in-the-Loop Assistive Prototype)
+Hệ thống là một **Bản mẫu nghiên cứu thực nghiệm (Academic Research Prototype)** hỗ trợ phân đoạn đường viền và đo đạc kích thước u buồng trứng theo định hướng SaMD Class II, tuân thủ nguyên tắc **Bác sĩ giữ quyền quyết định tối thượng (Clinician Supremacy)**:
+* **Mô hình AI Phân đoạn Cốt lõi**: Triển khai mô hình đường cơ sở bắt buộc (**Standard U-Net**, `checkpoints/baseline_unet_best.pth`) và mô hình so sánh thực nghiệm (**Attention U-Net**, `checkpoints/best_attention_unet.pth`) phân đoạn nhị phân (Binary Semantic Segmentation) viền u buồng trứng, tự động trích xuất thước đo Caliper ($D_{max}, D_{orth}, V$).
+* **Bộ kiểm định chất lượng ảnh đầu vào (Pre-IQA)**: Tự động sàng lọc 4 tiêu chí (độ nét Laplacian $\ge 18$, tương phản, độ bão hòa, chuẩn B-mode) trước khi nạp vào mạng nơ-ron.
+* **Trạm Tương tác Người – Máy (Human-in-the-Loop Workstation)**: Cung cấp bộ công cụ vẽ/tẩy/zoom/pan mượt mà trên HTML5 Dual-Layer Canvas, cho phép bác sĩ rà soát và trực tiếp tinh chỉnh bờ viền mask trước khi ký duyệt (`ACCEPTED_RAW`, `MODIFIED`).
+* **Báo cáo Chẩn đoán Chuẩn Vinmec (1:1 A4 PDF)**: Tự động tổng hợp kết quả phân tích, hình ảnh minh chứng, mã QR và thông tin cơ sở Vinmec xuất bản ngay sau khi bác sĩ phê duyệt.
 
 ---
 
@@ -101,13 +102,13 @@ Danh mục Yêu cầu Chức năng được chia thành 6 Phân hệ chính (Mod
 | **FR-02** | Chọn Cơ sở Y tế | Dynamic Facility Switching | Cho phép chọn cơ sở Vinmec công tác (Times City, Central Park, Đà Nẵng,...). Header và Báo cáo PDF tự động cập nhật Logo, Địa chỉ, Hotline tương ứng. | MUST HAVE |
 | **FR-03** | Quản lý Ca khám | Case Management & PID | Tạo ca khám mới với các thông số: Mã BN (PID), Mã ca khám, Ngày siêu âm, Bác sĩ chỉ định, Loại siêu âm (TVUS/TAUS). | MUST HAVE |
 | **FR-04** | Tiếp nhận & Pre-IQA | Image Upload & IQA Filter | Hỗ trợ kéo thả/chọn file PNG, JPG, JPEG (tối đa 20MB). Tự động kiểm tra IQA (Độ nét Laplacian $\ge 18$, Tương phản, Grayscale B-mode check). Báo lỗi chi tiết nếu ảnh không đạt. | MUST HAVE |
-| **FR-05** | Phân đoạn AI Core | Attention U-Net Inference | Chạy suy luận mô hình Attention U-Net (với Test-Time Augmentation). Tự động cắt chuẩn Letterbox $512 \times 512$, trả về RLE Mask và xác suất tin cậy. | MUST HAVE |
+| **FR-05** | Phân đoạn AI Core | Dual-Model Segmentation Inference | Chạy suy luận mô hình Standard U-Net (Baseline bắt buộc) hoặc Attention U-Net (Mô hình so sánh). Tự động cắt chuẩn Letterbox $512 \times 512$, trả về RLE Mask, độ bất định Shannon entropy và xác suất tin cậy. | MUST HAVE |
 | **FR-06** | Trích xuất Calipers | Caliper & Geometry Engine | Tự động xác định khung chữ nhật xoay (Rotated Bounding Box), tính đường kính lớn nhất $D_1$, đường kính trực giao $D_2$, diện tích u ($\text{mm}^2$) và thể tích hình elip khối ($V = \frac{\pi}{6} \cdot D_1 \cdot D_2 \cdot D_3$). | MUST HAVE |
 | **FR-07** | Tram Tương tác HITL | Interactive Dual-Layer Canvas | Cung cấp màn hình rà soát trực quan: Lớp ảnh gốc + Lớp phủ Mask màu đỏ mờ ($50\%$ opacity). Tích hợp công cụ Canvas: Cọ vẽ (Brush), Tẩy (Eraser), Undo, Redo, Khôi phục AI gốc, Zoom ($10\% - 500\%$), Pan. | MUST HAVE |
 | **FR-08** | Phê duyệt & Audit Log | Sign-Off & Ground Truth Save | Bác sĩ xác nhận lưu ca với trạng thái `ACCEPTED_RAW` (chấp nhận hoàn toàn) hoặc `MODIFIED` (đã chỉnh sửa). Hệ thống lưu nguyên trạng Mask chỉnh sửa làm Ground Truth để huấn luyện lại. | MUST HAVE |
 | **FR-09** | Báo cáo y tế | Vinmec A4 PDF Generation | Tự động xuất phiếu chẩn đoán y tế chuẩn A4 (tỷ lệ 1:1), chứa thông tin bệnh nhân, hình ảnh gốc, ảnh overlay, bảng chỉ số Caliper, kết luận O-RADS và mã QR tra cứu. | MUST HAVE |
 | **FR-10** | Lịch sử Ca khám | Case History & Search | Tra cứu danh sách ca bệnh cũ theo PID, tên bệnh nhân, khoảng ngày, cơ sở y tế. Hỗ trợ xem lại chi tiết ca khám và tải lại báo cáo PDF. | SHOULD HAVE |
-| **FR-11** | Quản trị Telemetry | Model Registry & Monitoring | Cho phép Quản trị viên xem danh mục mô hình AI (Attention U-Net, S4M, UltraSAM), đo đạc độ trễ suy luận (Latency), chỉ số DSC/IoU trên tập kiểm thử và xuất bộ dữ liệu Ground Truth. | SHOULD HAVE |
+| **FR-11** | Quản trị Telemetry | Model Registry & Monitoring | Cho phép Quản trị viên xem danh mục mô hình AI (Standard U-Net Baseline, Attention U-Net), đo đạc độ trễ suy luận (Latency), chỉ số DSC/IoU trên tập kiểm thử và xuất bộ dữ liệu Ground Truth. | SHOULD HAVE |
 
 ---
 
@@ -115,11 +116,11 @@ Danh mục Yêu cầu Chức năng được chia thành 6 Phân hệ chính (Mod
 
 | Mã NFR | Tiêu chí (Category) | Đặc tả Yêu cầu Kỹ thuật & Lâm sàng | Chỉ số Đo lường (Metrics) |
 |---|---|---|---|
-| **NFR-01** | **Hiệu năng & Độ trễ (Performance)** | Thời gian suy luận mô hình AI (bao gồm tiền xử lý, Attention U-Net inference và trích xuất Caliper) không vượt quá 1.5 giây trên CPU thương mại thông thường ($< 350\text{ ms}$ trên GPU). | Latency $\le 1500\text{ ms}$ (CPU) |
+| **NFR-01** | **Hiệu năng & Độ trễ (Performance)** | Thời gian suy luận mô hình AI (bao gồm tiền xử lý, neural network inference và trích xuất Caliper) không vượt quá 1.5 giây trên CPU thương mại thông thường ($< 350\text{ ms}$ trên GPU). | Latency $\le 1500\text{ ms}$ (CPU) |
 | **NFR-02** | **Độ mượt Giao diện (UI Responsiveness)** | Các thao tác vẽ cọ (Brush), tẩy (Eraser), Zoom, Pan trên HTML5 Canvas phải đạt tốc độ phản hồi 60 FPS, không gây giật lag lag cursor khi bác sĩ thao tác. | Canvas FPS $\ge 60$ |
 | **NFR-03** | **An toàn Y tế & Bảo mật (Medical Safety & Privacy)** | 100% dữ liệu hình ảnh siêu âm và thông tin ca khám lưu trữ phải được mã hóa anonymized PID. Không để rò rỉ dữ liệu cá nhân bệnh nhân theo chuẩn HIPAA/GDPR. | Zero PII Leakage |
 | **NFR-04** | **Tính sẵn sàng (Availability)** | Backend FastAPI và cơ sở dữ liệu có khả năng hoạt động liên tục 24/7 với Uptime đạt $99.9\%$. | Availability $\ge 99.9\%$ |
-| **NFR-05** | **Độ chính xác Phân đoạn (AI Accuracy)** | Mô hình Attention U-Net phải đạt chỉ số trùng khớp thể tích tổn thương Dice Similarity Coefficient (DSC) $\ge 70\%$ trên tập kiểm thử độc lập (Held-out Patient Test Set). | DSC $\ge 0.70$ (Test Set) |
+| **NFR-05** | **Độ chính xác Phân đoạn (AI Accuracy)** | Mô hình phân đoạn phải đạt chỉ số trùng khớp thể tích tổn thương Dice Similarity Coefficient (DSC) $\ge 70\%$ trên tập kiểm thử độc lập (Held-out Patient Test Set). | DSC $\ge 0.70$ (Test Set) |
 | **NFR-06** | **An toàn Đường dẫn (Unicode Path Safety)** | Toàn bộ mô-đun đọc/ghi ảnh trên hệ điều hành Windows phải xử lý an toàn các đường dẫn chứa tiếng Việt có dấu hoặc ký tự Unicode không chuẩn mà không bị crash hệ thống. | Zero OpenCV Unicode Error |
 | **NFR-07** | **Tính chuẩn hóa In ấn (Print Standard)** | Báo cáo PDF xuất ra phải tuân thủ nghiêm ngặt kích thước khổ giấy A4 (210mm x 297mm), căn lề lề trên/dưới/trái/phải 15mm, không tràn trang ngoài ý muốn khi in trực tiếp. | 1:1 Exact A4 Page Fit |
 
@@ -242,16 +243,21 @@ graph LR
 
 Tài liệu SRS này xác nhận tính đồng bộ 100% với báo cáo đánh giá mô hình tại [evaluation_report.md](file:///C:/Users/PeaceD/Documents/Kh-a-lu-n/ai_training/evaluation_report.md) và Card mô hình [MODEL_CARD.md](file:///C:/Users/PeaceD/Documents/Kh-a-lu-n/MODEL_CARD.md):
 
-### 7.1. Quy mô Dữ liệu Thực nghiệm (OTU Benchmark Dataset)
-* **Tổng số lượng ảnh y tế**: **1,372 cặp ảnh & mặt nạ Ground Truth thực tế** (100% paired).
-  * `OTU_2D/train`: 820 cặp ảnh siêu âm 2D B-mode.
-  * `OTU_2D/test`: 382 cặp ảnh siêu âm 2D kiểm thử độc lập.
-  * `OTU_CEUS`: 170 cặp ảnh siêu âm cản âm (Contrast-Enhanced Ultrasound).
-* **Phân chia Tập dữ liệu Phân tầng (Patient-Level Zero Data Leakage)**:
-  * Tập Huấn luyện (Train Set): **700 ảnh** (OTU_2D Train).
-  * Tập Thẩm định (Val Set): **120 ảnh** (OTU_2D Validation).
-  * Tập Kiểm thử Độc lập (Held-out Test Set): **382 ảnh** (OTU_2D Test).
-  * Tập Extended CEUS Test: **170 ảnh** (OTU_CEUS).
+### 7.1. Quy mô Dữ liệu Thực nghiệm (Vinmec Times City Ovarian Ultrasound Dataset)
+* **Thống kê Niêm phong Tập Dữ liệu Lâm sàng (Sealed Manifest: `dataset/vinmec_ovarian/vinmec_dataset_manifest.json`)**:
+  * **Tổng số ảnh tiếp nhận**: **1.387 ảnh siêu âm buồng trứng**.
+  * **Số ảnh có mask sơ bộ**: **417 ảnh** (được đối chiếu lâm sàng).
+  * **Tập Ground Truth chuẩn vàng**: **307 ảnh** (từ **185 bệnh nhân**, bao gồm 35 empty masks âm tính).
+  * **Ảnh chờ rà soát bổ sung**: **110 ảnh**.
+  * **Ảnh thô chưa gán nhãn**: **970 ảnh** (lưu trữ phục vụ nghiên cứu mở rộng).
+* **Phân chia Phân tầng Bệnh nhân (Patient-Level Zero Data Leakage Protocol)**:
+  * **Protocol 307 Ground Truth**: Phân chia theo Patient ID theo tỷ lệ 70% Train (~215 ảnh / 130 bệnh nhân), 15% Val (~46 ảnh / 27 bệnh nhân), 15% Test (~46 ảnh / 28 bệnh nhân).
+  * **Protocol 1.372 ca Đối sánh (Benchmark Extended Split)**:
+    * Tập Huấn luyện (Train Set): **700 ảnh** (`OTU_2D/train`).
+    * Tập Thẩm định (Val Set): **120 ảnh** (`OTU_2D/train` validation partition).
+    * Tập Kiểm thử Độc lập (Held-out Test Set): **382 ảnh** (`OTU_2D/test`).
+    * Tập Extended CEUS Test: **170 ảnh** (`OTU_CEUS`).
+    * Tuyệt đối không có rò rỉ dữ liệu cùng bệnh nhân giữa các tập (Zero Leakage).
 
 ### 7.2. Kết quả Đánh giá Định lượng Mô hình Attention U-Net v1.2.0-verified
 Được đánh giá độc lập trên tập kiểm thử held-out:
