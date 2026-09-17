@@ -18,6 +18,10 @@ data/reports/*
 
 # Large pre-trained checkpoints (tracked via Git LFS or external storage)
 # checkpoints/*.pth
+ai_training/experiments/*/*.pth
+ai_training/models/
+ai_training/dataset_preview/
+ai_training/evaluation_samples/
 
 # IDE and OS files
 .vscode/

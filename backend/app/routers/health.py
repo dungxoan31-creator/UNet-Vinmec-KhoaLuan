@@ -21,12 +21,14 @@ router = APIRouter(tags=["System & Metrics"])
 @router.get("/api/health")
 def health_check():
     """
-    Returns system status and active primary model information.
+    Returns system status, clinical facility context, and active model information.
     """
     return {
         "status": "healthy",
-        "system": "Ovarian Ultrasound AI System",
-        "primary_model": "Attention U-Net v1.2",
+        "system": "Vinmec Ovarian Ultrasound Lesion Segmentation CDSS (Research Prototype)",
+        "facility": "Bệnh viện Đa khoa Quốc tế Vinmec Times City",
+        "primary_model": "Standard U-Net Baseline",
+        "environment": "EXPERIMENTAL_RESEARCH_PROTOTYPE",
         "timestamp": datetime.now(UTC).isoformat(),
     }
 

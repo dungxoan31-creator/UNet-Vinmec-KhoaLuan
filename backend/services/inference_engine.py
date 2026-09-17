@@ -18,6 +18,7 @@ import numpy as np
 import torch
 
 from backend.models.attention_unet import AttentionUNet
+from backend.models.unet import StandardUNet
 from backend.services.morphology_extractor import MorphologicalFeatureExtractor
 
 
@@ -37,6 +38,7 @@ class InferenceEngine:
         threshold=0.5,
         default_pixel_spacing_mm=0.1,
         uncertainty_entropy_threshold=0.75,
+        architecture="auto",
     ):
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         self.threshold = float(threshold)
@@ -45,15 +47,28 @@ class InferenceEngine:
         self.model_weights_path = model_weights_path
         self.model_checksum = None
         self.is_model_ready = False
+        self.architecture_name = architecture
         self.morph_extractor = MorphologicalFeatureExtractor(default_pixel_spacing_mm=self.default_pixel_spacing_mm)
 
-        # Initialize model architecture
-        self.model = AttentionUNet(in_channels=1, num_classes=1).to(self.device)
+        # Auto-detect architecture from path if not explicitly standard_unet or attention_unet
+        is_standard = False
+        if architecture == "standard_unet":
+            is_standard = True
+        elif architecture == "attention_unet":
+            is_standard = False
+        elif model_weights_path and ("baseline" in os.path.basename(model_weights_path).lower() or "unet_best" in os.path.basename(model_weights_path).lower()):
+            is_standard = True
+
+        if is_standard:
+            self.model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device)
+            self.architecture_name = "Standard U-Net (Baseline)"
+        else:
+            self.model = AttentionUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device)
+            self.architecture_name = "Attention U-Net (Comparative Variant)"
         self.model.eval()
 
         if model_weights_path and os.path.exists(model_weights_path):
             try:
-                # Compute SHA-256 checksum for audit traceability
                 hasher = hashlib.sha256()
                 with open(model_weights_path, "rb") as f:
                     while chunk := f.read(8192 * 1024):
@@ -61,14 +76,23 @@ class InferenceEngine:
                 self.model_checksum = hasher.hexdigest()
 
                 state_dict = torch.load(model_weights_path, map_location=self.device)
-                self.model.load_state_dict(state_dict)
+                try:
+                    self.model.load_state_dict(state_dict)
+                except Exception:
+                    # Fallback to alternate model if weights format corresponds to other architecture
+                    alt_model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device) if not is_standard else AttentionUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device)
+                    alt_model.load_state_dict(state_dict)
+                    self.model = alt_model
+                    self.architecture_name = "Standard U-Net (Baseline)" if not is_standard else "Attention U-Net (Comparative Variant)"
+                    self.model.eval()
+
                 self.is_model_ready = True
-                print(f"[InferenceEngine] Successfully loaded model weights (SHA256: {self.model_checksum[:12]}...)")
+                print(f"[InferenceEngine] Successfully loaded {self.architecture_name} weights (SHA256: {self.model_checksum[:12]}...)")
             except Exception as e:
                 print(f"[InferenceEngine] Warning: Could not load weights from {model_weights_path}: {e}")
                 self.is_model_ready = False
         else:
-            print("[InferenceEngine] Notice: Initialized without pre-trained weights file.")
+            print(f"[InferenceEngine] Notice: Initialized {self.architecture_name} without pre-trained weights file.")
 
     @staticmethod
     def mask_to_rle(binary_mask: np.ndarray) -> dict:

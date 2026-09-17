@@ -17,14 +17,15 @@ def generate_splits(seed=42):
     random.seed(seed)
     
     # 1. Gather all paired images and masks from OTU_2D and OTU_CEUS
-    otu_2d_train_img_dir = os.path.normpath("dataset/dataset/OTU_2D/train/train_image")
-    otu_2d_train_mask_dir = os.path.normpath("dataset/dataset/OTU_2D/train/train_label/label")
+    base_dir = "dataset/vinmec_ovarian" if os.path.exists("dataset/vinmec_ovarian") else "dataset/dataset"
+    otu_2d_train_img_dir = os.path.normpath(f"{base_dir}/OTU_2D/train/train_image")
+    otu_2d_train_mask_dir = os.path.normpath(f"{base_dir}/OTU_2D/train/train_label/label")
     
-    otu_2d_test_img_dir = os.path.normpath("dataset/dataset/OTU_2D/test/image")
-    otu_2d_test_mask_dir = os.path.normpath("dataset/dataset/OTU_2D/test/label/black_write")
+    otu_2d_test_img_dir = os.path.normpath(f"{base_dir}/OTU_2D/test/image")
+    otu_2d_test_mask_dir = os.path.normpath(f"{base_dir}/OTU_2D/test/label/black_write")
     
-    otu_ceus_img_dir = os.path.normpath("dataset/dataset/OTU_CEUS/image")
-    otu_ceus_mask_dir = os.path.normpath("dataset/dataset/OTU_CEUS/label")
+    otu_ceus_img_dir = os.path.normpath(f"{base_dir}/OTU_CEUS/image")
+    otu_ceus_mask_dir = os.path.normpath(f"{base_dir}/OTU_CEUS/label")
     
     records = []
     

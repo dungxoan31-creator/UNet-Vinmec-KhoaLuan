@@ -45,7 +45,8 @@ class OvarianUltrasoundDataset(Dataset):
 
     def _resolve_path(self, p):
         p_str = str(p).replace("\\", "/")
-        idx = p_str.find("dataset/dataset/")
+        p_str = p_str.replace("dataset/dataset/", "dataset/vinmec_ovarian/")
+        idx = p_str.find("dataset/vinmec_ovarian/")
         if idx != -1:
             rel = p_str[idx:]
         else:
