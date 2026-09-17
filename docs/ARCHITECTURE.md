@@ -158,15 +158,13 @@ The codebase is organized into clean, decoupled layers following Separation of C
 │   ├── ARCHITECTURE.md              # System architecture and design specification
 │   ├── CLINICAL_VALIDATION_STANDARDS.md # Clinical validation & HITL safety standards
 │   ├── KLTN_THESIS_EXECUTION_PLAN.md    # 4-milestone thesis execution plan
-│   ├── CLEANUP_REPORT.md            # Refactoring, modularization and cleanup report
-│   ├── CLEANUP_CANDIDATES.md        # File deletion/keep audit rationale
-│   ├── TECHNICAL_DEBT.md            # Documented technical debt and future considerations
+│   ├── ke_hoach_trien_khai_moc_1.md # Kế hoạch triển khai chi tiết Mốc 1
 │   ├── dataset/                     # Báo cáo kiểm kê và đề xuất nguồn dữ liệu
-│   │   ├── RESOURCE_AUDIT.md
-│   │   ├── RECOMMENDED_RESOURCES.md
+│   │   ├── KLTN_DE_CUONG_DATASET_SPLITS.md
 │   │   └── dataset_recommendation.md
 │   ├── ovarian-ultrasound-ai/       # Product and SRS specifications
-│   └── thesis_proposal/             # Thesis proposal documents and document generator
+│   ├── reports/                     # Báo cáo tiến độ (Word .docx và Markdown)
+│   └── thesis_proposal/             # Đề cương và đề xuất khóa luận (Word .docx)
 │
 ├── ai_training/                     # Training experiments, splits (Patient-level), previews
 ├── checkpoints/

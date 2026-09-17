@@ -1,6 +1,7 @@
 # Kế Hoạch Triển Khai Chi Tiết Mốc 1: Dữ Liệu, Preprocessing Pipeline & Standard U-Net Baseline
-
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Sinh viên**: Nguyễn Hữu Dũng — MSV: 11235559 — Lớp: HTTTQL 65A, ĐHKTQD (NEU)  
+> **GVHD**: ThS. Trần Thanh Hải  
+> **Thời gian thực hiện**: 06/09/2026 – 20/09/2026  
 
 **Goal:** Hoàn thiện 100% đường ống xử lý dữ liệu và mô hình phân đoạn tổn thương buồng trứng Baseline (Raw Image/Mask → Preprocessing → Baseline Training → Prediction → Metrics → Report), khóa chặt 307 Ground Truth phân chia Patient-level Zero-Leakage và đóng gói trọn bộ Báo cáo Minh chứng Khoa học Mốc 1 nộp TS. Trần Thanh Hải.
 

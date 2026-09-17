@@ -10,10 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app.config import model_registry, report_generator
 from backend.db.database import AuditLogModel, ImageModel, ReviewModel, get_db
 from backend.schemas.schemas import DoctorReviewRequest, DoctorReviewResponse
-from backend.services.clinical_nlp_service import ClinicalNLPService
-
 router = APIRouter(tags=["Doctor Review & Reports"])
-nlp_service = ClinicalNLPService()
 
 
 @router.post("/api/review", response_model=DoctorReviewResponse)
@@ -78,29 +75,6 @@ def submit_doctor_review(review_req: DoctorReviewRequest, db: Session = Depends(
         "message": "Kết quả đã được Bác sĩ ký duyệt và lưu trữ Ground Truth thành công.",
         "is_ground_truth": True,
     }
-
-
-@router.post("/api/generate-narrative")
-def generate_clinical_narrative(payload: dict):
-    """
-    Generates natural language sonographic findings description and diagnostic conclusion
-    by combining Attention U-Net geometric measurements and Medical Knowledge Base (IOTA / O-RADS).
-    """
-    try:
-        vision_findings = payload.get("vision_findings", {})
-        patient_info = payload.get("patient_info", {})
-        doctor_pathology = payload.get("pathology_name", None)
-        use_ollama = payload.get("use_ollama", True)
-
-        result = nlp_service.generate_clinical_narrative(
-            vision_findings=vision_findings,
-            patient_info=patient_info,
-            doctor_pathology=doctor_pathology,
-            use_ollama=use_ollama,
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi sinh mô tả lâm sàng: {e!s}")
 
 
 @router.post("/api/generate-report")

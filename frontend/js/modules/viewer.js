@@ -137,11 +137,6 @@ function initResultsWorkspace(data) {
     resetZoomCanvas();
     setCanvasViewMode(currentViewMode);
 
-    // Automatically synthesize structured Clinical NLP narrative & conclusion
-    if (typeof autoGenerateAiNarrative === 'function') {
-        autoGenerateAiNarrative();
-    }
-
     // Load Background & Mask
     const onBgImageLoaded = () => {
         renderMaskFromRLE(data.rle_mask);

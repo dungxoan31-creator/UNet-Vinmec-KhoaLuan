@@ -36,8 +36,7 @@ cryptography>=42.0.0
 reportlab>=4.1.0
 pillow>=10.2.0
 
-# Knowledge Base & NLP
-qdrant-client>=1.8.0
+# Templating & Utilities
 httpx>=0.27.0
 Jinja2>=3.1.0
 

@@ -190,23 +190,6 @@ class TestV1Endpoints(unittest.TestCase):
 
         print("[PASS] POST /api/v1/cases/confirm OK: Ground Truth saved & Study Status = REVIEWED")
 
-    def test_05_generate_narrative_with_ollama_flag(self):
-        """
-        Tests POST /api/generate-narrative with use_ollama parameter flag.
-        """
-        payload = {
-            "vision_findings": {"max_diameter_mm": 42.0, "ortho_diameter_mm": 30.0},
-            "patient_info": {"patient_age": "34"},
-            "use_ollama": True,
-        }
-        r = self.client.post("/api/generate-narrative", json=payload)
-        self.assertEqual(r.status_code, 200)
-        res = r.json()
-        self.assertIn("generation_mode", res)
-        self.assertIn("sonographic_findings_text", res)
-        self.assertIn("clinical_conclusion_text", res)
-        print(f"[PASS] POST /api/generate-narrative with use_ollama=True OK: Mode={res['generation_mode']}")
-
 
 if __name__ == "__main__":
     unittest.main()

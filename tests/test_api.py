@@ -137,37 +137,6 @@ class TestAPIEndpoints(unittest.TestCase):
         self.assertEqual(r_stats.status_code, 200)
         print("[PASS] Operational Dashboard Stats OK")
 
-    def test_08b_clinical_nlp_narrative_generation(self):
-        payload = {
-            "vision_findings": {
-                "max_diameter_mm": 35.4,
-                "ortho_diameter_mm": 26.2,
-                "d3_mm": 30.8,
-                "volume_ml": 14.9,
-                "has_solid_component": False,
-                "papillary_projections_count": 0,
-                "acoustic_shadowing": False,
-                "fluid_echogenicity": "anechoic",
-                "locules_count": 1,
-                "color_score": 1,
-                "has_ascites": False,
-            },
-            "patient_info": {
-                "patient_id": "BN-TEST-9988",
-                "patient_age": "32 (Tuổi sinh sản)",
-                "study_code": "STD-TEST-99",
-            },
-            "pathology_name": "U nang thanh dịch buồng trứng (Simple Serous Cyst)",
-        }
-        r = self.client.post("/api/generate-narrative", json=payload)
-        self.assertEqual(r.status_code, 200)
-        data = r.json()
-        self.assertIn("sonographic_findings_text", data)
-        self.assertIn("clinical_conclusion_text", data)
-        self.assertIn("O-RADS 2", data["clinical_conclusion_text"])
-        self.assertIn("IOTA", data["clinical_conclusion_text"])
-        print("[PASS] Clinical NLP Narrative & Diagnostic Conclusion Generation OK")
-
     def test_09_unsuitable_image_detection_and_rejection(self):
         from io import BytesIO
 

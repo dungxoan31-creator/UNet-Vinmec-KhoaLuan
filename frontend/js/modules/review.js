@@ -34,7 +34,6 @@ function checkDraftOnLoad() {
 
 function onPathologyChanged(val) {
     updateOradsIndicator(val);
-    autoGenerateAiNarrative();
     saveLocalDraft();
 }
 
@@ -90,69 +89,6 @@ function insertMacro(text) {
     textarea.value = text;
     textarea.focus();
     showToast("✓ Đã áp dụng mẫu mô tả lâm sàng!");
-    saveLocalDraft();
-}
-
-async function autoGenerateAiNarrative() {
-    const btn = document.getElementById('btnAutoGenerateNarrative');
-    if (btn) {
-        btn.innerHTML = '<span>⏳</span> <span>Đang tổng hợp tri thức...</span>';
-        btn.disabled = true;
-    }
-    
-    try {
-        const payload = {
-            vision_findings: {
-                max_diameter_mm: currentPrediction?.measurements?.max_diameter_mm || 0,
-                ortho_diameter_mm: currentPrediction?.measurements?.ortho_diameter_mm || 0,
-                d3_mm: currentCase.d3_mm || currentPrediction?.measurements?.d3_mm || 0,
-                volume_ml: currentCase.volume_ml || currentPrediction?.measurements?.volume_ml || 0,
-                total_area_cm2: currentPrediction?.measurements?.total_area_cm2 || 0,
-                cdss_classification: currentPrediction?.cdss_classification,
-                acoustic_profile: currentPrediction?.acoustic_profile,
-                has_solid_component: Boolean(currentPrediction?.cdss_classification?.primary_suspicion?.includes('Solid') || currentPrediction?.cdss_classification?.primary_suspicion?.includes('đặc')),
-                papillary_projections_count: 0,
-                acoustic_shadowing: Boolean(currentPrediction?.acoustic_profile?.posterior_shadow_index && currentPrediction.acoustic_profile.posterior_shadow_index < 0.85),
-                fluid_echogenicity: currentPrediction?.acoustic_profile?.echogenicity_class || "anechoic",
-                locules_count: currentPrediction?.cdss_classification?.primary_suspicion?.includes('đa thùy') ? 3 : 1,
-                color_score: 1,
-                has_ascites: false
-            },
-            patient_info: {
-                patient_id: currentCase.patient_id || "BN-VINMEC",
-                patient_age: currentCase.patient_age || "32",
-                study_code: currentCase.study_code || "STD-01"
-            },
-            pathology_name: document.getElementById('selectPathology')?.value || currentPrediction?.cdss_classification?.primary_suspicion || "U nang thanh dịch buồng trứng"
-        };
-
-        const resp = await fetch(`${API_BASE}/api/generate-narrative`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!resp.ok) throw new Error("Không thể sinh mô tả tự động");
-        const data = await resp.json();
-
-        const textarea = document.getElementById('textDoctorNotes');
-        if (textarea) {
-            textarea.value = `${data.sonographic_findings_text}\n\nKẾT LUẬN & ĐỀ XUẤT:\n${data.clinical_conclusion_text}`;
-            textarea.rows = 7;
-            textarea.focus();
-        }
-
-        showToast("✓ Đã sinh bản mô tả lâm sàng chi tiết từ Attention U-Net & Medical KB!");
-        saveLocalDraft();
-    } catch (err) {
-        console.error(err);
-        showToast("Lỗi sinh văn bản lâm sàng: " + err.message, false);
-    } finally {
-        if (btn) {
-            btn.innerHTML = '<span>✨</span> <span>Tự Động Soạn Báo Cáo AI (Medical NLP)</span>';
-            btn.disabled = false;
-        }
-    }
 }
 
 function chooseDoctorAction(action) {
