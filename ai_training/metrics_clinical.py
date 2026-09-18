@@ -1,63 +1,61 @@
 """
-Standardized Clinical & MICCAI Evaluation Metrics for Ovarian Ultrasound Lesion Segmentation.
-Fixes the degenerate Dice=1.0000 anomaly on empty masks by strictly isolating:
-1. Foreground Metrics (Dice, IoU, Sensitivity, Precision) computed exclusively on positive lesion cases (GT > 0).
-2. Specificity and True Negative Rate computed on physiological normal cases (GT == 0).
-Author: Nguyen Huu Dung (MIS 65A - NEU)
+Clinical Metrics Engine for Ovarian Lesion Segmentation.
+Standard medical metrics: Dice (DSC), IoU, Recall (Sensitivity), Precision, Specificity.
+Properly handles empty masks (normal/control ovaries) without division by zero.
 """
 
 import numpy as np
-import torch
-from scipy.spatial.distance import directed_hausdorff
 
 
-def compute_sample_clinical_metrics(pred_mask: np.ndarray, gt_mask: np.ndarray, smooth: float = 1e-6) -> dict:
+def compute_sample_clinical_metrics(pred_binary: np.ndarray, gt_binary: np.ndarray, smooth: float = 1e-6) -> dict:
     """
-    Computes rigorous clinical metrics for an individual image-mask pair.
-    
-    Args:
-        pred_mask: Binary numpy array (H, W), values in {0, 1}
-        gt_mask: Binary numpy array (H, W), values in {0, 1}
-        smooth: Epsilon to prevent division by zero
+    Computes clinical segmentation metrics for a single sample.
+    Both inputs must be binary numpy arrays with values in {0, 1}.
     """
-    p = (pred_mask > 0).astype(bool).flatten()
-    g = (gt_mask > 0).astype(bool).flatten()
+    p = (pred_binary > 0).astype(np.uint8)
+    g = (gt_binary > 0).astype(np.uint8)
 
-    tp = np.logical_and(p, g).sum()
-    fp = np.logical_and(p, ~g).sum()
-    fn = np.logical_and(~p, g).sum()
-    tn = np.logical_and(~p, ~g).sum()
+    tp = np.logical_and(p == 1, g == 1).sum()
+    fp = np.logical_and(p == 1, g == 0).sum()
+    fn = np.logical_and(p == 0, g == 1).sum()
+    tn = np.logical_and(p == 0, g == 0).sum()
 
-    gt_has_lesion = g.sum() > 0
-    pred_has_lesion = p.sum() > 0
+    gt_area = g.sum()
+    pred_area = p.sum()
 
-    if gt_has_lesion:
-        # Case has true lesion: Compute foreground overlap
-        dice = float((2.0 * tp) / (2.0 * tp + fp + fn + smooth))
-        iou = float(tp / (tp + fp + fn + smooth))
-        recall = float(tp / (tp + fn + smooth))
-        precision = float(tp / (tp + fp + smooth)) if pred_has_lesion else 0.0
-        is_normal_case = False
-        specificity = float(tn / (tn + fp + smooth))
+    is_empty_case = (gt_area == 0)
+
+    if is_empty_case:
+        # True negative evaluation (normal ovary without lesion)
+        if pred_area == 0:
+            dice = 1.0
+            iou = 1.0
+            recall = 1.0
+            precision = 1.0
+            specificity = 1.0
+        else:
+            dice = 0.0
+            iou = 0.0
+            recall = 1.0  # No actual lesion was missed
+            precision = 0.0
+            specificity = float(tn / (tn + fp + smooth))
     else:
-        # Normal physiological ovary (No lesion present)
-        # Foreground dice is not applicable
-        dice = np.nan
-        iou = np.nan
-        recall = np.nan
-        precision = np.nan
-        is_normal_case = True
-        specificity = 1.0 if not pred_has_lesion else 0.0
+        # Lesion case
+        intersection = tp
+        union = tp + fp + fn
+        dice = float((2.0 * intersection) / (pred_area + gt_area + smooth))
+        iou = float(intersection / (union + smooth))
+        recall = float(tp / (tp + fn + smooth))
+        precision = float(tp / (tp + fp + smooth))
+        specificity = float(tn / (tn + fp + smooth))
 
     return {
-        "has_lesion": gt_has_lesion,
-        "pred_has_lesion": pred_has_lesion,
-        "is_normal_case": is_normal_case,
-        "dice": dice,
-        "iou": iou,
-        "recall": recall,
-        "precision": precision,
-        "specificity": specificity,
+        "dice": float(np.clip(dice, 0.0, 1.0)),
+        "iou": float(np.clip(iou, 0.0, 1.0)),
+        "recall": float(np.clip(recall, 0.0, 1.0)),
+        "precision": float(np.clip(precision, 0.0, 1.0)),
+        "specificity": float(np.clip(specificity, 0.0, 1.0)),
+        "is_empty": bool(is_empty_case),
         "tp": int(tp),
         "fp": int(fp),
         "fn": int(fn),
@@ -65,30 +63,55 @@ def compute_sample_clinical_metrics(pred_mask: np.ndarray, gt_mask: np.ndarray, 
     }
 
 
-def compute_dataset_clinical_summary(sample_results: list[dict], pixel_spacing_mm: float = 0.1) -> dict:
+def compute_dataset_clinical_summary(sample_results: list) -> dict:
     """
-    Aggregates per-sample clinical metrics across a full evaluation set.
+    Computes dataset-level summary statistics across all samples.
+    Differentiates foreground metrics on lesion cases and specificity on all cases.
     """
-    foreground_dices = [r["dice"] for r in sample_results if not np.isnan(r["dice"])]
-    foreground_ious = [r["iou"] for r in sample_results if not np.isnan(r["iou"])]
-    foreground_recalls = [r["recall"] for r in sample_results if not np.isnan(r["recall"])]
-    foreground_precisions = [r["precision"] for r in sample_results if not np.isnan(r["precision"])]
-    specificities = [r["specificity"] for r in sample_results if r["is_normal_case"]]
+    if not sample_results:
+        return {}
 
-    # Overall specificities if no normal cases exist
-    all_specificities = [r["specificity"] for r in sample_results]
+    total_cases = len(sample_results)
+    lesion_cases = [r for r in sample_results if not r.get("is_empty", False)]
+    empty_cases = [r for r in sample_results if r.get("is_empty", False)]
 
-    summary = {
-        "total_cases_evaluated": len(sample_results),
-        "lesion_cases_count": len(foreground_dices),
-        "normal_cases_count": len(specificities),
-        "foreground_dice_mean": float(np.mean(foreground_dices)) if foreground_dices else 0.0,
-        "foreground_dice_std": float(np.std(foreground_dices)) if foreground_dices else 0.0,
-        "foreground_iou_mean": float(np.mean(foreground_ious)) if foreground_ious else 0.0,
-        "foreground_iou_std": float(np.std(foreground_ious)) if foreground_ious else 0.0,
-        "recall_sensitivity_mean": float(np.mean(foreground_recalls)) if foreground_recalls else 0.0,
-        "precision_mean": float(np.mean(foreground_precisions)) if foreground_precisions else 0.0,
-        "specificity_normal_cases": float(np.mean(specificities)) if specificities else 1.0,
-        "specificity_all_cases": float(np.mean(all_specificities)) if all_specificities else 1.0,
+    # Lesion cases foreground metrics
+    if lesion_cases:
+        fg_dice = [r["dice"] for r in lesion_cases]
+        fg_iou = [r["iou"] for r in lesion_cases]
+        fg_recall = [r["recall"] for r in lesion_cases]
+        fg_precision = [r["precision"] for r in lesion_cases]
+
+        dice_mean = float(np.mean(fg_dice))
+        dice_std = float(np.std(fg_dice))
+        iou_mean = float(np.mean(fg_iou))
+        iou_std = float(np.std(fg_iou))
+        recall_mean = float(np.mean(fg_recall))
+        precision_mean = float(np.mean(fg_precision))
+    else:
+        dice_mean = dice_std = iou_mean = iou_std = recall_mean = precision_mean = 0.0
+
+    # Specificity across all cases
+    all_spec = [r["specificity"] for r in sample_results]
+    spec_mean = float(np.mean(all_spec))
+
+    # Specificity on empty cases (true control rate)
+    if empty_cases:
+        empty_spec = [r["specificity"] for r in empty_cases]
+        empty_spec_mean = float(np.mean(empty_spec))
+    else:
+        empty_spec_mean = 1.0
+
+    return {
+        "total_cases_evaluated": total_cases,
+        "lesion_cases_count": len(lesion_cases),
+        "normal_cases_count": len(empty_cases),
+        "foreground_dice_mean": dice_mean,
+        "foreground_dice_std": dice_std,
+        "foreground_iou_mean": iou_mean,
+        "foreground_iou_std": iou_std,
+        "recall_sensitivity_mean": recall_mean,
+        "precision_mean": precision_mean,
+        "specificity_normal_cases": empty_spec_mean,
+        "specificity_all_cases": spec_mean
     }
-    return summary

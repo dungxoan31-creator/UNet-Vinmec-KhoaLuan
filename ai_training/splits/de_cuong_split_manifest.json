@@ -8,11 +8,8 @@
     "total_images_collected": 1387,
     "images_with_initial_masks": 417,
     "ground_truth_images_verified": 307,
-    "pending_review_images": 110,
-    "raw_unannotated_images": 970,
     "unique_patients_ground_truth": 185,
-    "empty_masks_in_ground_truth": 35,
-    "empty_masks_in_417_masks": 48
+    "empty_masks_in_ground_truth": 35
   },
   "ground_truth_patient_split": {
     "train": {

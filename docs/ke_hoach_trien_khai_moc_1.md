@@ -1,4 +1,5 @@
-# Kế Hoạch Triển Khai Chi Tiết Mốc 1: Dữ Liệu, Preprocessing Pipeline & Standard U-Net Baseline
+# Kế Hoạch Triển Khai Chi Tiết Mốc 1: Dữ Liệu, Preprocessing Pipeline &amp; Standard U-Net Baseline
+
 > **Sinh viên**: Nguyễn Hữu Dũng — MSV: 11235559 — Lớp: HTTTQL 65A, ĐHKTQD (NEU)  
 > **GVHD**: ThS. Trần Thanh Hải  
 > **Thời gian thực hiện**: 06/09/2026 – 20/09/2026  
@@ -6,9 +7,10 @@
 **Goal:** Hoàn thiện 100% đường ống xử lý dữ liệu và mô hình phân đoạn tổn thương buồng trứng Baseline (Raw Image/Mask → Preprocessing → Baseline Training → Prediction → Metrics → Report), khóa chặt 307 Ground Truth phân chia Patient-level Zero-Leakage và đóng gói trọn bộ Báo cáo Minh chứng Khoa học Mốc 1 nộp TS. Trần Thanh Hải.
 
 **Architecture:** 
+
 - Đóng băng tập dữ liệu 1.387 ảnh tiếp nhận từ Vinmec Times City, chuẩn hóa 307 Ground Truth (185 bệnh nhân, 35 empty masks đối chứng âm tính).
 - Phân chia Patient-level 70% Train (215 ảnh / 130 BN), 15% Val (46 ảnh / 27 BN), 15% Test (46 ảnh / 28 BN) triệt tiêu hoàn toàn rò rỉ dữ liệu.
-- Preprocessing chuẩn y tế: ROI Fan-beam Cropping → Letterbox 512×512 (Bilinear cho ảnh, Nearest-Neighbor cho mask nhị phân {0, 1}) → CLAHE & Min-Max Normalization.
+- Preprocessing chuẩn y tế: ROI Fan-beam Cropping → Letterbox 512×512 (Bilinear cho ảnh, Nearest-Neighbor cho mask nhị phân {0, 1}) → CLAHE &amp; Min-Max Normalization.
 - Mô hình Baseline: Standard U-Net kinh điển (4 tầng đối xứng, 7.76M tham số, direct skip connections không Attention Gate) làm đối chuẩn cắt bỏ (Ablation Study) cho Mốc 2.
 - Đo lường MICCAI phân tách: Foreground Dice/IoU trên ca có tổn thương, Specificity trên ca đối chứng âm tính.
 - Đóng gói Báo cáo Tiến độ Mốc 1 tự động (Markdown + DOCX) và vượt qua 16/16 tiêu chí kiểm toán MLOps.
@@ -18,6 +20,7 @@
 **Spec:** [docs/KLTN_THESIS_EXECUTION_PLAN.md](file:///C:/Users/PeaceD/Downloads/Khoa_Luan/docs/KLTN_THESIS_EXECUTION_PLAN.md), [docs/dataset/KLTN_DE_CUONG_DATASET_SPLITS.md](file:///C:/Users/PeaceD/Downloads/Khoa_Luan/docs/dataset/KLTN_DE_CUONG_DATASET_SPLITS.md), [MODEL_CARD.md](file:///C:/Users/PeaceD/Downloads/Khoa_Luan/MODEL_CARD.md).
 
 ## Global Constraints
+
 - Phân chia dữ liệu bắt buộc ở cấp độ bệnh nhân (Patient ID / Case ID), tuyệt đối không rò rỉ giữa Train, Val và Test.
 - Letterbox 512×512 bảo toàn tỷ lệ khung hình; Mask nội suy bắt buộc bằng `cv2.INTER_NEAREST` để không sinh pixel xám ở đường biên viền.
 - Không tính Dice giả mạo trên mask rỗng (Empty Mask); phân tách nghiêm ngặt Foreground Dice trên ca bệnh và Specificity trên ca đối chứng.
@@ -26,14 +29,16 @@
 
 ---
 
-### Task 1: Thiết Lập & Xác Minh Môi Trường PyTorch CUDA 12.x Cho GPU NVIDIA RTX 3050
+### Task 1: Thiết Lập &amp; Xác Minh Môi Trường PyTorch CUDA 12.x Cho GPU NVIDIA RTX 3050
 
 **Files:**
+
 - Create: `scripts/verify_gpu_env.py`
 - Modify: `pyproject.toml`
 - Test: `tests/test_gpu_environment.py`
 
 **Interfaces:**
+
 - Consumes: Phần cứng GPU NVIDIA GeForce RTX 3050 Laptop GPU (4GB VRAM, CUDA 12.4).
 - Produces: Môi trường PyTorch nhận diện thiết bị `cuda:0`, hỗ trợ bộ tăng tốc hỗn hợp `torch.cuda.amp.autocast`.
 
@@ -97,14 +102,16 @@ git commit -m "chore(env): verify pytorch cuda 12.4 and amp fp16 on rtx 3050"
 
 ---
 
-### Task 2: Kiểm Toán Dữ Liệu Lâm Sàng Vinmec & Khóa Chặt 307 Ground Truth Patient-Level Zero-Leakage
+### Task 2: Kiểm Toán Dữ Liệu Lâm Sàng Vinmec &amp; Khóa Chặt 307 Ground Truth Patient-Level Zero-Leakage
 
 **Files:**
+
 - Create: `scripts/audit_and_lock_splits.py`
 - Modify: `ai_training/splits/train.csv`, `ai_training/splits/val.csv`, `ai_training/splits/test.csv`, `ai_training/splits/kltn_ground_truth_307.csv`
 - Test: `tests/test_dataset_splits_leakage.py`
 
 **Interfaces:**
+
 - Consumes: Thư mục ảnh `dataset/vinmec_ovarian/` (1.387 ảnh tiếp nhận, 417 có mask, 307 Ground Truth).
 - Produces: 3 file CSV phân chia: `train.csv` (215 ảnh / 130 BN), `val.csv` (46 ảnh / 27 BN), `test.csv` (46 ảnh / 28 BN) kèm 35 Empty Mask đối chứng âm tính.
 
@@ -204,15 +211,17 @@ git commit -m "feat(dataset): lock 307 ground truth patient-level splits without
 
 ---
 
-### Task 3: Đường Ống Tiền Xử Lý Ảnh Siêu Âm Chuẩn Hóa (Letterbox 512×512 & Nearest-Neighbor Mask)
+### Task 3: Đường Ống Tiền Xử Lý Ảnh Siêu Âm Chuẩn Hóa (Letterbox 512×512 &amp; Nearest-Neighbor Mask)
 
 **Files:**
+
 - Create: `scripts/audit_preprocessing_pairs.py`
 - Modify: `backend/services/preprocessor.py`, `ai_training/dataset_loader.py`
 - Outputs: `evaluation/preprocessing_audit/preprocessing_verification_grid.png`
 - Test: `tests/test_preprocessing_pipeline.py`
 
 **Interfaces:**
+
 - Consumes: Cặp ảnh thô và mặt nạ gốc `(image, mask)`.
 - Produces: Ảnh chuẩn hóa $512 \times 512 \times 1$ float $[0, 1]$ kèm mask nhị phân $512 \times 512$ chỉ nhận giá trị $\{0, 1\}$.
 
@@ -298,11 +307,13 @@ git commit -m "feat(preproc): enforce letterbox 512x512 and nearest-neighbor bin
 ### Task 4: Xây Dựng Kiến Trúc Baseline Standard U-Net (7.76M Params)
 
 **Files:**
+
 - Create: `backend/models/unet.py`
 - Modify: `backend/models/__init__.py`
 - Test: `tests/test_standard_unet_architecture.py`
 
 **Interfaces:**
+
 - Consumes: Tensor đầu vào batch ảnh siêu âm buồng trứng $(B, 1, 512, 512)$.
 - Produces: Logits dự đoán $(B, 1, 512, 512)$ qua 4 tầng Encoder-Decoder đối xứng (base_filters=32).
 
@@ -347,14 +358,16 @@ git commit -m "feat(model): implement 4-stage standard u-net baseline with 7.76M
 
 ---
 
-### Task 5: Chuẩn Hóa Bộ Chỉ Số Đánh Giá Y Tế MICCAI & Xử Lý Empty Mask Đối Chứng Âm Tính
+### Task 5: Chuẩn Hóa Bộ Chỉ Số Đánh Giá Y Tế MICCAI &amp; Xử Lý Empty Mask Đối Chứng Âm Tính
 
 **Files:**
+
 - Create: `ai_training/metrics_clinical.py`
 - Modify: `backend/models/metrics.py`
 - Test: `tests/test_clinical_metrics.py`
 
 **Interfaces:**
+
 - Consumes: Mảng nhị phân `y_pred` và `y_true` (ground truth).
 - Produces: Dict các chỉ số y tế: `foreground_dice`, `foreground_iou`, `recall_sensitivity`, `specificity`.
 
@@ -405,14 +418,16 @@ git commit -m "feat(metrics): add miccai clinical metric calculator with strict 
 
 ---
 
-### Task 6: Huấn Luyện Standard U-Net Baseline trên GPU RTX 3050 (Combo Loss & AMP fp16)
+### Task 6: Huấn Luyện Standard U-Net Baseline trên GPU RTX 3050 (Combo Loss &amp; AMP fp16)
 
 **Files:**
+
 - Create: `ai_training/train_baseline_unet.py`
 - Outputs: `checkpoints/baseline_unet_best.pth`, `ai_training/production_model/baseline_training_log.json`
 - Test: `tests/test_baseline_training_pipeline.py`
 
 **Interfaces:**
+
 - Consumes: Dữ liệu huấn luyện `ai_training/splits/train.csv` (215 ảnh) và `val.csv` (46 ảnh).
 - Produces: Trọng số tốt nhất `checkpoints/baseline_unet_best.pth` và nhật ký 10 epochs `baseline_training_log.json`.
 
@@ -465,14 +480,16 @@ git commit -m "feat(training): train standard u-net baseline on rtx 3050 with co
 
 ---
 
-### Task 7: Đánh Giá Độc Lập Trên 46 Ca Held-Out Test Set & Xuất Lưới Trực Quan Hóa (Best / Average / Worst)
+### Task 7: Đánh Giá Độc Lập Trên 46 Ca Held-Out Test Set &amp; Xuất Lưới Trực Quan Hóa (Best / Average / Worst)
 
 **Files:**
+
 - Create: `evaluation/evaluate_baseline_testset.py`
 - Outputs: `evaluation/baseline_test_metrics.json`, `evaluation/baseline_visualizations/*.png`
 - Test: `tests/test_evaluation_output.py`
 
 **Interfaces:**
+
 - Consumes: Checkpoint `checkpoints/baseline_unet_best.pth` và tập kiểm thử độc lập `ai_training/splits/test.csv` (46 ảnh, 5 empty masks).
 - Produces: Báo cáo chỉ số trung bình `baseline_test_metrics.json` và 12 ảnh trực quan hóa 4 cột.
 
@@ -517,14 +534,16 @@ git commit -m "feat(eval): evaluate baseline on 46 held-out test cases with visu
 
 ---
 
-### Task 8: Tích Hợp Inference Engine (FastAPI End-to-End) & Tự Động Hóa Xuất Báo Cáo Tiến Độ Mốc 1
+### Task 8: Tích Hợp Inference Engine (FastAPI End-to-End) &amp; Tự Động Hóa Xuất Báo Cáo Tiến Độ Mốc 1
 
 **Files:**
+
 - Create: `scripts/align_milestone_1_report.py`
 - Outputs: `docs/reports/Bao_Cao_Tien_Do_Moc_1_NguyenHuuDung.md`, `docs/reports/Bao_Cao_Tien_Do_Moc_1_NguyenHuuDung.docx`
 - Test: `tests/test_milestone_1_audit.py` (16/16 tiêu chí kiểm toán tự động)
 
 **Interfaces:**
+
 - Consumes: Kết quả thực nghiệm từ Task 1 đến Task 7.
 - Produces: Báo cáo tiến độ đầy đủ (Markdown + DOCX) và vượt qua 100% các tiêu chí kiểm toán tự động.
 
@@ -553,3 +572,4 @@ Expected: **89/89 tests PASSED 100%**.
 git add docs/reports/ scripts/align_milestone_1_report.py tests/test_milestone_1_audit.py
 git commit -m "docs(reports): complete milestone 1 progress report and pass 16/16 mlops audit criteria"
 ```
+

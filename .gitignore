@@ -17,7 +17,7 @@ data/reports/*
 !data/reports/.gitkeep
 
 # Large pre-trained checkpoints (tracked via Git LFS or external storage)
-# checkpoints/*.pth
+checkpoints/*.pth
 dataset/
 ai_training/experiments/*/*.pth
 ai_training/models/

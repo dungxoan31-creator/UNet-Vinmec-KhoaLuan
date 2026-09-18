@@ -1,6 +1,6 @@
 """
 Milestone 1 Full Implementation & Audit Test Suite (Sept 6 - Sept 20).
-Formally verifies all 16 mandatory milestone requirements from Section 4:
+Formally verifies all 16 mandatory milestone requirements:
 1. Dataset discovery test
 2. Image-mask matching test
 3. Patient-level split leakage test
@@ -28,7 +28,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# Add project root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.models.unet import StandardUNet
@@ -83,6 +82,14 @@ def test_patient_level_split_leakage():
     assert len(train_imgs.intersection(test_imgs)) == 0, "Leakage detected between Train and Test"
     assert len(val_imgs.intersection(test_imgs)) == 0, "Leakage detected between Val and Test"
 
+    train_pts = set(train_df["patient_id"].unique())
+    val_pts = set(val_df["patient_id"].unique())
+    test_pts = set(test_df["patient_id"].unique())
+
+    assert len(train_pts.intersection(val_pts)) == 0, "Patient leakage detected between Train and Val"
+    assert len(train_pts.intersection(test_pts)) == 0, "Patient leakage detected between Train and Test"
+    assert len(val_pts.intersection(test_pts)) == 0, "Patient leakage detected between Val and Test"
+
 
 # =========================================================================
 # 4. Preprocessing Shape Consistency Test
@@ -136,7 +143,7 @@ def test_post_preprocessing_image_mask_pair():
 # =========================================================================
 def test_dataloader_batch():
     """Verify batching mechanism with DataLoader."""
-    train_loader, val_loader, test_loader = get_dataloaders(protocol="standard", batch_size=4, num_workers=0)
+    train_loader, val_loader, test_loader = get_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0)
     batch = next(iter(train_loader))
 
     assert batch["image"].shape == (4, 1, 512, 512), f"Unexpected batch img: {batch['image'].shape}"
@@ -248,7 +255,7 @@ def test_predicted_mask_validity():
 def test_dice_calculation():
     """Verify clinical Dice metric on controlled inputs."""
     gt = np.zeros((100, 100), dtype=np.uint8)
-    gt[20:60, 20:60] = 1 # 1600 px
+    gt[20:60, 20:60] = 1  # 1600 px
 
     # Exact match
     res_perfect = compute_sample_clinical_metrics(gt, gt)
@@ -283,11 +290,11 @@ def test_iou_calculation():
 def test_recall_calculation():
     """Verify clinical Recall/Sensitivity metric on controlled inputs."""
     gt = np.zeros((100, 100), dtype=np.uint8)
-    gt[20:60, 20:60] = 1 # 1600 px
+    gt[20:60, 20:60] = 1  # 1600 px
 
     # Half predicted
     pred_half = np.zeros((100, 100), dtype=np.uint8)
-    pred_half[20:40, 20:60] = 1 # 800 px of gt
+    pred_half[20:40, 20:60] = 1  # 800 px of gt
     res_half = compute_sample_clinical_metrics(pred_half, gt)
     assert abs(res_half["recall"] - 0.5) < 1e-4, f"Half match Recall: {res_half['recall']}"
 

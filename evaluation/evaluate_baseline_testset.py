@@ -1,8 +1,8 @@
 """
-Independent Test Set Evaluation & Visualization for Standard U-Net Baseline.
-Evaluates model on the held-out 382 test cases of MMOTU Benchmark Protocol 1.
-Generates Best, Average, and Worst case visual comparisons.
-Author: Nguyen Huu Dung (MIS 65A - NEU)
+Independent Test Set Evaluation for Standard U-Net Baseline.
+Evaluates on the 46 held-out test cases (Patient-Level Split, 28 patients, 5 empty masks).
+Calculates Dice (DSC), IoU, Recall, Precision, and Specificity.
+Exports visual grids: Best, Average, Worst case predictions.
 """
 
 import os
@@ -14,7 +14,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 
-# Ensure project root in sys.path
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.models.unet import StandardUNet
@@ -31,165 +33,153 @@ def cv2_imread_unicode(file_path, flags=cv2.IMREAD_GRAYSCALE):
     return cv2.imdecode(arr, flags)
 
 
-def evaluate_test_set(checkpoint_path="checkpoints/baseline_unet_best.pth", test_csv="ai_training/splits/test.csv"):
+def evaluate_test_set(
+    checkpoint_path="checkpoints/baseline_unet_best.pth",
+    test_csv="ai_training/splits/test.csv",
+    output_metrics="evaluation/baseline_test_metrics.json",
+    vis_dir="evaluation/baseline_visualizations"
+):
     print("=" * 70)
-    print("       INDEPENDENT TEST SET EVALUATION (382 CASES HELD-OUT)       ")
+    print("   BƯỚC 6: ĐÁNH GIÁ ĐỊNH LƯỢNG TRÊN TẬP TEST SET ĐỘC LẬP (46 CA)")
     print("=" * 70)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[DEVICE] Evaluation Device: {device}")
+    print(f"[THIẾT BỊ] Suy luận trên: {device}")
 
-    # 1. Load Model
+    # 1. Model Loading
     model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(device)
     if not os.path.exists(checkpoint_path):
-        print(f"[ERROR] Checkpoint not found: {checkpoint_path}")
+        print(f"[ERROR] Không tìm thấy checkpoint: {checkpoint_path}")
         return False
 
     state_dict = torch.load(checkpoint_path, map_location=device)
     model.load_state_dict(state_dict)
     model.eval()
-    print(f"[MODEL] Loaded weights from: {checkpoint_path}")
+    print(f"[MÔ HÌNH] Đã nạp checkpoint: {checkpoint_path}")
 
-    # 2. Load Test Manifest
+    # 2. Test Manifest
     df = pd.read_csv(test_csv)
-    print(f"[DATA] Total Held-out Test Cases: {len(df)}")
+    print(f"[DỮ LIỆU] Tổng số ca Test độc lập: {len(df)} (Bệnh nhân: {df['patient_id'].nunique()}, Empty: {(df['is_empty_mask']==True).sum()})")
 
     preprocessor = UltrasoundPreprocessor(target_size=(512, 512))
     sample_results = []
     case_predictions = []
 
-    print("[EVAL] Running inference across all 382 test cases...")
+    print("[TIẾN TRÌNH] Đang chạy suy luận và đo lường từng ca...")
+    for idx, row in df.iterrows():
+        case_id = str(row["case_id"])
+        img_p = str(row["image_path"]).replace("\\", "/")
+        mask_p = str(row["mask_path"]).replace("\\", "/")
 
-    def _resolve_path(p):
-        p_str = str(p).replace("\\", "/")
-        p_str = p_str.replace("dataset/dataset/", "dataset/vinmec_ovarian/")
-        idx = p_str.find("dataset/vinmec_ovarian/")
-        if idx != -1:
-            rel = p_str[idx:]
+        raw_img = cv2_imread_unicode(img_p, cv2.IMREAD_GRAYSCALE)
+        raw_mask = cv2_imread_unicode(mask_p, cv2.IMREAD_GRAYSCALE)
+
+        if raw_img is None:
+            continue
+
+        is_empty_flag = bool(row.get("is_empty_mask", False))
+        if is_empty_flag or raw_mask is None:
+            raw_mask_bin = np.zeros((raw_img.shape[0], raw_img.shape[1]), dtype=np.uint8)
         else:
-            rel = p_str
-        return os.path.normpath(os.path.join(os.getcwd(), rel))
+            if raw_mask.shape != raw_img.shape:
+                raw_mask = cv2.resize(raw_mask, (raw_img.shape[1], raw_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+            raw_mask_bin = (raw_mask > 127).astype(np.uint8)
 
-    with torch.no_grad():
-        for idx, row in df.iterrows():
-            img_path = _resolve_path(row["image_path"])
-            mask_path = _resolve_path(row["mask_path"])
-            case_id = row.get("case_id", f"test_case_{idx}")
+        # Preprocessing
+        pad_img, params = preprocessor.letterbox_resize(raw_img, is_mask=False)
+        enh_img = preprocessor.clahe.apply(pad_img)
+        tensor_img = torch.from_numpy(enh_img).unsqueeze(0).unsqueeze(0).float().to(device) / 255.0
 
-            img_raw = cv2_imread_unicode(img_path)
-            mask_raw = cv2_imread_unicode(mask_path)
-            if img_raw is None or mask_raw is None:
-                continue
-
-            # Letterbox preprocess
-            img_pad, params = preprocessor.letterbox_resize(img_raw, is_mask=False)
-            mask_pad, _ = preprocessor.letterbox_resize(mask_raw, is_mask=True)
-
-            img_clahe = preprocessor.clahe.apply(img_pad)
-            img_tensor = torch.from_numpy(img_clahe).unsqueeze(0).unsqueeze(0).float() / 255.0
-            img_tensor = img_tensor.to(device)
-
-            # Model forward
-            logits = model(img_tensor)
+        # Inference
+        with torch.no_grad():
+            logits = model(tensor_img)
             probs = torch.sigmoid(logits)
-            pred_mask = (probs > 0.5).squeeze().cpu().numpy().astype(np.uint8)
+            pred_512 = (probs > 0.5).squeeze().cpu().numpy().astype(np.uint8)
 
-            # Metrics
-            m = compute_sample_clinical_metrics(pred_mask, mask_pad)
-            m["case_id"] = case_id
-            m["image_path"] = img_path
-            m["mask_path"] = mask_path
-            sample_results.append(m)
+        # Inverse Letterbox
+        restored_mask = preprocessor.inverse_letterbox_mask(pred_512, params)
 
-            case_predictions.append({
-                "case_id": case_id,
-                "dice": m["dice"] if not np.isnan(m["dice"]) else -1.0,
-                "iou": m["iou"] if not np.isnan(m["iou"]) else -1.0,
-                "recall": m["recall"] if not np.isnan(m["recall"]) else -1.0,
-                "img_clahe": img_clahe,
-                "gt_mask": mask_pad,
-                "pred_mask": pred_mask,
-                "raw_shape": img_raw.shape
-            })
+        # Metrics
+        m = compute_sample_clinical_metrics(restored_mask, raw_mask_bin)
+        m["case_id"] = case_id
+        sample_results.append(m)
 
-    # Summary
+        case_predictions.append({
+            "case_id": case_id,
+            "raw_image": raw_img,
+            "raw_mask": raw_mask_bin,
+            "pred_mask": restored_mask,
+            "dice": m["dice"],
+            "iou": m["iou"],
+            "recall": m["recall"],
+            "is_empty": m["is_empty"]
+        })
+
+    # Summary Metrics
     summary = compute_dataset_clinical_summary(sample_results)
-    print("\n" + "=" * 50)
-    print("       INDEPENDENT TEST BENCHMARK RESULTS (MICCAI)       ")
-    print("=" * 50)
-    print(f"Total Evaluated Cases:   {summary['total_cases_evaluated']}")
-    print(f"Lesion Cases:            {summary['lesion_cases_count']}")
-    print(f"Normal Cases:            {summary['normal_cases_count']}")
-    print(f"Foreground Dice (Mean):  {summary['foreground_dice_mean']:.4f} ± {summary['foreground_dice_std']:.4f}")
-    print(f"Foreground IoU (Mean):   {summary['foreground_iou_mean']:.4f} ± {summary['foreground_iou_std']:.4f}")
-    print(f"Recall / Sensitivity:    {summary['recall_sensitivity_mean']:.4f}")
-    print(f"Precision:               {summary['precision_mean']:.4f}")
-    print(f"Specificity (Overall):   {summary['specificity_all_cases']:.4f}")
-    print("=" * 50)
-
-    # Save summary json
-    os.makedirs("evaluation", exist_ok=True)
-    summary_path = "evaluation/baseline_test_metrics.json"
-    with open(summary_path, "w", encoding="utf-8") as f:
+    os.makedirs(os.path.dirname(output_metrics), exist_ok=True)
+    with open(output_metrics, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=4)
-    print(f"[SAVE] Metrics summary saved to: {summary_path}")
 
-    # Generate Visualizations (Best 4, Average 4, Worst 4)
-    valid_lesion_cases = [c for c in case_predictions if c["dice"] >= 0]
-    valid_lesion_cases.sort(key=lambda x: x["dice"], reverse=True)
+    print("\n" + "=" * 50)
+    print("      KẾT QUẢ ĐÁNH GIÁ ĐỊNH LƯỢNG TEST SET")
+    print("=" * 50)
+    print(f"Tổng số ca kiểm thử:       {summary['total_cases_evaluated']}")
+    print(f"Số ca có tổn thương:       {summary['lesion_cases_count']}")
+    print(f"Số ca nang/bt bình thường: {summary['normal_cases_count']}")
+    print(f"Foreground Dice (Mean):    {summary['foreground_dice_mean']:.4f} ± {summary['foreground_dice_std']:.4f}")
+    print(f"Foreground IoU (Mean):     {summary['foreground_iou_mean']:.4f} ± {summary['foreground_iou_std']:.4f}")
+    print(f"Recall / Sensitivity:      {summary['recall_sensitivity_mean']:.4f}")
+    print(f"Precision:                 {summary['precision_mean']:.4f}")
+    print(f"Specificity (Tất cả ca):   {summary['specificity_all_cases']:.4f}")
+    print(f"Specificity (Ca bình thường): {summary['specificity_normal_cases']:.4f}")
+    print("=" * 50)
+    print(f"[XUẤT BẢN] Đã lưu metrics: {output_metrics}")
 
-    if len(valid_lesion_cases) >= 12:
-        best_cases = valid_lesion_cases[:4]
-        mid_idx = len(valid_lesion_cases) // 2
-        avg_cases = valid_lesion_cases[mid_idx - 2 : mid_idx + 2]
-        worst_cases = valid_lesion_cases[-4:]
+    # Visualizations
+    os.makedirs(vis_dir, exist_ok=True)
+    lesion_preds = [c for c in case_predictions if not c["is_empty"]]
+    lesion_preds.sort(key=lambda x: x["dice"], reverse=True)
 
-        groups = [
-            ("best_matches", "Best Match Cases (High Dice)", best_cases),
-            ("average_matches", "Average Match Cases (Median Dice)", avg_cases),
-            ("worst_matches", "Challenging / Low Contrast Cases", worst_cases)
-        ]
+    if len(lesion_preds) >= 9:
+        best_cases = lesion_preds[:3]
+        mid = len(lesion_preds) // 2
+        avg_cases = lesion_preds[mid - 1 : mid + 2]
+        worst_cases = lesion_preds[-3:]
 
-        vis_dir = "evaluation/baseline_visualizations"
-        os.makedirs(vis_dir, exist_ok=True)
-
-        for group_key, title, cases in groups:
-            fig, axes = plt.subplots(len(cases), 4, figsize=(16, 4 * len(cases)))
+        def save_grid(cases, filename, title_prefix):
+            fig, axes = plt.subplots(len(cases), 3, figsize=(12, 4 * len(cases)))
             for i, c in enumerate(cases):
-                # 1. CLAHE Image
-                axes[i, 0].imshow(c["img_clahe"], cmap="gray")
-                axes[i, 0].set_title(f"{c['case_id']}\nPreprocessed Image", fontsize=10)
+                # Raw
+                axes[i, 0].imshow(c["raw_image"], cmap="gray")
+                axes[i, 0].set_title(f"{c['case_id']}\nRaw Image")
                 axes[i, 0].axis("off")
 
-                # 2. Ground Truth
-                axes[i, 1].imshow(c["gt_mask"], cmap="gray")
-                axes[i, 1].set_title("Ground Truth Mask", fontsize=10)
+                # Ground Truth Overlay
+                axes[i, 1].imshow(c["raw_image"], cmap="gray")
+                gt_overlay = np.ma.masked_where(c["raw_mask"] == 0, c["raw_mask"])
+                axes[i, 1].imshow(gt_overlay, cmap="autumn", alpha=0.5)
+                axes[i, 1].set_title(f"Ground Truth Mask\n(Verified)")
                 axes[i, 1].axis("off")
 
-                # 3. Model Prediction
-                axes[i, 2].imshow(c["pred_mask"], cmap="gray")
-                axes[i, 2].set_title(f"Baseline U-Net\nDice: {c['dice']:.4f} | IoU: {c['iou']:.4f}", fontsize=10)
+                # Pred Overlay
+                axes[i, 2].imshow(c["raw_image"], cmap="gray")
+                pred_overlay = np.ma.masked_where(c["pred_mask"] == 0, c["pred_mask"])
+                axes[i, 2].imshow(pred_overlay, cmap="winter", alpha=0.5)
+                axes[i, 2].set_title(f"AI Prediction\nDice: {c['dice']:.4f} | IoU: {c['iou']:.4f}")
                 axes[i, 2].axis("off")
 
-                # 4. Contour Overlay (GT = Green, Pred = Red)
-                overlay = cv2.cvtColor(c["img_clahe"], cv2.COLOR_GRAY2RGB)
-                gt_cnts, _ = cv2.findContours(c["gt_mask"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                pred_cnts, _ = cv2.findContours(c["pred_mask"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                cv2.drawContours(overlay, gt_cnts, -1, (0, 255, 0), 2)   # Green for Ground Truth
-                cv2.drawContours(overlay, pred_cnts, -1, (255, 0, 0), 2) # Red for Prediction
-
-                axes[i, 3].imshow(overlay)
-                axes[i, 3].set_title("Contour Comparison\n(Green=GT, Red=Pred)", fontsize=10)
-                axes[i, 3].axis("off")
-
-            plt.suptitle(title, fontsize=14, y=1.01)
+            plt.suptitle(f"{title_prefix} (Standard U-Net Baseline)", fontsize=14, fontweight="bold")
             plt.tight_layout()
-            out_file = os.path.join(vis_dir, f"{group_key}.png")
-            plt.savefig(out_file, dpi=150, bbox_inches="tight")
+            out_path = os.path.join(vis_dir, filename)
+            plt.savefig(out_path, dpi=150, bbox_inches="tight")
             plt.close()
-            print(f"[VIS] Saved visualization grid: {out_file}")
+            print(f"[XUẤT BẢN] Đã lưu ảnh trực quan: {out_path}")
 
-    print("=" * 70)
+        save_grid(best_cases, "best_matches.png", "Top 3 Best Cases")
+        save_grid(avg_cases, "average_matches.png", "Median Performance Cases")
+        save_grid(worst_cases, "worst_matches.png", "Difficult / Over-segmentation Cases")
+
     return True
 
 

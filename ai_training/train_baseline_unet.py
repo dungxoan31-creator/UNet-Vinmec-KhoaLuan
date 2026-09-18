@@ -1,211 +1,173 @@
 """
-Production Training Pipeline for Standard U-Net Baseline on Protocol 1 MMOTU Dataset.
-Engineered for NVIDIA GeForce RTX 3050 (4GB VRAM) with Automatic Mixed Precision (AMP fp16).
-Author: Nguyen Huu Dung (MIS 65A - NEU)
+Standard U-Net Baseline Training Pipeline with Combo Loss (BCE + Soft Dice).
+Optimized for NVIDIA RTX GPU with CUDA Mixed Precision (AMP).
+Patient-Level Stratified Validation and Best Model Checkpointing.
 """
 
 import os
 import sys
-import time
 import json
-import argparse
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-# Ensure project root in sys.path
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.models.unet import StandardUNet
 from ai_training.dataset_loader import get_dataloaders
-from ai_training.metrics_clinical import compute_sample_clinical_metrics, compute_dataset_clinical_summary
 
 
-class DiceLoss(nn.Module):
-    def __init__(self, smooth=1e-6):
+class SoftDiceLoss(nn.Module):
+    def __init__(self, smooth=1.0):
         super().__init__()
         self.smooth = smooth
 
     def forward(self, logits, targets):
         probs = torch.sigmoid(logits)
-        probs_flat = probs.view(-1)
-        targets_flat = targets.view(-1)
-
-        intersection = (probs_flat * targets_flat).sum()
-        dice = (2.0 * intersection + self.smooth) / (probs_flat.sum() + targets_flat.sum() + self.smooth)
-        return 1.0 - dice
+        num = 2.0 * (probs * targets).sum() + self.smooth
+        den = probs.sum() + targets.sum() + self.smooth
+        return 1.0 - (num / den)
 
 
-class FocalLoss(nn.Module):
-    def __init__(self, alpha=0.25, gamma=2.0):
-        super().__init__()
-        self.alpha = alpha
-        self.gamma = gamma
-
-    def forward(self, logits, targets):
-        bce = nn.functional.binary_cross_entropy_with_logits(logits, targets, reduction="none")
-        probs = torch.sigmoid(logits)
-        p_t = probs * targets + (1 - probs) * (1 - targets)
-        loss = self.alpha * ((1 - p_t) ** self.gamma) * bce
-        return loss.mean()
-
-
-class HybridSegmentationLoss(nn.Module):
-    def __init__(self):
+class ComboLoss(nn.Module):
+    def __init__(self, bce_weight=0.5, dice_weight=0.5):
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss()
-        self.dice = DiceLoss()
-        self.focal = FocalLoss()
+        self.dice = SoftDiceLoss()
+        self.bce_weight = bce_weight
+        self.dice_weight = dice_weight
 
     def forward(self, logits, targets):
-        return 0.4 * self.bce(logits, targets) + 0.4 * self.dice(logits, targets) + 0.2 * self.focal(logits, targets)
+        return self.bce_weight * self.bce(logits, targets) + self.dice_weight * self.dice(logits, targets)
 
 
-def train_baseline(epochs=10, batch_size=4, lr=1e-4, smoke_test=False):
+def compute_batch_dice(logits, targets, smooth=1e-5):
+    probs = torch.sigmoid(logits)
+    preds = (probs > 0.5).float()
+    intersection = (preds * targets).sum().item()
+    total = preds.sum().item() + targets.sum().item()
+    if total == 0:
+        return 1.0
+    return (2.0 * intersection) / (total + smooth)
+
+
+def train_baseline(
+    epochs=12,
+    batch_size=4,
+    lr=1e-3,
+    checkpoint_dir="checkpoints",
+    splits_dir="ai_training/splits"
+):
+    print("=" * 70, flush=True)
+    print("   BƯỚC 5: HUẤN LUYỆN MÔ HÌNH STANDARD U-NET BASELINE", flush=True)
+    print("=" * 70, flush=True)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("=" * 70)
-    print("       STANDARD U-NET BASELINE TRAINING (PROTOCOL 1)       ")
-    print(f"[DEVICE] Using Device: {device} | Mixed Precision: {device.type == 'cuda'}")
-    if device.type == "cuda":
-        print(f"[DEVICE] GPU Name: {torch.cuda.get_device_name(0)}")
-    print("=" * 70)
+    print(f"[THIẾT BỊ] Huấn luyện trên: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})", flush=True)
 
-    # 1. Load Data (Protocol 1: 700 Train / 120 Val / 382 Held-out Test)
-    train_loader, val_loader, test_loader = get_dataloaders(protocol="standard", batch_size=batch_size, num_workers=0)
-    print(f"[DATA] Train Batches: {len(train_loader)} | Val Batches: {len(val_loader)}")
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    best_checkpoint_path = os.path.join(checkpoint_dir, "baseline_unet_best.pth")
 
-    # 2. Initialize Standard U-Net
+    # 1. Dataloaders
+    train_loader, val_loader, _ = get_dataloaders(splits_dir=splits_dir, batch_size=batch_size, num_workers=0)
+    print(f"[DỮ LIỆU] Số batch Train: {len(train_loader)} | Số batch Val: {len(val_loader)} (Batch size: {batch_size})", flush=True)
+
+    # 2. Model & Loss & Optimizer
     model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(device)
-    criterion = HybridSegmentationLoss()
+    criterion = ComboLoss(bce_weight=0.5, dice_weight=0.5)
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
-    use_amp = (device.type == "cuda")
-    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+    scaler = torch.amp.GradScaler('cuda', enabled=(device.type == 'cuda'))
 
-    os.makedirs("checkpoints", exist_ok=True)
-    os.makedirs("ai_training/production_model", exist_ok=True)
-    best_weights_path = "checkpoints/baseline_unet_best.pth"
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"[MÔ HÌNH] Standard U-Net (Base filters: 32) | Tổng tham số: {total_params:,} (~7.76M)", flush=True)
 
     best_val_dice = 0.0
     history = []
 
-    actual_epochs = 1 if smoke_test else epochs
-    max_train_batches = 10 if smoke_test else len(train_loader)
-    max_val_batches = 5 if smoke_test else len(val_loader)
-
-    print(f"\n[START] Starting training for {actual_epochs} epochs (Smoke-test: {smoke_test})...\n")
-
-    for epoch in range(1, actual_epochs + 1):
-        start_time = time.time()
+    start_time = time.time()
+    for epoch in range(1, epochs + 1):
+        # TRAIN
         model.train()
         train_loss = 0.0
-        batches_processed = 0
-
-        for b_idx, batch in enumerate(train_loader):
-            if smoke_test and b_idx >= max_train_batches:
-                break
-
-            images = batch["image"].to(device)
-            masks = batch["mask"].to(device)
+        train_dice = 0.0
+        for batch in train_loader:
+            images = batch["image"].to(device, non_blocking=True)
+            masks = batch["mask"].to(device, non_blocking=True)
 
             optimizer.zero_grad()
-            with torch.amp.autocast(device_type="cuda" if use_amp else "cpu", enabled=use_amp, dtype=torch.float16):
-                outputs = model(images)
-                loss = criterion(outputs, masks)
+            with torch.amp.autocast('cuda', enabled=(device.type == 'cuda')):
+                logits = model(images)
+                loss = criterion(logits, masks)
 
-            if use_amp:
-                scaler.scale(loss).backward()
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                loss.backward()
-                optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             train_loss += loss.item()
-            batches_processed += 1
+            train_dice += compute_batch_dice(logits, masks)
 
-        scheduler.step()
-        train_loss /= max(1, batches_processed)
+        train_loss /= len(train_loader)
+        train_dice /= len(train_loader)
 
-        # Validation Phase
+        # VALIDATION
         model.eval()
         val_loss = 0.0
-        val_batches = 0
-        sample_evals = []
-
+        val_dice = 0.0
         with torch.no_grad():
-            for b_idx, batch in enumerate(val_loader):
-                if smoke_test and b_idx >= max_val_batches:
-                    break
+            for batch in val_loader:
+                images = batch["image"].to(device, non_blocking=True)
+                masks = batch["mask"].to(device, non_blocking=True)
 
-                images = batch["image"].to(device)
-                masks = batch["mask"].to(device)
-
-                with torch.amp.autocast(device_type="cuda" if use_amp else "cpu", enabled=use_amp, dtype=torch.float16):
-                    outputs = model(images)
-                    loss = criterion(outputs, masks)
+                with torch.amp.autocast('cuda', enabled=(device.type == 'cuda')):
+                    logits = model(images)
+                    loss = criterion(logits, masks)
 
                 val_loss += loss.item()
-                val_batches += 1
+                val_dice += compute_batch_dice(logits, masks)
 
-                # Calculate sample-level clinical metrics
-                probs = torch.sigmoid(outputs)
-                preds = (probs > 0.5).cpu().numpy()
-                gts = masks.cpu().numpy()
+        val_loss /= len(val_loader)
+        val_dice /= len(val_loader)
+        scheduler.step()
 
-                for p, g in zip(preds, gts):
-                    m = compute_sample_clinical_metrics(p[0], g[0])
-                    sample_evals.append(m)
+        # Lưu checkpoint tốt nhất
+        is_best = val_dice > best_val_dice
+        if is_best:
+            best_val_dice = val_dice
+            torch.save(model.state_dict(), best_checkpoint_path)
 
-        val_loss /= max(1, val_batches)
-        val_summary = compute_dataset_clinical_summary(sample_evals)
-        val_fg_dice = val_summary["foreground_dice_mean"]
-        val_fg_iou = val_summary["foreground_iou_mean"]
-        val_recall = val_summary["recall_sensitivity_mean"]
-        val_spec = val_summary["specificity_all_cases"]
-
-        duration = time.time() - start_time
-        print(f"Epoch [{epoch:02d}/{actual_epochs:02d}] ({duration:.1f}s) | "
-              f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
-              f"Val FG Dice: {val_fg_dice:.4f} | Val FG IoU: {val_fg_iou:.4f} | "
-              f"Recall: {val_recall:.4f} | Spec: {val_spec:.4f}")
-
-        epoch_record = {
+        epoch_stat = {
             "epoch": epoch,
-            "duration_sec": round(duration, 2),
             "train_loss": round(train_loss, 4),
+            "train_dice": round(train_dice, 4),
             "val_loss": round(val_loss, 4),
-            "val_foreground_dice": round(val_fg_dice, 4),
-            "val_foreground_iou": round(val_fg_iou, 4),
-            "val_recall": round(val_recall, 4),
-            "val_specificity": round(val_spec, 4),
-            "lesion_cases": val_summary["lesion_cases_count"],
-            "normal_cases": val_summary["normal_cases_count"]
+            "val_dice": round(val_dice, 4),
+            "lr": round(optimizer.param_groups[0]["lr"], 6),
+            "is_best": is_best
         }
-        history.append(epoch_record)
+        history.append(epoch_stat)
 
-        if val_fg_dice > best_val_dice:
-            best_val_dice = val_fg_dice
-            torch.save(model.state_dict(), best_weights_path)
-            print(f"  --> Best Model Saved! Checkpoint: {best_weights_path} (FG Dice: {best_val_dice:.4f})")
+        star = " ★ [BEST SAVED]" if is_best else ""
+        print(f"Epoch [{epoch:02d}/{epochs:02d}] - Train Loss: {train_loss:.4f} | Train Dice: {train_dice:.4f} || Val Loss: {val_loss:.4f} | Val Dice: {val_dice:.4f}{star}", flush=True)
 
-    log_path = "ai_training/production_model/baseline_training_log.json"
+    total_duration = time.time() - start_time
+    print("-" * 70, flush=True)
+    print(f"[HOÀN TẤT] Thời gian huấn luyện: {total_duration:.2f}s", flush=True)
+    print(f"[KẾT QUẢ] Best Validation Dice: {best_val_dice:.4f}", flush=True)
+    print(f"[CHECKPOINT] Trọng số tối ưu lưu tại: {best_checkpoint_path}", flush=True)
+
+    # Lưu log
+    log_path = os.path.join(checkpoint_dir, "baseline_training_history.json")
     with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=4)
+        json.dump(history, f, indent=2)
 
-    print(f"\n[DONE] Training complete! Log saved to: {log_path}")
-    print(f"[DONE] Best Model Weights: {best_weights_path}")
-    print("=" * 70)
-    return best_weights_path, history
+    return best_checkpoint_path
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Standard U-Net Baseline")
-    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
-    parser.add_argument("--batch-size", type=int, default=4, help="Batch size (4 recommended for 4GB VRAM)")
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
-    parser.add_argument("--smoke-test", action="store_true", help="Run 1 epoch on small subset")
-    args = parser.parse_args()
-
-    train_baseline(epochs=args.epochs, batch_size=args.batch_size, lr=args.lr, smoke_test=args.smoke_test)
+    train_baseline(epochs=12, batch_size=4, lr=1e-3)
