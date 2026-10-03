@@ -24,7 +24,7 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
     patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == req.patient_id.strip()).first()
     if not patient:
         patient = PatientModel(
-            id=str(uuid.uuid4()), anonymized_pid=req.patient_id.strip(), age_bucket=req.patient_age or "30-39"
+            id=str(uuid.uuid4()), anonymized_pid=req.patient_id.strip(), age_bucket=req.patient_age or None
         )
         db.add(patient)
         db.commit()
@@ -43,8 +43,10 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
         study_code=study_code,
         study_date=study_date,
         status="PENDING",
-        probe_type=req.probe_type or "TRANSVAGINAL_2D",
-        clinical_indication=req.clinical_notes or "Khám phụ khoa định kỳ",
+        probe_type=req.probe_type or None,
+        ovary_side=getattr(req, "active_ovary_side", "RIGHT") or "RIGHT",
+        contralateral_status=getattr(req, "contralateral_status", "NOT_VISUALIZED") or "NOT_VISUALIZED",
+        clinical_indication=req.clinical_notes or None,
     )
     db.add(study)
     db.commit()
@@ -55,6 +57,8 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
         "patient_id": patient.anonymized_pid,
         "study_date": study.study_date,
         "status": study.status,
+        "ovary_side": study.ovary_side,
+        "contralateral_status": study.contralateral_status,
         "message": "Khởi tạo ca khám mới thành công.",
     }
 
@@ -100,6 +104,8 @@ def list_cases(
                 "patient_age": s.patient.age_bucket,
                 "study_date": s.study_date,
                 "status": s.status,
+                "ovary_side": getattr(s, "ovary_side", "RIGHT") or "RIGHT",
+                "contralateral_status": getattr(s, "contralateral_status", "NOT_VISUALIZED") or "NOT_VISUALIZED",
                 "image_id": first_img.id if first_img else None,
                 "image_filename": first_img.filename if first_img else None,
                 "lesion_type": last_review.lesion_type
@@ -141,6 +147,7 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
         if img.predictions:
             last_p = img.predictions[-1]
             pred_data = {
+                "prediction_id": last_p.id,
                 "confidence_score": last_p.confidence_score,
                 "inference_time_ms": last_p.inference_time_ms,
                 "iqa_score": last_p.iqa_score,
@@ -154,6 +161,7 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
             review_data = {
                 "doctor_id": last_r.doctor_id,
                 "doctor_action": last_r.doctor_action,
+                "time_spent_seconds": last_r.time_spent_seconds,
                 "lesion_type": last_r.lesion_type,
                 "clinical_notes": last_r.clinical_notes,
                 "max_diameter_mm": last_r.max_diameter_mm,
@@ -181,6 +189,8 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
         "patient_age": study.patient.age_bucket,
         "study_date": study.study_date,
         "status": study.status,
+        "ovary_side": getattr(study, "ovary_side", "RIGHT") or "RIGHT",
+        "contralateral_status": getattr(study, "contralateral_status", "NOT_VISUALIZED") or "NOT_VISUALIZED",
         "probe_type": study.probe_type,
         "clinical_indication": study.clinical_indication,
         "images": images_data,

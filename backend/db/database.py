@@ -35,8 +35,8 @@ class PatientModel(Base):
 
     id = Column(String(36), primary_key=True)
     anonymized_pid = Column(String(64), unique=True, nullable=False)
-    age_bucket = Column(String(20), default="30-39")
-    menopausal_status = Column(String(20), default="PRE")
+    age_bucket = Column(String(20), nullable=True)
+    menopausal_status = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     studies = relationship("StudyModel", back_populates="patient", cascade="all, delete-orphan")
@@ -50,9 +50,11 @@ class StudyModel(Base):
     study_code = Column(String(64), nullable=True)
     study_date = Column(String(20), nullable=False)
     status = Column(String(30), default="PENDING")  # PENDING, ANALYZED, REVIEWED
-    device_vendor = Column(String(50), default="GE Voluson E10")
-    probe_type = Column(String(50), default="TRANSVAGINAL_2D")
-    clinical_indication = Column(Text, default="Khám phụ khoa định kỳ")
+    device_vendor = Column(String(50), nullable=True)
+    probe_type = Column(String(50), nullable=True)
+    ovary_side = Column(String(10), default="RIGHT")
+    contralateral_status = Column(String(30), default="NOT_VISUALIZED")
+    clinical_indication = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     patient = relationship("PatientModel", back_populates="studies")
@@ -68,7 +70,7 @@ class ImageModel(Base):
     raw_path = Column(String(500), nullable=False)
     width = Column(Integer, default=512)
     height = Column(Integer, default=512)
-    pixel_spacing_mm = Column(Float, default=0.1)
+    pixel_spacing_mm = Column(Float, nullable=True)
     is_empty_mask = Column(Boolean, default=False)
     dataset_split = Column(String(20), default="TRAIN")
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
@@ -83,7 +85,7 @@ class PredictionModel(Base):
 
     id = Column(String(36), primary_key=True)
     image_id = Column(String(36), ForeignKey("images.id"), nullable=False)
-    model_version = Column(String(50), default="AttentionUNet-v1.2")
+    model_version = Column(String(50), nullable=True)
     inference_time_ms = Column(Integer, default=450)
     confidence_score = Column(Float, default=0.85)
     iqa_score = Column(Float, default=0.90)
@@ -100,16 +102,16 @@ class ReviewModel(Base):
     id = Column(String(36), primary_key=True)
     image_id = Column(String(36), ForeignKey("images.id"), nullable=False)
     prediction_id = Column(String(36), nullable=True)
-    doctor_id = Column(String(64), default="BS. Nguyễn Văn A")
+    doctor_id = Column(String(64), default="UNVERIFIED_REVIEWER")
     doctor_action = Column(String(30), default="ACCEPTED_RAW")  # ACCEPTED_RAW, MODIFIED, REJECTED
     verified_mask_rle = Column(JSON, nullable=False)
     max_diameter_mm = Column(Float, default=0.0)
     ortho_diameter_mm = Column(Float, default=0.0)
     total_area_cm2 = Column(Float, default=0.0)
-    lesion_type = Column(String(100), default="U nang buồng trứng (Cystic)")
+    lesion_type = Column(String(100), default="UNSPECIFIED")
     clinical_notes = Column(Text, default="")
     time_spent_seconds = Column(Integer, default=15)
-    is_official_ground_truth = Column(Boolean, default=True)
+    is_official_ground_truth = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     image = relationship("ImageModel", back_populates="reviews")
@@ -158,6 +160,10 @@ def init_db():
             cursor.execute("ALTER TABLE studies ADD COLUMN study_code VARCHAR(64);")
         if "status" not in columns:
             cursor.execute("ALTER TABLE studies ADD COLUMN status VARCHAR(30) DEFAULT 'PENDING';")
+        if "ovary_side" not in columns:
+            cursor.execute("ALTER TABLE studies ADD COLUMN ovary_side VARCHAR(10) DEFAULT 'RIGHT';")
+        if "contralateral_status" not in columns:
+            cursor.execute("ALTER TABLE studies ADD COLUMN contralateral_status VARCHAR(30) DEFAULT 'NOT_VISUALIZED';")
         conn.commit()
         conn.close()
     except Exception:
