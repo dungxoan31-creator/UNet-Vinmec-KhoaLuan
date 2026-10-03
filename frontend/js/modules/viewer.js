@@ -290,12 +290,70 @@ function renderMaskFromRLE(rle) {
             maskCtx.putImageData(imgData, 0, 0);
         }
 
+window.activeLayers = { original: true, gt: false, ai: true, doc: true };
+window.groundTruthCanvas = null;
+
+function toggleLayer(layerName) {
+    const key = layerName.toLowerCase();
+    if (window.activeLayers[key] !== undefined) {
+        window.activeLayers[key] = !window.activeLayers[key];
+    }
+    const btn = document.getElementById(`btnLayer${layerName}`);
+    if (btn) {
+        btn.classList.toggle('active', !!window.activeLayers[key]);
+    }
+    redrawMainCanvas();
+}
+
+function calculateLiveMetrics() {
+    if (!window.groundTruthCanvas) {
+        const elPill = document.getElementById('liveMetricsPill');
+        if (elPill) elPill.style.display = 'none';
+        return;
+    }
+    try {
+        const mCtx = maskCanvas.getContext('2d');
+        const gtCtx = window.groundTruthCanvas.getContext('2d');
+        const mData = mCtx.getImageData(0, 0, 512, 512).data;
+        const gtData = gtCtx.getImageData(0, 0, 512, 512).data;
+
+        let tp = 0, fp = 0, fn = 0;
+        for (let i = 3; i < mData.length; i += 4) {
+            const mVal = mData[i] > 20 ? 1 : 0;
+            const gtVal = gtData[i] > 20 ? 1 : 0;
+            if (mVal && gtVal) tp++;
+            else if (mVal && !gtVal) fp++;
+            else if (!mVal && gtVal) fn++;
+        }
+
+        let dice = 0.0, iou = 0.0;
+        if (tp + fp + fn === 0) {
+            dice = 1.0;
+            iou = 1.0;
+        } else {
+            dice = (2.0 * tp) / (2.0 * tp + fp + fn);
+            iou = tp / (tp + fp + fn);
+        }
+
+        const elPill = document.getElementById('liveMetricsPill');
+        const elDice = document.getElementById('liveDiceVal');
+        const elIou = document.getElementById('liveIouVal');
+        if (elPill && elDice && elIou) {
+            elPill.style.display = 'inline-flex';
+            elDice.innerText = dice.toFixed(3);
+            elIou.innerText = iou.toFixed(3);
+        }
+    } catch (e) {
+        console.warn("Live metrics calculation note:", e);
+    }
+}
+
 function redrawMainCanvas() {
     // 1. Redraw Single/Main Canvas
     ctx.clearRect(0, 0, 512, 512);
 
     // 1.1 Draw base ultrasound image
-    if (bgImage && bgImage.src && (bgImage.naturalWidth > 0 || bgImage.complete)) {
+    if (window.activeLayers.original && bgImage && bgImage.src && (bgImage.naturalWidth > 0 || bgImage.complete)) {
         try {
             ctx.drawImage(bgImage, 0, 0, 512, 512);
         } catch (e) {
@@ -303,7 +361,16 @@ function redrawMainCanvas() {
         }
     }
 
-    // 1.2 Draw mask layer
+    // 1.2 Draw Ground Truth layer (if active and available)
+    if (window.activeLayers.gt && window.groundTruthCanvas) {
+        ctx.save();
+        ctx.globalAlpha = maskOpacity * 0.85;
+        ctx.drawImage(window.groundTruthCanvas, 0, 0);
+        ctx.restore();
+    }
+
+    // 1.3 Draw mask layer (AI or Doctor Canvas)
+    const showMask = isMaskVisible && (window.activeLayers.ai || window.activeLayers.doc);
     if (currentViewMode === 'curtain') {
         // Curtain clip on the right side of curtainSplitPercent
         const splitPx = (curtainSplitPercent / 100.0) * 512;
@@ -312,7 +379,7 @@ function redrawMainCanvas() {
         ctx.rect(splitPx, 0, 512 - splitPx, 512);
         ctx.clip();
 
-        if (isMaskVisible) {
+        if (showMask) {
             ctx.globalAlpha = maskOpacity;
             ctx.drawImage(maskCanvas, 0, 0);
         }
@@ -328,7 +395,7 @@ function redrawMainCanvas() {
         ctx.stroke();
 
     } else {
-        if (isMaskVisible) {
+        if (showMask) {
             ctx.save();
             ctx.globalAlpha = maskOpacity;
             ctx.drawImage(maskCanvas, 0, 0);
@@ -341,16 +408,24 @@ function redrawMainCanvas() {
     const origCanvas = document.getElementById('originalCanvas');
     const splitEditCanvas = document.getElementById('splitEditorCanvas');
     if (origCanvas && splitEditCanvas && bgImage && bgImage.src) {
-        // Render Original clean viewport WITHOUT AI overlays or duplicate calipers
         const oCtx = origCanvas.getContext('2d');
         oCtx.clearRect(0, 0, 512, 512);
-        oCtx.drawImage(bgImage, 0, 0, 512, 512);
+        if (window.activeLayers.original) {
+            oCtx.drawImage(bgImage, 0, 0, 512, 512);
+        }
+        if (window.activeLayers.gt && window.groundTruthCanvas) {
+            oCtx.save();
+            oCtx.globalAlpha = maskOpacity * 0.85;
+            oCtx.drawImage(window.groundTruthCanvas, 0, 0);
+            oCtx.restore();
+        }
 
-        // Render AI & Doctor Mask edited viewport
         const seCtx = splitEditCanvas.getContext('2d');
         seCtx.clearRect(0, 0, 512, 512);
-        seCtx.drawImage(bgImage, 0, 0, 512, 512);
-        if (isMaskVisible) {
+        if (window.activeLayers.original) {
+            seCtx.drawImage(bgImage, 0, 0, 512, 512);
+        }
+        if (showMask) {
             seCtx.save();
             seCtx.globalAlpha = maskOpacity;
             seCtx.drawImage(maskCanvas, 0, 0);
@@ -591,6 +666,7 @@ function saveCanvasHistory() {
             undoStack.push(imgData);
             if (undoStack.length > MAX_HISTORY) undoStack.shift();
             redoStack.length = 0; // Clear redo on new action
+            calculateLiveMetrics();
         }
 
 function undoCanvas() {
@@ -602,6 +678,7 @@ function undoCanvas() {
                 chooseDoctorAction('MODIFIED');
                 redrawMainCanvas();
                 recalculateClientCalipersFromMask();
+                calculateLiveMetrics();
                 saveLocalDraft();
                 showToast("↶ Đã hoàn tác");
             }
@@ -615,6 +692,7 @@ function redoCanvas() {
                 chooseDoctorAction('MODIFIED');
                 redrawMainCanvas();
                 recalculateClientCalipersFromMask();
+                calculateLiveMetrics();
                 saveLocalDraft();
                 showToast("↷ Đã làm lại");
             }
@@ -632,7 +710,13 @@ function resetMaskToAI() {
                 document.getElementById('resDorth').innerText = meas.calibrated ? `${meas.ortho_diameter_mm} mm` : 'Chưa hiệu chuẩn';
                 document.getElementById('resArea').innerText = meas.calibrated ? `${meas.total_area_cm2} cm²` : 'Chưa hiệu chuẩn';
                 recalculateVolume();
-                
+
+                if (currentPrediction.rle_mask) {
+                    renderMaskFromRLE(currentPrediction.rle_mask);
+                    saveCanvasHistory();
+                    redrawMainCanvas();
+                }
+                calculateLiveMetrics();
                 saveLocalDraft();
                 showToast("🔄 Đã phục hồi mask AI ban đầu");
             }
