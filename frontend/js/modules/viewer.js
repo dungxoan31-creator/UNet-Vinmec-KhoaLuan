@@ -143,9 +143,7 @@ function initResultsWorkspace(data) {
 
     // Load Background & Mask
     const onBgImageLoaded = () => {
-        renderMaskFromRLE(data.rle_mask);
-        saveCanvasHistory();
-        redrawMainCanvas();
+        renderMask(data);
         saveLocalDraft();
     };
 
@@ -264,6 +262,43 @@ function setupCanvasZoomAndPan() {
                 }, { passive: false });
             }
         }
+
+function renderMask(data) {
+    if (!data) return;
+    maskCtx.clearRect(0, 0, 512, 512);
+
+    if (data.prediction_mask_base64 || data.mask_base64) {
+        const maskImg = new Image();
+        maskImg.onload = () => {
+            const tempC = document.createElement('canvas');
+            tempC.width = 512;
+            tempC.height = 512;
+            const tCtx = tempC.getContext('2d');
+            tCtx.drawImage(maskImg, 0, 0, 512, 512);
+            const idata = tCtx.getImageData(0, 0, 512, 512);
+            for (let i = 0; i < idata.data.length; i += 4) {
+                if (idata.data[i] > 20 || idata.data[i + 1] > 20 || idata.data[i + 2] > 20) {
+                    idata.data[i] = 6;       // Cyan R
+                    idata.data[i + 1] = 182; // Cyan G
+                    idata.data[i + 2] = 212; // Cyan B
+                    idata.data[i + 3] = 255; // Alpha
+                } else {
+                    idata.data[i + 3] = 0;
+                }
+            }
+            maskCtx.putImageData(idata, 0, 0);
+            saveCanvasHistory();
+            redrawMainCanvas();
+            calculateLiveMetrics();
+        };
+        maskImg.src = data.prediction_mask_base64 || data.mask_base64;
+    } else if (data.rle_mask) {
+        renderMaskFromRLE(data.rle_mask);
+        saveCanvasHistory();
+        redrawMainCanvas();
+        calculateLiveMetrics();
+    }
+}
 
 function renderMaskFromRLE(rle) {
             maskCtx.clearRect(0, 0, 512, 512);
@@ -709,14 +744,7 @@ function resetMaskToAI() {
                 document.getElementById('resDmax').innerText = meas.calibrated ? `${meas.max_diameter_mm} mm` : 'Chưa hiệu chuẩn';
                 document.getElementById('resDorth').innerText = meas.calibrated ? `${meas.ortho_diameter_mm} mm` : 'Chưa hiệu chuẩn';
                 document.getElementById('resArea').innerText = meas.calibrated ? `${meas.total_area_cm2} cm²` : 'Chưa hiệu chuẩn';
-                recalculateVolume();
-
-                if (currentPrediction.rle_mask) {
-                    renderMaskFromRLE(currentPrediction.rle_mask);
-                    saveCanvasHistory();
-                    redrawMainCanvas();
-                }
-                calculateLiveMetrics();
+                renderMask(currentPrediction);
                 saveLocalDraft();
                 showToast("🔄 Đã phục hồi mask AI ban đầu");
             }

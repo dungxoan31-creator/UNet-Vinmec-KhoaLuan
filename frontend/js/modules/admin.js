@@ -354,17 +354,18 @@ async function loadBenchmarkSampleIntoWorkstation(caseId) {
         window.currentPrediction = {
             case_id: bundle.case_id,
             original_image_base64: bundle.original_image_base64,
-            rle_mask: bundle.ai_prediction.rle_mask,
-            confidence: bundle.ai_prediction.confidence,
-            pixel_spacing_mm: bundle.pixel_spacing_mm,
-            measurements: {
+            prediction_mask_base64: bundle.prediction_mask_base64,
+            rle_mask: bundle.ai_prediction ? bundle.ai_prediction.rle_mask : null,
+            confidence: bundle.confidence_score !== undefined ? bundle.confidence_score : 0.85,
+            pixel_spacing_mm: bundle.pixel_spacing_mm || null,
+            measurements: bundle.measurements || {
                 calibrated: false,
                 max_diameter_mm: null,
                 ortho_diameter_mm: null,
                 total_area_cm2: null,
                 lesions: []
             },
-            provenance: {
+            provenance: bundle.provenance || {
                 model_name: 'Standard U-Net (Baseline Evaluated)',
                 model_checksum: 'retrain_2026-10-03'
             }
@@ -411,7 +412,7 @@ async function loadBenchmarkSampleIntoWorkstation(caseId) {
             navigateTo('results');
             showToast(`✓ Đã nạp ca #${caseId} kèm Ground Truth & AI Mask đối chuẩn!`);
         };
-        gtImg.src = bundle.ground_truth.mask_base64;
+        gtImg.src = bundle.ground_truth_mask_base64 || (bundle.ground_truth && bundle.ground_truth.mask_base64) || '';
 
     } catch (err) {
         showToast("Lỗi khi nạp ca kiểm thử: " + err.message, false);
