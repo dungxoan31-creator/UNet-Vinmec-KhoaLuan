@@ -23,14 +23,64 @@ function saveLocalDraft() {
         }
 
 function checkDraftOnLoad() {
-            try {
-                const raw = localStorage.getItem('vinmec_ovarian_ai_draft');
-                if (raw) {
-                    const draft = JSON.parse(raw);
-                    console.log("Found local draft for PID:", draft.patient_id);
-                }
-            } catch (e) {}
+    try {
+        const raw = localStorage.getItem('vinmec_ovarian_ai_draft');
+        const banner = document.getElementById('draftRestorationBanner');
+        const bannerText = document.getElementById('draftBannerText');
+        if (raw) {
+            const draft = JSON.parse(raw);
+            if (banner && bannerText && draft && draft.patient_id) {
+                bannerText.innerText = `Bệnh nhân: ${draft.patient_id} • Mã ca: ${draft.study_code || 'Chưa đặt mã'} • Lưu lúc: ${draft.timestamp ? new Date(draft.timestamp).toLocaleTimeString() : 'Gần đây'}`;
+                banner.style.display = 'flex';
+            }
+        } else if (banner) {
+            banner.style.display = 'none';
         }
+    } catch (e) {}
+}
+
+function restoreLocalDraft() {
+    try {
+        const raw = localStorage.getItem('vinmec_ovarian_ai_draft');
+        if (!raw) {
+            showToast("Không tìm thấy bản nháp nào.", false);
+            return;
+        }
+        const draft = JSON.parse(raw);
+        if (typeof currentCase === 'undefined' || !currentCase) {
+            window.currentCase = {};
+        }
+        Object.assign(currentCase, draft);
+        if (draft.doctorNotes && document.getElementById('textDoctorNotes')) {
+            document.getElementById('textDoctorNotes').value = draft.doctorNotes;
+        }
+        if (draft.doctor_action) {
+            chooseDoctorAction(draft.doctor_action);
+        }
+        const banner = document.getElementById('draftRestorationBanner');
+        if (banner) banner.style.display = 'none';
+
+        if (currentPrediction) {
+            navigateTo('results');
+        } else if (draft.image_id) {
+            navigateTo('results');
+        } else {
+            navigateTo('create_case');
+        }
+        showToast("✓ Đã khôi phục dữ liệu bản nháp thành công!");
+    } catch (e) {
+        showToast("Lỗi khi khôi phục bản nháp: " + e.message, false);
+    }
+}
+
+function discardLocalDraft() {
+    try {
+        localStorage.removeItem('vinmec_ovarian_ai_draft');
+        const banner = document.getElementById('draftRestorationBanner');
+        if (banner) banner.style.display = 'none';
+        showToast("Đã xóa bản nháp thành công.");
+    } catch (e) {}
+}
 
 function onPathologyChanged(val) {
     updateOradsIndicator(val);
@@ -97,12 +147,20 @@ function chooseDoctorAction(action) {
             if (action === 'ACCEPTED_RAW') {
                 document.getElementById('cardOptAccept').classList.add('selected');
                 document.querySelector('input[value="ACCEPTED_RAW"]').checked = true;
+                if (currentPrediction?.rle_mask) {
+                    renderMaskFromRLE(currentPrediction.rle_mask);
+                    saveCanvasHistory();
+                    redrawMainCanvas();
+                }
             } else if (action === 'MODIFIED') {
                 document.getElementById('cardOptModify').classList.add('selected');
                 document.querySelector('input[value="MODIFIED"]').checked = true;
             } else {
                 document.getElementById('cardOptReject').classList.add('selected');
                 document.querySelector('input[value="REJECTED_ALL"]').checked = true;
+                maskCtx.clearRect(0, 0, 512, 512);
+                saveCanvasHistory();
+                redrawMainCanvas();
             }
             saveLocalDraft();
         }
@@ -118,54 +176,91 @@ function closeConfirmationModal() {
         }
 
 async function executeDoctorSignOff() {
-            closeConfirmationModal();
-            const maskImgData = maskCtx.getImageData(0, 0, 512, 512);
-            const flat = [];
-            for (let i = 3; i < maskImgData.data.length; i += 4) {
-                flat.push(maskImgData.data[i] > 0 ? 1 : 0);
-            }
+    closeConfirmationModal();
+    const maskImgData = maskCtx.getImageData(0, 0, 512, 512);
+    const flat = [];
+    for (let i = 3; i < maskImgData.data.length; i += 4) {
+        flat.push(maskImgData.data[i] > 0 ? 1 : 0);
+    }
 
-            const counts = [];
-            let lastV = flat[0] || 0;
-            let run = 0;
-            for (let v of flat) {
-                if (v === lastV) { run++; }
-                else { counts.push(run); run = 1; lastV = v; }
-            }
-            counts.push(run);
+    const counts = [];
+    let lastV = flat[0] || 0;
+    let run = 0;
+    for (let v of flat) {
+        if (v === lastV) { run++; }
+        else { counts.push(run); run = 1; lastV = v; }
+    }
+    counts.push(run);
 
-            const activeDoctorName = (typeof currentUser !== 'undefined' && currentUser && currentUser.full_name) ? currentUser.full_name : "BS. Nguyễn Văn A";
-            const payload = {
-                image_id: currentCase.image_id,
-                doctor_id: activeDoctorName,
-                doctor_action: currentCase.doctor_action || "ACCEPTED_RAW",
-                verified_mask_rle: { shape: [512, 512], counts: counts, first_val: flat[0] || 0, encoding: "standard_rle" },
-                lesion_type: document.getElementById('selectPathology').value,
-                clinical_notes: document.getElementById('textDoctorNotes').value.trim(),
-                time_spent_seconds: 18
-            };
-
-            try {
-                const resp = await fetch(`${API_BASE}/api/review`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!resp.ok) throw new Error("Lỗi khi ký duyệt");
-                
-                // Immediately refresh real-time metrics across all tabs and screens
-                loadDashboardStats();
-                loadDashboardCases();
-
-                // Populate Official Vinmec Diagnosis Sheet
-                populateReportSheet(currentCase);
-
-                showToast("✓ Đã ký duyệt và kết xuất Phiếu kết quả chẩn đoán siêu âm Vinmec!");
-                navigateTo('report_complete');
-            } catch (err) {
-                showToast("Lỗi ký duyệt: " + err.message, false);
-            }
+    // Đồng bộ tự động giữa trạng thái mask thực tế và hành động rà soát (tránh lỗi 422 mismatch)
+    let isMaskUnchanged = false;
+    if (currentPrediction && currentPrediction.rle_mask && currentPrediction.rle_mask.counts) {
+        const rawRle = currentPrediction.rle_mask;
+        if (rawRle.first_val === (flat[0] || 0) &&
+            rawRle.counts.length === counts.length &&
+            rawRle.counts.every((c, idx) => c === counts[idx])) {
+            isMaskUnchanged = true;
         }
+    }
+    const hasAnyPixel = flat.some(v => v === 1);
+
+    let actionToSubmit = currentCase.doctor_action || "ACCEPTED_RAW";
+    if (!hasAnyPixel) {
+        actionToSubmit = "REJECTED_ALL";
+    } else if (isMaskUnchanged) {
+        actionToSubmit = "ACCEPTED_RAW";
+    } else {
+        actionToSubmit = "MODIFIED";
+    }
+    currentCase.doctor_action = actionToSubmit;
+    chooseDoctorAction(actionToSubmit);
+
+    const elapsedReviewSeconds = reviewStartedAt === null
+        ? 0 : Math.max(1, Math.round((performance.now() - reviewStartedAt) / 1000));
+    const payload = {
+        image_id: currentCase.image_id,
+        prediction_id: currentPrediction && currentPrediction.prediction_id,
+        doctor_id: "UNVERIFIED_REVIEWER",
+        doctor_action: actionToSubmit,
+        verified_mask_rle: { shape: [512, 512], counts: counts, first_val: flat[0] || 0, encoding: "standard_rle" },
+        lesion_type: "Chưa đánh giá bệnh học",
+        clinical_notes: document.getElementById('textDoctorNotes').value.trim(),
+        time_spent_seconds: elapsedReviewSeconds
+    };
+
+    try {
+        const resp = await fetch(`${API_BASE}/api/review`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+            let errDetail = "Lỗi khi lưu rà soát";
+            try {
+                const errJson = await resp.json();
+                if (errJson.detail) errDetail = errJson.detail;
+            } catch (e) {}
+            if (errDetail.includes("requires the original")) {
+                throw new Error("Mặt nạ đã bị chỉnh sửa so với bản AI gốc. Hãy chọn 'Đã chỉnh sửa mask' để lưu.");
+            } else if (errDetail.includes("requires an edited mask")) {
+                throw new Error("Mặt nạ chưa có thay đổi nào. Hãy chọn 'Chấp nhận kết quả AI' hoặc dùng cọ vẽ chỉnh sửa.");
+            } else if (errDetail.includes("requires an empty mask")) {
+                throw new Error("Hành động từ chối yêu cầu mặt nạ rỗng. Hãy dùng nút Reset hoặc Tẩy để xóa toàn bộ vùng mask.");
+            }
+            throw new Error(errDetail);
+        }
+        
+        // Cập nhật số liệu real-time lên Bảng điều khiển và Hồ sơ
+        loadDashboardStats();
+        loadDashboardCases();
+
+        document.getElementById('hudStatus').innerText = 'Đã xác nhận final mask';
+        reviewStartedAt = null;
+        showToast("✓ Đã lưu mask cuối cùng và ghi nhận nhật ký rà soát thành công!");
+    } catch (err) {
+        showToast("Lỗi ký duyệt: " + err.message, false);
+    }
+}
 
 function onGlobalFacilityChange(facKey) {
     applyFacilityToReport();
@@ -244,29 +339,77 @@ function populateReportSheet(caseObj, overrides = {}) {
     if (document.getElementById('field_completedDate')) document.getElementById('field_completedDate').innerText = completedDate;
     if (document.getElementById('field_clinicalDiagnosis')) document.getElementById('field_clinicalDiagnosis').innerText = clinicalDiag;
 
-    // Specialized Ovarian Findings
-    if (document.getElementById('field_ovary_r2')) {
-        document.getElementById('field_ovary_r2').innerText = overrides.ovaryR2 || `- Tổn thương: Bên trong phát hiện 01 khối dạng ${lesionType}, ranh giới rõ, thành mỏng đều.`;
-    }
-    if (document.getElementById('field_ovary_r3')) {
-        document.getElementById('field_ovary_r3').innerText = overrides.ovaryR3 || `- Đo đạc AI (Attention U-Net): Đường kính lớn nhất D1 = ${d1} mm, Đường kính trực giao D2 = ${d2} mm, Diện tích = ${area} cm².`;
-    }
-    if (document.getElementById('field_ovary_r4')) {
-        document.getElementById('field_ovary_r4').innerText = overrides.ovaryR4 || `- Doppler màu: Không thấy tăng sinh mạch máu bất thường trong vách hoặc thành nang (RI = 0.62).`;
-    }
-    if (document.getElementById('field_ovary_l2')) {
-        document.getElementById('field_ovary_l2').innerText = overrides.ovaryL2 || `- Các nang noãn sinh lý kích thước < 8 mm rải rác ở ngoại vi, không thấy cấu trúc u cục khu trú hay nang bất thường.`;
-    }
-    if (document.getElementById('field_douglas')) {
-        document.getElementById('field_douglas').innerText = overrides.douglas || `- Cùng đồ sau không có dịch tự do. Không phát hiện khối bất thường vùng tiểu khung.`;
+    // Specialized Ovarian Findings for Both Ovaries (Right & Left)
+    const activeSide = (caseObj.active_ovary_side || 'RIGHT').toUpperCase();
+    const contraStatus = (caseObj.contralateral_status || 'NOT_VISUALIZED').toUpperCase();
+
+    const contraTextMap = {
+        'NOT_VISUALIZED': {
+            l1: '- Trạng thái: Chưa khảo sát / Không quan sát thấy trên lần khám này (Not visualized).',
+            l2: '- Không phát hiện hình ảnh bất thường rõ rệt trong trường quét ghi nhận.'
+        },
+        'NORMAL': {
+            l1: '- Trạng thái: Hình thái bình thường, nhu mô đồng nhất (Unremarkable).',
+            l2: '- Các nang noãn sinh lý kích thước < 10 mm rải rác ở ngoại biên, không thấy u cục hay nang bệnh lý.'
+        },
+        'PREVIOUSLY_RESECTED': {
+            l1: '- Tiền sử ngoại khoa: Đã phẫu thuật cắt buồng trứng trước đó (Previously resected).',
+            l2: '- Hố buồng trứng trống, không phát hiện khối choán chỗ tồn dư hay tái phát.'
+        }
+    };
+    const contraInfo = contraTextMap[contraStatus] || contraTextMap['NOT_VISUALIZED'];
+    const calibText = currentPrediction?.pixel_spacing_mm ? `D1 = ${d1} mm, D2 = ${d2} mm, Diện tích = ${area} cm²` : `Chưa hiệu chuẩn mm vật lý (Đo đạc tương đối theo độ phân giải pixel)`;
+
+    if (activeSide === 'RIGHT') {
+        if (document.getElementById('field_ovary_r1')) document.getElementById('field_ovary_r1').innerText = `- Vị trí: Buồng trứng Phải (Đang khảo sát chuyên sâu trên mặt cắt TVUS).`;
+        if (document.getElementById('field_ovary_r2')) document.getElementById('field_ovary_r2').innerText = overrides.ovaryR2 || `- Tổn thương: Phát hiện vùng tổn thương dạng nang/khối, ranh giới được mô hình Standard U-Net hỗ trợ định vị.`;
+        if (document.getElementById('field_ovary_r3')) {
+            document.getElementById('field_ovary_r3').style.display = 'block';
+            document.getElementById('field_ovary_r3').innerText = overrides.ovaryR3 || `- Kích thước hình học trích xuất: ${calibText}.`;
+        }
+        if (document.getElementById('field_ovary_r4')) {
+            document.getElementById('field_ovary_r4').style.display = 'block';
+            document.getElementById('field_ovary_r4').innerText = overrides.ovaryR4 || `- Rà soát Human-in-the-Loop (HITL): Mặt nạ phân đoạn đã được bác sĩ xác nhận trên bàn làm việc Canvas.`;
+        }
+
+        if (document.getElementById('field_ovary_l1')) document.getElementById('field_ovary_l1').innerText = contraInfo.l1;
+        if (document.getElementById('field_ovary_l2')) document.getElementById('field_ovary_l2').innerText = contraInfo.l2;
+        if (document.getElementById('field_ovary_l3')) document.getElementById('field_ovary_l3').style.display = 'none';
+        if (document.getElementById('field_ovary_l4')) document.getElementById('field_ovary_l4').style.display = 'none';
+    } else {
+        // LEFT Ovary is active
+        if (document.getElementById('field_ovary_l1')) document.getElementById('field_ovary_l1').innerText = `- Vị trí: Buồng trứng Trái (Đang khảo sát chuyên sâu trên mặt cắt TVUS).`;
+        if (document.getElementById('field_ovary_l2')) document.getElementById('field_ovary_l2').innerText = overrides.ovaryL2 || `- Tổn thương: Phát hiện vùng tổn thương dạng nang/khối, ranh giới được mô hình Standard U-Net hỗ trợ định vị.`;
+        if (document.getElementById('field_ovary_l3')) {
+            document.getElementById('field_ovary_l3').style.display = 'block';
+            document.getElementById('field_ovary_l3').innerText = overrides.ovaryL3 || `- Kích thước hình học trích xuất: ${calibText}.`;
+        }
+        if (document.getElementById('field_ovary_l4')) {
+            document.getElementById('field_ovary_l4').style.display = 'block';
+            document.getElementById('field_ovary_l4').innerText = overrides.ovaryL4 || `- Rà soát Human-in-the-Loop (HITL): Mặt nạ phân đoạn đã được bác sĩ xác nhận trên bàn làm việc Canvas.`;
+        }
+
+        if (document.getElementById('field_ovary_r1')) document.getElementById('field_ovary_r1').innerText = contraInfo.l1;
+        if (document.getElementById('field_ovary_r2')) document.getElementById('field_ovary_r2').innerText = contraInfo.l2;
+        if (document.getElementById('field_ovary_r3')) document.getElementById('field_ovary_r3').style.display = 'none';
+        if (document.getElementById('field_ovary_r4')) document.getElementById('field_ovary_r4').style.display = 'none';
     }
 
-    // Conclusion
+    if (document.getElementById('field_douglas')) {
+        document.getElementById('field_douglas').innerText = overrides.douglas || `- Túi cùng Douglas & mô lân cận: Không phát hiện bất thường rõ rệt trên diện cắt quét ngang.`;
+    }
+
+    // Conclusion for Both Ovaries
+    const activeSideLabel = activeSide === 'RIGHT' ? 'BUỒNG TRỨNG PHẢI' : 'BUỒNG TRỨNG TRÁI';
+    const contraSideLabel = activeSide === 'RIGHT' ? 'BUỒNG TRỨNG TRÁI' : 'BUỒNG TRỨNG PHẢI';
     if (document.getElementById('field_conclusion_l1')) {
-        document.getElementById('field_conclusion_l1').innerText = overrides.conc1 || `1. HÌNH ẢNH ${lesionType.toUpperCase()} BUỒNG TRỨNG PHẢI (PHÂN LOẠI O-RADS 2).`;
+        document.getElementById('field_conclusion_l1').innerText = overrides.conc1 || `1. HÌNH ẢNH TỔN THƯƠNG ${activeSideLabel} — MẶT NẠ PHÂN ĐOẠN ĐÃ ĐƯỢC BÁC SĨ XÁC NHẬN TRÊN BÀN LÀM VIỆC HITL.`;
     }
     if (document.getElementById('field_conclusion_l2')) {
-        document.getElementById('field_conclusion_l2').innerText = overrides.conc2 || `2. BUỒNG TRỨNG TRÁI VÀ CÙNG ĐỒ DOUGLAS HIỆN TẠI TRONG GIỚI HẠN BÌNH THƯỜNG. ĐỀ NGHỊ SIÊU ÂM KIỂM TRA LẠI SAU 3 THÁNG.`;
+        let contraSummary = 'CHƯA KHẢO SÁT / KHÔNG QUAN SÁT THẤY TRONG LẦN KHÁM NÀY';
+        if (contraStatus === 'NORMAL') contraSummary = 'HÌNH THÁI BÌNH THƯỜNG TRÊN SIÊU ÂM';
+        else if (contraStatus === 'PREVIOUSLY_RESECTED') contraSummary = 'TIỀN SỬ ĐÃ CẮT BỎ';
+        document.getElementById('field_conclusion_l2').innerText = overrides.conc2 || `2. ${contraSideLabel}: ${contraSummary}. PHIẾU PHỤC VỤ NGHIÊN CỨU THỬ NGHIỆM HỆ THỐNG HITL.`;
     }
 
     // Images Gallery Binding
@@ -379,7 +522,7 @@ function openReportFromCaseDetail() {
     const review = firstImg?.review || null;
     const pred = firstImg?.prediction || null;
 
-    window.currentCase = {
+    currentCase = {
         patient_id: caseData.patient_id,
         patient_name: caseData.patient_name || 'Nguyễn Thị Phượng',
         patient_gender: caseData.patient_gender || 'Female / Nữ',
@@ -394,10 +537,10 @@ function openReportFromCaseDetail() {
     };
 
     if (pred?.measurements) {
-        window.currentPrediction = { measurements: pred.measurements };
+        currentPrediction = { prediction_id: pred.prediction_id, measurements: pred.measurements };
     }
 
-    populateReportSheet(window.currentCase, {
+    populateReportSheet(currentCase, {
         pid: caseData.patient_id,
         name: caseData.patient_name || 'Nguyễn Thị Phượng',
         orderDate: caseData.study_date,
@@ -447,19 +590,19 @@ async function downloadCurrentPdfReport() {
         visitType: document.getElementById('field_visitType')?.innerText || "Khám ngoại trú (OPD) / 3090373",
         referringDoctor: document.getElementById('field_referringDoctor')?.innerText || "TS. BS. Lê Khắc Hiếu",
         serviceName: document.getElementById('field_serviceName')?.innerText || "Khám chuyên khoa Phụ khoa — Siêu âm Đầu dò",
-        orderName: document.getElementById('field_orderName')?.innerText || "Siêu âm buồng trứng qua ngả âm đạo [Đánh giá khối u nang bằng AI Attention U-Net]",
+        orderName: document.getElementById('field_orderName')?.innerText || "Siêu âm buồng trứng qua ngả âm đạo [Hỗ trợ phân đoạn U-Net Baseline]",
         completedDate: document.getElementById('field_completedDate')?.innerText || "26-Aug-2026 11:07 AM",
         rpid: document.getElementById('field_rpid')?.innerText || "HAN26652307901",
         clinicalDiagnosis: document.getElementById('field_clinicalDiagnosis')?.innerText || "Theo dõi u nang buồng trứng phải / Đau tức nhẹ vùng hạ vị",
-        technique: document.getElementById('field_technique')?.innerText || "Siêu âm 2D Doppler màu ngả âm đạo kết hợp mô hình AI Attention U-Net tự động phân đoạn ranh giới u và trích xuất kích thước trực giao (D1, D2, Diện tích).",
-        ovary_r1: document.getElementById('field_ovary_r1')?.innerText || "- Kích thước buồng trứng: 38 x 26 mm. Vị trí tiếp giáp bình thường.",
-        ovary_r2: document.getElementById('field_ovary_r2')?.innerText || "- Tổn thương: Bên trong phát hiện 01 cấu trúc dạng u nang, ranh giới rõ, thành mỏng đều.",
-        ovary_r3: document.getElementById('field_ovary_r3')?.innerText || "- Đo đạc AI (Attention U-Net): Đường kính lớn nhất D1 = 28.5 mm, Đường kính trực giao D2 = 21.0 mm, Diện tích = 4.62 cm².",
-        ovary_r4: document.getElementById('field_ovary_r4')?.innerText || "- Doppler màu: Không thấy tăng sinh mạch máu bất thường trong vách hoặc thành nang (RI = 0.62).",
-        ovary_l1: document.getElementById('field_ovary_l1')?.innerText || "- Kích thước buồng trứng: 26 x 18 mm. Nhu mô đồng nhất. Các nang noãn sinh lý < 8 mm rải rác ở ngoại vi, không thấy cấu trúc u cục khu trú hay nang bất thường.",
+        technique: document.getElementById('field_technique')?.innerText || "Siêu âm 2D ngả âm đạo kết hợp mô hình Standard U-Net baseline tự động phân đoạn ranh giới tổn thương.",
+        ovary_r1: document.getElementById('field_ovary_r1')?.innerText || "- Vùng quan tâm buồng trứng: Tiếp giáp và ranh giới tổn thương rõ trên ảnh siêu âm 2D.",
+        ovary_r2: document.getElementById('field_ovary_r2')?.innerText || "- Vùng quan tâm (ROI): Phát hiện vùng tổn thương dạng nang/khối buồng trứng.",
+        ovary_r3: document.getElementById('field_ovary_r3')?.innerText || "- Đo đạc AI (Standard U-Net baseline): Đường kính D1 = 28.5 mm, Đường kính trực giao D2 = 21.0 mm, Diện tích = 4.62 cm² (hiệu chuẩn).",
+        ovary_r4: document.getElementById('field_ovary_r4')?.innerText || "- Rà soát Human-in-the-Loop (HITL): Mặt nạ phân đoạn đã được người dùng kiểm tra đối chiếu.",
+        ovary_l1: document.getElementById('field_ovary_l1')?.innerText || "- Buồng trứng đối bên: Cấu trúc mô đồng nhất, không phát hiện khối bất thường rõ rệt.",
         douglas: document.getElementById('field_douglas')?.innerText || "- Cùng đồ sau không có dịch tự do. Không phát hiện khối bất thường vùng tiểu khung.",
-        conclusion_l1: document.getElementById('field_conclusion_l1')?.innerText || "1. HÌNH ẢNH U NANG BUỒNG TRỨNG PHẢI (THEO DÕI U BÌ / U NANG THANH DỊCH - PHÂN LOẠI O-RADS 2).",
-        conclusion_l2: document.getElementById('field_conclusion_l2')?.innerText || "2. BUỒNG TRỨNG TRÁI VÀ CÙNG ĐỒ DOUGLAS HIỆN TẠI TRONG GIỚI HẠN BÌNH THƯỜNG. ĐỀ NGHỊ SIÊU ÂM KIỂM TRA LẠI SAU 3 THÁNG.",
+        conclusion_l1: document.getElementById('field_conclusion_l1')?.innerText || "1. KẾT QUẢ PHÂN ĐOẠN TỔN THƯƠNG NGHIÊN CỨU: Vùng tổn thương đã được mô hình Standard U-Net baseline định vị và rà soát xác nhận.",
+        conclusion_l2: document.getElementById('field_conclusion_l2')?.innerText || "2. LƯU Ý BẢN MẪU: Đây là bản mẫu nghiên cứu thực nghiệm phục vụ khóa luận tốt nghiệp, không thay thế chẩn đoán lâm sàng chính thức.",
         doctorTitle: document.getElementById('field_doctorTitle')?.innerText || "Bác sĩ chuyên khoa Chẩn đoán hình ảnh",
         doctorName: document.getElementById('field_doctorName')?.innerText || "BS.CKII. Trương Thị Phượng",
         imageBefore: imageBeforeVal,
@@ -468,30 +611,15 @@ async function downloadCurrentPdfReport() {
         imageCaliperTag: `D1: ${document.getElementById('resDmax')?.innerText || '28.5 mm'} • D2: ${document.getElementById('resDorth')?.innerText || '21.0 mm'} • DT: ${document.getElementById('resArea')?.innerText || '4.62 cm²'}`
     };
 
-    try {
-        const resp = await fetch(`${API_BASE}/api/generate-report`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(reportPayload)
-        });
-        if (!resp.ok) throw new Error("Lỗi máy chủ khi tạo file PDF");
-
-        const blob = await resp.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const pidName = reportPayload.patientId || "VINMEC";
-        a.download = `Phieu_Ket_Qua_Sieu_Am_${pidName}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        showToast("✓ Đã tải file PDF phiếu kết quả siêu âm chuẩn Vinmec!");
-    } catch (err) {
-        showToast("Lỗi xuất PDF: " + err.message, false);
-    }
+    showToast("Đang chuẩn bị hộp thoại In / Lưu phiếu PDF (A4)...", true);
+    setTimeout(() => {
+        window.print();
+    }, 300);
 }
 
 function printCurrentReport() {
-            showToast("Đang chuẩn bị trang in phiếu kết quả...", true);
-            window.print();
-        }
+    showToast("Đang chuẩn bị trang in phiếu kết quả...", true);
+    setTimeout(() => {
+        window.print();
+    }, 200);
+}
