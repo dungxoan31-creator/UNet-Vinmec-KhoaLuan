@@ -210,23 +210,29 @@ async function loadEvaluationData() {
 
         if (metricsResp.ok) {
             const metrics = await metricsResp.json();
-            const valMetrics = metrics.validation_set || {};
+            const valMetrics = metrics.validation || metrics.validation_set || {};
             const elDice = document.getElementById('evalValDice');
             const elIoU = document.getElementById('evalValIoU');
             const elPrec = document.getElementById('evalValPrec');
             const elRecall = document.getElementById('evalValRecall');
             const elSpec = document.getElementById('evalValSpec');
 
-            if (elDice) elDice.innerText = typeof valMetrics.mean_dice === 'number' ? (valMetrics.mean_dice * 100).toFixed(2) + '%' : '82.33%';
-            if (elIoU) elIoU.innerText = typeof valMetrics.mean_iou === 'number' ? (valMetrics.mean_iou * 100).toFixed(2) + '%' : '72.98%';
-            if (elPrec) elPrec.innerText = typeof valMetrics.precision === 'number' ? (valMetrics.precision * 100).toFixed(2) + '%' : '83.03%';
-            if (elRecall) elRecall.innerText = typeof valMetrics.recall_sensitivity === 'number' ? (valMetrics.recall_sensitivity * 100).toFixed(2) + '%' : '86.53%';
-            if (elSpec) elSpec.innerText = typeof valMetrics.specificity === 'number' ? (valMetrics.specificity * 100).toFixed(2) + '%' : '97.43%';
+            const dMean = valMetrics.dice_mean ?? valMetrics.mean_dice;
+            const iMean = valMetrics.iou_mean ?? valMetrics.mean_iou;
+            const pMean = valMetrics.precision_mean ?? valMetrics.precision;
+            const rMean = valMetrics.recall_mean ?? valMetrics.recall_sensitivity;
+            const sMean = valMetrics.specificity;
+
+            if (elDice) elDice.innerText = typeof dMean === 'number' ? (dMean * 100).toFixed(2) + '%' : '82.33%';
+            if (elIoU) elIoU.innerText = typeof iMean === 'number' ? (iMean * 100).toFixed(2) + '%' : '72.98%';
+            if (elPrec) elPrec.innerText = typeof pMean === 'number' ? (pMean * 100).toFixed(2) + '%' : '83.03%';
+            if (elRecall) elRecall.innerText = typeof rMean === 'number' ? (rMean * 100).toFixed(2) + '%' : '86.53%';
+            if (elSpec) elSpec.innerText = typeof sMean === 'number' ? (sMean * 100).toFixed(2) + '%' : '97.43%';
         }
 
         if (samplesResp.ok) {
             const data = await samplesResp.json();
-            window.evaluationSamples = data.samples || [];
+            window.evaluationSamples = Array.isArray(data) ? data : (data.samples || []);
             updateEvaluationSampleCounts();
             renderEvaluationSamplesTable(window.evaluationSamples);
         }
@@ -239,8 +245,8 @@ function updateEvaluationSampleCounts() {
     const samples = window.evaluationSamples || [];
     const countAll = samples.length;
     const countLowDice = samples.filter(s => s.dice < 0.70).length;
-    const countFN = samples.filter(s => s.error_category === 'FALSE_NEGATIVE_DOMINANT').length;
-    const countFP = samples.filter(s => s.error_category === 'FALSE_POSITIVE_DOMINANT').length;
+    const countFN = samples.filter(s => (s.failure_category || s.error_category) === 'FALSE_NEGATIVE_DOMINANT').length;
+    const countFP = samples.filter(s => (s.failure_category || s.error_category) === 'FALSE_POSITIVE_DOMINANT').length;
     const countHighDice = samples.filter(s => s.dice >= 0.90).length;
 
     const elAll = document.getElementById('countAll');
@@ -273,9 +279,9 @@ function filterFailureCases(category) {
     if (category === 'low_dice') {
         filtered = samples.filter(s => s.dice < 0.70);
     } else if (category === 'fn') {
-        filtered = samples.filter(s => s.error_category === 'FALSE_NEGATIVE_DOMINANT');
+        filtered = samples.filter(s => (s.failure_category || s.error_category) === 'FALSE_NEGATIVE_DOMINANT');
     } else if (category === 'fp') {
-        filtered = samples.filter(s => s.error_category === 'FALSE_POSITIVE_DOMINANT');
+        filtered = samples.filter(s => (s.failure_category || s.error_category) === 'FALSE_POSITIVE_DOMINANT');
     } else if (category === 'high_dice') {
         filtered = samples.filter(s => s.dice >= 0.90);
     }
@@ -292,12 +298,13 @@ function renderEvaluationSamplesTable(samples) {
     }
 
     tbody.innerHTML = samples.map(s => {
+        const cat = s.failure_category || s.error_category;
         let catBadge = '';
-        if (s.error_category === 'FALSE_NEGATIVE_DOMINANT') {
+        if (cat === 'FALSE_NEGATIVE_DOMINANT') {
             catBadge = `<span class="badge" style="background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5;">⚠️ Bỏ sót tổn thương (False Negative)</span>`;
-        } else if (s.error_category === 'FALSE_POSITIVE_DOMINANT') {
+        } else if (cat === 'FALSE_POSITIVE_DOMINANT') {
             catBadge = `<span class="badge" style="background: #fff7ed; color: #ea580c; border: 1px solid #fdba74;">⚠️ Dương tính giả (False Positive)</span>`;
-        } else if (s.error_category === 'EXCELLENT_ALIGNMENT') {
+        } else if (cat === 'EXCELLENT' || cat === 'EXCELLENT_ALIGNMENT') {
             catBadge = `<span class="badge badge-success">✓ Khớp xuất sắc (Dice ≥ 0.85)</span>`;
         } else {
             catBadge = `<span class="badge badge-info">✓ Khớp chấp nhận được</span>`;
