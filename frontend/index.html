@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ Thống AI Phân Tích Siêu Âm Buồng Trứng | Bệnh Viện Đa Khoa Quốc Tế Vinmec</title>
+    <title>Prototype nghiên cứu phân đoạn siêu âm buồng trứng</title>
     
     <!-- Favicon & Fonts -->
     <link rel="icon" type="image/svg+xml" href="/static/vinmec_logo.svg">
@@ -25,7 +25,7 @@
     <div class="top-emergency-ribbon">
         <div class="ribbon-left">
             <div class="ribbon-item">
-                <span>🏥</span> <span>NGHIÊN CỨU DỮ LIỆU LÂM SÀNG: VINMEC TIMES CITY</span>
+                <span>🏥</span> <span>PROTOTYPE NGHIÊN CỨU — DỮ LIỆU MMOTU/OTU_2D</span>
                 <span style="background: #0284c7; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">BẢN MẪU THỰC NGHIỆM</span>
             </div>
             <div class="ribbon-item" style="background: rgba(255, 255, 255, 0.15); padding: 2px 8px; border-radius: var(--radius-pill);">
@@ -68,16 +68,16 @@
         <!-- Navigation Menu -->
         <nav class="main-nav">
             <button class="nav-item-btn active" id="navDashboard" onclick="navigateTo('dashboard')">
-                📊 Bảng Điều Khiển
+                📊 Tổng Quan
             </button>
             <button class="nav-item-btn" id="navNewCase" onclick="navigateTo('create_case')">
-                🩺 Khám & Phân Tích
+                🩺 Ca Khám Mới
             </button>
             <button class="nav-item-btn" id="navHistory" onclick="navigateTo('history')">
-                📁 Hồ Sơ Bệnh Án
+                📁 Danh Sách Ca Bệnh
             </button>
             <button class="nav-item-btn" id="navAdminPortal" onclick="navigateTo('admin_portal')">
-                🛡️ Quản Trị AI
+                🛡️ Cổng Quản Trị
             </button>
         </nav>
 
@@ -93,10 +93,10 @@
                     <span class="pulse-indicator" aria-hidden="true"></span>
                     <span class="doc-avatar-circle" id="headerUserAvatar" aria-hidden="true">BS</span>
                     <span style="display: flex; flex-direction: column; text-align: left; line-height: 1.15;" aria-hidden="true">
-                        <span id="headerUserName" style="font-weight: 700;">BS.CKI Nguyễn Văn A</span>
-                        <span id="headerUserDept" style="font-size: 9.5px; color: var(--vm-text-muted);">Vinmec Times City</span>
+                        <span id="headerUserName" style="font-weight: 700;">BS.CKII Trương Thị Phượng</span>
+                        <span id="headerUserDept" style="font-size: 9.5px; color: var(--vm-text-muted);">Khoa CĐHA • Vinmec Times City</span>
                     </span>
-                    <span class="role-pill-badge role-pill-doctor" id="headerRoleBadge" aria-hidden="true">BÁC SĨ</span>
+                    <span class="role-pill-badge role-pill-doctor" id="headerRoleBadge" aria-hidden="true">BÁC SĨ CKII</span>
                 </button>
                 <button type="button" class="btn-switch-role-header" onclick="openRoleSwitchModal()" title="Đổi tài khoản">
                     <span>🔄</span> Đổi
@@ -118,16 +118,16 @@
                 <button type="button" class="btn btn-sm" aria-label="Đóng menu" onclick="closeMobileDrawer()">✕</button>
             </div>
             <button type="button" class="drawer-nav-item active" id="drawerNavDashboard" onclick="navigateTo('dashboard'); closeMobileDrawer();">
-                <span aria-hidden="true">📊</span> <span>Bảng Điều Khiển</span>
+                <span aria-hidden="true">📊</span> <span>Tổng Quan (Dashboard)</span>
             </button>
             <button type="button" class="drawer-nav-item" onclick="navigateTo('create_case'); closeMobileDrawer();">
-                <span aria-hidden="true">🩺</span> <span>Khám &amp; Phân Tích</span>
+                <span aria-hidden="true">🩺</span> <span>Ca Khám Mới (New Study)</span>
             </button>
             <button type="button" class="drawer-nav-item" onclick="navigateTo('history'); closeMobileDrawer();">
-                <span aria-hidden="true">📁</span> <span>Hồ Sơ Bệnh Án</span>
+                <span aria-hidden="true">📁</span> <span>Danh Sách Ca Bệnh (Studies)</span>
             </button>
             <button type="button" class="drawer-nav-item" id="drawerNavAdmin" onclick="navigateTo('admin_portal'); closeMobileDrawer();">
-                <span aria-hidden="true">🛡️</span> <span>Cổng Quản Trị AI</span>
+                <span aria-hidden="true">🛡️</span> <span>Cổng Quản Trị (Admin)</span>
             </button>
             <button type="button" class="drawer-nav-item" onclick="openRoleSwitchModal(); closeMobileDrawer();">
                 <span aria-hidden="true">🔄</span> <span>Đổi Tài Khoản</span>
@@ -150,11 +150,11 @@
             <div class="vinmec-hero-banner">
                 <div class="hero-headline-group">
                     <div class="hero-tag">
-                        <span>🌟</span> Hệ Thống Trợ Lý AI Chẩn Đoán Hình Ảnh Buồng Trứng (Human-in-the-Loop)
+                        <span>👩‍⚕️</span> Ca trực Phụ khoa — Khoa Chẩn đoán Hình ảnh • Bệnh viện ĐKQT Vinmec Times City
                     </div>
-                    <h1 class="hero-title">Trung Tâm Tiếp Nhận & Khám Bệnh Siêu Âm Buồng Trứng</h1>
+                    <h1 class="hero-title">Xin chào, BS.CKII. Trương Thị Phượng 👋</h1>
                     <p class="hero-desc">
-                        Tự động kiểm tra chất lượng IQA, phân đoạn u nang bằng <strong>Attention U-Net</strong>, tính toán thước đo Caliper và xuất phiếu PDF chuẩn Vinmec.
+                        Hệ thống hỗ trợ phân đoạn tổn thương buồng trứng Human-in-the-Loop • Mô hình <strong>Standard U-Net baseline</strong> (Tập dữ liệu OTU_2D).
                     </p>
                 </div>
 
@@ -166,7 +166,7 @@
                         </button>
                     </div>
                     <button type="button" class="btn btn-primary btn-lg" onclick="navigateTo('create_case')">
-                        <span>🩺</span> Khám Ca Mới →
+                        <span>🩺</span> Tiếp Nhận Ca Mới →
                     </button>
                 </div>
             </div>
@@ -177,7 +177,7 @@
                     <span style="font-size: 20px;">🔄</span>
                     <div>
                         <strong style="color: #92400e; font-size: 13px;">Phát hiện ca khám đang thực hiện dở dang:</strong>
-                        <div style="font-size: 11.5px; color: #78350f;" id="draftBannerText">Mã BN: BN-VINMEC-9284 • Lưu tự động</div>
+                        <div style="font-size: 11.5px; color: #78350f;" id="draftBannerText">Chưa có mã ca nghiên cứu</div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px;">
@@ -192,32 +192,32 @@
                     <span class="stat-card-subbadge">Hôm nay</span>
                     <div class="stat-icon-wrapper" style="background: #e0f2fe; color: #0369a1;">📋</div>
                     <div>
-                        <div class="stat-number-val" id="statTotalImgs">435</div>
+                        <div class="stat-number-val" id="statTotalImgs">0</div>
                         <div class="stat-label-text">Tổng ca tiếp nhận</div>
                     </div>
                 </div>
                 <div class="stat-card-white" style="border-top-color: var(--vm-green);">
-                    <span class="stat-card-subbadge">Ground Truth</span>
+                    <span class="stat-card-subbadge">Đã rà soát</span>
                     <div class="stat-icon-wrapper" style="background: var(--vm-green-light); color: var(--vm-green);">✓</div>
                     <div>
-                        <div class="stat-number-val" id="statGtConfirmed">311</div>
-                        <div class="stat-label-text">Ca Bác sĩ đã ký duyệt</div>
+                        <div class="stat-number-val" id="statGtConfirmed">0</div>
+                        <div class="stat-label-text">Ca đã rà soát mask</div>
                     </div>
                 </div>
                 <div class="stat-card-white" style="border-top-color: var(--vm-gold);">
                     <span class="stat-card-subbadge">Chờ xử lý</span>
                     <div class="stat-icon-wrapper" style="background: var(--vm-gold-light); color: #d97706;">⏳</div>
                     <div>
-                        <div class="stat-number-val" id="statPending">124</div>
-                        <div class="stat-label-text">Ca chờ đánh giá lâm sàng</div>
+                        <div class="stat-number-val" id="statPending">0</div>
+                        <div class="stat-label-text">Ca chờ rà soát mask</div>
                     </div>
                 </div>
                 <div class="stat-card-white" style="border-top-color: #06b6d4;">
                     <span class="stat-card-subbadge">Consensus</span>
                     <div class="stat-icon-wrapper" style="background: #ecfeff; color: #0c5a6e;">🎯</div>
                     <div>
-                        <div class="stat-number-val" id="statAcceptRate" style="color: #0c5a6e;">82.5%</div>
-                        <div class="stat-label-text">Độ đồng thuận AI</div>
+                        <div class="stat-number-val" id="statAcceptRate" style="color: #0c5a6e;">N/A</div>
+                        <div class="stat-label-text">Tỉ lệ đồng thuận AI</div>
                     </div>
                 </div>
             </div>
@@ -246,8 +246,8 @@
                                 <th>Mã Ca</th>
                                 <th>Mã Bệnh Nhân</th>
                                 <th>Ngày Khám</th>
-                                <th>Phân Loại Tổn Thương</th>
-                                <th>Kích Thước Dmax</th>
+                                 <th>Mask AI</th>
+                                 <th>Mask cuối</th>
                                 <th>Trạng Thái</th>
                                 <th>Thao Tác</th>
                             </tr>
@@ -296,6 +296,33 @@
                         <input type="text" id="inputStudyCode" class="form-input" placeholder="Tự động sinh nếu để trống (VD: VN-202608-01)">
                     </div>
 
+                    <!-- Anatomical Laterality 2-Tab Selector -->
+                    <div class="form-group" style="background: #f8fafc; border: 1px solid var(--vm-border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px;">
+                        <label class="form-label" style="font-weight: 700; color: var(--vm-blue); margin-bottom: 6px;">
+                            📍 Định Vị Giải Phẫu Ca Siêu Âm (Ovary Laterality) <span class="required">*</span>
+                        </label>
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <button type="button" class="btn btn-sm active" id="tabOvaryRight" onclick="selectOvarySide('RIGHT')" style="flex: 1; padding: 8px; font-weight: 700; border-radius: var(--radius-sm); border: 2px solid var(--vm-blue); background: #eff6ff; color: var(--vm-blue);">
+                                🔘 Buồng Trứng Phải (Right Ovary)
+                            </button>
+                            <button type="button" class="btn btn-sm" id="tabOvaryLeft" onclick="selectOvarySide('LEFT')" style="flex: 1; padding: 8px; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid var(--vm-border); background: #ffffff; color: var(--vm-text-dark);">
+                                ⚪ Buồng Trứng Trái (Left Ovary)
+                            </button>
+                        </div>
+                        <input type="hidden" id="inputActiveOvarySide" value="RIGHT">
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                            <label for="selectContralateralStatus" style="font-size: 12px; font-weight: 600; color: var(--vm-text-dark); margin: 0;">
+                                Trạng thái buồng trứng đối bên:
+                            </label>
+                            <select id="selectContralateralStatus" class="form-select" style="max-width: 280px; font-size: 12px; padding: 4px 8px;">
+                                <option value="NOT_VISUALIZED" selected>⚠️ Không quan sát được (Not visualized)</option>
+                                <option value="NORMAL">✓ Bình thường, không có u (Normal)</option>
+                                <option value="SUSPECTED">⚡ Nghi ngờ có tổn thương riêng</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                         <div class="form-group">
                             <label for="inputStudyDate" class="form-label">Ngày Siêu Âm</label>
@@ -318,8 +345,8 @@
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-                        <button type="button" class="btn" onclick="handleBrandClick()">
-                            ← Quay lại
+                        <button type="button" class="btn" onclick="navigateTo('dashboard')">
+                            ← Quay lại Bảng điều khiển
                         </button>
                         <button type="submit" class="btn btn-primary btn-lg">
                             Tiếp tục: Tải ảnh siêu âm →
@@ -349,7 +376,7 @@
                 <div class="card-header-bar">
                     <div>
                         <div class="card-title-main">Bước 2: Tải Ảnh Siêu Âm Buồng Trứng</div>
-                        <div class="card-subtitle-sub">Hồ sơ bệnh nhân: <strong id="uploadCurrentPidText" style="color: var(--vm-blue-start);">BN-VINMEC-185</strong></div>
+                        <div class="card-subtitle-sub">Mã ca nghiên cứu: <strong id="uploadCurrentPidText" style="color: var(--vm-blue-start);">Chưa có</strong></div>
                     </div>
                 </div>
 
@@ -455,7 +482,7 @@
                 <div class="pulsing-radar-circle">🔍</div>
                 <h2 style="font-size: 18px; font-weight: 800; color: var(--vm-text-heading);">Mô Hình AI Đang Phân Đoạn Tổn Thương</h2>
                 <p style="font-size: 13px; color: var(--vm-text-muted); margin-top: 4px;">
-                    Kiến trúc <strong>Attention U-Net</strong> đang quét ma trận điểm ảnh và trích xuất số đo Caliper tự động...
+                    <strong>U-Net baseline</strong> đang dự đoán mask tổn thương...
                 </p>
 
                 <div class="stepped-inference-list">
@@ -463,13 +490,13 @@
                         <span>✓</span> <span>Đã nạp hình ảnh siêu âm 2D độ phân giải cao</span>
                     </div>
                     <div class="step-inf-item done" id="infStep2">
-                        <span>✓</span> <span>Tiền xử lý ROI & chuẩn hóa biểu đồ mức xám (CLAHE)</span>
+                        <span>✓</span> <span>Chuyển grayscale, letterbox 512×512 và CLAHE</span>
                     </div>
                     <div class="step-inf-item active" id="infStep3">
-                        <span>●</span> <span>Attention U-Net phân đoạn ranh giới tổn thương u nang</span>
+                        <span>●</span> <span>U-Net baseline phân đoạn ranh giới tổn thương</span>
                     </div>
                     <div class="step-inf-item" id="infStep4">
-                        <span>○</span> <span>Tự động định vị thước ngắm Caliper (D1, D2, Diện tích)</span>
+                        <span>○</span> <span>Tạo mask nhị phân để rà soát</span>
                     </div>
                     <div class="step-inf-item" id="infStep5">
                         <span>○</span> <span>Tổng hợp hồ sơ và chuẩn bị giao diện đánh giá Bác sĩ</span>
@@ -500,6 +527,42 @@
                 <div class="step-pill completed"><div class="step-num-badge">✓</div> AI Phân tích</div>
                 <div class="step-line-sep"></div>
                 <div class="step-pill active"><div class="step-num-badge">5</div> Kết quả & Ký duyệt</div>
+            </div>
+
+            <!-- Case Summary Strip -->
+            <div class="viewer-case-summary-strip">
+                <div class="viewer-case-meta-group">
+                    <div class="viewer-case-meta-item">
+                        <span class="viewer-case-meta-label">Bệnh nhân:</span>
+                        <span class="viewer-case-meta-value mono" id="viewerPatientId">BN-VINMEC-9284</span>
+                    </div>
+                    <div class="viewer-case-meta-item">
+                        <span class="viewer-case-meta-label">Mã ca:</span>
+                        <span class="viewer-case-meta-value mono" id="viewerStudyCode">STD-260829-A1B2</span>
+                    </div>
+                    <div class="viewer-case-meta-item">
+                        <span class="viewer-case-meta-label">Ngày khám:</span>
+                        <span class="viewer-case-meta-value" id="viewerStudyDate">26-08-2026</span>
+                    </div>
+                    <div class="viewer-case-meta-item">
+                        <span class="viewer-case-meta-label">Kỹ thuật:</span>
+                        <span class="viewer-case-meta-value" id="viewerModality">Siêu âm đầu dò âm đạo (TVUS 2D)</span>
+                    </div>
+                </div>
+                <div class="viewer-case-meta-group">
+                    <div class="viewer-case-meta-item">
+                        <span class="viewer-case-meta-label">Vị trí:</span>
+                        <span class="badge badge-cyan" id="viewerOvarySideBadge">Buồng Trứng Phải (RO)</span>
+                    </div>
+                    <div class="viewer-case-meta-item">
+                        <span class="viewer-case-meta-label">Bên đối diện:</span>
+                        <span class="badge badge-warning" id="viewerContralateralBadge">Chưa khảo sát</span>
+                    </div>
+                    <div class="viewer-case-meta-item">
+                        <span class="viewer-case-meta-label">Chỉ định:</span>
+                        <span class="viewer-case-meta-value" id="viewerIndication" style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Theo dõi u nang buồng trứng phải</span>
+                    </div>
+                </div>
             </div>
 
             <div class="results-workspace-grid">
@@ -597,7 +660,7 @@
                         <div class="split-pane">
                             <div class="split-pane-header">
                                 <span>🖌️ MÔ HÌNH AI & BIÊN TẬP</span>
-                                <span style="color: #34d399;">ATTENTION U-NET</span>
+                                <span id="workstationModelName" style="color: #34d399;">U-NET BASELINE</span>
                             </div>
                             <canvas id="splitEditorCanvas" width="512" height="512"></canvas>
                         </div>
@@ -607,32 +670,32 @@
                 <!-- Right: Clinical Decision & Doctor EHR Panel -->
                 <div class="decision-panel-card">
                     <!-- Integrated Header with Confidence & Model info -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px; border-bottom: 1px solid var(--vm-border);">
-                        <div style="font-weight: 800; font-size: 12.5px; color: var(--vm-text-heading); display: flex; align-items: center; gap: 4px;">
-                            <span>📊</span> Attention U-Net v1.2
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px; border-bottom: 1px solid var(--vm-border); flex-wrap: wrap; gap: 4px;">
+                        <div style="font-weight: 800; font-size: 12.5px; color: var(--vm-text-heading); display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                            <span>📊</span> U-Net baseline
                         </div>
-                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                            <span class="badge badge-info" id="badgeConfidence" style="font-size: 10px; padding: 2px 7px;">Độ tin cậy AI: --%</span>
-                            <span class="badge" style="background: #f1f5f9; color: #475569; font-size: 10px; padding: 2px 7px;">📐 0.10 mm/px</span>
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
+                            <span class="badge badge-info" id="badgeConfidence" style="display: none; font-size: 10px; padding: 2px 7px;">Model score: --</span>
+                            <span class="badge" id="badgePixelSpacing" style="background: #f1f5f9; color: #475569; font-size: 10px; padding: 2px 7px;">📐 Chưa hiệu chuẩn mm</span>
                         </div>
                     </div>
 
                     <!-- Compact CDSS Alert Bar -->
                     <div class="clinical-cdss-alert-bar" id="clinicalCdssAlertBar">
                         <div class="cdss-alert-top">
-                            <span style="font-weight: 700; color: #1e3a8a; white-space: nowrap;">🤖 Gợi ý AI: Cần Bác sĩ thẩm định &amp; ký duyệt</span>
+                             <span style="font-weight: 700; color: #1e3a8a;">Mask AI: Cần người rà soát & xác nhận</span>
                             <div class="cdss-alert-badges">
                                 <span class="badge" id="hudUncertaintyBadge" style="display: none; font-size: 9.5px; background: #fef3c7; color: #92400e;">Bất định: THẤP</span>
-                                <span class="badge" id="hudProvenanceTag" style="font-size: 9.5px; background: #dbeafe; color: #1d4ed8; font-family: monospace;">Attention U-Net • v1.2</span>
+                                 <span class="badge" id="hudProvenanceTag" style="font-size: 9.5px; background: #dbeafe; color: #1d4ed8; font-family: monospace;">U-Net baseline</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Uncertainty Alert -->
-                    <div id="clinicalUncertaintyAlert" style="display: none; padding: 5px 9px; background: #fff7ed; border-left: 3px solid #f97316; border-radius: var(--radius-sm); font-size: 10.5px; color: #9a3412; line-height: 1.35;"></div>
+                    <div id="clinicalUncertaintyAlert" style="display: none; padding: 5px 9px; background: #fff7ed; border-left: 3px solid #f97316; border-radius: var(--radius-sm); font-size: 10.5px; color: #9a3412; line-height: 1.35; word-break: break-word;"></div>
 
                     <!-- 5 Metrics in ONE Single Responsive Strip -->
-                    <div class="metric-pill-grid">
+                     <div class="metric-pill-grid" style="display: none;" aria-hidden="true">
                         <div class="metric-pill-item">
                             <div class="metric-pill-val" id="resDmax">32.4 mm</div>
                             <div class="metric-pill-lbl">D1 (Dmax)</div>
@@ -665,7 +728,7 @@
                             <input type="radio" id="radioDocActionAccept" name="radioDocAction" value="ACCEPTED_RAW" aria-label="Chấp nhận kết quả AI" onchange="chooseDoctorAction('ACCEPTED_RAW')" checked>
                             <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;" aria-hidden="true">
                                 <strong style="font-size: 11.5px; color: var(--vm-text-heading);">✓ Chấp nhận kết quả AI</strong>
-                                <span style="font-size: 9.5px; color: var(--vm-text-muted);">Ranh giới &amp; số đo chuẩn</span>
+                                 <span style="font-size: 9.5px; color: var(--vm-text-muted);">Giữ nguyên mask AI</span>
                             </div>
                         </label>
                         <label class="decision-choice-card" id="cardOptModify" for="radioDocActionModify">
@@ -678,14 +741,14 @@
                         <label class="decision-choice-card" id="cardOptReject" for="radioDocActionReject">
                             <input type="radio" id="radioDocActionReject" name="radioDocAction" value="REJECTED_ALL" aria-label="Từ chối / Bình thường" onchange="chooseDoctorAction('REJECTED_ALL')">
                             <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;" aria-hidden="true">
-                                <strong style="font-size: 11.5px; color: var(--vm-text-heading);">✕ Từ chối / Bình thường</strong>
-                                <span style="font-size: 9.5px; color: var(--vm-text-muted);">Không phát hiện u nang</span>
+                                 <strong style="font-size: 11.5px; color: var(--vm-text-heading);">✕ Từ chối mask AI</strong>
+                                 <span style="font-size: 9.5px; color: var(--vm-text-muted);">Xóa vùng dự đoán sai</span>
                             </div>
                         </label>
                     </div>
 
                     <!-- Pathology Selection Card (Full Width) -->
-                    <div style="background: #f8fafc; border: 1px solid var(--vm-border); border-radius: var(--radius-sm); padding: 6px 8px; display: flex; flex-direction: column; gap: 3px;">
+                     <div style="display: none;" aria-hidden="true">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <label class="form-label" id="labelSelectPathology" for="selectPathology" style="margin-bottom: 0; font-size: 11px; font-weight: 700; color: var(--vm-text-heading);">Phân Loại Bệnh Học Buồng Trứng</label>
                             <span class="badge" id="aiAcousticPatternBadge" style="background:#dcfce7; color:#15803d; font-size:9.5px; font-weight:700; padding: 1px 6px;">Dịch trong</span>
@@ -705,7 +768,7 @@
                     </div>
 
                     <!-- O-RADS Risk Stratification Panel (Full Width) -->
-                    <div class="orads-risk-panel">
+                     <div class="orads-risk-panel" style="display: none;" aria-hidden="true">
                         <div class="orads-header">
                             <span class="orads-title">🏅 Phân tầng ACR O-RADS US v2022:</span>
                             <span class="orads-badge orads-badge-2" id="oradsScoreBadge">O-RADS 2 (LÀNH TÍNH &lt;1%)</span>
@@ -740,7 +803,7 @@
 
                     <!-- Prominent Sign-off CTA Button -->
                     <button type="button" class="btn btn-success btn-lg" style="margin-top: 2px; width: 100%; font-size: 12.5px; font-weight: 800; padding: 7px 10px;" onclick="openConfirmationModal()">
-                        ✍️ Xác Nhận &amp; Ký Duyệt Ca Khám
+                         ✓ Xác nhận mask cuối cùng
                     </button>
                 </div>
             </div>
@@ -753,31 +816,33 @@
             <div class="report-output-workspace">
                 <!-- Action Control Toolbar -->
                 <div class="report-output-toolbar">
-                    <div class="report-toolbar-info">
+                    <div class="report-toolbar-top">
                         <div class="report-toolbar-title">
-                            <span>📄</span> PHIẾU KẾT QUẢ CHẨN ĐOÁN SIÊU ÂM BUỒNG TRỨNG
-                            <span class="badge badge-success" style="font-size: 11px; margin-left: 8px;">✓ CHUẨN A4 QUỐC TẾ (JCI)</span>
+                            <span>📄</span> PHIẾU TỔNG HỢP KẾT QUẢ PHÂN ĐOẠN NGHIÊN CỨU
                         </div>
-                        <div class="report-toolbar-subtitle">
-                            Bệnh viện Đa khoa Quốc tế Vinmec Times City • Hệ thống hỗ trợ ra quyết định lâm sàng AI
-                        </div>
+                        <span class="report-toolbar-badge">
+                            ✓ Bản Mẫu Thực Nghiệm HITL (A4)
+                        </span>
                     </div>
-                    <div class="report-toolbar-actions">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="printCurrentReport()">
-                            🖨️ In Phiếu / Xuất PDF (A4)
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="openReportEditorModal()">
-                            ✏️ Chỉnh Sửa
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="downloadCurrentPdfReport()">
-                            📥 Tải File PDF
-                        </button>
-                        <button type="button" class="btn btn-sm" style="background: var(--vm-green); color: #fff; border: none;" onclick="navigateTo('create_case')">
-                            ➕ Ca Mới
-                        </button>
-                        <button type="button" class="btn btn-sm" onclick="navigateTo('dashboard')">
-                            📁 Về Dashboard
-                        </button>
+
+                    <div class="report-toolbar-bottom">
+                        <div class="report-toolbar-subtitle">
+                            Hệ thống hỗ trợ phân đoạn tổn thương buồng trứng • U-Net baseline (OTU_2D)
+                        </div>
+                        <div class="report-toolbar-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="openReportEditorModal()" title="Chỉnh sửa thông tin hành chính & mô tả trước khi in">
+                                ✏️ Sửa Phiếu
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="printCurrentReport()" title="Mở hộp thoại In hoặc Lưu thành tệp PDF (A4)">
+                                🖨️ In / Xuất PDF (A4)
+                            </button>
+                            <button type="button" class="report-toolbar-btn-glass" onclick="navigateTo('results')" title="Quay lại bàn làm việc phân đoạn">
+                                🖌️ Bàn Làm Việc
+                            </button>
+                            <button type="button" class="report-toolbar-btn-glass" onclick="navigateTo('dashboard')" title="Quay về Dashboard">
+                                📁 Dashboard
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -876,7 +941,7 @@
                             <section class="info-strip">
                                 <div class="info-strip-row">
                                     <span class="info-strip-lbl">Tên chỉ định:</span>
-                                    <span class="info-strip-val" style="font-weight:700;" id="field_orderName">Siêu âm buồng trứng qua ngả âm đạo [Đánh giá khối u nang bằng AI Attention U-Net]</span>
+                                    <span class="info-strip-val" style="font-weight:700;" id="field_orderName">Siêu âm buồng trứng qua ngả âm đạo [Hỗ trợ phân đoạn tổn thương U-Net baseline]</span>
                                 </div>
                                 <div class="info-strip-row">
                                     <span class="info-strip-lbl">Chẩn đoán lâm sàng:</span>
@@ -884,7 +949,7 @@
                                 </div>
                                 <div class="info-strip-row">
                                     <span class="info-strip-lbl">Kỹ thuật thực hiện:</span>
-                                    <span class="info-strip-val" id="field_technique">Siêu âm 2D Doppler màu ngả âm đạo kết hợp mô hình AI Attention U-Net tự động phân đoạn ranh giới u và trích xuất kích thước trực giao (D1, D2, Diện tích).</span>
+                                    <span class="info-strip-val" id="field_technique">Siêu âm B-mode 2D ngả âm đạo kết hợp mô hình Deep Learning U-Net baseline hỗ trợ phân đoạn ranh giới tổn thương và trích xuất kích thước hình học (D1, D2, Diện tích).</span>
                                 </div>
                             </section>
 
@@ -897,8 +962,8 @@
                                     <div class="finding-sub">1. BUỒNG TRỨNG PHẢI:</div>
                                     <div class="finding-item" id="field_ovary_r1">- Kích thước buồng trứng: 38 x 26 mm. Vị trí tiếp giáp bình thường.</div>
                                     <div class="finding-item" id="field_ovary_r2">- Tổn thương: Bên trong phát hiện 01 cấu trúc dạng u nang, ranh giới rõ, thành mỏng đều.</div>
-                                    <div class="finding-item" id="field_ovary_r3">- Đo đạc AI (Attention U-Net): Đường kính lớn nhất D1 = 28.5 mm, Đường kính trực giao D2 = 21.0 mm, Diện tích = 4.62 cm².</div>
-                                    <div class="finding-item" id="field_ovary_r4">- Doppler màu: Không thấy tăng sinh mạch máu bất thường trong vách hoặc thành nang (RI = 0.62).</div>
+                                    <div class="finding-item" id="field_ovary_r3">- Đo đạc kích thước hỗ trợ bởi U-Net: Đường kính lớn nhất D1 = 28.5 mm, Đường kính trực giao D2 = 21.0 mm, Diện tích = 4.62 cm².</div>
+                                    <div class="finding-item" id="field_ovary_r4">- Đánh giá mặt nạ: Bác sĩ đã rà soát ranh giới phân đoạn tổn thương buồng trứng trên giao diện HITL.</div>
 
                                     <div class="finding-sub" style="margin-top: 5px;">2. BUỒNG TRỨNG TRÁI:</div>
                                     <div class="finding-item" id="field_ovary_l1">- Kích thước buồng trứng: 26 x 18 mm. Nhu mô đồng nhất.</div>
@@ -913,7 +978,7 @@
                             <section class="gallery-container">
                                 <div class="section-head">
                                     <span>HÌNH ẢNH SIÊU ÂM MINH HỌA</span>
-                                    <span style="font-size:7.5pt; color:var(--vm-text-dim); text-transform:none; font-weight:600;">Hỗ trợ phân đoạn: Attention U-Net Dual Gates</span>
+                                    <span style="font-size:7.5pt; color:var(--vm-text-dim); text-transform:none; font-weight:600;">Hỗ trợ phân đoạn: Standard U-Net Baseline</span>
                                 </div>
                                 <div class="gallery-grid">
                                     <!-- BEFORE: RAW IMAGE -->
@@ -950,9 +1015,9 @@
 
                             <!-- CONCLUSION BLOCK -->
                             <section class="conclusion-container">
-                                <div class="conclusion-head">KẾT LUẬN</div>
-                                <p class="conclusion-text-l1" id="field_conclusion_l1">1. HÌNH ẢNH U NANG BUỒNG TRỨNG PHẢI (THEO DÕI U BÌ / U NANG THANH DỊCH - PHÂN LOẠI O-RADS 2).</p>
-                                <p class="conclusion-text-l2" id="field_conclusion_l2">2. BUỒNG TRỨNG TRÁI VÀ CÙNG ĐỒ DOUGLAS HIỆN TẠI TRONG GIỚI HẠN BÌNH THƯỜNG. ĐỀ NGHỊ SIÊU ÂM KIỂM TRA LẠI SAU 3 THÁNG.</p>
+                                <div class="conclusion-head">KẾT LUẬN TỔNG HỢP</div>
+                                <p class="conclusion-text-l1" id="field_conclusion_l1">1. HÌNH ẢNH CẤU TRÚC DẠNG NANG BUỒNG TRỨNG PHẢI — MẶT NẠ PHÂN ĐOẠN ĐÃ ĐƯỢC BÁC SĨ XÁC NHẬN TRÊN BÀN LÀM VIỆC HITL.</p>
+                                <p class="conclusion-text-l2" id="field_conclusion_l2">2. PHIẾU TỔNG HỢP NÀY PHỤC VỤ NGHIÊN CỨU THỬ NGHIỆM HỆ THỐNG HITL, CẦN ĐỐI CHIẾU LÂM SÀNG TRƯỚC KHI RA QUYẾT ĐỊNH ĐIỀU TRỊ.</p>
                             </section>
 
                             <!-- SIGNATURE AND DOCTOR APPROVAL -->
@@ -1003,7 +1068,7 @@
                     <label for="histStatusFilter" class="sr-only">Lọc theo trạng thái ca bệnh</label>
                     <select id="histStatusFilter" class="form-select" aria-label="Lọc theo trạng thái ca bệnh" onchange="filterHistory()">
                         <option value="ALL">Tất cả trạng thái</option>
-                        <option value="REVIEWED">Đã ký duyệt (Ground Truth)</option>
+                         <option value="REVIEWED">Đã rà soát mask</option>
                         <option value="ANALYZED">Đã chạy AI</option>
                         <option value="PENDING">Chờ phân tích</option>
                     </select>
@@ -1019,8 +1084,8 @@
                                 <th>Mã Ca</th>
                                 <th>Mã Bệnh Nhân</th>
                                 <th>Ngày Khám</th>
-                                <th>Phân Loại Tổn Thương</th>
-                                <th>Kích Thước Dmax</th>
+                                 <th>Mask AI</th>
+                                 <th>Mask cuối</th>
                                 <th>Trạng Thái</th>
                                 <th>Thao Tác</th>
                             </tr>
@@ -1048,7 +1113,7 @@
                             Trung Tâm Điều Hành & Giám Sát AI Y Tế Vinmec
                         </h1>
                         <p style="font-size: 12.5px; color: #cbd5e1;">
-                            Giám sát thời gian thực toàn bộ <strong>435 ca siêu âm tiếp nhận</strong>, <strong>311 ca ký duyệt</strong>, tỷ lệ đồng thuận AI <strong>82.5%</strong>.
+                            Thống kê từ các ca nghiên cứu đã lưu trong hệ thống.
                         </p>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
@@ -1088,7 +1153,7 @@
                         <span class="stat-card-subbadge">Toàn mạng lưới</span>
                         <div class="stat-icon-wrapper" style="background: #e0f2fe; color: #0369a1;">📋</div>
                         <div>
-                            <div class="stat-number-val" id="adminStatTotal">435</div>
+                            <div class="stat-number-val" id="adminStatTotal">0</div>
                             <div class="stat-label-text">Tổng ca siêu âm tiếp nhận</div>
                         </div>
                     </div>
@@ -1096,7 +1161,7 @@
                         <span class="stat-card-subbadge">Bác sĩ ký duyệt</span>
                         <div class="stat-icon-wrapper" style="background: var(--vm-green-light); color: var(--vm-green);">✓</div>
                         <div>
-                            <div class="stat-number-val" id="adminStatSigned">311</div>
+                            <div class="stat-number-val" id="adminStatSigned">0</div>
                             <div class="stat-label-text">Ca Bác sĩ đã ký duyệt</div>
                         </div>
                     </div>
@@ -1104,7 +1169,7 @@
                         <span class="stat-card-subbadge">Hàng đợi</span>
                         <div class="stat-icon-wrapper" style="background: var(--vm-gold-light); color: #d97706;">⏳</div>
                         <div>
-                            <div class="stat-number-val" id="adminStatPending">124</div>
+                            <div class="stat-number-val" id="adminStatPending">0</div>
                             <div class="stat-label-text">Ca chờ đánh giá lâm sàng</div>
                         </div>
                     </div>
@@ -1112,14 +1177,14 @@
                         <span class="stat-card-subbadge">Consensus</span>
                         <div class="stat-icon-wrapper" style="background: #ecfeff; color: #0c5a6e;">🎯</div>
                         <div>
-                            <div class="stat-number-val" id="adminStatConsensus">82.5%</div>
+                            <div class="stat-number-val" id="adminStatConsensus">N/A</div>
                             <div class="stat-label-text">Tỉ lệ đồng thuận lâm sàng AI</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Hospital Distribution & Pathology Breakdown -->
-                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; margin-bottom: 16px;">
+                <div style="display: none; grid-template-columns: 1.2fr 1fr; gap: 16px; margin-bottom: 16px;">
                     <!-- Pathology Distribution Card -->
                     <div class="card-white" style="margin-bottom: 0;">
                         <div class="card-header-bar">
@@ -1254,22 +1319,22 @@
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
                         <div class="telemetry-card">
                             <div class="telemetry-header">🏆 Mô Hình Chính</div>
-                            <div style="font-size: 15px; font-weight: 800; color: var(--vm-green);">ATTENTION U-NET v1.2</div>
-                            <div style="font-size: 11px; color: var(--vm-text-muted); margin-top: 2px;">Dual Attention Gates Architecture</div>
+                            <div id="adminModelPrimaryName" style="font-size: 15px; font-weight: 800; color: var(--vm-green);">STANDARD U-NET</div>
+                            <div style="font-size: 11px; color: var(--vm-text-muted); margin-top: 2px;">Binary segmentation baseline</div>
                         </div>
                         <div class="telemetry-card">
                             <div class="telemetry-header">🎯 Dice Score (DSC)</div>
-                            <div style="font-size: 20px; font-weight: 800; color: var(--vm-primary-blue); font-family: monospace;">0.884 ± 0.04</div>
-                            <div style="font-size: 11px; color: var(--vm-text-muted); margin-top: 2px;">Chuẩn kiểm thử y tế Vinmec</div>
+                            <div id="adminModelDice" style="font-size: 20px; font-weight: 800; color: var(--vm-primary-blue); font-family: monospace;">0.6051 (Val)</div>
+                            <div style="font-size: 11px; color: var(--vm-text-muted); margin-top: 2px;">Đánh giá tập kiểm định OTU_2D</div>
                         </div>
                         <div class="telemetry-card">
                             <div class="telemetry-header">📐 Intersection / Union (IoU)</div>
-                            <div style="font-size: 20px; font-weight: 800; color: #0284c7; font-family: monospace;">0.792 ± 0.05</div>
+                            <div id="adminModelIoU" style="font-size: 20px; font-weight: 800; color: #0284c7; font-family: monospace;">0.4664 (Val)</div>
                             <div style="font-size: 11px; color: var(--vm-text-muted); margin-top: 2px;">Độ phủ ranh giới tổn thương</div>
                         </div>
                         <div class="telemetry-card">
-                            <div class="telemetry-header">⚡ Độ Trễ Suy Luận (CPU)</div>
-                            <div style="font-size: 20px; font-weight: 800; color: #d97706; font-family: monospace;">~380 ms</div>
+                            <div class="telemetry-header">⚡ Độ Trễ Suy Luận</div>
+                            <div id="adminModelLatency" style="font-size: 20px; font-weight: 800; color: #d97706; font-family: monospace;">~95.6 ms</div>
                             <div style="font-size: 11px; color: var(--vm-text-muted); margin-top: 2px;">Tối ưu hóa thời gian thực</div>
                         </div>
                     </div>
@@ -1287,38 +1352,14 @@
                                     <th>Thời Gian Phản Hồi</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="adminModelRegistryTableBody">
                                 <tr style="background: #f0fdf4;">
                                     <td><span class="badge badge-success">✓ Primary (Đang chạy)</span></td>
-                                    <td><strong>Attention U-Net Ovarian Engine</strong></td>
-                                    <td><span style="font-family: monospace; font-weight: 700;">v1.2.0</span></td>
-                                    <td>Attention U-Net + Dual Spatial Attention Gates</td>
-                                    <td><span class="badge badge-info">CPU Execution Provider</span></td>
-                                    <td><strong style="color: var(--vm-green); font-family: monospace;">380 ms</strong></td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge" style="background: #f1f5f9; color: #475569;">Ready (Dự phòng)</span></td>
-                                    <td><strong>S4M Foundation Model</strong></td>
-                                    <td><span style="font-family: monospace;">v1.0.0</span></td>
-                                    <td>Multi-Scale Cross-Attention Transformer</td>
-                                    <td>CPU / CUDA</td>
-                                    <td><span style="font-family: monospace;">620 ms</span></td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge" style="background: #f1f5f9; color: #475569;">Ready (Dự phòng)</span></td>
-                                    <td><strong>UltraSAM Foundation Model</strong></td>
-                                    <td><span style="font-family: monospace;">v3.0.0</span></td>
-                                    <td>Segment Anything Model adapted for Ultrasound</td>
-                                    <td>CPU / CUDA</td>
-                                    <td><span style="font-family: monospace;">850 ms</span></td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge" style="background: #f1f5f9; color: #475569;">Ready (Dự phòng)</span></td>
-                                    <td><strong>SovaSeg-Net Specialized Engine</strong></td>
-                                    <td><span style="font-family: monospace;">v1.0.5</span></td>
-                                    <td>Boundary-Aware ResU-Net for Follicles</td>
-                                    <td>CPU / CUDA</td>
-                                    <td><span style="font-family: monospace;">410 ms</span></td>
+                                    <td><strong>MMOTU U-Net baseline</strong></td>
+                                    <td><span style="font-family: monospace; font-weight: 700;">1.0.0</span></td>
+                                    <td>StandardUNet, binary segmentation</td>
+                                    <td><span class="badge badge-info">CUDA / CPU</span></td>
+                                    <td><strong style="color: var(--vm-green); font-family: monospace;">~95.6 ms</strong></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1385,10 +1426,10 @@
 
                     <div style="background: var(--vm-bg-alt); border: 1px solid var(--vm-border); border-radius: var(--radius-md); padding: 18px; margin-bottom: 16px;">
                         <div style="font-size: 15px; font-weight: 800; color: var(--vm-blue-end); margin-bottom: 6px;">
-                            📦 Vinmec Ovarian Ultrasound Ground Truth Dataset (v1.2)
+                            📦 Dữ liệu mask từ các ca được lưu trong prototype
                         </div>
                         <p style="font-size: 13px; color: var(--vm-text-dark); line-height: 1.5; margin-bottom: 14px;">
-                            Tập dữ liệu bao gồm toàn bộ các ca siêu âm 2D đầu dò âm đạo (TVUS) đã được <strong>100% Bác sĩ chuyên khoa CĐHA ký duyệt</strong>, kèm định dạng nhãn mặt nạ RLE Mask, phân loại bệnh học theo chuẩn O-RADS / IOTA, và các chỉ số đo đạc kích thước Caliper Dmax, Dortho, Diện tích (cm²).
+                            Xuất dữ liệu từ các ca đã lưu trong prototype. Mask do người dùng xác nhận được giữ riêng với dự đoán AI; chưa có thử nghiệm xác nhận bởi bác sĩ lâm sàng.
                         </p>
 
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -1434,7 +1475,7 @@
                             Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa | Vinmec Times City
                         </div>
                         <div style="font-size: 12px; color: var(--vm-text-dark); margin-top: 4px;">
-                            ✓ Khám lâm sàng, tải ảnh TVUS, chạy Attention U-Net AI, đo Caliper, ký duyệt Ground Truth và xuất phiếu PDF.
+                            ✓ Tải ảnh siêu âm, chạy U-Net baseline, chỉnh sửa và xác nhận mask.
                         </div>
                     </div>
                 </button>
@@ -1474,10 +1515,10 @@
     <div class="modal-overlay" id="confirmSignoffModal">
         <div class="modal-card" style="max-width: 480px;">
             <div style="font-size: 16px; font-weight: 800; color: var(--vm-text-heading); margin-bottom: 6px;">
-                Xác Nhận Ký Duyệt Kết Quả Siêu Âm AI?
+                 Xác nhận mask đã rà soát?
             </div>
             <p style="font-size: 12.5px; color: var(--vm-text-muted); line-height: 1.5;">
-                Bạn xác nhận đã kiểm tra ranh giới tổn thương và các chỉ số đo đạc tự động. Kết quả sẽ được lưu vĩnh viễn vào hệ thống Ground Truth theo tiêu chuẩn Vinmec.
+                 Mask hiện tại sẽ được lưu cùng mask AI ban đầu để có thể đánh giá thay đổi. Đây là prototype nghiên cứu, chưa phải kết quả chẩn đoán lâm sàng.
             </p>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
@@ -1485,7 +1526,7 @@
                     Quay lại
                 </button>
                 <button type="button" class="btn btn-success btn-lg" onclick="executeDoctorSignOff()">
-                    ✓ Xác Nhận & Ký Duyệt
+                     ✓ Lưu final mask
                 </button>
             </div>
         </div>
@@ -1537,8 +1578,11 @@
                 </button>
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-sm" onclick="closeCaseDetailModal()">Đóng</button>
-                    <button class="btn btn-primary btn-sm" id="btnDownloadReportModal" onclick="downloadModalCaseReport()">
-                        📄 Tải Báo Cáo PDF
+                    <button class="btn btn-secondary btn-sm" id="btnOpenInViewerModal" onclick="openCaseInViewer()" title="Nạp lại ca khám lên bàn làm việc Viewer">
+                        🔍 Mở trên Viewer
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="btnDownloadReportModal" onclick="downloadModalCaseReport()" disabled title="Phiếu báo cáo chưa được kiểm định">
+                        📄 Xem phiếu phân đoạn
                     </button>
                 </div>
             </div>
@@ -1649,7 +1693,7 @@
     <footer class="vinmec-footer">
         <div class="footer-bottom-bar">
             <div>
-                © 2026 <strong>Bệnh Viện Đa Khoa Quốc Tế Vinmec</strong> • Đạt chuẩn Chất lượng Quốc tế <strong>JCI (USA)</strong> • Hotline: <strong>1900 232 389</strong>
+                © 2026 Nguyễn Hữu Dũng • Bản mẫu nghiên cứu, không phải sản phẩm chính thức của bệnh viện hoặc công cụ chẩn đoán lâm sàng.
             </div>
             <div>
                 Đề tài KLTN: <em>AI Phân Tích Siêu Âm Buồng Trứng (HITL)</em> • SV: <strong>Nguyễn Hữu Dũng</strong> (MIS 65A - NEU) • v1.2

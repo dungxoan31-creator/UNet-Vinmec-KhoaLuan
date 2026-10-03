@@ -8,10 +8,10 @@ async function loadDashboardStats() {
                 const resp = await fetch(`${API_BASE}/api/stats`);
                 if (resp.ok) {
                     const data = await resp.json();
-                    const totalVal = data.total_cases_received || data.total_images_collected || 435;
-                    const signedVal = data.doctor_approved_cases || data.ground_truth_confirmed || 311;
+                    const totalVal = data.total_cases_received ?? data.total_images_collected ?? 0;
+                    const signedVal = data.doctor_approved_cases ?? data.ground_truth_confirmed ?? 0;
                     const pendingVal = data.pending_evaluation_cases !== undefined ? data.pending_evaluation_cases : (totalVal - signedVal);
-                    const rateVal = `${data.ai_consensus_rate_pct || data.doctor_acceptance_rate_pct || 82.5}%`;
+                    const rateVal = signedVal ? `${data.ai_consensus_rate_pct ?? data.doctor_acceptance_rate_pct ?? 0}%` : 'N/A';
 
                     // Update Doctor Dashboard Cards
                     const elTotal = document.getElementById('statTotalImgs');
@@ -61,34 +61,76 @@ function renderRecentCasesTable(cases) {
 
     if (!cases || cases.length === 0) {
         tbodies.forEach(tbody => {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--vm-text-muted); padding: 24px;">Chưa có ca khám nào. Hãy bấm "+ Phân Tích Ca Mới" để bắt đầu.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--vm-text-muted); padding: 32px 16px;">Chưa có ca khám nào. Hãy bấm "+ Phân Tích Ca Mới" để bắt đầu.</td></tr>`;
         });
         return;
     }
 
-    const html = cases.slice(0, 8).map(c => `
+    const html = cases.slice(0, 8).map(c => {
+        const initials = (c.patient_id || 'BN').replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'BN';
+        return `
         <tr>
-            <td><strong style="font-family: 'JetBrains Mono'; color: var(--vm-blue-end);">${c.study_code}</strong></td>
-            <td><strong>${c.patient_id}</strong></td>
-            <td>${c.study_date}</td>
-            <td><span style="color: var(--vm-primary-blue); font-weight: 600;">${c.lesion_type || 'Chưa phân tích'}</span></td>
-            <td><strong>${c.max_diameter_mm ? c.max_diameter_mm + ' mm' : '-'}</strong></td>
+            <td><strong class="mono-code">${c.study_code || '---'}</strong></td>
             <td>
-                <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : (c.status === 'ANALYZED' ? 'badge-info' : 'badge-warning')}">
-                    ${c.status === 'REVIEWED' ? '✓ Đã ký duyệt' : (c.status === 'ANALYZED' ? '⚡ Đã chạy AI' : '⏳ Chờ phân tích')}
+                <div class="patient-cell">
+                    <div class="patient-avatar">${initials}</div>
+                    <div class="patient-info">
+                        <span class="patient-id">${c.patient_id || 'Chưa định danh'}</span>
+                        ${c.patient_age ? `<span class="patient-sub">${c.patient_age} tuổi</span>` : ''}
+                    </div>
+                </div>
+            </td>
+            <td><span style="color: var(--vm-text-muted);">${c.study_date || '---'}</span></td>
+            <td>
+                <span class="badge ${c.status === 'ANALYZED' || c.status === 'REVIEWED' ? 'badge-cyan' : 'badge-neutral'}">
+                    ${c.status === 'ANALYZED' || c.status === 'REVIEWED' ? '✓ Đã tạo' : 'Chưa có'}
                 </span>
             </td>
             <td>
-                <button class="btn btn-sm" onclick="openCaseDetailModal('${c.id}')">
-                    👁️ Mở hồ sơ
+                <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : 'badge-neutral'}">
+                    ${c.status === 'REVIEWED' ? '✓ Đã xác nhận' : 'Chưa có'}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : (c.status === 'ANALYZED' ? 'badge-info' : 'badge-warning')}">
+                     ${c.status === 'REVIEWED' ? '✓ Đã xác nhận mask' : (c.status === 'ANALYZED' ? '⚡ Đã chạy AI' : '⏳ Chờ phân tích')}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-action-cell" onclick="openCaseDetailModal('${c.id}')">
+                    👁️ Chi tiết
                 </button>
             </td>
         </tr>
-    `).join('');
+    `}).join('');
 
     tbodies.forEach(tbody => {
         tbody.innerHTML = html;
     });
+}
+
+function selectOvarySide(side) {
+    const tabR = document.getElementById('tabOvaryRight');
+    const tabL = document.getElementById('tabOvaryLeft');
+    const inputSide = document.getElementById('inputActiveOvarySide');
+    if (!tabR || !tabL || !inputSide) return;
+
+    inputSide.value = side;
+    if (side === 'RIGHT') {
+        tabR.style.border = '2px solid var(--vm-blue)';
+        tabR.style.background = '#eff6ff';
+        tabR.style.color = 'var(--vm-blue)';
+        tabL.style.border = '1px solid var(--vm-border)';
+        tabL.style.background = '#ffffff';
+        tabL.style.color = 'var(--vm-text-dark)';
+    } else {
+        tabL.style.border = '2px solid var(--vm-blue)';
+        tabL.style.background = '#eff6ff';
+        tabL.style.color = 'var(--vm-blue)';
+        tabR.style.border = '1px solid var(--vm-border)';
+        tabR.style.background = '#ffffff';
+        tabR.style.color = 'var(--vm-text-dark)';
+    }
 }
 
 async function handleCreateCaseSubmit(e) {
@@ -100,11 +142,16 @@ async function handleCreateCaseSubmit(e) {
             }
             document.getElementById('errPatientId').style.display = 'none';
 
+            const activeOvarySide = document.getElementById('inputActiveOvarySide') ? document.getElementById('inputActiveOvarySide').value : 'RIGHT';
+            const contralateralStatus = document.getElementById('selectContralateralStatus') ? document.getElementById('selectContralateralStatus').value : 'NOT_VISUALIZED';
+
             const payload = {
                 patient_id: pid,
                 study_code: document.getElementById('inputStudyCode').value.trim() || null,
                 study_date: document.getElementById('inputStudyDate').value || new Date().toISOString().split('T')[0],
                 patient_age: document.getElementById('inputPatientAge').value,
+                active_ovary_side: activeOvarySide,
+                contralateral_status: contralateralStatus,
                 clinical_notes: document.getElementById('inputClinicalNotes').value.trim()
             };
 
@@ -126,6 +173,8 @@ async function handleCreateCaseSubmit(e) {
                 currentCase.patient_id = data.patient_id;
                 currentCase.patient_age = payload.patient_age;
                 currentCase.study_date = data.study_date;
+                currentCase.ovary_side = data.ovary_side || activeOvarySide;
+                currentCase.contralateral_status = data.contralateral_status || contralateralStatus;
                 currentCase.clinical_notes = payload.clinical_notes;
 
                 showToast("✓ Đã tạo ca khám. Hãy chọn ảnh siêu âm!");
@@ -168,32 +217,51 @@ function resetHistoryFilters() {
         }
 
 function renderHistoryTable(cases) {
-            const tbody = document.getElementById('historyTableBody');
-            if (!cases || cases.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--vm-text-muted); padding: 24px;">Không tìm thấy ca khám phù hợp với bộ lọc.</td></tr>`;
-                return;
-            }
+    const tbody = document.getElementById('historyTableBody');
+    if (!tbody) return;
+    if (!cases || cases.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--vm-text-muted); padding: 32px 16px;">Không tìm thấy ca khám phù hợp với bộ lọc.</td></tr>`;
+        return;
+    }
 
-            tbody.innerHTML = cases.map(c => `
-                <tr>
-                    <td><strong style="font-family: 'JetBrains Mono'; color: var(--vm-blue-end);">${c.study_code}</strong></td>
-                    <td><strong>${c.patient_id}</strong></td>
-                    <td>${c.study_date}</td>
-                    <td><span style="color: var(--vm-primary-blue); font-weight: 600;">${c.lesion_type || 'Chưa phân tích'}</span></td>
-                    <td><strong>${c.max_diameter_mm ? c.max_diameter_mm + ' mm' : '-'}</strong></td>
-                    <td>
-                        <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : (c.status === 'ANALYZED' ? 'badge-info' : 'badge-warning')}">
-                            ${c.status === 'REVIEWED' ? '✓ Đã ký duyệt' : (c.status === 'ANALYZED' ? '⚡ Đã chạy AI' : '⏳ Chờ phân tích')}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm" onclick="openCaseDetailModal('${c.id}')">
-                            👁️ Mở ca
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+    tbody.innerHTML = cases.map(c => {
+        const initials = (c.patient_id || 'BN').replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'BN';
+        return `
+        <tr>
+            <td><strong class="mono-code">${c.study_code || '---'}</strong></td>
+            <td>
+                <div class="patient-cell">
+                    <div class="patient-avatar">${initials}</div>
+                    <div class="patient-info">
+                        <span class="patient-id">${c.patient_id || 'Chưa định danh'}</span>
+                        ${c.patient_age ? `<span class="patient-sub">${c.patient_age} tuổi</span>` : ''}
+                    </div>
+                </div>
+            </td>
+            <td><span style="color: var(--vm-text-muted);">${c.study_date || '---'}</span></td>
+            <td>
+                <span class="badge ${c.status === 'ANALYZED' || c.status === 'REVIEWED' ? 'badge-cyan' : 'badge-neutral'}">
+                    ${c.status === 'ANALYZED' || c.status === 'REVIEWED' ? '✓ Đã tạo' : 'Chưa có'}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : 'badge-neutral'}">
+                    ${c.status === 'REVIEWED' ? '✓ Đã xác nhận' : 'Chưa có'}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${c.status === 'REVIEWED' ? 'badge-success' : (c.status === 'ANALYZED' ? 'badge-info' : 'badge-warning')}">
+                     ${c.status === 'REVIEWED' ? '✓ Đã xác nhận mask' : (c.status === 'ANALYZED' ? '⚡ Đã chạy AI' : '⏳ Chờ phân tích')}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-action-cell" onclick="openCaseDetailModal('${c.id}')">
+                    👁️ Mở ca
+                </button>
+            </td>
+        </tr>
+    `}).join('');
+}
 
 async function openCaseDetailModal(studyId) {
             try {
@@ -214,17 +282,12 @@ async function openCaseDetailModal(studyId) {
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: var(--vm-bg-alt); padding: 16px; border-radius: var(--radius-md); font-size: 13.5px;">
                         <div><strong>Kỹ thuật:</strong> ${data.probe_type}</div>
                         <div><strong>Chỉ định:</strong> ${data.clinical_indication}</div>
-                        <div><strong>Chẩn đoán:</strong> <span style="color: var(--vm-primary-blue); font-weight: 700;">${review ? review.lesion_type : (pred ? 'Đã chạy phân tích' : 'Chưa có')}</span></div>
-                        <div><strong>Kích thước Dmax:</strong> <strong>${review ? review.max_diameter_mm + ' mm' : (pred && pred.measurements && pred.measurements.max_diameter_mm ? pred.measurements.max_diameter_mm + ' mm' : '-')}</strong></div>
+                         <div><strong>Mask AI:</strong> ${pred ? 'Đã tạo' : 'Chưa có'}</div>
+                         <div><strong>Mask cuối:</strong> ${review ? 'Đã rà soát' : 'Chưa xác nhận'}</div>
                     </div>
                     <div style="font-size: 13px; color: var(--vm-text-dark); background: var(--vm-card-white); border: 1px solid var(--vm-border); padding: 14px; border-radius: var(--radius-md);">
-                        <strong>Mô tả lâm sàng của Bác sĩ:</strong> ${review ? review.clinical_notes : 'Chưa có ghi chú'}
-                    </div>
-                    <div style="margin-top: 10px; display: flex; justify-content: center;">
-                        <button type="button" class="btn btn-primary btn-lg" style="width: 100%;" onclick="openReportFromCaseDetail()">
-                            📄 Xem &amp; In Phiếu Kết Quả Chẩn Đoán (Chuẩn A4 Vinmec) →
-                        </button>
-                    </div>
+                         <strong>Ghi chú rà soát:</strong> ${review && review.clinical_notes ? review.clinical_notes : 'Chưa có ghi chú'}
+                     </div>
                 `;
 
                 document.getElementById('caseDetailModal').classList.add('active');
@@ -254,40 +317,56 @@ async function handleDeleteCurrentCase() {
             }
         }
 
-async function downloadModalCaseReport() {
-            if (!activeModalCase) return;
-            const firstImg = activeModalCase.images && activeModalCase.images[0] ? activeModalCase.images[0] : null;
-            const review = firstImg ? firstImg.review : null;
+function openCaseInViewer() {
+    if (!activeModalCase) return;
+    const caseData = activeModalCase;
+    closeCaseDetailModal();
 
-            const reportPayload = {
-                anonymized_pid: activeModalCase.patient_id,
-                study_date: activeModalCase.study_date,
-                patient_age: activeModalCase.patient_age,
-                doctor_name: (review && review.doctor_id) || "BS. Nguyễn Văn A (CKI CĐHA - Vinmec)",
-                probe_type: activeModalCase.probe_type,
-                lesion_type: (review && review.lesion_type) || "U nang buồng trứng",
-                clinical_notes: (review && review.clinical_notes) || activeModalCase.clinical_indication,
-                doctor_action: (review && review.doctor_action) || "ACCEPTED_RAW",
-                measurements: review ? { max_diameter_mm: review.max_diameter_mm, ortho_diameter_mm: review.ortho_diameter_mm, total_area_cm2: review.total_area_cm2 } : { max_diameter_mm: 32.4, ortho_diameter_mm: 24.1, total_area_cm2: 6.82 }
-            };
+    const firstImg = caseData.images && caseData.images[0] ? caseData.images[0] : null;
+    if (!firstImg) {
+        showToast("Ca khám chưa có hình ảnh siêu âm được gắn.", false);
+        return;
+    }
 
-            try {
-                showToast("Đang tạo phiếu báo cáo...", true);
-                const resp = await fetch(`${API_BASE}/api/generate-report`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(reportPayload)
-                });
-                const blob = await resp.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Phieu_Ket_Qua_${activeModalCase.patient_id}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                showToast("✓ Đã tải xuống file PDF!");
-            } catch (err) {
-                showToast("Lỗi tải PDF: " + err.message, false);
-            }
-        }
+    if (typeof currentCase === 'undefined' || !currentCase) {
+        window.currentCase = {};
+    }
+
+    currentCase.patient_id = caseData.patient_id;
+    currentCase.patient_name = caseData.patient_name || caseData.patient_id;
+    currentCase.study_id = caseData.study_id || caseData.id;
+    currentCase.study_code = caseData.study_code;
+    currentCase.study_date = caseData.study_date;
+    currentCase.clinical_indication = caseData.clinical_indication;
+    currentCase.probe_type = caseData.probe_type;
+    currentCase.image_id = firstImg.id;
+    currentCase.doctor_action = firstImg.review ? firstImg.review.doctor_action : "ACCEPTED_RAW";
+
+    if (firstImg.prediction) {
+        const pred = firstImg.prediction;
+        const review = firstImg.review;
+        const activeMaskRle = (review && review.verified_mask_rle) ? review.verified_mask_rle : pred.rle_mask;
+        window.currentPrediction = {
+            image_id: firstImg.id,
+            prediction_id: pred.prediction_id,
+            measurements: pred.measurements,
+            rle_mask: activeMaskRle,
+            confidence_score: pred.confidence_score,
+            overlay_base64: pred.overlay_base64,
+            original_image_base64: firstImg.original_image_base64 || pred.original_image_base64,
+            provenance: pred.provenance,
+            uncertainty: pred.uncertainty,
+            quality_gate: pred.quality_gate
+        };
+        initResultsWorkspace(currentPrediction);
+        navigateTo('results');
+        showToast("✓ Đã nạp ca khám lên bàn làm việc Viewer!");
+    } else {
+        navigateTo('upload');
+        showToast("Ảnh chưa chạy mô hình U-Net, chuyển đến bước tải ảnh.");
+    }
+}
+
+function downloadModalCaseReport() {
+    openReportFromCaseDetail();
+}

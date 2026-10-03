@@ -8,20 +8,61 @@ const MIN_ZOOM = 0.2;
 const ZOOM_STEP = 0.25;
 
 function initResultsWorkspace(data) {
+    const modelNameElement = document.getElementById('workstationModelName');
+    if (modelNameElement) modelNameElement.textContent = data.provenance?.model_name || 'U-Net';
+
+    // Populate Case Context Strip
+    const elPid = document.getElementById('viewerPatientId');
+    const elCode = document.getElementById('viewerStudyCode');
+    const elDate = document.getElementById('viewerStudyDate');
+    const elInd = document.getElementById('viewerIndication');
+    const elMod = document.getElementById('viewerModality');
+
+    if (elPid) elPid.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.patient_id) ? currentCase.patient_id : 'BN-VINMEC-9284';
+    if (elCode) elCode.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.study_code) ? currentCase.study_code : (data.study_id ? data.study_id.substring(0, 14) : 'STD-260829-A1B2');
+    if (elDate) elDate.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.study_date) ? currentCase.study_date : new Date().toISOString().split('T')[0];
+    if (elInd) elInd.innerText = (typeof currentCase !== 'undefined' && currentCase && (currentCase.clinical_indication || currentCase.clinical_notes)) ? (currentCase.clinical_indication || currentCase.clinical_notes) : 'Theo dõi u nang buồng trứng';
+    if (elMod) elMod.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.probe_type) ? (currentCase.probe_type === 'TRANSVAGINAL_2D' ? 'Siêu âm đầu dò âm đạo (TVUS 2D)' : currentCase.probe_type) : 'Siêu âm đầu dò âm đạo (TVUS 2D)';
+
+    const elOvarySide = document.getElementById('viewerOvarySideBadge');
+    const elContralateral = document.getElementById('viewerContralateralBadge');
+
+    const ovarySide = (typeof currentCase !== 'undefined' && currentCase && currentCase.ovary_side) ? currentCase.ovary_side : 'RIGHT';
+    const contraStatus = (typeof currentCase !== 'undefined' && currentCase && currentCase.contralateral_status) ? currentCase.contralateral_status : 'NOT_VISUALIZED';
+
+    if (elOvarySide) {
+        elOvarySide.innerText = ovarySide === 'LEFT' ? 'Buồng Trứng Trái (LO)' : 'Buồng Trứng Phải (RO)';
+        elOvarySide.className = 'badge badge-cyan';
+    }
+
+    if (elContralateral) {
+        if (contraStatus === 'NORMAL') {
+            elContralateral.innerText = 'Đối bên: Bình thường';
+            elContralateral.className = 'badge badge-success';
+        } else if (contraStatus === 'SUSPECTED') {
+            elContralateral.innerText = 'Đối bên: Nghi ngờ u';
+            elContralateral.className = 'badge badge-danger';
+        } else {
+            elContralateral.innerText = 'Đối bên: Chưa quan sát';
+            elContralateral.className = 'badge badge-warning';
+        }
+    }
+
     const meas = data.measurements || {};
-    const dmax = typeof meas.max_diameter_mm === 'number' ? meas.max_diameter_mm.toFixed(1) : (meas.max_diameter_mm || "0.0");
-    const dorth = typeof meas.ortho_diameter_mm === 'number' ? meas.ortho_diameter_mm.toFixed(1) : (meas.ortho_diameter_mm || "0.0");
+    const calibrated = meas.calibrated === true;
+    const dmax = calibrated && typeof meas.max_diameter_mm === 'number' ? meas.max_diameter_mm.toFixed(1) : null;
+    const dorth = calibrated && typeof meas.ortho_diameter_mm === 'number' ? meas.ortho_diameter_mm.toFixed(1) : null;
     const dmaxNum = parseFloat(dmax) || 0;
     const dorthNum = parseFloat(dorth) || 0;
-    const d3Default = meas.d3_mm ? (typeof meas.d3_mm === 'number' ? meas.d3_mm.toFixed(1) : meas.d3_mm) : (dmaxNum > 0 ? parseFloat(((dmaxNum + dorthNum) / 2.0).toFixed(1)) : "0.0");
-    const areaVal = typeof meas.total_area_cm2 === 'number' ? meas.total_area_cm2.toFixed(2) : (meas.total_area_cm2 || "0.00");
+    const d3Default = calibrated && meas.d3_mm ? (typeof meas.d3_mm === 'number' ? meas.d3_mm.toFixed(1) : meas.d3_mm) : (calibrated && dmaxNum > 0 ? parseFloat(((dmaxNum + dorthNum) / 2.0).toFixed(1)) : "");
+    const areaVal = calibrated && typeof meas.total_area_cm2 === 'number' ? meas.total_area_cm2.toFixed(2) : null;
 
-    document.getElementById('resDmax').innerText = `${dmax} mm`;
-    document.getElementById('resDorth').innerText = `${dorth} mm`;
+    document.getElementById('resDmax').innerText = dmax === null ? 'Chưa hiệu chuẩn' : `${dmax} mm`;
+    document.getElementById('resDorth').innerText = dorth === null ? 'Chưa hiệu chuẩn' : `${dorth} mm`;
     document.getElementById('inputD3').value = d3Default;
-    document.getElementById('resArea').innerText = `${areaVal} cm²`;
+    document.getElementById('resArea').innerText = areaVal === null ? 'Chưa hiệu chuẩn' : `${areaVal} cm²`;
     
-    currentCase.d3_mm = parseFloat(d3Default) || 0;
+    currentCase.d3_mm = d3Default ? parseFloat(d3Default) : null;
     recalculateVolume();
 
     // Display AI Confidence & Quality Gate
@@ -84,56 +125,19 @@ function initResultsWorkspace(data) {
         const provEl = document.getElementById('hudProvenanceTag');
         if (provEl) {
             const shortSum = data.provenance.model_checksum ? data.provenance.model_checksum.substring(0, 8) : 'v1.2';
-            provEl.innerText = `Attention U-Net • ${shortSum}`;
+            provEl.innerText = `U-Net • ${shortSum}`;
+            provEl.title = `${data.provenance.model_name || 'Standard U-Net (Baseline)'} (SHA256: ${data.provenance.model_checksum || ''})`;
         }
     }
 
-    // Dynamic AI Pathology Recommendation & Acoustic Profile
-    const cdss = data.cdss_classification || {};
-    const acoustic = data.acoustic_profile || {};
+    const badgeSpacing = document.getElementById('badgePixelSpacing');
+    if (badgeSpacing) {
+        badgeSpacing.innerText = calibrated ? '📐 Đã hiệu chuẩn mm' : '📐 Chưa hiệu chuẩn mm';
+    }
+
+    // This model predicts a binary mask only; no pathology or O-RADS inference is available.
     const selectElem = document.getElementById('selectPathology');
-    const aiTextElem = document.getElementById('aiSuggestedPathologyText');
-    const acousticBadge = document.getElementById('aiAcousticPatternBadge');
-
-    let suggestedPathology = cdss.primary_suspicion || (meas.total_lesions === 0 ? "Buồng trứng bình thường (Normal Control)" : "U nang thanh dịch buồng trứng (Simple Serous Cyst)");
-    
-    if (aiTextElem) {
-        if (!isQualityPassed) {
-            aiTextElem.innerHTML = `<span style="color: #dc2626; font-weight: 700;">[CHỜ DUYỆT] Bác sĩ cần thẩm định & chọn phân loại thủ công</span>`;
-        } else {
-            const confPct = Math.round((cdss.confidence_score || data.confidence_score || 0.9) * 100);
-            const oradsTag = cdss.orads_category ? `[${cdss.orads_category}]` : '';
-            aiTextElem.innerText = `${oradsTag} ${suggestedPathology} (${confPct}% tin cậy)`;
-        }
-    }
-
-    if (acousticBadge) {
-        acousticBadge.innerText = acoustic.echogenicity_label ? acoustic.echogenicity_label.split('(')[0].trim() : (meas.total_lesions === 0 ? 'Bình thường' : 'Dịch trong');
-    }
-
-    // Dropdown pathology selection
-    if (selectElem) {
-        if (!isQualityPassed) {
-            selectElem.value = "U nang thanh dịch buồng trứng (Simple Serous Cyst)";
-        } else if (meas.total_lesions === 0 || (suggestedPathology && suggestedPathology.includes('bình thường'))) {
-            selectElem.value = "Buồng trứng bình thường (Normal Control)";
-        } else if (suggestedPathology.includes('lạc nội mạc') || suggestedPathology.includes('Endometrioma')) {
-            selectElem.value = "U lạc nội mạc tử cung (Endometrioma / Chocolate Cyst)";
-        } else if (suggestedPathology.includes('bì') || suggestedPathology.includes('quái') || suggestedPathology.includes('Dermoid')) {
-            selectElem.value = "U bì buồng trứng / U quái (Dermoid Cyst / Teratoma)";
-        } else if (suggestedPathology.includes('nhầy') || suggestedPathology.includes('Mucinous')) {
-            selectElem.value = "U nang nhầy buồng trứng (Mucinous Cystadenoma)";
-        } else if (suggestedPathology.includes('đặc') || suggestedPathology.includes('Solid') || suggestedPathology.includes('ác tính')) {
-            selectElem.value = "Khối u buồng trứng nghi ngờ / Khối đặc (Suspicious Solid Mass)";
-        } else if (suggestedPathology.includes('xuất huyết')) {
-            selectElem.value = "Nang xuất huyết buồng trứng (Hemorrhagic Cyst)";
-        } else {
-            selectElem.value = "U nang thanh dịch buồng trứng (Simple Serous Cyst)";
-        }
-    }
-
-    // Update O-RADS indicator
-    updateOradsIndicator(selectElem ? selectElem.value : suggestedPathology);
+    if (selectElem) selectElem.value = '';
     resetZoomCanvas();
     setCanvasViewMode(currentViewMode);
 
@@ -235,11 +239,13 @@ function zoomOutCanvas() {
 
 function resetZoomCanvas() {
             currentZoom = 1.0;
+            panOffsetX = 0;
+            panOffsetY = 0;
             applyCanvasZoom();
         }
 
 function applyCanvasZoom() {
-            canvas.style.transform = `scale(${currentZoom})`;
+            canvas.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px) scale(${currentZoom})`;
             document.getElementById('zoomLevelDisplay').innerText = `${Math.round(currentZoom * 100)}%`;
             document.getElementById('hudZoom').innerText = `${currentZoom.toFixed(1)}x`;
             showToast(`Tỉ lệ phóng to Canvas: ${Math.round(currentZoom * 100)}%`);
@@ -355,6 +361,8 @@ function redrawMainCanvas() {
 }
 
 function drawCalipersOnContext(targetCtx) {
+    // Physical calipers are unavailable without verified pixel spacing.
+    if (!currentPrediction?.pixel_spacing_mm) return;
     if (currentPrediction && currentPrediction.measurements) {
         const lesions = currentPrediction.measurements.lesions || [];
         if (lesions.length === 0) return;
@@ -430,6 +438,14 @@ function setupCanvasEngine() {
 
         // Main editor canvas listener
         canvas.addEventListener('mousedown', (e) => {
+            if (e.shiftKey && currentZoom > 1) {
+                e.preventDefault();
+                isPanning = true;
+                startPanX = e.clientX - panOffsetX;
+                startPanY = e.clientY - panOffsetY;
+                canvas.style.cursor = 'grabbing';
+                return;
+            }
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -440,6 +456,12 @@ function setupCanvasEngine() {
         });
 
         canvas.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                panOffsetX = e.clientX - startPanX;
+                panOffsetY = e.clientY - startPanY;
+                applyCanvasZoom();
+                return;
+            }
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -488,6 +510,11 @@ function setupCanvasEngine() {
             }
 
             window.addEventListener('mouseup', () => {
+                if (isPanning) {
+                    isPanning = false;
+                    canvas.style.cursor = '';
+                    return;
+                }
                 if (isDrawing) {
                     isDrawing = false;
                     saveCanvasHistory();
@@ -532,75 +559,8 @@ function paintOnMask(x, y, prevX = null, prevY = null) {
         }
 
 function recalculateClientCalipersFromMask() {
-            try {
-                const imgData = maskCtx.getImageData(0, 0, 512, 512).data;
-                let minX = 512, maxX = 0, minY = 512, maxY = 0;
-                let totalPx = 0;
-                for (let y = 0; y < 512; y++) {
-                    for (let x = 0; x < 512; x++) {
-                        const idx = (y * 512 + x) * 4;
-                        if (imgData[idx + 3] > 0) { // Alpha > 0
-                            totalPx++;
-                            if (x < minX) minX = x;
-                            if (x > maxX) maxX = x;
-                            if (y < minY) minY = y;
-                            if (y > maxY) maxY = y;
-                        }
-                    }
-                }
-
-                const pixelSpacing = 0.1; // mm/px
-                if (totalPx > 20 && minX <= maxX && minY <= maxY) {
-                    const wPx = maxX - minX;
-                    const hPx = maxY - minY;
-                    const dmaxPx = Math.max(wPx, hPx);
-                    const dorthPx = Math.min(wPx, hPx);
-                    const dmaxMm = parseFloat((dmaxPx * pixelSpacing).toFixed(1));
-                    const dorthMm = parseFloat((dorthPx * pixelSpacing).toFixed(1));
-                    const areaCm2 = parseFloat(((totalPx * pixelSpacing * pixelSpacing) / 100.0).toFixed(2));
-                    const d3Mm = parseFloat(((dmaxMm + dorthMm) / 2.0).toFixed(1));
-                    const volCm3 = parseFloat((0.523 * (dmaxMm * dorthMm * d3Mm) / 1000.0).toFixed(2));
-
-                    // Update UI
-                    document.getElementById('resDmax').innerText = `${dmaxMm} mm`;
-                    document.getElementById('resDorth').innerText = `${dorthMm} mm`;
-                    document.getElementById('resArea').innerText = `${areaCm2} cm²`;
-                    document.getElementById('resVolume').innerText = `${volCm3} mL`;
-
-                    // Update active prediction measurement structure
-                    if (currentPrediction && currentPrediction.measurements) {
-                        currentPrediction.measurements.max_diameter_mm = dmaxMm;
-                        currentPrediction.measurements.ortho_diameter_mm = dorthMm;
-                        currentPrediction.measurements.total_area_cm2 = areaCm2;
-                        currentPrediction.measurements.d3_mm = d3Mm;
-                        currentPrediction.measurements.total_volume_cm3 = volCm3;
-                        if (currentPrediction.measurements.lesions && currentPrediction.measurements.lesions[0]) {
-                            currentPrediction.measurements.lesions[0].max_diameter_mm = dmaxMm;
-                            currentPrediction.measurements.lesions[0].ortho_diameter_mm = dorthMm;
-                            currentPrediction.measurements.lesions[0].center = [(minX + maxX)/2, (minY + maxY)/2];
-                            currentPrediction.measurements.lesions[0].caliper_dmax_points = [
-                                [(minX + maxX)/2, minY],
-                                [(minX + maxX)/2, maxY]
-                            ];
-                        }
-                    }
-                } else if (totalPx <= 20) {
-                    document.getElementById('resDmax').innerText = `0.0 mm`;
-                    document.getElementById('resDorth').innerText = `0.0 mm`;
-                    document.getElementById('resArea').innerText = `0.00 cm²`;
-                    document.getElementById('resVolume').innerText = `0.0 mL`;
-                    if (currentPrediction && currentPrediction.measurements) {
-                        currentPrediction.measurements.max_diameter_mm = 0.0;
-                        currentPrediction.measurements.ortho_diameter_mm = 0.0;
-                        currentPrediction.measurements.total_area_cm2 = 0.0;
-                        currentPrediction.measurements.total_volume_cm3 = 0.0;
-                        currentPrediction.measurements.total_lesions = 0;
-                    }
-                }
-            } catch (err) {
-                console.warn("Client caliper recalculation error:", err);
-            }
-        }
+    // Preserve the edited binary mask. MMOTU does not include physical pixel spacing.
+}
 
 function recalculateVolume() {
             const meas = currentPrediction ? (currentPrediction.measurements || {}) : {};
@@ -614,8 +574,8 @@ function recalculateVolume() {
                 document.getElementById('resVolume').innerText = `${vol} mL`;
                 currentCase.volume_cm3 = vol;
             } else {
-                document.getElementById('resVolume').innerText = `0.0 mL`;
-                currentCase.volume_cm3 = 0.0;
+                document.getElementById('resVolume').innerText = 'Chưa hiệu chuẩn';
+                currentCase.volume_cm3 = null;
             }
         }
 
@@ -639,6 +599,7 @@ function undoCanvas() {
                 redoStack.push(current);
                 const prev = undoStack[undoStack.length - 1];
                 maskCtx.putImageData(prev, 0, 0);
+                chooseDoctorAction('MODIFIED');
                 redrawMainCanvas();
                 recalculateClientCalipersFromMask();
                 saveLocalDraft();
@@ -651,6 +612,7 @@ function redoCanvas() {
                 const next = redoStack.pop();
                 undoStack.push(next);
                 maskCtx.putImageData(next, 0, 0);
+                chooseDoctorAction('MODIFIED');
                 redrawMainCanvas();
                 recalculateClientCalipersFromMask();
                 saveLocalDraft();
@@ -660,18 +622,15 @@ function redoCanvas() {
 
 function resetMaskToAI() {
             if (currentPrediction) {
-                renderMaskFromRLE(currentPrediction.rle_mask);
-                saveCanvasHistory();
-                redrawMainCanvas();
                 chooseDoctorAction('ACCEPTED_RAW');
                 document.getElementById('hudStatus').innerText = 'Khớp AI';
                 document.getElementById('hudStatus').style.color = 'var(--vm-green)';
                 
                 // Restore original measurements
                 const meas = currentPrediction.measurements || {};
-                document.getElementById('resDmax').innerText = `${meas.max_diameter_mm || 0} mm`;
-                document.getElementById('resDorth').innerText = `${meas.ortho_diameter_mm || 0} mm`;
-                document.getElementById('resArea').innerText = `${meas.total_area_cm2 || 0} cm²`;
+                document.getElementById('resDmax').innerText = meas.calibrated ? `${meas.max_diameter_mm} mm` : 'Chưa hiệu chuẩn';
+                document.getElementById('resDorth').innerText = meas.calibrated ? `${meas.ortho_diameter_mm} mm` : 'Chưa hiệu chuẩn';
+                document.getElementById('resArea').innerText = meas.calibrated ? `${meas.total_area_cm2} cm²` : 'Chưa hiệu chuẩn';
                 recalculateVolume();
                 
                 saveLocalDraft();
