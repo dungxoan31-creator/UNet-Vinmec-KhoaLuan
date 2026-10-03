@@ -23,6 +23,7 @@ from backend.app.routers import (
     admin_router,
     auth_router,
     cases_router,
+    evaluation_router,
     health_router,
     inference_router,
     reviews_router,
@@ -58,6 +59,7 @@ app.include_router(inference_router)
 app.include_router(reviews_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(evaluation_router, prefix="/api/evaluation", tags=["Evaluation"])
 
 # Mount Static Assets and Data Directories
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
