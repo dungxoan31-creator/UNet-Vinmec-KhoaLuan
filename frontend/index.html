@@ -1157,6 +1157,9 @@
                 <button class="admin-subnav-btn" id="btnAdminTabDataset" onclick="switchAdminSubTab('dataset')">
                     💾 Dữ Liệu Ground Truth
                 </button>
+                <button class="admin-subnav-btn" id="btnAdminTabEvaluation" onclick="switchAdminSubTab('evaluation')">
+                    📈 Đánh Giá Học Thuật & Failure Cases
+                </button>
             </div>
 
             <!-- ADMIN TAB 1: OVERVIEW -->
@@ -1453,6 +1456,129 @@
                                 🔄 Đồng Bộ Vào Kho Dữ Liệu
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN TAB 6: ACADEMIC EVALUATION & FAILURE CASES -->
+            <div id="adminTabEvaluation" class="admin-tab-pane" style="display: none;">
+                <!-- Card 1: Benchmark Dataset Split -->
+                <div class="card-white" style="margin-bottom: 16px;">
+                    <div class="card-header-bar">
+                        <div>
+                            <div class="card-title-main">📊 Phân Bố Tập Dữ Liệu Kiểm Thử Nghiên Cứu (Dataset Split Distribution)</div>
+                            <div class="card-subtitle-sub">Cơ cấu dữ liệu kiểm nghiệm phân tách cấp bệnh nhân (Patient-Level Split, chống Data Leakage)</div>
+                        </div>
+                        <span class="badge badge-success" style="font-size: 11px; padding: 4px 10px;">🔒 Patient-Level Split</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 10px;">
+                        <div class="stat-card-white" style="border-top: 3px solid #0284c7; background: #f8fafc; padding: 14px;">
+                            <div style="font-size: 12px; font-weight: 700; color: #475569;">🏋️ Tập Huấn Luyện (Train)</div>
+                            <div style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 4px 0;">991 <span style="font-size: 13px; font-weight: 600; color: #64748b;">ảnh (85.4%)</span></div>
+                            <div style="font-size: 11px; color: #64748b;">152 ca bệnh nhân độc lập • Dùng tối ưu hóa trọng số U-Net</div>
+                        </div>
+                        <div class="stat-card-white" style="border-top: 3px solid #10b981; background: #f8fafc; padding: 14px;">
+                            <div style="font-size: 12px; font-weight: 700; color: #475569;">🔍 Tập Thẩm Định (Validation)</div>
+                            <div style="font-size: 24px; font-weight: 800; color: #047857; margin: 4px 0;">123 <span style="font-size: 13px; font-weight: 600; color: #64748b;">ảnh (10.6%)</span></div>
+                            <div style="font-size: 11px; color: #64748b;">21 ca bệnh nhân độc lập • Chọn lọc Early Stopping & Checkpoint</div>
+                        </div>
+                        <div class="stat-card-white" style="border-top: 3px solid #8b5cf6; background: #f8fafc; padding: 14px;">
+                            <div style="font-size: 12px; font-weight: 700; color: #475569;">🎯 Tập Kiểm Thử Mù (Test)</div>
+                            <div style="font-size: 24px; font-weight: 800; color: #6d28d9; margin: 4px 0;">46 <span style="font-size: 13px; font-weight: 600; color: #64748b;">ảnh (4.0%)</span></div>
+                            <div style="font-size: 11px; color: #64748b;">8 ca bệnh nhân hoàn toàn mới • Đánh giá khái quát hóa cuối cùng</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Scientific Metrics Summary -->
+                <div class="card-white" style="margin-bottom: 16px;">
+                    <div class="card-header-bar">
+                        <div>
+                            <div class="card-title-main">📈 Chỉ Số Định Lượng Khoa Học (Scientific Evaluation Metrics)</div>
+                            <div class="card-subtitle-sub">Số liệu thực nghiệm kiểm chứng trên tập Validation (123 ca đối chuẩn Ground Truth)</div>
+                        </div>
+                        <span class="badge badge-info" style="font-size: 11px;">Standard U-Net Baseline</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 10px;">
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-sm); padding: 12px; text-align: center;">
+                            <div style="font-size: 11px; font-weight: 700; color: #1e40af;">DICE SIMILARITY (DSC)</div>
+                            <div id="evalValDice" style="font-size: 22px; font-weight: 800; color: #1d4ed8; margin: 4px 0; font-family: monospace;">82.33%</div>
+                            <div style="font-size: 10px; color: #3b82f6;">Độ trùng lặp diện tích</div>
+                        </div>
+                        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-sm); padding: 12px; text-align: center;">
+                            <div style="font-size: 11px; font-weight: 700; color: #065f46;">INTERSECTION OVER UNION</div>
+                            <div id="evalValIoU" style="font-size: 22px; font-weight: 800; color: #047857; margin: 4px 0; font-family: monospace;">72.98%</div>
+                            <div style="font-size: 10px; color: #10b981;">Chỉ số Jaccard Index</div>
+                        </div>
+                        <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: var(--radius-sm); padding: 12px; text-align: center;">
+                            <div style="font-size: 11px; font-weight: 700; color: #6b21a8;">PRECISION (ĐỘ CHÍNH XÁC)</div>
+                            <div id="evalValPrec" style="font-size: 22px; font-weight: 800; color: #7e22ce; margin: 4px 0; font-family: monospace;">83.03%</div>
+                            <div style="font-size: 10px; color: #a855f7;">Tỉ lệ dương thật / dự đoán</div>
+                        </div>
+                        <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: var(--radius-sm); padding: 12px; text-align: center;">
+                            <div style="font-size: 11px; font-weight: 700; color: #9a3412;">RECALL (ĐỘ NHẠY)</div>
+                            <div id="evalValRecall" style="font-size: 22px; font-weight: 800; color: #c2410c; margin: 4px 0; font-family: monospace;">86.53%</div>
+                            <div style="font-size: 10px; color: #f97316;">Độ nhạy bắt tổn thương</div>
+                        </div>
+                        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 12px; text-align: center;">
+                            <div style="font-size: 11px; font-weight: 700; color: #334155;">SPECIFICITY (ĐẶC HIỆU)</div>
+                            <div id="evalValSpec" style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 4px 0; font-family: monospace;">97.43%</div>
+                            <div style="font-size: 10px; color: #64748b;">Độ loại trừ vùng nền</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Failure Cases Inspector -->
+                <div class="card-white">
+                    <div class="card-header-bar">
+                        <div>
+                            <div class="card-title-main">🔬 Thanh Tra Ca Thất Bại & Lỗi Hình Thái (Failure Cases Inspector)</div>
+                            <div class="card-subtitle-sub">Phân loại lỗi học thuật (False Negative / False Positive) kèm chức năng nạp trực tiếp vào Workstation</div>
+                        </div>
+                    </div>
+
+                    <!-- Filter Chips -->
+                    <div class="filter-chips-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+                        <button type="button" class="btn btn-sm btn-filter-chip active" id="chipFilterAll" onclick="filterFailureCases('all')">
+                            Tất cả (<span id="countAll">123</span>)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-filter-chip" id="chipFilterLowDice" onclick="filterFailureCases('low_dice')">
+                            ⚠️ Dice &lt; 0.70 (<span id="countLowDice">19</span> ca)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-filter-chip" id="chipFilterFN" onclick="filterFailureCases('fn')">
+                            📉 False Negative ưu thế (<span id="countFN">--</span> ca)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-filter-chip" id="chipFilterFP" onclick="filterFailureCases('fp')">
+                            📈 False Positive ưu thế (<span id="countFP">--</span> ca)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-filter-chip" id="chipFilterHighDice" onclick="filterFailureCases('high_dice')">
+                            ✨ Dice &ge; 0.90 (<span id="countHighDice">38</span> ca)
+                        </button>
+                    </div>
+
+                    <!-- Evaluation Samples Table -->
+                    <div class="table-responsive">
+                        <table class="data-table" id="tableEvaluationSamples">
+                            <thead>
+                                <tr>
+                                    <th>Mã Ca / File</th>
+                                    <th>Chỉ Số Dice</th>
+                                    <th>Chỉ Số IoU</th>
+                                    <th>Độ Nhạy (Recall)</th>
+                                    <th>Phân Loại Thất Bại (Error Taxonomy)</th>
+                                    <th style="text-align: right;">Thao Tác Đối Chuẩn</th>
+                                </tr>
+                            </thead>
+                            <tbody id="evalSamplesTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--vm-text-muted); padding: 18px;">
+                                        Đang tải danh sách ca kiểm thử khoa học...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
