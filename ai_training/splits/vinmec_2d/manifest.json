@@ -1,0 +1,14 @@
+{
+  "source": "dataset\\Vinmec_2D",
+  "seed": 42,
+  "val_fraction": 0.15,
+  "counts": {
+    "train": 697,
+    "val": 123,
+    "test": 382
+  },
+  "split_level": "image",
+  "patient_id_status": "Unavailable in local files; patient-level separation cannot be verified",
+  "source_test_preserved": true,
+  "exact_decoded_image_duplicates": 0
+}

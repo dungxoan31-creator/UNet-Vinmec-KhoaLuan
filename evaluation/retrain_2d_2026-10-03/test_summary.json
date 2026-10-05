@@ -1,0 +1,146 @@
+{
+  "evidence_status": "PARTIALLY VERIFIED: image-level source Test; patient identity unavailable",
+  "checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
+  "selection_split": "val",
+  "threshold": 0.5,
+  "test_count": 382,
+  "source_test_preserved_from_training": true,
+  "patient_split_status": "synthetic metadata only; source patient identity unavailable",
+  "patient_level_independence_verified": false,
+  "test_previously_accessed_for_earlier_checkpoint": true,
+  "normal_control_count": 0,
+  "mean_per_image": {
+    "dice": 0.8093820855259756,
+    "iou": 0.7160388641385422,
+    "precision": 0.8110946562114731,
+    "recall": 0.8664899380942932,
+    "specificity_background_pixels": 0.9716003582929493,
+    "specificity_normal_cases": null
+  },
+  "top_5_by_dice": [
+    {
+      "case_id": "177",
+      "dice": 0.9824596562047965,
+      "iou": 0.9655240327282123,
+      "false_positive_pixels": 1970,
+      "false_negative_pixels": 5032,
+      "dominant_pixel_error": "false_negative",
+      "image_path": "dataset/Vinmec_2D/test/image/177.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/177.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/177.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/177.png"
+    },
+    {
+      "case_id": "453",
+      "dice": 0.9814918676342616,
+      "iou": 0.9636563876564272,
+      "false_positive_pixels": 2259,
+      "false_negative_pixels": 1734,
+      "dominant_pixel_error": "false_positive",
+      "image_path": "dataset/Vinmec_2D/test/image/453.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/453.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/453.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/453.png"
+    },
+    {
+      "case_id": "1367",
+      "dice": 0.979911804362477,
+      "iou": 0.9606147865970188,
+      "false_positive_pixels": 5132,
+      "false_negative_pixels": 380,
+      "dominant_pixel_error": "false_positive",
+      "image_path": "dataset/Vinmec_2D/test/image/1367.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/1367.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/1367.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/1367.png"
+    },
+    {
+      "case_id": "966",
+      "dice": 0.9794696190261006,
+      "iou": 0.9597652723394534,
+      "false_positive_pixels": 3587,
+      "false_negative_pixels": 4435,
+      "dominant_pixel_error": "false_negative",
+      "image_path": "dataset/Vinmec_2D/test/image/966.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/966.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/966.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/966.png"
+    },
+    {
+      "case_id": "896",
+      "dice": 0.9784422235020109,
+      "iou": 0.9577943078816523,
+      "false_positive_pixels": 2065,
+      "false_negative_pixels": 2111,
+      "dominant_pixel_error": "false_negative",
+      "image_path": "dataset/Vinmec_2D/test/image/896.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/896.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/896.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/896.png"
+    }
+  ],
+  "bottom_5_by_dice": [
+    {
+      "case_id": "1430",
+      "dice": 0.0,
+      "iou": 0.0,
+      "false_positive_pixels": 0,
+      "false_negative_pixels": 25246,
+      "dominant_pixel_error": "false_negative",
+      "image_path": "dataset/Vinmec_2D/test/image/1430.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/1430.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/1430.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/1430.png"
+    },
+    {
+      "case_id": "872",
+      "dice": 0.0023934015759188194,
+      "iou": 0.0011981345965752126,
+      "false_positive_pixels": 0,
+      "false_negative_pixels": 54186,
+      "dominant_pixel_error": "false_negative",
+      "image_path": "dataset/Vinmec_2D/test/image/872.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/872.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/872.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/872.png"
+    },
+    {
+      "case_id": "377",
+      "dice": 0.014975136266742054,
+      "iou": 0.007544054757368707,
+      "false_positive_pixels": 53297,
+      "false_negative_pixels": 33266,
+      "dominant_pixel_error": "false_positive",
+      "image_path": "dataset/Vinmec_2D/test/image/377.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/377.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/377.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/377.png"
+    },
+    {
+      "case_id": "356",
+      "dice": 0.07408284023376399,
+      "iou": 0.03846626520673195,
+      "false_positive_pixels": 16341,
+      "false_negative_pixels": 7131,
+      "dominant_pixel_error": "false_positive",
+      "image_path": "dataset/Vinmec_2D/test/image/356.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/356.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/356.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/356.png"
+    },
+    {
+      "case_id": "1295",
+      "dice": 0.0933448573878803,
+      "iou": 0.04895738893819977,
+      "false_positive_pixels": 4106,
+      "false_negative_pixels": 39952,
+      "dominant_pixel_error": "false_negative",
+      "image_path": "dataset/Vinmec_2D/test/image/1295.JPG",
+      "ground_truth_mask_path": "dataset/Vinmec_2D/test/label/black_write/1295.PNG",
+      "prediction_mask_path": "evaluation/retrain_2d_2026-10-03/test/prediction_masks/1295.png",
+      "comparison_panel_path": "evaluation/retrain_2d_2026-10-03/test/comparison_panels/1295.png"
+    }
+  ],
+  "full_metrics_path": "evaluation/retrain_2d_2026-10-03/test/summary.json",
+  "per_image_metrics_path": "evaluation/retrain_2d_2026-10-03/test/per_image.csv"
+}

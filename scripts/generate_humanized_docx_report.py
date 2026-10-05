@@ -1,10 +1,12 @@
 import os
+
 import docx
-from docx.shared import Inches, Pt, RGBColor, Cm
+from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml import OxmlElement, parse_xml
-from docx.oxml.ns import qn, nsdecls
+from docx.oxml.ns import nsdecls, qn
+from docx.shared import Cm, Inches, Pt, RGBColor
+
 
 def set_cell_margins(cell, top=100, bottom=100, left=150, right=150):
     """Set cell padding in dxa (1 pt = 20 dxa)."""
@@ -49,7 +51,7 @@ def add_footer_page_number(run):
     fldChar2.set(qn('w:fldCharType'), 'separate')
     fldChar3 = OxmlElement('w:fldChar')
     fldChar3.set(qn('w:fldCharType'), 'end')
-    
+
     run._r.append(fldChar1)
     run._r.append(instrText)
     run._r.append(fldChar2)
@@ -57,7 +59,7 @@ def add_footer_page_number(run):
 
 def create_report():
     doc = docx.Document()
-    
+
     # -------------------------------------------------------------
     # 1. Page Setup: A4, Margins: Left 3.0cm, Right 2.0cm, Top 2.0cm, Bottom 2.0cm
     # -------------------------------------------------------------
@@ -68,7 +70,7 @@ def create_report():
     section.right_margin = Cm(2.0)
     section.top_margin = Cm(2.0)
     section.bottom_margin = Cm(2.0)
-    
+
     # Footer: Page number centered
     footer = section.footer
     footer_p = footer.paragraphs[0]
@@ -85,9 +87,9 @@ def create_report():
     # -------------------------------------------------------------
     # Helper functions for adding elements with strict formatting
     # -------------------------------------------------------------
-    def add_p(text="", style=None, align=WD_ALIGN_PARAGRAPH.JUSTIFY, 
-              first_indent=Cm(1.27), space_before=Pt(0), space_after=Pt(6), 
-              line_spacing=1.5, bold=False, italic=False, font_size=Pt(13), 
+    def add_p(text="", style=None, align=WD_ALIGN_PARAGRAPH.JUSTIFY,
+              first_indent=Cm(1.27), space_before=Pt(0), space_after=Pt(6),
+              line_spacing=1.5, bold=False, italic=False, font_size=Pt(13),
               color=RGBColor(0, 0, 0)):
         p = doc.add_paragraph()
         p.alignment = align
@@ -96,7 +98,7 @@ def create_report():
         pf.space_before = space_before
         pf.space_after = space_after
         pf.line_spacing = line_spacing
-        
+
         if text:
             run = p.add_run(text)
             run.font.name = 'Times New Roman'
@@ -275,7 +277,7 @@ def create_report():
     add_table_title("Bảng 1. Danh mục các nhiệm vụ kỹ thuật đã hoàn thành trong Cột mốc 1")
     t1_data = [
         ["STT", "Nhiệm vụ kỹ thuật", "Nội dung triển khai", "Tệp mã nguồn và dữ liệu liên quan", "Kết quả"],
-        ["1", "Khảo sát và đóng băng dữ liệu Ground Truth", 
+        ["1", "Khảo sát và đóng băng dữ liệu Ground Truth",
          "Rà soát kho 1.387 ảnh thô từ BVĐKQT Vinmec Times City; chốt danh mục 307 ảnh Ground Truth từ 185 bệnh nhân; xác định 35 ca mask rỗng (11,4%) phục vụ kiểm chứng âm tính.",
          "dataset/vinmec_ovarian/vinmec_dataset_manifest.json\nmetadata/kltn_ground_truth_307.csv",
          "Đã đóng băng"],
@@ -300,12 +302,12 @@ def create_report():
          "evaluation/evaluate_baseline_testset.py\nevaluation/baseline_test_metrics.json\nevaluation/baseline_visualizations/",
          "Foreground Dice: 0,5719\nIoU: 0,4405"]
     ]
-    
+
     table1 = doc.add_table(rows=len(t1_data), cols=5)
     table1.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(table1)
     col_widths1 = [Cm(1.0), Cm(3.2), Cm(5.8), Cm(3.8), Cm(2.2)]
-    
+
     for r_idx, row in enumerate(table1.rows):
         trPr = row._tr.get_or_add_trPr()
         trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
@@ -328,7 +330,7 @@ def create_report():
             if r_idx == 0:
                 set_cell_shading(cell, "EDF2F7")
                 run_c.font.color.rgb = RGBColor(26, 32, 44)
-    
+
     add_table_source("Nguồn: Tổng hợp từ kế hoạch thực hiện đề cương khóa luận tốt nghiệp.")
 
     # -------------------------------------------------------------
@@ -350,7 +352,7 @@ def create_report():
     table2.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(table2)
     col_widths2 = [Cm(3.8), Cm(2.0), Cm(2.0), Cm(2.4), Cm(2.4), Cm(3.4)]
-    
+
     for r_idx, row in enumerate(table2.rows):
         trPr = row._tr.get_or_add_trPr()
         trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
@@ -374,7 +376,7 @@ def create_report():
                 set_cell_shading(cell, "EDF2F7")
             elif r_idx == len(t2_data)-1:
                 set_cell_shading(cell, "F7FAFC")
-    
+
     add_table_source("Nguồn: Trích xuất từ tệp de_cuong_split_manifest.json và vinmec_dataset_manifest.json.")
     add_p("Kiểm toán mã nguồn xác nhận tập giao bệnh nhân giữa ba tập là rỗng: Train ∩ Val = ∅, Train ∩ Test = ∅, Val ∩ Test = ∅. Tỷ lệ ca mask rỗng (11,4%) được phân bổ đồng đều ở cả ba tập nhằm kiểm chứng khả năng phát hiện âm tính và tránh báo động giả trên các ca không có tổn thương.")
 
@@ -419,7 +421,7 @@ def create_report():
     table3.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(table3)
     col_widths3 = [Cm(4.0), Cm(4.8), Cm(7.2)]
-    
+
     for r_idx, row in enumerate(table3.rows):
         trPr = row._tr.get_or_add_trPr()
         trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
@@ -441,7 +443,7 @@ def create_report():
             run_c.font.bold = (r_idx == 0 or c_idx == 0)
             if r_idx == 0:
                 set_cell_shading(cell, "EDF2F7")
-    
+
     add_table_source("Nguồn: Cấu hình mã nguồn tại backend/models/unet.py và ai_training/train_baseline_unet.py.")
 
     add_p("Mô hình được huấn luyện trong 12 epoch trên máy tính xách tay cá nhân trang bị GPU NVIDIA GeForce RTX 3050 Laptop. Quá trình hội tụ diễn ra ổn định, hàm mất mát giảm dần qua các chu kỳ và hệ số Dice trên tập thẩm định liên tục được cải thiện, đạt giá trị cao nhất 0,5830 tại epoch 12.")
@@ -466,7 +468,7 @@ def create_report():
     table4.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(table4)
     col_widths4 = [Cm(2.0), Cm(2.2), Cm(2.2), Cm(2.2), Cm(2.2), Cm(2.4), Cm(2.8)]
-    
+
     for r_idx, row in enumerate(table4.rows):
         trPr = row._tr.get_or_add_trPr()
         trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
@@ -490,7 +492,7 @@ def create_report():
                 set_cell_shading(cell, "EDF2F7")
             elif r_idx == len(t4_data)-1:
                 set_cell_shading(cell, "F7FAFC")
-    
+
     add_table_source("Nguồn: Trích xuất từ nhật ký huấn luyện tại checkpoints/baseline_training_history.json.")
 
     # Insert Image 2
@@ -524,7 +526,7 @@ def create_report():
     table5.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(table5)
     col_widths5 = [Cm(4.5), Cm(3.2), Cm(8.3)]
-    
+
     for r_idx, row in enumerate(table5.rows):
         trPr = row._tr.get_or_add_trPr()
         trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
@@ -546,7 +548,7 @@ def create_report():
             run_c.font.bold = (r_idx == 0 or c_idx == 0)
             if r_idx == 0:
                 set_cell_shading(cell, "EDF2F7")
-    
+
     add_table_source("Nguồn: Kết xuất từ kịch bản evaluation/evaluate_baseline_testset.py và tệp evaluation/baseline_test_metrics.json.")
 
     add_heading_2("Phân tích trực quan các trường hợp phân đoạn thực tế")
@@ -620,7 +622,7 @@ def create_report():
     table6.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(table6)
     col_widths6 = [Cm(1.0), Cm(5.2), Cm(7.6), Cm(2.2)]
-    
+
     for r_idx, row in enumerate(table6.rows):
         trPr = row._tr.get_or_add_trPr()
         trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
@@ -642,7 +644,7 @@ def create_report():
             run_c.font.bold = (r_idx == 0 or c_idx in [0, 3])
             if r_idx == 0:
                 set_cell_shading(cell, "EDF2F7")
-    
+
     add_table_source("Nguồn: Thực thi lệnh pytest tests/test_milestone_1_audit.py (Kết quả: 16 passed in 7.31s).")
 
     # -------------------------------------------------------------
@@ -683,7 +685,7 @@ def create_report():
     table7.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(table7)
     col_widths7 = [Cm(2.6), Cm(4.0), Cm(5.6), Cm(3.8)]
-    
+
     for r_idx, row in enumerate(table7.rows):
         trPr = row._tr.get_or_add_trPr()
         trPr.append(parse_xml(f'<w:cantSplit {nsdecls("w")}/>'))
@@ -705,7 +707,7 @@ def create_report():
             run_c.font.bold = (r_idx == 0 or c_idx == 0)
             if r_idx == 0:
                 set_cell_shading(cell, "EDF2F7")
-    
+
     add_table_source("Nguồn: Kế hoạch triển khai đề cương khóa luận tốt nghiệp MIS 65A.")
 
     add_p("Lưu ý về phạm vi triển khai: Bám sát chỉ đạo chuyên môn của Thầy, các hướng nghiên cứu mở rộng như tích hợp mô hình ngôn ngữ lớn (LLM/VLM), tự động sinh văn bản mô tả bệnh án hoặc phát triển bảng điều khiển quản trị nâng cao sẽ chỉ được xem xét nếu phần phân đoạn và giao diện tương tác Human-in-the-Loop cốt lõi đã hoàn thành tốt và còn đủ thời gian.")
@@ -724,7 +726,7 @@ def create_report():
     r_sig_lbl.font.name = 'Times New Roman'
     r_sig_lbl.font.size = Pt(12)
     r_sig_lbl.font.bold = True
-    
+
     r_sig_name = p_sig.add_run("Nguyễn Hữu Dũng\n")
     r_sig_name.font.name = 'Times New Roman'
     r_sig_name.font.size = Pt(13)
@@ -738,7 +740,7 @@ def create_report():
     # Save to both target paths
     path1 = "docs/reports/Bao_Cao_Tien_Do_Moc_1_NguyenHuuDung.docx"
     path2 = "docs/reports/Bao_Cao_Tien_Do_Moc_1_NguyenHuuDung_Final.docx"
-    
+
     doc.save(path1)
     print(f"Saved: {path1}")
     doc.save(path2)

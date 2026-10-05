@@ -1,0 +1,24 @@
+{
+  "split": "test",
+  "count": 382,
+  "threshold": 0.5,
+  "preprocessing": "grayscale, 512x512 letterbox, CLAHE, divide by 255; inverse nearest-neighbor mask resize",
+  "checkpoint_sha256": "5c8d40f64b49f76dd0cb0ece250a9fb39ccfc1bbdd6bbba10ad1d9f9f1f540f0",
+  "patient_split_status": "Not asserted by this evaluator; consult audited split manifest",
+  "dice_mean_all_cases": 0.577707885096026,
+  "iou_mean_all_cases": 0.44633067031394547,
+  "recall_mean_all_cases": 0.65720944184028,
+  "clinical_summary": {
+    "total_cases_evaluated": 382,
+    "lesion_cases_count": 382,
+    "normal_cases_count": 0,
+    "foreground_dice_mean": 0.577707885096026,
+    "foreground_dice_std": 0.2451367055537011,
+    "foreground_iou_mean": 0.44633067031394547,
+    "foreground_iou_std": 0.2367999833031007,
+    "recall_sensitivity_mean": 0.65720944184028,
+    "precision_mean": 0.656256077063996,
+    "specificity_normal_cases": null,
+    "specificity_all_cases": 0.9461587221279859
+  }
+}

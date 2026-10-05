@@ -1,0 +1,75 @@
+{
+  "root": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan",
+  "datasets": {
+    "MMVinmec_2D": {
+      "images": 1469,
+      "annotations": 4407,
+      "matched": 1469,
+      "missing_annotation": 0,
+      "orphan_annotation": 0,
+      "duplicate_image_id": 0,
+      "duplicate_annotation_id": 1469,
+      "corrupt_files": 0,
+      "empty_annotations": 0,
+      "shape_mismatch": 0,
+      "invalid_masks": 0,
+      "uncertain_mappings": 0
+    },
+    "MMVinmec_CEUS": {
+      "images": 170,
+      "annotations": 510,
+      "matched": 170,
+      "missing_annotation": 0,
+      "orphan_annotation": 0,
+      "duplicate_image_id": 0,
+      "duplicate_annotation_id": 170,
+      "corrupt_files": 0,
+      "empty_annotations": 0,
+      "shape_mismatch": 0,
+      "invalid_masks": 0,
+      "uncertain_mappings": 0
+    },
+    "Vinmec_2D_train": {
+      "images": 820,
+      "annotations": 820,
+      "matched": 820,
+      "missing_annotation": 0,
+      "orphan_annotation": 0,
+      "duplicate_image_id": 0,
+      "duplicate_annotation_id": 0,
+      "corrupt_files": 0,
+      "empty_annotations": 0,
+      "shape_mismatch": 0,
+      "invalid_masks": 0,
+      "uncertain_mappings": 0
+    },
+    "Vinmec_2D_test": {
+      "images": 382,
+      "annotations": 382,
+      "matched": 382,
+      "missing_annotation": 0,
+      "orphan_annotation": 0,
+      "duplicate_image_id": 0,
+      "duplicate_annotation_id": 0,
+      "corrupt_files": 0,
+      "empty_annotations": 0,
+      "shape_mismatch": 0,
+      "invalid_masks": 0,
+      "uncertain_mappings": 0
+    },
+    "Vinmec_CEUS": {
+      "images": 170,
+      "annotations": 170,
+      "matched": 170,
+      "missing_annotation": 0,
+      "orphan_annotation": 0,
+      "duplicate_image_id": 0,
+      "duplicate_annotation_id": 0,
+      "corrupt_files": 0,
+      "empty_annotations": 0,
+      "shape_mismatch": 0,
+      "invalid_masks": 0,
+      "uncertain_mappings": 0
+    }
+  }
+}

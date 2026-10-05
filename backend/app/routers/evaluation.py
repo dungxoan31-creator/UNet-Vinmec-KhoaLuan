@@ -7,16 +7,15 @@ import base64
 import csv
 import json
 import os
-from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
 
 router = APIRouter()
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 VAL_SUMMARY_PATH = os.path.join(BASE_DIR, "evaluation", "retrain_2d_2026-10-03", "validation", "summary.json")
-TEST_METRICS_PATH = os.path.join(BASE_DIR, "evaluation", "baseline_test_metrics.json")
+TEST_METRICS_PATH = os.path.join(BASE_DIR, "evaluation", "retrain_2d_2026-10-03", "test_summary.json")
+SPLIT_MANIFEST_PATH = os.path.join(BASE_DIR, "ai_training", "splits", "vinmec_2d_retrain_2026-10-03", "manifest.json")
 PER_IMAGE_CSV_PATH = os.path.join(BASE_DIR, "evaluation", "retrain_2d_2026-10-03", "validation", "per_image.csv")
 PRED_MASKS_DIR = os.path.join(BASE_DIR, "evaluation", "retrain_2d_2026-10-03", "validation", "prediction_masks")
 
@@ -36,7 +35,7 @@ def get_evaluation_metrics():
     val_data = {}
     if os.path.exists(VAL_SUMMARY_PATH):
         try:
-            with open(VAL_SUMMARY_PATH, "r", encoding="utf-8") as f:
+            with open(VAL_SUMMARY_PATH, encoding="utf-8") as f:
                 val_data = json.load(f)
         except Exception:
             pass
@@ -44,40 +43,45 @@ def get_evaluation_metrics():
     test_data = {}
     if os.path.exists(TEST_METRICS_PATH):
         try:
-            with open(TEST_METRICS_PATH, "r", encoding="utf-8") as f:
+            with open(TEST_METRICS_PATH, encoding="utf-8") as f:
                 test_data = json.load(f)
         except Exception:
             pass
 
+    split_manifest = {}
+    if os.path.exists(SPLIT_MANIFEST_PATH):
+        with open(SPLIT_MANIFEST_PATH, encoding="utf-8") as source:
+            split_manifest = json.load(source)
     val_clin = val_data.get("clinical_summary", {})
+    test_metrics = test_data.get("mean_per_image", {})
     return {
         "train": {
-            "count": 991,
-            "dataset": "OTU_2D (Train Split)",
-            "classes": "Benign / Malignant / Borderline Ovarian Lesions",
-            "loss_function": "Dice Loss + BCE Loss",
+            "count": split_manifest.get("counts", {}).get("train"),
+            "dataset": "Vinmec 2D retraining split; source patient IDs unavailable",
+            "loss_function": "0.5 BCE + 0.5 Dice",
         },
         "validation": {
-            "count": val_data.get("count", 123),
-            "dice_mean": round(val_data.get("dice_mean_all_cases", 0.8233), 4),
-            "dice_std": round(val_clin.get("foreground_dice_std", 0.1743), 4),
-            "iou_mean": round(val_data.get("iou_mean_all_cases", 0.7298), 4),
-            "iou_std": round(val_clin.get("foreground_iou_std", 0.2062), 4),
-            "recall_mean": round(val_data.get("recall_mean_all_cases", 0.8653), 4),
-            "precision_mean": round(val_clin.get("precision_mean", 0.8303), 4),
-            "specificity": round(val_clin.get("specificity_all_cases", 0.9743), 4),
-            "checkpoint": "retrain_2d_2026-10-03_stable/mmotu_unet_best.pth",
+            "count": val_data.get("count"),
+            "dice_mean": val_data.get("dice_mean_all_cases"),
+            "dice_std": val_clin.get("foreground_dice_std"),
+            "iou_mean": val_data.get("iou_mean_all_cases"),
+            "iou_std": val_clin.get("foreground_iou_std"),
+            "recall_mean": val_data.get("recall_mean_all_cases"),
+            "precision_mean": val_clin.get("precision_mean"),
+            "specificity": val_clin.get("specificity_all_cases"),
+            "checkpoint_sha256": val_data.get("checkpoint_sha256"),
         },
         "test": {
-            "count": test_data.get("total_cases_evaluated", 46),
-            "dice_mean": round(test_data.get("foreground_dice_mean", 0.5719), 4),
-            "dice_std": round(test_data.get("foreground_dice_std", 0.2482), 4),
-            "iou_mean": round(test_data.get("foreground_iou_mean", 0.4405), 4),
-            "iou_std": round(test_data.get("foreground_iou_std", 0.2341), 4),
-            "recall_mean": round(test_data.get("recall_sensitivity_mean", 0.6362), 4),
-            "precision_mean": round(test_data.get("precision_mean", 0.5864), 4),
-            "specificity": round(test_data.get("specificity_all_cases", 0.8977), 4),
-            "dataset": "OTU_2D Test Split",
+            "count": test_data.get("test_count"),
+            "dice_mean": test_metrics.get("dice"),
+            "iou_mean": test_metrics.get("iou"),
+            "recall_mean": test_metrics.get("recall"),
+            "precision_mean": test_metrics.get("precision"),
+            "specificity": test_metrics.get("specificity_background_pixels"),
+            "specificity_normal_cases": test_metrics.get("specificity_normal_cases"),
+            "checkpoint_sha256": test_data.get("checkpoint_sha256"),
+            "patient_level_independence_verified": test_data.get("patient_level_independence_verified", False),
+            "dataset": "Vinmec 2D source Test; image-level evidence",
         },
     }
 
@@ -95,7 +99,7 @@ def get_evaluation_samples(
         return []
 
     samples = []
-    with open(PER_IMAGE_CSV_PATH, "r", encoding="utf-8") as f:
+    with open(PER_IMAGE_CSV_PATH, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             dice = float(row.get("dice", 0.0))
@@ -152,7 +156,7 @@ def get_sample_workstation_bundle(case_id: str):
         raise HTTPException(status_code=404, detail="Dataset evaluation records not found.")
 
     target_row = None
-    with open(PER_IMAGE_CSV_PATH, "r", encoding="utf-8") as f:
+    with open(PER_IMAGE_CSV_PATH, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             if str(row.get("case_id")).strip() == str(case_id).strip():
@@ -166,8 +170,15 @@ def get_sample_workstation_bundle(case_id: str):
     gt_mask_rel = target_row.get("mask_path", "").replace("\\", "/")
     pred_mask_path = os.path.join(PRED_MASKS_DIR, f"{case_id}.png")
 
-    img_full_path = os.path.join(BASE_DIR, raw_img_rel)
-    gt_full_path = os.path.join(BASE_DIR, gt_mask_rel)
+    def archived_source(relative_path: str) -> str:
+        primary = os.path.join(BASE_DIR, relative_path)
+        if os.path.isfile(primary):
+            return primary
+        archive_relative = relative_path.replace("dataset/Vinmec_2D/", "dataset_backup_archive/Vinmec_2D/")
+        return os.path.join(BASE_DIR, archive_relative)
+
+    img_full_path = archived_source(raw_img_rel)
+    gt_full_path = archived_source(gt_mask_rel)
 
     img_b64 = _read_file_b64(img_full_path)
     gt_b64 = _read_file_b64(gt_full_path)
@@ -186,38 +197,22 @@ def get_sample_workstation_bundle(case_id: str):
         "original_image_base64": f"data:image/jpeg;base64,{img_b64}",
         "ground_truth_mask_base64": f"data:image/png;base64,{gt_b64}" if gt_b64 else None,
         "prediction_mask_base64": f"data:image/png;base64,{pred_b64}" if pred_b64 else None,
-        "confidence_score": round(max(0.60, min(0.98, dice * 1.05)), 3),
-        "inference_time_ms": 420,
+        "confidence_score": None,
+        "inference_time_ms": None,
         "benchmark_metrics": {
             "dice": round(dice, 4),
             "iou": round(iou, 4),
             "recall": round(float(target_row.get("recall", 0.0)), 4),
             "precision": round(float(target_row.get("precision", 0.0)), 4),
         },
-        "measurements": {
-            "has_lesion": True,
-            "total_lesions": 1,
-            "lesions": [
-                {
-                    "lesion_id": 1,
-                    "center": [256.0, 256.0],
-                    "max_diameter_px": 140.0,
-                    "ortho_diameter_px": 95.0,
-                    "area_px": int(target_row.get("tp", 10000)),
-                }
-            ],
-            "max_diameter_mm": None,
-            "ortho_diameter_mm": None,
-            "total_area_px": int(target_row.get("tp", 10000)),
-            "calibrated": False,
-        },
+        "measurements": {"calibrated": False},
         "quality_gate": {
-            "status": "APPROVED" if dice >= 0.70 else "NEEDS_REVIEW",
-            "message": "Mẫu thực nghiệm đối chuẩn học thuật" if dice >= 0.70 else "Ca thất bại kiểm thử (Failure case)",
+            "status": "NOT_ASSESSED",
+            "message": "Điểm Dice lịch sử là độ đo phân đoạn, không phải phê duyệt lâm sàng.",
         },
         "provenance": {
             "model_name": "Standard U-Net (Baseline)",
             "checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
-            "dataset_source": "OTU_2D Validation Split",
+            "dataset_source": "Vinmec 2D Validation; source patient IDs unavailable",
         },
     }

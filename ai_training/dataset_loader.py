@@ -4,12 +4,13 @@ Complies with Patient-Level Split and Medical Image Standardization (512x512 Let
 """
 
 import os
+
+import albumentations as A
 import cv2
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset, DataLoader
-import albumentations as A
+from torch.utils.data import DataLoader, Dataset
 
 from backend.services.preprocessor import UltrasoundPreprocessor
 
@@ -25,8 +26,9 @@ def cv2_imread_unicode(file_path, flags=cv2.IMREAD_GRAYSCALE):
 
 
 class OvarianUltrasoundDataset(Dataset):
-    def __init__(self, csv_file, target_size=(512, 512), is_train=False):
+    def __init__(self, csv_file, target_size=(512, 512), is_train=False, seed=42):
         self.df = pd.read_csv(csv_file)
+        self.csv_dir = os.path.abspath(os.path.dirname(csv_file))
         self.target_size = target_size
         self.is_train = is_train
         self.preprocessor = UltrasoundPreprocessor(target_size=target_size)
@@ -37,17 +39,30 @@ class OvarianUltrasoundDataset(Dataset):
                 A.HorizontalFlip(p=0.5),
                 A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.4),
                 A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=10, border_mode=cv2.BORDER_CONSTANT, p=0.4)
-            ])
+            ], seed=seed)
         else:
             self.transform = None
+
+    def _resolve_path(self, value):
+        if os.path.isabs(value):
+            return value
+        directory = self.csv_dir
+        while True:
+            candidate = os.path.join(directory, value)
+            if os.path.isfile(candidate):
+                return candidate
+            parent = os.path.dirname(directory)
+            if parent == directory:
+                return candidate
+            directory = parent
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        img_path = str(row["image_path"]).replace("\\", "/")
-        mask_path = str(row["mask_path"]).replace("\\", "/")
+        img_path = self._resolve_path(str(row["image_path"]).replace("\\", "/"))
+        mask_path = self._resolve_path(str(row["mask_path"]).replace("\\", "/"))
         case_id = str(row["case_id"])
         patient_id = str(row.get("patient_id", "UNKNOWN"))
 
@@ -58,11 +73,10 @@ class OvarianUltrasoundDataset(Dataset):
         if raw_img is None:
             raise FileNotFoundError(f"Image not found: {img_path}")
         if raw_mask is None:
-            # Fallback for empty mask if missing on disk
-            raw_mask = np.zeros_like(raw_img, dtype=np.uint8)
+            raise FileNotFoundError(f"Mask not found: {mask_path}")
 
         # Ensure mask is strictly binary {0, 1}
-        raw_mask = (raw_mask > 127).astype(np.uint8)
+        raw_mask = (raw_mask > 0).astype(np.uint8)
 
         # 2. Letterbox Resize (Bilinear for Image, Nearest for Mask)
         padded_img, _ = self.preprocessor.letterbox_resize(raw_img, target_size=self.target_size, is_mask=False)
@@ -90,16 +104,17 @@ class OvarianUltrasoundDataset(Dataset):
         }
 
 
-def get_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0):
+def get_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0, seed=42):
     train_csv = os.path.join(splits_dir, "train.csv")
     val_csv = os.path.join(splits_dir, "val.csv")
     test_csv = os.path.join(splits_dir, "test.csv")
 
-    train_ds = OvarianUltrasoundDataset(train_csv, is_train=True)
+    train_ds = OvarianUltrasoundDataset(train_csv, is_train=True, seed=seed)
     val_ds = OvarianUltrasoundDataset(val_csv, is_train=False)
     test_ds = OvarianUltrasoundDataset(test_csv, is_train=False)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    generator = torch.Generator().manual_seed(seed)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, generator=generator)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 

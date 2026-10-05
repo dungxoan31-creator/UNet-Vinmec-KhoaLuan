@@ -5,13 +5,14 @@ Calculates Dice (DSC), IoU, Recall, Precision, and Specificity.
 Exports visual grids: Best, Average, Worst case predictions.
 """
 
+import json
 import os
 import sys
-import json
+
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import torch
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -19,9 +20,9 @@ if hasattr(sys.stdout, "reconfigure"):
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from ai_training.metrics_clinical import compute_dataset_clinical_summary, compute_sample_clinical_metrics
 from backend.models.unet import StandardUNet
 from backend.services.preprocessor import UltrasoundPreprocessor
-from ai_training.metrics_clinical import compute_sample_clinical_metrics, compute_dataset_clinical_summary
 
 
 def cv2_imread_unicode(file_path, flags=cv2.IMREAD_GRAYSCALE):
@@ -59,7 +60,7 @@ def evaluate_test_set(
 
     # 2. Test Manifest
     df = pd.read_csv(test_csv)
-    print(f"[DỮ LIỆU] Tổng số ca Test độc lập: {len(df)} (Bệnh nhân: {df['patient_id'].nunique()}, Empty: {(df['is_empty_mask']==True).sum()})")
+    print(f"[DỮ LIỆU] Tổng số ca Test độc lập: {len(df)} (Bệnh nhân: {df['patient_id'].nunique()}, Empty: {df['is_empty_mask'].eq(True).sum()})")
 
     preprocessor = UltrasoundPreprocessor(target_size=(512, 512))
     sample_results = []
@@ -159,7 +160,7 @@ def evaluate_test_set(
                 axes[i, 1].imshow(c["raw_image"], cmap="gray")
                 gt_overlay = np.ma.masked_where(c["raw_mask"] == 0, c["raw_mask"])
                 axes[i, 1].imshow(gt_overlay, cmap="autumn", alpha=0.5)
-                axes[i, 1].set_title(f"Ground Truth Mask\n(Verified)")
+                axes[i, 1].set_title("Ground Truth Mask\n(Verified)")
                 axes[i, 1].axis("off")
 
                 # Pred Overlay

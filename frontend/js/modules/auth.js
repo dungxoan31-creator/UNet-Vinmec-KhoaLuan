@@ -41,7 +41,7 @@ function handleBrandClick() {
     if (currentRole === 'ADMIN') {
         navigateTo('dashboard');
     } else {
-        navigateTo('create_case');
+        navigateTo('dual_upload');
     }
 }
 
@@ -116,7 +116,7 @@ async function switchRole(role, showNotification = true) {
                     navigateTo('dashboard');
                 } else {
                     showToast("🩺 Đã chuyển sang phân hệ Bác Sĩ Lâm Sàng (Khám & Phân Tích)");
-                    navigateTo('create_case');
+                    navigateTo('dual_upload');
                 }
             }
         }

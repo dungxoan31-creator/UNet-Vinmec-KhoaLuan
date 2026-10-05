@@ -7,10 +7,11 @@ function navigateTo(screenName) {
     // RBAC Guard: Bác sĩ chỉ được dùng để khám bệnh (Khám & Phân Tích) và xem hồ sơ bệnh nhân (Hồ Sơ Bệnh Án)
     if ((screenName === 'admin_portal' || screenName === 'dashboard') && currentRole !== 'ADMIN') {
         showToast("⚠️ Phân quyền: Bác sĩ chỉ có quyền thực hiện Khám & Phân Tích và xem Hồ Sơ Bệnh Án.", false);
-        navigateTo('create_case');
+        navigateTo('dual_upload');
         return;
     }
 
+    document.body.classList.toggle('pacs-mode', ['dual_upload', 'dual_results', 'dual_report'].includes(screenName));
     document.querySelectorAll('.screen-container').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item-btn').forEach(b => b.classList.remove('active'));
 
@@ -27,6 +28,13 @@ function navigateTo(screenName) {
         if (studyDateInput && !studyDateInput.value) {
             studyDateInput.value = new Date().toISOString().split('T')[0];
         }
+    } else if (screenName === 'dual_upload') {
+        document.getElementById('screenDualUpload').classList.add('active');
+        document.getElementById('navNewCase').classList.add('active');
+    } else if (screenName === 'dual_results') {
+        document.getElementById('screenDualResults').classList.add('active');
+    } else if (screenName === 'dual_report') {
+        document.getElementById('screenDualReport').classList.add('active');
     } else if (screenName === 'upload') {
         document.getElementById('screenUpload').classList.add('active');
         const pidEl = document.getElementById('uploadCurrentPidText');

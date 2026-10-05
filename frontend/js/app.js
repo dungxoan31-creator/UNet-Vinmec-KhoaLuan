@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof setupCanvasEngine === 'function') {
         setupCanvasEngine();
     }
+    setupDualUpload();
+    setupDualViewer();
 
     // 6. Register Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, 1-4, etc.)
     if (typeof setupKeyboardShortcuts === 'function') {
@@ -47,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (typeof applyRoleRBAC === 'function') {
         applyRoleRBAC();
     }
-    const defaultScreen = (typeof currentRole !== 'undefined' && currentRole === 'ADMIN') ? 'dashboard' : 'create_case';
+    const defaultScreen = (typeof currentRole !== 'undefined' && currentRole === 'ADMIN') ? 'dashboard' : 'dual_upload';
     const initialHash = window.location.hash.replace('#', '') || (window.location.pathname === '/admin' ? 'admin_portal' : defaultScreen);
     if (typeof navigateTo === 'function') {
         navigateTo(initialHash);

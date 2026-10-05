@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="/static/css/viewer.css?v=2.1.0">
     <link rel="stylesheet" href="/static/css/admin.css?v=2.1.0">
     <link rel="stylesheet" href="/static/css/report.css?v=2.1.0">
+    <link rel="stylesheet" href="/static/css/pacs-dual.css?v=2.2.0">
 </head>
 <body>
 
@@ -70,7 +71,7 @@
             <button class="nav-item-btn active" id="navDashboard" onclick="navigateTo('dashboard')">
                 📊 Tổng Quan
             </button>
-            <button class="nav-item-btn" id="navNewCase" onclick="navigateTo('create_case')">
+            <button class="nav-item-btn" id="navNewCase" onclick="startNewDualCase()">
                 🩺 Ca Khám Mới
             </button>
             <button class="nav-item-btn" id="navHistory" onclick="navigateTo('history')">
@@ -83,7 +84,7 @@
 
         <!-- Right Header Actions -->
         <div class="header-actions">
-            <button class="btn-create-case-nav" onclick="navigateTo('create_case')">
+            <button class="btn-create-case-nav" onclick="startNewDualCase()">
                 <span>➕</span> Ca Mới
             </button>
 
@@ -120,7 +121,7 @@
             <button type="button" class="drawer-nav-item active" id="drawerNavDashboard" onclick="navigateTo('dashboard'); closeMobileDrawer();">
                 <span aria-hidden="true">📊</span> <span>Tổng Quan (Dashboard)</span>
             </button>
-            <button type="button" class="drawer-nav-item" onclick="navigateTo('create_case'); closeMobileDrawer();">
+            <button type="button" class="drawer-nav-item" onclick="startNewDualCase(); closeMobileDrawer();">
                 <span aria-hidden="true">🩺</span> <span>Ca Khám Mới (New Study)</span>
             </button>
             <button type="button" class="drawer-nav-item" onclick="navigateTo('history'); closeMobileDrawer();">
@@ -137,6 +138,11 @@
                 <p style="margin: 2px 0 0;">🏥 Vinmec Healthcare System</p>
             </div>
         </nav>
+    </div>
+
+    <div class="pacs-topbar" aria-label="Điều hướng workstation">
+        <div><strong>VINMEC</strong><span>HỖ TRỢ PHÂN ĐOẠN SIÊU ÂM · R/L</span></div>
+        <nav><button type="button" onclick="startNewDualCase()">Ca mới</button><button type="button" onclick="navigateTo('history')">Danh sách ca</button></nav>
     </div>
 
     <!-- 3. MAIN APPLICATION HOST -->
@@ -165,7 +171,7 @@
                             <span>🔍</span> Tra cứu
                         </button>
                     </div>
-                    <button type="button" class="btn btn-primary btn-lg" onclick="navigateTo('create_case')">
+                    <button type="button" class="btn btn-primary btn-lg" onclick="startNewDualCase()">
                         <span>🩺</span> Tiếp Nhận Ca Mới →
                     </button>
                 </div>
@@ -359,6 +365,55 @@
         <!-- ====================================================================
              SCREEN 3: UPLOAD ẢNH SIÊU ÂM (BƯỚC 2)
              ==================================================================== -->
+        <section id="screenDualUpload" class="screen-container pacs-page" aria-labelledby="dualUploadTitle">
+            <div class="pacs-intake-shell">
+                <div class="pacs-page-heading">
+                    <div>
+                        <span class="pacs-eyebrow">TIẾP NHẬN HÌNH ẢNH · HAI BÊN</span>
+                        <h1 id="dualUploadTitle">Khảo sát buồng trứng R / L</h1>
+                        <p>Mỗi ảnh được gắn bên khảo sát trước khi tải lên. Mô hình chỉ tạo mask để chuyên viên rà soát.</p>
+                    </div>
+                    <span class="pacs-step-marker">01 / 03 · Nhập ảnh</span>
+                </div>
+
+                <div class="pacs-intake-fields">
+                    <label>Mã hồ sơ ẩn danh <span aria-hidden="true">*</span>
+                        <input id="dualPatientId" type="text" autocomplete="off" maxlength="64" placeholder="Nhập mã hồ sơ nghiên cứu" required>
+                    </label>
+                    <label>Tuổi (nếu có)
+                        <input id="dualPatientAge" type="number" min="0" max="120" placeholder="—">
+                    </label>
+                    <label>Ngày khảo sát
+                        <input id="dualStudyDate" type="date">
+                    </label>
+                </div>
+
+                <div class="pacs-upload-grid">
+                    <article class="pacs-upload-slot" data-side="R" aria-labelledby="dualTitleR">
+                        <div class="pacs-slot-heading"><span class="pacs-laterality">R</span><div><h2 id="dualTitleR">Buồng trứng phải</h2><p>Ảnh siêu âm bên phải</p></div></div>
+                        <input id="dualFileR" type="file" accept=".png,.jpg,.jpeg,.dcm" hidden aria-label="Chọn ảnh buồng trứng phải">
+                        <button type="button" class="pacs-drop-target" data-side="R" onclick="document.getElementById('dualFileR').click()">
+                            <img id="dualPreviewR" alt="Xem trước ảnh buồng trứng phải" hidden>
+                            <span id="dualPlaceholderR">Kéo ảnh vào đây hoặc chọn tệp<br><small>PNG, JPG, JPEG, DICOM · tối đa 20 MB</small></span>
+                        </button>
+                        <div class="pacs-slot-footer"><span id="dualFileNameR">Chưa chọn tệp</span><button type="button" id="dualRemoveR" onclick="removeDualFile('R')" disabled>Gỡ ảnh</button></div>
+                    </article>
+                    <article class="pacs-upload-slot" data-side="L" aria-labelledby="dualTitleL">
+                        <div class="pacs-slot-heading"><span class="pacs-laterality">L</span><div><h2 id="dualTitleL">Buồng trứng trái</h2><p>Ảnh siêu âm bên trái</p></div></div>
+                        <input id="dualFileL" type="file" accept=".png,.jpg,.jpeg,.dcm" hidden aria-label="Chọn ảnh buồng trứng trái">
+                        <button type="button" class="pacs-drop-target" data-side="L" onclick="document.getElementById('dualFileL').click()">
+                            <img id="dualPreviewL" alt="Xem trước ảnh buồng trứng trái" hidden>
+                            <span id="dualPlaceholderL">Kéo ảnh vào đây hoặc chọn tệp<br><small>PNG, JPG, JPEG, DICOM · tối đa 20 MB</small></span>
+                        </button>
+                        <div class="pacs-slot-footer"><span id="dualFileNameL">Chưa chọn tệp</span><button type="button" id="dualRemoveL" onclick="removeDualFile('L')" disabled>Gỡ ảnh</button></div>
+                    </article>
+                </div>
+                <label class="pacs-side-confirm"><input id="dualSideConfirmed" type="checkbox"> Tôi đã xác minh bên khảo sát R/L theo ảnh hoặc hồ sơ nguồn và gán đúng hai ô tải.</label>
+                <div id="dualUploadWarning" class="pacs-inline-alert" role="alert" aria-live="polite">Cần đủ hai ảnh R và L để chạy suy diễn.</div>
+                <div class="pacs-intake-actions"><span>Ảnh cùng nội dung sẽ bị chặn để tránh gán nhầm bên khảo sát.</span><button id="dualRunBtn" type="button" class="pacs-primary" onclick="runDualInference()" disabled>Chạy suy diễn cả hai bên</button></div>
+            </div>
+        </section>
+
         <section id="screenUpload" class="screen-container">
             <div class="clinical-stepper-bar">
                 <div class="step-pill completed"><div class="step-num-badge">✓</div> Thông tin ca</div>
@@ -403,7 +458,7 @@
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 10px;">
-                    <button type="button" class="btn" onclick="navigateTo('create_case')">
+                    <button type="button" class="btn" onclick="startNewDualCase()">
                         ← Quay lại Bước 1
                     </button>
                     <button type="button" id="btnGoToIQA" class="btn btn-primary btn-lg" disabled onclick="startQualityCheck()">
@@ -825,6 +880,53 @@
         <!-- ====================================================================
              SCREEN 7: VINMEC CLINICAL DIAGNOSIS REPORT OUTPUT SCREEN (BƯỚC 6)
              ==================================================================== -->
+        <section id="screenDualResults" class="screen-container pacs-page" aria-labelledby="dualViewerTitle">
+            <div class="pacs-workstation">
+                <div class="pacs-workstation-heading">
+                    <div><span class="pacs-eyebrow">PHÂN ĐOẠN · RÀ SOÁT HAI BÊN</span><h1 id="dualViewerTitle">PACS Dual-Ovary Workstation</h1><p id="dualCaseMeta">Chưa có ca khảo sát</p></div>
+                    <div class="pacs-heading-actions"><span id="dualOverallStatus" class="pacs-status" role="status">Chờ rà soát R và L</span><button type="button" id="dualOpenReport" onclick="openDualReport()" disabled>Phiếu A4</button></div>
+                </div>
+                <div class="pacs-toolbar" role="toolbar" aria-label="Công cụ xem và chỉnh mask">
+                    <div class="pacs-control-group" aria-label="Chế độ xem"><button type="button" id="dualModeSplit" class="is-active" onclick="setDualViewMode('split')">R | L</button><button type="button" id="dualModeR" onclick="setDualViewMode('R')">Tập trung R</button><button type="button" id="dualModeL" onclick="setDualViewMode('L')">Tập trung L</button></div>
+                    <div class="pacs-control-group"><button type="button" id="dualSyncBtn" aria-pressed="false" onclick="toggleDualSync()">Liên kết viewport</button><button type="button" id="dualViewOriginal" onclick="setDualLayerMode('original')">Ảnh gốc</button><button type="button" id="dualViewMask" onclick="setDualLayerMode('mask')">Mask</button><button type="button" id="dualViewOverlay" class="is-active" onclick="setDualLayerMode('overlay')">Overlay</button><button type="button" id="dualMaskBtn" aria-pressed="true" onclick="toggleDualMask()">M · Mask</button></div>
+                    <div class="pacs-control-group"><button type="button" id="dualBrushBtn" class="is-active" onclick="setDualTool('brush')">B · Cọ</button><button type="button" id="dualEraserBtn" onclick="setDualTool('eraser')">E · Tẩy</button><button type="button" onclick="undoDualMask()">Hoàn tác</button><button type="button" onclick="redoDualMask()">Làm lại</button></div>
+                    <div class="pacs-control-group pacs-sliders"><label>Nét cọ <input id="dualBrushSize" type="range" min="2" max="48" value="16" oninput="setDualBrushSize(this.value)"><output id="dualBrushSizeVal">16 px</output></label><label>Độ phủ <input id="dualOpacity" type="range" min="0" max="100" value="45" oninput="setDualOpacity(this.value)"><output id="dualOpacityVal">45%</output></label><label>LUT sáng <input id="dualBrightness" type="range" min="50" max="150" value="100" oninput="setDualLut('brightness', this.value)"></label><label>Tương phản <input id="dualContrast" type="range" min="50" max="150" value="100" oninput="setDualLut('contrast', this.value)"></label></div>
+                    <div class="pacs-control-group"><button type="button" onclick="zoomDual(-0.25)">−</button><button type="button" onclick="resetDualZoom()">100%</button><button type="button" onclick="zoomDual(0.25)">+</button></div>
+                </div>
+
+                <div class="pacs-workspace-grid">
+                    <div class="pacs-viewer-column">
+                        <div id="dualViewportGrid" class="pacs-viewport-grid">
+                            <article class="pacs-viewport is-selected" id="dualViewportR" data-side="R" tabindex="0" aria-label="Viewport buồng trứng phải"><div class="pacs-viewport-head"><span><b class="pacs-laterality">R</b> BUỒNG TRỨNG PHẢI</span><span id="dualStatusR">Chưa có kết quả</span></div><div class="pacs-canvas-frame"><canvas id="dualCanvasR" width="512" height="512" aria-label="Ảnh gốc và mask bên phải"></canvas></div><div class="pacs-viewport-foot"><span id="dualZoomR">100%</span><span id="dualLayerR">Original + Mask</span></div></article>
+                            <article class="pacs-viewport" id="dualViewportL" data-side="L" tabindex="0" aria-label="Viewport buồng trứng trái"><div class="pacs-viewport-head"><span><b class="pacs-laterality">L</b> BUỒNG TRỨNG TRÁI</span><span id="dualStatusL">Chưa có kết quả</span></div><div class="pacs-canvas-frame"><canvas id="dualCanvasL" width="512" height="512" aria-label="Ảnh gốc và mask bên trái"></canvas></div><div class="pacs-viewport-foot"><span id="dualZoomL">100%</span><span id="dualLayerL">Original + Mask</span></div></article>
+                        </div>
+                        <p class="pacs-viewer-help">Chọn viewport để chỉnh mask. Cuộn để thu phóng, giữ Shift và kéo để dịch ảnh. Phím tắt: B / E / M, Tab hoặc [ / ], Ctrl+Z.</p>
+                    </div>
+                    <aside class="pacs-comparison" aria-label="So sánh và xác nhận từng bên">
+                        <h2>So sánh R / L</h2><p>Chỉ số điểm ảnh và đo đạc chưa phải kết luận chẩn đoán.</p>
+                        <table><thead><tr><th>Chỉ số</th><th>R</th><th>L</th></tr></thead><tbody>
+                            <tr><th>Số vùng phân đoạn</th><td id="dualLesionsR">—</td><td id="dualLesionsL">—</td></tr>
+                            <tr><th>D₁ × D₂ × D₃ (mm)</th><td id="dualDiametersR">—</td><td id="dualDiametersL">—</td></tr>
+                            <tr><th>Thể tích (mL)</th><td id="dualVolumeR">—</td><td id="dualVolumeL">—</td></tr>
+                            <tr><th>Điểm mô hình</th><td id="dualConfidenceR">—</td><td id="dualConfidenceL">—</td></tr>
+                            <tr><th>IOTA / O-RADS</th><td id="dualClinicalR">Chưa đánh giá</td><td id="dualClinicalL">Chưa đánh giá</td></tr>
+                        </tbody></table>
+                        <p class="pacs-data-note">Kích thước vật lý cần hiệu chuẩn từ thiết bị. IOTA/O-RADS cần dữ liệu hình thái và xác nhận chuyên môn; mask U-Net không tự cung cấp phân loại này.</p>
+                        <div class="pacs-side-review"><h3><span class="pacs-laterality">R</span> Rà soát bên phải</h3><label for="dualNotesR">Nhận xét chuyên viên</label><textarea id="dualNotesR" rows="2" placeholder="Ghi nhận sau khi xem ảnh và mask"></textarea><button type="button" id="dualApproveR" onclick="approveDualSide('R')">Xác nhận & lưu R</button></div>
+                        <div class="pacs-side-review"><h3><span class="pacs-laterality">L</span> Rà soát bên trái</h3><label for="dualNotesL">Nhận xét chuyên viên</label><textarea id="dualNotesL" rows="2" placeholder="Ghi nhận sau khi xem ảnh và mask"></textarea><button type="button" id="dualApproveL" onclick="approveDualSide('L')">Xác nhận & lưu L</button></div>
+                    </aside>
+                </div>
+            </div>
+        </section>
+
+        <section id="screenDualReport" class="screen-container pacs-page" aria-labelledby="dualReportTitle">
+            <div class="pacs-report-toolbar"><div><span class="pacs-eyebrow">PHIẾU TỔNG HỢP · A4</span><h1 id="dualReportTitle">Kết quả phân đoạn hai buồng trứng</h1></div><div><button type="button" onclick="navigateTo('dual_results')">Quay lại viewer</button><button type="button" id="dualPrintBtn" onclick="printDualReport()" disabled>In / Lưu PDF</button></div></div>
+            <article id="dualReportSheet" class="pacs-report-sheet"><header><div><strong>PHIẾU RÀ SOÁT PHÂN ĐOẠN</strong><span>Hệ thống hỗ trợ · quyết định lâm sàng thuộc chuyên viên y tế</span></div><div id="dualReportDate">—</div></header><div class="pacs-report-meta"><span id="dualReportPatient">Mã hồ sơ: —</span><span id="dualReportStudy">Mã ca: —</span></div><div class="pacs-report-columns">
+                <section><h2>R · Buồng trứng phải</h2><figure><img id="dualReportOriginalR" alt="Ảnh siêu âm gốc bên phải"><figcaption>Ảnh gốc</figcaption></figure><figure><img id="dualReportMaskR" alt="Mask đã rà soát bên phải"><figcaption>Mask sau rà soát</figcaption></figure><dl><dt>Đo đạc</dt><dd id="dualReportMeasuresR">—</dd><dt>Nhận xét</dt><dd id="dualReportNotesR">—</dd><dt>Trạng thái</dt><dd id="dualReportApprovalR">Chưa xác nhận</dd></dl></section>
+                <section><h2>L · Buồng trứng trái</h2><figure><img id="dualReportOriginalL" alt="Ảnh siêu âm gốc bên trái"><figcaption>Ảnh gốc</figcaption></figure><figure><img id="dualReportMaskL" alt="Mask đã rà soát bên trái"><figcaption>Mask sau rà soát</figcaption></figure><dl><dt>Đo đạc</dt><dd id="dualReportMeasuresL">—</dd><dt>Nhận xét</dt><dd id="dualReportNotesL">—</dd><dt>Trạng thái</dt><dd id="dualReportApprovalL">Chưa xác nhận</dd></dl></section>
+            </div><footer>Ảnh, mask và thông số trong phiếu là dữ liệu hỗ trợ rà soát; không thay thế kết luận chẩn đoán của chuyên viên.</footer></article>
+        </section>
+
         <section id="screenReportComplete" class="screen-container">
             <div class="report-output-workspace">
                 <!-- Action Control Toolbar -->
@@ -1071,7 +1173,7 @@
                         <div class="card-title-main">📁 Lịch Sử Khám & Hồ Sơ Siêu Âm AI</div>
                         <div class="card-subtitle-sub">Tra cứu toàn bộ ca khám đã thực hiện, lọc theo trạng thái và xuất lại phiếu kết quả</div>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="navigateTo('create_case')">
+                    <button class="btn btn-primary btn-sm" onclick="startNewDualCase()">
                         ➕ Tạo ca mới
                     </button>
                 </div>

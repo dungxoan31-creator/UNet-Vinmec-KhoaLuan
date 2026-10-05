@@ -52,6 +52,21 @@ const AppState = {
     modalCaseData: null
 };
 
+function newDualSide() {
+    return {
+        file: null, checksum: null, previewUrl: null, imageId: null, prediction: null,
+        original: null, mask: null, undo: [], redo: [], zoom: 1, panX: 0, panY: 0,
+        brightness: 100, contrast: 100,
+        approved: false, reviewId: null, reviewStartedAt: null
+    };
+}
+
+const dualCase = {
+    studyId: null, studyCode: null, patientId: null, busy: false,
+    sides: { R: newDualSide(), L: newDualSide() }, active: 'R', mode: 'split',
+    sync: false, showMask: true, layerMode: 'overlay', tool: 'brush', brushSize: 16, opacity: 0.45
+};
+
 // Global clinical case object
 let currentCase = {
     study_id: null,

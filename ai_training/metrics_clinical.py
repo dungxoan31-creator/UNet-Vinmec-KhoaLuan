@@ -100,7 +100,7 @@ def compute_dataset_clinical_summary(sample_results: list) -> dict:
         empty_spec = [r["specificity"] for r in empty_cases]
         empty_spec_mean = float(np.mean(empty_spec))
     else:
-        empty_spec_mean = 1.0
+        empty_spec_mean = None
 
     return {
         "total_cases_evaluated": total_cases,

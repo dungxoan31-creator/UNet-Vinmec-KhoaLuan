@@ -1,0 +1,44 @@
+{
+  "source": "Vinmec Ovarian Ultrasound Dataset",
+  "checkpoint_sha256": "06238d8d87d35e70d510314a3019a8ee2b325dc56662bf0fb57c4726ca6a9bdb",
+  "source_images": 1469,
+  "training_images": 1372,
+  "unseen_images": 267,
+  "screening": "exact decoded grayscale image SHA-256; patient identity unavailable",
+  "threshold": 0.7,
+  "metrics": {
+    "total_cases_evaluated": 267,
+    "lesion_cases_count": 267,
+    "normal_cases_count": 0,
+    "foreground_dice_mean": 0.5241363862416777,
+    "foreground_dice_std": 0.27988566599157816,
+    "foreground_iou_mean": 0.4034755136840938,
+    "foreground_iou_std": 0.2581875368360155,
+    "recall_sensitivity_mean": 0.6304736098351078,
+    "precision_mean": 0.5473039008476652,
+    "specificity_normal_cases": null,
+    "specificity_all_cases": 0.9663233466541934
+  },
+  "worst_lesion_cases": [
+    {
+      "image": "128.JPG",
+      "dice": 0.0
+    },
+    {
+      "image": "129.JPG",
+      "dice": 0.0
+    },
+    {
+      "image": "1384.JPG",
+      "dice": 0.0
+    },
+    {
+      "image": "143.JPG",
+      "dice": 0.0
+    },
+    {
+      "image": "155.JPG",
+      "dice": 0.0
+    }
+  ]
+}

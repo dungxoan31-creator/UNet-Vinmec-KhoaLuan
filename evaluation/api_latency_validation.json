@@ -1,0 +1,17 @@
+{
+  "split": "val",
+  "case_id": "43",
+  "checkpoint_sha256": "5c8d40f64b49f76dd0cb0ece250a9fb39ccfc1bbdd6bbba10ad1d9f9f1f540f0",
+  "device": "cuda",
+  "measurement": "TestClient POST /api/predict end-to-end, one warm-up excluded",
+  "sample_count": 5,
+  "durations_ms": [
+    89.08,
+    97.11,
+    95.62,
+    92.25,
+    106.19
+  ],
+  "median_ms": 95.62,
+  "p95_ms": 104.37
+}

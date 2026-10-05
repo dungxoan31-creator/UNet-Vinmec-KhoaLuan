@@ -67,6 +67,7 @@ class ImageModel(Base):
     id = Column(String(36), primary_key=True)
     study_id = Column(String(36), ForeignKey("studies.id"), nullable=False)
     filename = Column(String(255), nullable=False)
+    laterality = Column(String(1), nullable=True)  # R/L; null for legacy single-image studies
     raw_path = Column(String(500), nullable=False)
     width = Column(Integer, default=512)
     height = Column(Integer, default=512)
@@ -164,6 +165,10 @@ def init_db():
             cursor.execute("ALTER TABLE studies ADD COLUMN ovary_side VARCHAR(10) DEFAULT 'RIGHT';")
         if "contralateral_status" not in columns:
             cursor.execute("ALTER TABLE studies ADD COLUMN contralateral_status VARCHAR(30) DEFAULT 'NOT_VISUALIZED';")
+        cursor.execute("PRAGMA table_info(images);")
+        image_columns = [col[1] for col in cursor.fetchall()]
+        if "laterality" not in image_columns:
+            cursor.execute("ALTER TABLE images ADD COLUMN laterality VARCHAR(1);")
         conn.commit()
         conn.close()
     except Exception:

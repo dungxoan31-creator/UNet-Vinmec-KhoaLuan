@@ -1,0 +1,38 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 0.6449,
+    "train_dice": 0.3381,
+    "val_loss": 0.5738,
+    "val_dice": 0.506,
+    "val_iou": 0.3611,
+    "val_recall": 0.862,
+    "elapsed_seconds": 54.13,
+    "lr": 0.000299,
+    "is_best": true
+  },
+  {
+    "epoch": 2,
+    "train_loss": 0.4674,
+    "train_dice": 0.5674,
+    "val_loss": 0.3714,
+    "val_dice": 0.6377,
+    "val_iou": 0.4956,
+    "val_recall": 0.7373,
+    "elapsed_seconds": 113.93,
+    "lr": 0.000297,
+    "is_best": true
+  },
+  {
+    "epoch": 3,
+    "train_loss": 0.3743,
+    "train_dice": 0.6115,
+    "val_loss": 0.3934,
+    "val_dice": 0.521,
+    "val_iou": 0.4031,
+    "val_recall": 0.463,
+    "elapsed_seconds": 175.9,
+    "lr": 0.000293,
+    "is_best": false
+  }
+]

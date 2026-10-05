@@ -1,6 +1,7 @@
 # Python bytecode and caches
 __pycache__/
 *.py[cod]
+*.pyo
 *$py.class
 .ruff_cache/
 .pytest_cache/
@@ -9,6 +10,10 @@ __pycache__/
 ovarian_ai.db
 *.sqlite3
 *.log
+*.tmp
+*.bak
+*.copy
+*~
 
 # Runtime uploads & temporary reports (preserve folders via .gitkeep)
 data/uploads/*
@@ -17,8 +22,11 @@ data/reports/*
 !data/reports/.gitkeep
 
 # Large pre-trained checkpoints (tracked via Git LFS or external storage)
+*.pth
+checkpoints/**/*.pth
 checkpoints/*.pth
 dataset/
+dataset_backup_archive/
 ai_training/experiments/*/*.pth
 ai_training/models/
 ai_training/dataset_preview/
@@ -29,6 +37,7 @@ ai_training/evaluation_samples/
 .idea/
 .DS_Store
 Thumbs.db
+node_modules/
 
 # Virtual environments
 venv/
@@ -39,7 +48,5 @@ env/
 ~$*.docx
 ~$*.xlsx
 ~$*.pptx
-*.bak
-*.tmp
 
 .aider*

@@ -5,9 +5,10 @@ Nguồn dữ liệu: dataset/vinmec_ovarian/metadata/kltn_ground_truth_307.csv
 Cam kết: Triệt tiêu 100% rò rỉ dữ liệu giữa các tập (Zero Data Leakage).
 """
 
+import json
 import os
 import sys
-import json
+
 import pandas as pd
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -18,15 +19,25 @@ def main():
     print("   BƯỚC 1 & 2: THIẾT LẬP PHÂN CHIA TẬP DỮ LIỆU THEO PATIENT ID")
     print("=" * 70)
 
-    meta_file = "dataset/vinmec_ovarian/metadata/kltn_ground_truth_307.csv"
-    if not os.path.exists(meta_file):
-        print(f"[ERROR] Không tìm thấy metadata: {meta_file}")
+    candidate_meta_files = [
+        "dataset/vinmec_ovarian/metadata/kltn_ground_truth_307.csv",
+        "metadata/kltn_ground_truth_307.csv",
+        "ai_training/splits/kltn_ground_truth_307.csv",
+    ]
+    meta_file = None
+    for cand in candidate_meta_files:
+        if os.path.exists(cand):
+            meta_file = cand
+            break
+
+    if not meta_file:
+        print(f"[ERROR] Không tìm thấy metadata trong các đường dẫn: {candidate_meta_files}")
         sys.exit(1)
 
     df = pd.read_csv(meta_file)
     print(f"[1] Tổng số bản ghi Ground Truth nạp được: {len(df)}")
     print(f"[2] Số bệnh nhân duy nhất: {df['patient_id'].nunique()}")
-    print(f"[3] Số ca Empty Mask (u nang/buồng trứng bình thường): {(df['is_empty_mask'] == True).sum()}")
+    print(f"[3] Số ca Empty Mask (u nang/buồng trứng bình thường): {df['is_empty_mask'].eq(True).sum()}")
 
     # Kiểm tra đường dẫn file thực tế
     missing_imgs = 0
@@ -80,9 +91,9 @@ def main():
     test_df.to_csv(test_path, index=False)
     df.to_csv(gt_all_path, index=False)
 
-    print(f"\n[XUẤT BẢN] Đã lưu {train_path}: {len(train_df)} ảnh ({len(train_patients)} bệnh nhân, {(train_df['is_empty_mask']==True).sum()} empty)")
-    print(f"[XUẤT BẢN] Đã lưu {val_path}: {len(val_df)} ảnh ({len(val_patients)} bệnh nhân, {(val_df['is_empty_mask']==True).sum()} empty)")
-    print(f"[XUẤT BẢN] Đã lưu {test_path}: {len(test_df)} ảnh ({len(test_patients)} bệnh nhân, {(test_df['is_empty_mask']==True).sum()} empty)")
+    print(f"\n[XUẤT BẢN] Đã lưu {train_path}: {len(train_df)} ảnh ({len(train_patients)} bệnh nhân, {train_df['is_empty_mask'].eq(True).sum()} empty)")
+    print(f"[XUẤT BẢN] Đã lưu {val_path}: {len(val_df)} ảnh ({len(val_patients)} bệnh nhân, {val_df['is_empty_mask'].eq(True).sum()} empty)")
+    print(f"[XUẤT BẢN] Đã lưu {test_path}: {len(test_df)} ảnh ({len(test_patients)} bệnh nhân, {test_df['is_empty_mask'].eq(True).sum()} empty)")
 
     # Lưu manifest
     manifest_data = {
@@ -102,21 +113,21 @@ def main():
             "train": {
                 "patients": len(train_patients),
                 "images": len(train_df),
-                "empty_masks": int((train_df['is_empty_mask'] == True).sum()),
+                "empty_masks": int(train_df['is_empty_mask'].eq(True).sum()),
                 "percentage_images": round(len(train_df) / len(df) * 100, 2),
                 "file": "ai_training/splits/train.csv"
             },
             "validation": {
                 "patients": len(val_patients),
                 "images": len(val_df),
-                "empty_masks": int((val_df['is_empty_mask'] == True).sum()),
+                "empty_masks": int(val_df['is_empty_mask'].eq(True).sum()),
                 "percentage_images": round(len(val_df) / len(df) * 100, 2),
                 "file": "ai_training/splits/val.csv"
             },
             "test": {
                 "patients": len(test_patients),
                 "images": len(test_df),
-                "empty_masks": int((test_df['is_empty_mask'] == True).sum()),
+                "empty_masks": int(test_df['is_empty_mask'].eq(True).sum()),
                 "percentage_images": round(len(test_df) / len(df) * 100, 2),
                 "file": "ai_training/splits/test.csv"
             }
@@ -128,7 +139,19 @@ def main():
     with open(manifest_file, "w", encoding="utf-8") as f:
         json.dump(manifest_data, f, indent=2, ensure_ascii=False)
 
+    # Đồng bộ sang các vị trí báo cáo (Report paths compatibility)
+    vinmec_ovarian_manifest = "dataset/vinmec_ovarian/vinmec_dataset_manifest.json"
+    os.makedirs(os.path.dirname(vinmec_ovarian_manifest), exist_ok=True)
+    with open(vinmec_ovarian_manifest, "w", encoding="utf-8") as f:
+        json.dump(manifest_data, f, indent=2, ensure_ascii=False)
+
+    metadata_gt = "metadata/kltn_ground_truth_307.csv"
+    os.makedirs(os.path.dirname(metadata_gt), exist_ok=True)
+    df.to_csv(metadata_gt, index=False)
+
     print(f"[XUẤT BẢN] Đã lưu manifest phân chia: {manifest_file}")
+    print(f"[XUẤT BẢN] Đã đồng bộ manifest báo cáo: {vinmec_ovarian_manifest}")
+    print(f"[XUẤT BẢN] Đã đồng bộ metadata báo cáo: {metadata_gt}")
     print("=" * 70)
     print("   HOÀN THÀNH XUẤT SẮC BƯỚC 1 & 2: DỮ LIỆU ĐƯỢC NIÊM PHONG & CHIA SẠCH")
     print("=" * 70)

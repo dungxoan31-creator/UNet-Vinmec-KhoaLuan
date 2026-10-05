@@ -4,10 +4,14 @@ Optimized for NVIDIA RTX GPU with CUDA Mixed Precision (AMP).
 Patient-Level Stratified Validation and Best Model Checkpointing.
 """
 
-import os
-import sys
 import json
+import os
+import random
+import sys
 import time
+from pathlib import Path
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,8 +22,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from backend.models.unet import StandardUNet
 from ai_training.dataset_loader import get_dataloaders
+from backend.models.unet import StandardUNet
 
 
 class SoftDiceLoss(nn.Module):
@@ -47,13 +51,23 @@ class ComboLoss(nn.Module):
 
 
 def compute_batch_dice(logits, targets, smooth=1e-5):
-    probs = torch.sigmoid(logits)
-    preds = (probs > 0.5).float()
-    intersection = (preds * targets).sum().item()
-    total = preds.sum().item() + targets.sum().item()
-    if total == 0:
-        return 1.0
-    return (2.0 * intersection) / (total + smooth)
+    return compute_batch_metrics(logits, targets)["dice"].item()
+
+
+def compute_batch_metrics(logits, targets):
+    """Mean per-image segmentation metrics with explicit empty-mask handling."""
+    prediction = (torch.sigmoid(logits) > 0.5).flatten(1)
+    truth = (targets > 0.5).flatten(1)
+    tp = (prediction & truth).sum(dim=1).float()
+    predicted = prediction.sum(dim=1).float()
+    labeled = truth.sum(dim=1).float()
+    union = predicted + labeled - tp
+    return {
+        "dice": torch.where(predicted + labeled == 0, 1.0, 2 * tp / (predicted + labeled).clamp_min(1)).mean(),
+        "iou": torch.where(union == 0, 1.0, tp / union.clamp_min(1)).mean(),
+        "recall": torch.where(labeled == 0, 1.0, tp / labeled.clamp_min(1)).mean(),
+        "precision": torch.where(predicted == 0, (labeled == 0).float(), tp / predicted.clamp_min(1)).mean(),
+    }
 
 
 def train_baseline(
@@ -61,7 +75,9 @@ def train_baseline(
     batch_size=4,
     lr=1e-3,
     checkpoint_dir="checkpoints",
-    splits_dir="ai_training/splits"
+    splits_dir="ai_training/splits",
+    seed=42,
+    patience=8,
 ):
     print("=" * 70, flush=True)
     print("   BƯỚC 5: HUẤN LUYỆN MÔ HÌNH STANDARD U-NET BASELINE", flush=True)
@@ -72,9 +88,12 @@ def train_baseline(
 
     os.makedirs(checkpoint_dir, exist_ok=True)
     best_checkpoint_path = os.path.join(checkpoint_dir, "baseline_unet_best.pth")
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
     # 1. Dataloaders
-    train_loader, val_loader, _ = get_dataloaders(splits_dir=splits_dir, batch_size=batch_size, num_workers=0)
+    train_loader, val_loader, _ = get_dataloaders(splits_dir=splits_dir, batch_size=batch_size, num_workers=0, seed=seed)
     print(f"[DỮ LIỆU] Số batch Train: {len(train_loader)} | Số batch Val: {len(val_loader)} (Batch size: {batch_size})", flush=True)
 
     # 2. Model & Loss & Optimizer
@@ -87,8 +106,9 @@ def train_baseline(
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"[MÔ HÌNH] Standard U-Net (Base filters: 32) | Tổng tham số: {total_params:,} (~7.76M)", flush=True)
 
-    best_val_dice = 0.0
+    best_val_dice = float("-inf")
     history = []
+    epochs_without_improvement = 0
 
     start_time = time.time()
     for epoch in range(1, epochs + 1):
@@ -96,6 +116,8 @@ def train_baseline(
         model.train()
         train_loss = 0.0
         train_dice = 0.0
+        train_count = 0
+        amp_skipped_steps = 0
         for batch in train_loader:
             images = batch["image"].to(device, non_blocking=True)
             masks = batch["mask"].to(device, non_blocking=True)
@@ -106,19 +128,27 @@ def train_baseline(
                 loss = criterion(logits, masks)
 
             scaler.scale(loss).backward()
+            previous_scale = scaler.get_scale()
             scaler.step(optimizer)
             scaler.update()
+            if scaler.get_scale() < previous_scale:
+                amp_skipped_steps += 1
 
-            train_loss += loss.item()
-            train_dice += compute_batch_dice(logits, masks)
+            sample_count = images.shape[0]
+            train_loss += loss.item() * sample_count
+            train_dice += compute_batch_dice(logits, masks) * sample_count
+            train_count += sample_count
 
-        train_loss /= len(train_loader)
-        train_dice /= len(train_loader)
+        train_loss /= train_count
+        train_dice /= train_count
 
         # VALIDATION
         model.eval()
         val_loss = 0.0
         val_dice = 0.0
+        val_iou = 0.0
+        val_recall = 0.0
+        val_count = 0
         with torch.no_grad():
             for batch in val_loader:
                 images = batch["image"].to(device, non_blocking=True)
@@ -128,18 +158,28 @@ def train_baseline(
                     logits = model(images)
                     loss = criterion(logits, masks)
 
-                val_loss += loss.item()
-                val_dice += compute_batch_dice(logits, masks)
+                sample_count = images.shape[0]
+                batch_metrics = compute_batch_metrics(logits, masks)
+                val_loss += loss.item() * sample_count
+                val_dice += batch_metrics["dice"].item() * sample_count
+                val_iou += batch_metrics["iou"].item() * sample_count
+                val_recall += batch_metrics["recall"].item() * sample_count
+                val_count += sample_count
 
-        val_loss /= len(val_loader)
-        val_dice /= len(val_loader)
+        val_loss /= val_count
+        val_dice /= val_count
+        val_iou /= val_count
+        val_recall /= val_count
         scheduler.step()
 
         # Lưu checkpoint tốt nhất
         is_best = val_dice > best_val_dice
         if is_best:
             best_val_dice = val_dice
+            epochs_without_improvement = 0
             torch.save(model.state_dict(), best_checkpoint_path)
+        else:
+            epochs_without_improvement += 1
 
         epoch_stat = {
             "epoch": epoch,
@@ -147,13 +187,19 @@ def train_baseline(
             "train_dice": round(train_dice, 4),
             "val_loss": round(val_loss, 4),
             "val_dice": round(val_dice, 4),
+            "val_iou": round(val_iou, 4),
+            "val_recall": round(val_recall, 4),
             "lr": round(optimizer.param_groups[0]["lr"], 6),
-            "is_best": is_best
+            "is_best": is_best,
+            "elapsed_seconds": round(time.time() - start_time, 3),
+            "amp_skipped_steps": amp_skipped_steps,
         }
         history.append(epoch_stat)
 
         star = " ★ [BEST SAVED]" if is_best else ""
         print(f"Epoch [{epoch:02d}/{epochs:02d}] - Train Loss: {train_loss:.4f} | Train Dice: {train_dice:.4f} || Val Loss: {val_loss:.4f} | Val Dice: {val_dice:.4f}{star}", flush=True)
+        if epochs_without_improvement >= patience:
+            break
 
     total_duration = time.time() - start_time
     print("-" * 70, flush=True)
@@ -162,9 +208,19 @@ def train_baseline(
     print(f"[CHECKPOINT] Trọng số tối ưu lưu tại: {best_checkpoint_path}", flush=True)
 
     # Lưu log
-    log_path = os.path.join(checkpoint_dir, "baseline_training_history.json")
-    with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2)
+    for filename in ("baseline_training_history.json", "vinmec_unet_best_history.json"):
+        with open(os.path.join(checkpoint_dir, filename), "w", encoding="utf-8") as stream:
+            json.dump(history, stream, indent=2)
+    with (Path(checkpoint_dir) / "run_config.json").open("w", encoding="utf-8") as stream:
+        json.dump({
+            "seed": seed,
+            "batch_size": batch_size,
+            "epochs": epochs,
+            "patience": patience,
+            "learning_rate": lr,
+            "loss": "0.5 BCE + 0.5 Dice",
+            "validation_metric": "mean per-image Dice at 512x512, threshold 0.5",
+        }, stream, indent=2)
 
     return best_checkpoint_path
 

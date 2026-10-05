@@ -136,26 +136,8 @@ class InferenceEngine:
         return flat.reshape(shape)
 
     def post_process_mask(self, prob_map_np: np.ndarray, min_area_px: int = 100) -> np.ndarray:
-        """
-        Applies probability thresholding, morphological closing/opening, and small component removal.
-        """
-        binary = (prob_map_np >= self.threshold).astype(np.uint8)
-
-        # Morphological close to bridge internal dark cyst areas & smooth boundaries
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-        opened = cv2.morphologyEx(closed, cv2.MORPH_OPEN, kernel)
-
-        # Filter out tiny spurious noisy components
-        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(opened, connectivity=8)
-        clean_mask = np.zeros_like(opened)
-
-        for label in range(1, num_labels):
-            area = stats[label, cv2.CC_STAT_AREA]
-            if area >= min_area_px:
-                clean_mask[labels == label] = 1
-
-        return clean_mask
+        """Apply the selected model's locked threshold without extra morphology."""
+        return (prob_map_np >= self.threshold).astype(np.uint8)
 
     def calculate_uncertainty(self, prob_map_np: np.ndarray, clean_mask: np.ndarray) -> dict:
         """
@@ -284,6 +266,9 @@ class InferenceEngine:
                     "center": [round(float(cx), 1), round(float(cy), 1)],
                     "max_diameter_mm": round(float(d_max_mm), 2),
                     "ortho_diameter_mm": round(float(d_orth_mm), 2),
+                    "max_diameter_px": round(d_max_px, 2),
+                    "ortho_diameter_px": round(d_orth_px, 2),
+                    "area_px": round(area_px, 2),
                     "d3_mm": d3_mm,
                     "volume_cm3": volume_cm3,
                     "area_cm2": round(float(area_cm2), 3),
@@ -342,9 +327,10 @@ class InferenceEngine:
 
             # Draw Dmax text with subtle shadow
             cx, cy = int(lesion["center"][0]), int(lesion["center"][1])
-            label = f"D1: {lesion['max_diameter_mm']}mm"
-            cv2.putText(blended, label, (cx - 30, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3)
-            cv2.putText(blended, label, (cx - 30, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            if lesion.get("max_diameter_mm") is not None:
+                label = f"D1: {lesion['max_diameter_mm']}mm"
+                cv2.putText(blended, label, (cx - 30, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 3)
+                cv2.putText(blended, label, (cx - 30, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
         # Encode to Base64
         _, buffer = cv2.imencode(".png", blended)
@@ -355,31 +341,17 @@ class InferenceEngine:
         self,
         tensor_512: torch.Tensor,
         padded_gray: np.ndarray,
-        pixel_spacing_mm: float = 0.1,
+        pixel_spacing_mm: float | None = None,
         roi_mask: np.ndarray | None = None,
     ) -> dict:
         """
         Executes full medical inference pipeline:
-        Tensor -> Model logits with TTA (Test-Time Augmentation) -> Sigmoid -> ROI Masking -> Post-processing -> Uncertainty -> Calipers -> Quality Gate -> RLE -> Base64
+        Tensor -> one model forward pass -> sigmoid -> locked threshold -> RLE.
         """
         tensor_gpu = tensor_512.to(self.device)
 
         with torch.no_grad():
-            raw_logits_orig = self.model(tensor_gpu)
-            prob_orig = torch.sigmoid(raw_logits_orig).squeeze().cpu().numpy()
-
-            # Test-Time Augmentation (TTA): Flip horizontal & average for boundary smoothness
-            if tensor_gpu.dim() == 4:
-                tensor_flip = torch.flip(tensor_gpu, dims=[3])
-                raw_logits_flip = self.model(tensor_flip)
-                prob_flip = torch.flip(torch.sigmoid(raw_logits_flip), dims=[3]).squeeze().cpu().numpy()
-                probs = 0.5 * (prob_orig + prob_flip)
-            else:
-                probs = prob_orig
-
-        # Zero-out any out-of-sector or background margin probabilities via strict ROI mask
-        if roi_mask is not None:
-            probs = probs * (roi_mask > 0).astype(np.float32)
+            probs = torch.sigmoid(self.model(tensor_gpu)).squeeze().cpu().numpy()
 
         # Clean binary mask via morphological filtering
         clean_mask = self.post_process_mask(probs)
@@ -419,16 +391,18 @@ class InferenceEngine:
         measurements["is_valid_caliper"] = is_quality_valid
         if not is_quality_valid:
             measurements["quality_alert"] = quality_gate["alert"]
+        calibrated = pixel_spacing_mm is not None and pixel_spacing_mm > 0
+        measurements["calibrated"] = calibrated
+        if not calibrated:
+            for key in ("max_diameter_mm", "ortho_diameter_mm", "d3_mm", "total_volume_cm3", "total_area_cm2"):
+                measurements[key] = None
+            for lesion in measurements.get("lesions", []):
+                for key in ("max_diameter_mm", "ortho_diameter_mm", "d3_mm", "volume_cm3", "area_cm2", "perimeter_mm"):
+                    lesion[key] = None
 
-        # Extract morphological & acoustic biomarkers + CDSS classification
-        morph_analysis = self.morph_extractor.extract_features(
-            padded_gray, clean_mask, pixel_spacing_mm=pixel_spacing_mm
-        )
-        cdss = morph_analysis.get("cdss_classification", {})
-        if not is_quality_valid:
-            cdss["status"] = "BLOCKED_BY_QUALITY_GATE"
-            cdss["primary_suspicion"] = "Chưa thể kết luận tự động (Yêu cầu Bác sĩ thẩm định thủ công)"
-            cdss["orads_category"] = "CHỜ BÁC SĨ DUYỆT"
+        # Mask geometry alone cannot establish IOTA or O-RADS categories.
+        morph_analysis = {}
+        cdss = {}
 
         # Encode RLE and Overlay
         rle = self.mask_to_rle(clean_mask)
@@ -451,7 +425,7 @@ class InferenceEngine:
             "uncertainty": uncertainty,
             "quality_gate": quality_gate,
             "measurements": measurements,
-            "acoustic_profile": morph_analysis.get("acoustic_profile", {}),
+            "acoustic_profile": morph_analysis,
             "cdss_classification": cdss,
             "overlay_base64": overlay_base64,
             "binary_mask_np": clean_mask,

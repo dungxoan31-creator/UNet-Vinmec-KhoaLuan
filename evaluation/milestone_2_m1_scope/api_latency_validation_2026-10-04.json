@@ -1,0 +1,18 @@
+{
+  "split": "val",
+  "case_id": "Vinmec_2D_train_41",
+  "source_split_csv": "ai_training/splits/val.csv",
+  "checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
+  "device": "cuda",
+  "measurement": "TestClient POST /api/predict end-to-end, one warm-up excluded",
+  "sample_count": 5,
+  "durations_ms": [
+    170.73,
+    176.69,
+    186.32,
+    183.55,
+    170.54
+  ],
+  "median_ms": 176.69,
+  "p95_ms": 185.76
+}

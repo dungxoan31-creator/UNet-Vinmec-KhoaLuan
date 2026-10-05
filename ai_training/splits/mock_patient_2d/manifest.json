@@ -1,0 +1,16 @@
+{
+  "source": "dataset\\Vinmec_2D",
+  "seed": 42,
+  "val_fraction": 0.15,
+  "counts": {
+    "train": 688,
+    "val": 132,
+    "test": 382
+  },
+  "split_level": "synthetic_group_demo",
+  "patient_ids_verified": false,
+  "source_test_preserved": true,
+  "group_assignment": "Artificial groups of 1-4 images, sampled for software testing; not based on patient metadata",
+  "label_definition": "1 if the supplied pixel mask has foreground, otherwise 0; not a diagnosis",
+  "warning": "SIM IDs are synthetic; group disjointness does not establish patient independence or prevent clinical data leakage."
+}

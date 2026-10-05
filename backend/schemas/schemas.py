@@ -189,7 +189,7 @@ class CreateCaseRequest(BaseModel):
     patient_age: str | None = None
     clinical_notes: str | None = None
     probe_type: str | None = None
-    active_ovary_side: Literal["RIGHT", "LEFT"] = "RIGHT"
+    active_ovary_side: Literal["RIGHT", "LEFT", "BOTH"] = "RIGHT"
     contralateral_status: Literal["NOT_VISUALIZED", "NORMAL", "SUSPECTED"] = "NOT_VISUALIZED"
 
 
@@ -258,4 +258,3 @@ class SegmentAPIResponse(BaseModel):
     quality_gate: dict[str, Any] | None = None
     uncertainty: dict[str, Any] | None = None
     provenance: dict[str, Any] | None = None
-

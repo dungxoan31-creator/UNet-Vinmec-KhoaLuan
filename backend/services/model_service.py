@@ -61,7 +61,7 @@ class AttentionUNetAdapter(BaseModelAdapter):
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         self.weights_path = weights_path
         self.engine = InferenceEngine(model_weights_path=weights_path, device=self.device, default_pixel_spacing_mm=0.1)
-        self.is_loaded = bool(weights_path and os.path.exists(weights_path))
+        self.is_loaded = self.engine.is_model_ready
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
         self.weights_path = weights_path
@@ -355,32 +355,20 @@ class ModelRegistry:
         """Provides operational metrics for Admin / Engineering view."""
         device_name = "CUDA (NVIDIA GPU)" if torch.cuda.is_available() else "CPU Execution Provider"
         models_info = [adapter.get_info() for adapter in self.adapters.values()]
-
-        # Dynamically load verified benchmark metrics from metadata if available
-        test_dsc = 0.884
-        test_iou = 0.792
-        mean_lat = 380.0
-        meta_path = os.path.abspath("ai_training/production_model/model_metadata.json")
-        if os.path.exists(meta_path):
-            try:
-                import json
-                with open(meta_path, encoding="utf-8") as f:
-                    meta = json.load(f)
-                    tm = meta.get("independent_test_metrics") or meta.get("test_metrics") or {}
-                    test_dsc = tm.get("mean_dice", test_dsc)
-                    test_iou = tm.get("mean_iou", test_iou)
-                    mean_lat = tm.get("mean_latency_ms") or tm.get("inference_time_cpu_ms", mean_lat)
-            except Exception as e:
-                print(f"[ModelRegistry] Metadata read notice: {e}")
+        primary = self.adapters.get(self.primary_model_key)
+        architecture = primary.engine.architecture_name if primary and primary.is_loaded else None
+        if architecture and models_info:
+            models_info[0]["name"] = architecture
+            models_info[0]["architecture"] = architecture
 
         return {
-            "active_primary_model": self.primary_model_key,
-            "fallback_model": self.fallback_model_key,
+            "active_primary_model": architecture,
+            "fallback_model": architecture,
             "ensemble_enabled": self.ensemble_enabled,
             "execution_device": device_name,
             "registered_models": models_info,
-            "test_set_dsc": round(float(test_dsc), 4),
-            "test_set_iou": round(float(test_iou), 4),
-            "mean_inference_latency_ms": round(float(mean_lat), 1),
+            "test_set_dsc": None,
+            "test_set_iou": None,
+            "mean_inference_latency_ms": None,
             "last_updated": datetime.now(UTC).isoformat(),
         }

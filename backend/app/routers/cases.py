@@ -143,9 +143,11 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
 
     images_data = []
     for img in study.images:
+        last_r = max(img.reviews, key=lambda review: review.created_at) if img.reviews else None
         pred_data = None
         if img.predictions:
-            last_p = img.predictions[-1]
+            last_p = next((prediction for prediction in img.predictions if last_r and prediction.id == last_r.prediction_id), None)
+            last_p = last_p or max(img.predictions, key=lambda prediction: prediction.created_at)
             pred_data = {
                 "prediction_id": last_p.id,
                 "confidence_score": last_p.confidence_score,
@@ -156,9 +158,10 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
             }
 
         review_data = None
-        if img.reviews:
-            last_r = img.reviews[-1]
+        if last_r:
             review_data = {
+                "review_id": last_r.id,
+                "prediction_id": last_r.prediction_id,
                 "doctor_id": last_r.doctor_id,
                 "doctor_action": last_r.doctor_action,
                 "time_spent_seconds": last_r.time_spent_seconds,
@@ -174,6 +177,7 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
         images_data.append(
             {
                 "image_id": img.id,
+                "laterality": img.laterality,
                 "filename": img.filename,
                 "width": img.width,
                 "height": img.height,
@@ -279,4 +283,3 @@ def delete_case(study_id: str, db: Session = Depends(get_db)):
     db.delete(study)
     db.commit()
     return {"status": "SUCCESS", "message": "Đã xóa ca khám thành công."}
-

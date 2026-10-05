@@ -5,9 +5,9 @@ Author: Nguyen Huu Dung (MIS 65A - NEU, Student ID: 11235559)
 Supervisor: ThS. Tran Thanh Hai
 """
 
+import json
 import os
 import sys
-import json
 from datetime import datetime
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -17,22 +17,16 @@ def build_full_report():
     today = datetime.now().strftime("%d/%m/%Y")
 
     metrics_path = "evaluation/baseline_test_metrics.json"
-    manifest_path = "ai_training/splits/de_cuong_split_manifest.json"
     train_history_path = "checkpoints/baseline_training_history.json"
 
     metrics = {}
     if os.path.exists(metrics_path):
-        with open(metrics_path, "r", encoding="utf-8") as f:
+        with open(metrics_path, encoding="utf-8") as f:
             metrics = json.load(f)
-
-    manifest = {}
-    if os.path.exists(manifest_path):
-        with open(manifest_path, "r", encoding="utf-8") as f:
-            manifest = json.load(f)
 
     history = []
     if os.path.exists(train_history_path):
-        with open(train_history_path, "r", encoding="utf-8") as f:
+        with open(train_history_path, encoding="utf-8") as f:
             history = json.load(f)
 
     dice_mean = metrics.get('foreground_dice_mean', 0.5719)
@@ -230,9 +224,9 @@ def build_full_report():
     # 2. Build Word version with EMBEDDED IMAGES & FULL TABLES
     try:
         from docx import Document
-        from docx.shared import Pt, Inches, RGBColor
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Inches, Pt
 
         doc = Document()
 

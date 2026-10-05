@@ -1,0 +1,448 @@
+{
+  "status": "PASS",
+  "purpose": "model loading and inference pipeline sanity check; no segmentation metric computed",
+  "source_split_csv": "ai_training/splits/val.csv",
+  "validation_count": 46,
+  "test_set_used": false,
+  "selected_model_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
+  "checkpoint": "checkpoints/baseline_unet_best.pth",
+  "checkpoint_load_strict": true,
+  "missing_keys": [],
+  "unexpected_keys": [],
+  "threshold": 0.5,
+  "device": "cuda",
+  "prediction_shape": [
+    1,
+    1,
+    512,
+    512
+  ],
+  "declared_empty_controls": 5,
+  "clinical_negative_verified": false,
+  "model_forward_latency": {
+    "median_ms": 30.26,
+    "p95_ms": 33.41,
+    "mean_ms": 30.4
+  },
+  "preprocess_plus_forward_latency_excluding_warmup": {
+    "median_ms": 46.04,
+    "p95_ms": 51.84,
+    "mean_ms": 45.46
+  },
+  "cases": [
+    {
+      "case_id": "OTU_CEUS_113",
+      "image_path": "dataset/vinmec_m1_307/images/216_113.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 17859,
+      "preprocess_ms": null,
+      "model_forward_ms": 38.06,
+      "preprocess_plus_forward_ms": null
+    },
+    {
+      "case_id": "OTU_2D_train_41",
+      "image_path": "dataset/vinmec_m1_307/images/217_41.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 13391,
+      "preprocess_ms": 17.04,
+      "model_forward_ms": 30.5,
+      "preprocess_plus_forward_ms": 47.54
+    },
+    {
+      "case_id": "OTU_2D_train_823",
+      "image_path": "dataset/vinmec_m1_307/images/218_823.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 13348,
+      "preprocess_ms": 19.58,
+      "model_forward_ms": 31.37,
+      "preprocess_plus_forward_ms": 50.95
+    },
+    {
+      "case_id": "VINMEC_EMPTY_GT_029",
+      "image_path": "dataset/vinmec_m1_307/images/219_874.JPG",
+      "declared_empty_control": true,
+      "predicted_positive_pixels": 16896,
+      "preprocess_ms": 20.76,
+      "model_forward_ms": 30.24,
+      "preprocess_plus_forward_ms": 51.0
+    },
+    {
+      "case_id": "OTU_2D_train_1048",
+      "image_path": "dataset/vinmec_m1_307/images/220_1048.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 19557,
+      "preprocess_ms": 21.9,
+      "model_forward_ms": 31.73,
+      "preprocess_plus_forward_ms": 53.64
+    },
+    {
+      "case_id": "VINMEC_EMPTY_GT_026",
+      "image_path": "dataset/vinmec_m1_307/images/221_39.JPG",
+      "declared_empty_control": true,
+      "predicted_positive_pixels": 10156,
+      "preprocess_ms": 13.36,
+      "model_forward_ms": 28.12,
+      "preprocess_plus_forward_ms": 41.47
+    },
+    {
+      "case_id": "OTU_CEUS_142",
+      "image_path": "dataset/vinmec_m1_307/images/222_142.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 44554,
+      "preprocess_ms": 14.21,
+      "model_forward_ms": 28.54,
+      "preprocess_plus_forward_ms": 42.76
+    },
+    {
+      "case_id": "OTU_2D_train_25",
+      "image_path": "dataset/vinmec_m1_307/images/223_25.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 37295,
+      "preprocess_ms": 15.98,
+      "model_forward_ms": 28.75,
+      "preprocess_plus_forward_ms": 44.73
+    },
+    {
+      "case_id": "OTU_2D_train_1205",
+      "image_path": "dataset/vinmec_m1_307/images/224_1205.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 10159,
+      "preprocess_ms": 16.07,
+      "model_forward_ms": 28.42,
+      "preprocess_plus_forward_ms": 44.48
+    },
+    {
+      "case_id": "OTU_CEUS_155",
+      "image_path": "dataset/vinmec_m1_307/images/225_155.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 2326,
+      "preprocess_ms": 6.3,
+      "model_forward_ms": 29.01,
+      "preprocess_plus_forward_ms": 35.3
+    },
+    {
+      "case_id": "OTU_CEUS_111",
+      "image_path": "dataset/vinmec_m1_307/images/226_111.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 47148,
+      "preprocess_ms": 10.57,
+      "model_forward_ms": 28.72,
+      "preprocess_plus_forward_ms": 39.29
+    },
+    {
+      "case_id": "OTU_2D_train_119",
+      "image_path": "dataset/vinmec_m1_307/images/227_119.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 59302,
+      "preprocess_ms": 12.51,
+      "model_forward_ms": 28.87,
+      "preprocess_plus_forward_ms": 41.37
+    },
+    {
+      "case_id": "OTU_2D_test_1095",
+      "image_path": "dataset/vinmec_m1_307/images/228_1095.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 22029,
+      "preprocess_ms": 17.22,
+      "model_forward_ms": 29.51,
+      "preprocess_plus_forward_ms": 46.73
+    },
+    {
+      "case_id": "OTU_2D_train_1211",
+      "image_path": "dataset/vinmec_m1_307/images/229_1211.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 674,
+      "preprocess_ms": 26.34,
+      "model_forward_ms": 28.24,
+      "preprocess_plus_forward_ms": 54.58
+    },
+    {
+      "case_id": "OTU_CEUS_56",
+      "image_path": "dataset/vinmec_m1_307/images/230_56.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 62023,
+      "preprocess_ms": 20.54,
+      "model_forward_ms": 30.81,
+      "preprocess_plus_forward_ms": 51.35
+    },
+    {
+      "case_id": "OTU_2D_train_1385",
+      "image_path": "dataset/vinmec_m1_307/images/231_1385.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 14043,
+      "preprocess_ms": 16.55,
+      "model_forward_ms": 30.26,
+      "preprocess_plus_forward_ms": 46.81
+    },
+    {
+      "case_id": "VINMEC_EMPTY_GT_028",
+      "image_path": "dataset/vinmec_m1_307/images/232_894.JPG",
+      "declared_empty_control": true,
+      "predicted_positive_pixels": 17219,
+      "preprocess_ms": 17.9,
+      "model_forward_ms": 28.14,
+      "preprocess_plus_forward_ms": 46.04
+    },
+    {
+      "case_id": "OTU_2D_test_802",
+      "image_path": "dataset/vinmec_m1_307/images/233_802.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 15521,
+      "preprocess_ms": 13.2,
+      "model_forward_ms": 33.16,
+      "preprocess_plus_forward_ms": 46.37
+    },
+    {
+      "case_id": "OTU_CEUS_36",
+      "image_path": "dataset/vinmec_m1_307/images/234_36.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 106895,
+      "preprocess_ms": 10.82,
+      "model_forward_ms": 28.92,
+      "preprocess_plus_forward_ms": 39.73
+    },
+    {
+      "case_id": "OTU_CEUS_12",
+      "image_path": "dataset/vinmec_m1_307/images/235_12.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 2431,
+      "preprocess_ms": 15.01,
+      "model_forward_ms": 33.49,
+      "preprocess_plus_forward_ms": 48.49
+    },
+    {
+      "case_id": "OTU_2D_test_1427",
+      "image_path": "dataset/vinmec_m1_307/images/236_1427.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 14049,
+      "preprocess_ms": 14.45,
+      "model_forward_ms": 31.95,
+      "preprocess_plus_forward_ms": 46.4
+    },
+    {
+      "case_id": "OTU_2D_test_553",
+      "image_path": "dataset/vinmec_m1_307/images/237_553.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 13354,
+      "preprocess_ms": 16.59,
+      "model_forward_ms": 35.15,
+      "preprocess_plus_forward_ms": 51.74
+    },
+    {
+      "case_id": "OTU_2D_train_1284",
+      "image_path": "dataset/vinmec_m1_307/images/238_1284.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 17317,
+      "preprocess_ms": 19.84,
+      "model_forward_ms": 32.03,
+      "preprocess_plus_forward_ms": 51.86
+    },
+    {
+      "case_id": "OTU_CEUS_94",
+      "image_path": "dataset/vinmec_m1_307/images/239_94.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 92536,
+      "preprocess_ms": 13.43,
+      "model_forward_ms": 30.32,
+      "preprocess_plus_forward_ms": 43.75
+    },
+    {
+      "case_id": "OTU_CEUS_66",
+      "image_path": "dataset/vinmec_m1_307/images/240_66.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 46677,
+      "preprocess_ms": 14.44,
+      "model_forward_ms": 30.42,
+      "preprocess_plus_forward_ms": 44.87
+    },
+    {
+      "case_id": "OTU_2D_test_1234",
+      "image_path": "dataset/vinmec_m1_307/images/241_1234.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 42243,
+      "preprocess_ms": 16.94,
+      "model_forward_ms": 32.38,
+      "preprocess_plus_forward_ms": 49.32
+    },
+    {
+      "case_id": "OTU_2D_test_179",
+      "image_path": "dataset/vinmec_m1_307/images/242_179.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 114449,
+      "preprocess_ms": 15.71,
+      "model_forward_ms": 32.58,
+      "preprocess_plus_forward_ms": 48.29
+    },
+    {
+      "case_id": "OTU_CEUS_163",
+      "image_path": "dataset/vinmec_m1_307/images/243_163.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 55662,
+      "preprocess_ms": 8.61,
+      "model_forward_ms": 31.69,
+      "preprocess_plus_forward_ms": 40.31
+    },
+    {
+      "case_id": "OTU_2D_train_378",
+      "image_path": "dataset/vinmec_m1_307/images/244_378.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 7815,
+      "preprocess_ms": 14.67,
+      "model_forward_ms": 32.02,
+      "preprocess_plus_forward_ms": 46.69
+    },
+    {
+      "case_id": "OTU_2D_train_1333",
+      "image_path": "dataset/vinmec_m1_307/images/245_1333.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 20044,
+      "preprocess_ms": 16.15,
+      "model_forward_ms": 30.42,
+      "preprocess_plus_forward_ms": 46.56
+    },
+    {
+      "case_id": "OTU_2D_test_636",
+      "image_path": "dataset/vinmec_m1_307/images/246_636.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 4869,
+      "preprocess_ms": 17.79,
+      "model_forward_ms": 30.07,
+      "preprocess_plus_forward_ms": 47.85
+    },
+    {
+      "case_id": "OTU_2D_train_460",
+      "image_path": "dataset/vinmec_m1_307/images/247_460.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 24726,
+      "preprocess_ms": 16.59,
+      "model_forward_ms": 31.22,
+      "preprocess_plus_forward_ms": 47.81
+    },
+    {
+      "case_id": "OTU_2D_train_629",
+      "image_path": "dataset/vinmec_m1_307/images/248_629.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 39607,
+      "preprocess_ms": 16.2,
+      "model_forward_ms": 31.07,
+      "preprocess_plus_forward_ms": 47.27
+    },
+    {
+      "case_id": "OTU_2D_test_102",
+      "image_path": "dataset/vinmec_m1_307/images/249_102.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 31169,
+      "preprocess_ms": 16.23,
+      "model_forward_ms": 31.28,
+      "preprocess_plus_forward_ms": 47.51
+    },
+    {
+      "case_id": "OTU_2D_train_681",
+      "image_path": "dataset/vinmec_m1_307/images/250_681.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 116655,
+      "preprocess_ms": 12.31,
+      "model_forward_ms": 30.25,
+      "preprocess_plus_forward_ms": 42.55
+    },
+    {
+      "case_id": "OTU_2D_train_1356",
+      "image_path": "dataset/vinmec_m1_307/images/251_1356.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 27908,
+      "preprocess_ms": 14.02,
+      "model_forward_ms": 31.28,
+      "preprocess_plus_forward_ms": 45.3
+    },
+    {
+      "case_id": "OTU_2D_test_773",
+      "image_path": "dataset/vinmec_m1_307/images/252_773.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 10116,
+      "preprocess_ms": 13.34,
+      "model_forward_ms": 31.06,
+      "preprocess_plus_forward_ms": 44.4
+    },
+    {
+      "case_id": "OTU_2D_train_312",
+      "image_path": "dataset/vinmec_m1_307/images/253_312.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 17614,
+      "preprocess_ms": 13.46,
+      "model_forward_ms": 28.42,
+      "preprocess_plus_forward_ms": 41.88
+    },
+    {
+      "case_id": "OTU_2D_train_590",
+      "image_path": "dataset/vinmec_m1_307/images/254_590.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 20963,
+      "preprocess_ms": 11.22,
+      "model_forward_ms": 29.08,
+      "preprocess_plus_forward_ms": 40.31
+    },
+    {
+      "case_id": "VINMEC_EMPTY_GT_030",
+      "image_path": "dataset/vinmec_m1_307/images/255_1439.JPG",
+      "declared_empty_control": true,
+      "predicted_positive_pixels": 7530,
+      "preprocess_ms": 20.83,
+      "model_forward_ms": 28.63,
+      "preprocess_plus_forward_ms": 49.47
+    },
+    {
+      "case_id": "OTU_2D_train_756",
+      "image_path": "dataset/vinmec_m1_307/images/256_756.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 26190,
+      "preprocess_ms": 13.1,
+      "model_forward_ms": 28.73,
+      "preprocess_plus_forward_ms": 41.83
+    },
+    {
+      "case_id": "OTU_2D_train_1151",
+      "image_path": "dataset/vinmec_m1_307/images/257_1151.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 13018,
+      "preprocess_ms": 14.71,
+      "model_forward_ms": 28.12,
+      "preprocess_plus_forward_ms": 42.83
+    },
+    {
+      "case_id": "VINMEC_EMPTY_GT_027",
+      "image_path": "dataset/vinmec_m1_307/images/258_33.JPG",
+      "declared_empty_control": true,
+      "predicted_positive_pixels": 74517,
+      "preprocess_ms": 16.22,
+      "model_forward_ms": 28.56,
+      "preprocess_plus_forward_ms": 44.78
+    },
+    {
+      "case_id": "OTU_CEUS_87",
+      "image_path": "dataset/vinmec_m1_307/images/259_87.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 68200,
+      "preprocess_ms": 14.55,
+      "model_forward_ms": 28.44,
+      "preprocess_plus_forward_ms": 42.99
+    },
+    {
+      "case_id": "OTU_CEUS_84",
+      "image_path": "dataset/vinmec_m1_307/images/260_84.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 53239,
+      "preprocess_ms": 7.6,
+      "model_forward_ms": 28.91,
+      "preprocess_plus_forward_ms": 36.51
+    },
+    {
+      "case_id": "OTU_CEUS_47",
+      "image_path": "dataset/vinmec_m1_307/images/261_47.JPG",
+      "declared_empty_control": false,
+      "predicted_positive_pixels": 89204,
+      "preprocess_ms": 10.51,
+      "model_forward_ms": 29.44,
+      "preprocess_plus_forward_ms": 39.95
+    }
+  ]
+}

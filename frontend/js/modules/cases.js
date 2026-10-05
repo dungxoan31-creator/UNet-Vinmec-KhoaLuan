@@ -278,6 +278,14 @@ async function openCaseDetailModal(studyId) {
                 const pred = firstImg ? firstImg.prediction : null;
 
                 const content = document.getElementById('modalCaseContent');
+                if (data.ovary_side === 'BOTH') {
+                    content.textContent = ['R', 'L'].map(side => {
+                        const image = data.images.find(record => record.laterality === side);
+                        return `${side}: ${image?.prediction ? 'Đã phân đoạn' : 'Chưa phân đoạn'} · ${image?.review ? 'Đã lưu rà soát' : 'Chưa rà soát'}`;
+                    }).join(' | ');
+                    document.getElementById('caseDetailModal').classList.add('active');
+                    return;
+                }
                 content.innerHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: var(--vm-bg-alt); padding: 16px; border-radius: var(--radius-md); font-size: 13.5px;">
                         <div><strong>Kỹ thuật:</strong> ${data.probe_type}</div>
@@ -320,6 +328,10 @@ async function handleDeleteCurrentCase() {
 function openCaseInViewer() {
     if (!activeModalCase) return;
     const caseData = activeModalCase;
+    if (caseData.ovary_side === 'BOTH') {
+        openDualCase(caseData.study_id);
+        return;
+    }
     closeCaseDetailModal();
 
     const firstImg = caseData.images && caseData.images[0] ? caseData.images[0] : null;

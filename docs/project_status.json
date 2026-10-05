@@ -1,0 +1,33 @@
+{
+  "as_of": "2026-10-05",
+  "current_state": "milestone_3_preparation",
+  "milestone_2": {
+    "period": "2026-09-21/2026-10-05",
+    "status": "closed_with_documented_limitations",
+    "technical_baseline_frozen_on": "2026-10-04",
+    "selected_checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
+    "checkpoint_training_split_sha_reference": "checkpoints/retrain_2d_2026-10-03_stable/run_config.json#current_split_sha",
+    "milestone_1_reference_split": "ai_training/splits/archive_milestone_1",
+    "prototype_validation_split": "ai_training/splits/val.csv",
+    "data_audit": "evaluation/milestone_2_m1_scope/data_audit_2026-10-04.json",
+    "derived_empty_mask_provenance": "dataset/vinmec_ovarian/empty_masks/PROVENANCE.json",
+    "m1_validation_sanity_check": "evaluation/m1_validation_sanity_check.json",
+    "m1_validation_sanity_count": 46,
+    "verified_readable_image_mask_pairs": 307,
+    "automated_test_result": "61 passed, 0 failed",
+    "ruff_check": "passed on 2026-10-05",
+    "api_startup_check": "passed on 2026-10-05; Standard U-Net checkpoint loaded",
+    "browser_smoke": "evaluation/milestone_2_m1_scope/browser_smoke_2026-10-04.json",
+    "api_latency": "evaluation/milestone_2_m1_scope/api_latency_validation_2026-10-04.json",
+    "source_patient_identity_verified": false,
+    "empty_mask_source_verified": false,
+    "selected_threshold": 0.5,
+    "report": "docs/reports/Bao_Cao_Tien_Do_Moc_2_NguyenHuuDung_2026-10-03.md"
+  },
+  "milestone_3": {
+    "period": "2026-10-06/2026-10-18",
+    "status": "preparation",
+    "focus": "end-to-end testing, Test Set error analysis, Human-in-the-Loop workflow evaluation",
+    "initial_error_analysis": "docs/reports/Phan_Tich_Loi_Test_Moc_3_2026-10-04.md"
+  }
+}

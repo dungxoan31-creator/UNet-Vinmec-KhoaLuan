@@ -8,33 +8,23 @@ RESTful API v1 Endpoints for Ovarian Ultrasound AI System:
 import base64
 import os
 import uuid
-from datetime import datetime
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from backend.app.config import UPLOAD_DIR, model_registry, preprocessor
+from backend.app.config import model_registry, preprocessor
+from backend.app.routers.reviews import submit_doctor_review
 from backend.core.image_utils import cv2_imread_unicode
-from backend.db.database import (
-    AuditLogModel,
-    ImageModel,
-    PatientModel,
-    PredictionModel,
-    ReviewModel,
-    StudyModel,
-    get_db,
-)
+from backend.db.database import ImageModel, get_db
 from backend.schemas.schemas import (
     CaseConfirmRequest,
     CDSSEvaluateRequest,
     SegmentAPIResponse,
 )
-from knowledge.retrieval.cdss_reasoning_layer import CDSSReasoningEngine
 
 router = APIRouter(prefix="/api/v1", tags=["RESTful API v1 Core Endpoints"])
-cdss_engine = CDSSReasoningEngine()
 
 
 @router.post("/segment", response_model=SegmentAPIResponse)
@@ -51,10 +41,8 @@ async def segment_image_v1(
     """
     img_np = None
     target_image_id = image_id or str(uuid.uuid4())
-    filename = "segment_upload.png"
 
     if file:
-        filename = os.path.basename(file.filename or "segment_upload.png")
         contents = await file.read()
         if len(contents) < 64:
             raise HTTPException(status_code=400, detail="File ảnh rỗng hoặc quá nhỏ.")
@@ -67,7 +55,6 @@ async def segment_image_v1(
         if not img_rec or not os.path.exists(img_rec.raw_path):
             raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế.")
         img_np = cv2_imread_unicode(img_rec.raw_path)
-        filename = img_rec.filename
         pixel_spacing_mm = getattr(img_rec, "pixel_spacing_mm", pixel_spacing_mm) or pixel_spacing_mm
     else:
         raise HTTPException(status_code=400, detail="Vui lòng cung cấp file ảnh (file) hoặc image_id.")
@@ -118,6 +105,12 @@ def evaluate_cdss_v1(req: CDSSEvaluateRequest):
     Returns evidence-supported O-RADS risk category, IOTA Simple Rules verdict, management recommendation, and citations.
     """
     try:
+        from knowledge.retrieval.cdss_reasoning_layer import CDSSReasoningEngine
+    except ModuleNotFoundError as error:
+        raise HTTPException(status_code=503, detail="CDSS reasoning engine chưa được cài đặt.") from error
+
+    try:
+        cdss_engine = CDSSReasoningEngine()
         evaluation = cdss_engine.evaluate_case(
             vision_findings=req.vision_findings,
             patient_context=req.patient_context,
@@ -137,70 +130,14 @@ def evaluate_cdss_v1(req: CDSSEvaluateRequest):
 
 @router.post("/cases/confirm")
 def confirm_case_v1(req: CaseConfirmRequest, db: Session = Depends(get_db)):
-    """
-    POST /api/v1/cases/confirm:
-    Stores Doctor Review & Sign-Off (Human-in-the-Loop Ground Truth).
-    Updates study status to REVIEWED, registers ReviewModel record, and logs audit trail.
-    """
-    review_id = str(uuid.uuid4())
-    engine_inst = model_registry.get_primary_adapter().engine
-
-    # Decode verified RLE mask to compute exact ground truth calipers
-    verified_mask = engine_inst.rle_to_mask(req.verified_mask_rle)
-    meas = engine_inst.extract_calipers_and_measurements(verified_mask, pixel_spacing_mm=0.1)
-
-    review_record = ReviewModel(
-        id=review_id,
-        image_id=req.image_id,
-        prediction_id=req.prediction_id,
-        doctor_id=req.doctor_id,
-        doctor_action=req.doctor_action,
-        verified_mask_rle=req.verified_mask_rle,
-        max_diameter_mm=meas["max_diameter_mm"],
-        ortho_diameter_mm=meas["ortho_diameter_mm"],
-        total_area_cm2=meas["total_area_cm2"],
-        lesion_type=req.lesion_type,
-        clinical_notes=req.clinical_notes,
-        time_spent_seconds=req.time_spent_seconds,
-        is_official_ground_truth=True,
-    )
-    db.add(review_record)
-
-    # Update Study status to REVIEWED
-    img_rec = db.query(ImageModel).filter(ImageModel.id == req.image_id).first()
-    study_id = req.study_id
-    if img_rec and img_rec.study:
-        study_id = img_rec.study.id
-        img_rec.study.status = "REVIEWED"
-
-    if study_id and not (img_rec and img_rec.study):
-        study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
-        if study:
-            study.status = "REVIEWED"
-
-    # Audit Log
-    audit = AuditLogModel(
-        entity_name="doctor_reviews",
-        entity_id=review_id,
-        action_type=f"HITL_CONFIRM_{req.doctor_action}",
-        actor_id=req.doctor_id,
-        details={
-            "image_id": req.image_id,
-            "study_id": study_id,
-            "doctor_action": req.doctor_action,
-            "lesion_type": req.lesion_type,
-            "dmax_mm": meas["max_diameter_mm"],
-        },
-    )
-    db.add(audit)
-    db.commit()
-
+    """Use the same validation and audit flow as /api/review."""
+    review = submit_doctor_review(req, db)
     return {
         "success": True,
-        "review_id": review_id,
+        "review_id": review["review_id"],
         "image_id": req.image_id,
-        "study_id": study_id,
-        "status": "CONFIRMED",
-        "message": "Xác nhận và lưu trữ Ground Truth phản hồi Bác sĩ (HITL Sign-off) thành công.",
-        "is_ground_truth": True,
+        "study_id": req.study_id,
+        "status": "REVIEWED",
+        "message": review["message"],
+        "is_ground_truth": review["is_ground_truth"],
     }

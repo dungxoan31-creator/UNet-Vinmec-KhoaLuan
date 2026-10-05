@@ -694,7 +694,317 @@ function onD3Changed(val) {
             currentCase.d3_mm = d3;
             recalculateVolume();
             saveLocalDraft();
+}
+
+function setupDualViewer() {
+    for (const side of ['R', 'L']) {
+        const viewport = document.getElementById(`dualViewport${side}`);
+        const canvas = document.getElementById(`dualCanvas${side}`);
+        viewport.addEventListener('click', () => selectDualViewport(side));
+        canvas.addEventListener('pointerdown', event => dualPointerDown(side, event));
+        canvas.addEventListener('pointermove', event => dualPointerMove(side, event));
+        canvas.addEventListener('pointerup', event => dualPointerUp(side, event));
+        canvas.addEventListener('pointercancel', event => dualPointerUp(side, event));
+        canvas.closest('.pacs-canvas-frame').addEventListener('wheel', event => {
+            event.preventDefault();
+            selectDualViewport(side);
+            zoomDual(event.deltaY < 0 ? 0.25 : -0.25);
+        }, { passive: false });
+        document.getElementById(`dualNotes${side}`).addEventListener('input', () => {
+            if (dualCase.sides[side].approved) invalidateDualApproval(side);
+        });
+    }
+    window.addEventListener('keydown', event => {
+        if (!document.getElementById('screenDualResults').classList.contains('active')) return;
+        const tag = event.target.tagName;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+        if (event.key === 'Tab') {
+            if (!event.target.closest('.pacs-viewport')) return;
+            event.preventDefault();
+            const next = dualCase.active === 'R' ? 'L' : 'R';
+            selectDualViewport(next);
+            document.getElementById(`dualViewport${next}`).focus();
+        } else if (event.key === '[' || event.key === ']') {
+            event.preventDefault();
+            selectDualViewport(dualCase.active === 'R' ? 'L' : 'R');
+        } else if (event.key.toLowerCase() === 'b') setDualTool('brush');
+        else if (event.key.toLowerCase() === 'e') setDualTool('eraser');
+        else if (event.key.toLowerCase() === 'm') toggleDualMask();
+        else if (event.ctrlKey && event.key.toLowerCase() === 'z') {
+            event.preventDefault();
+            if (event.shiftKey) redoDualMask(); else undoDualMask();
         }
+    });
+}
+
+function dualMaskFromRle(rle) {
+    if (!rle || rle.shape?.[0] !== 512 || rle.shape?.[1] !== 512 || !Array.isArray(rle.counts)) {
+        throw new Error('Mask dự đoán không đúng kích thước 512 × 512.');
+    }
+    const mask = document.createElement('canvas');
+    mask.width = mask.height = 512;
+    const context = mask.getContext('2d');
+    const pixels = context.createImageData(512, 512);
+    let offset = 0;
+    let value = rle.first_val === 1 ? 1 : 0;
+    for (const count of rle.counts) {
+        if (!Number.isInteger(count) || count <= 0 || offset + count > 512 * 512) {
+            throw new Error('Dữ liệu RLE của mask không hợp lệ.');
+        }
+        if (value) {
+            for (let i = offset; i < offset + count; i++) {
+                const j = i * 4;
+                pixels.data[j] = 6;
+                pixels.data[j + 1] = 182;
+                pixels.data[j + 2] = 212;
+                pixels.data[j + 3] = 255;
+            }
+        }
+        offset += count;
+        value = 1 - value;
+    }
+    if (offset !== 512 * 512) throw new Error('Mask RLE chưa bao phủ toàn bộ ảnh.');
+    context.putImageData(pixels, 0, 0);
+    return mask;
+}
+
+async function prepareDualSide(side) {
+    const item = dualCase.sides[side];
+    item.mask = dualMaskFromRle(item.prediction.rle_mask);
+    item.undo = [item.mask.getContext('2d').getImageData(0, 0, 512, 512)];
+    item.redo = [];
+    item.reviewStartedAt = performance.now();
+    item.original = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error(`Không thể hiển thị ảnh bên ${side}.`));
+        image.src = item.prediction.original_image_base64;
+    });
+    document.getElementById(`dualStatus${side}`).textContent = 'Chờ chuyên viên rà soát';
+    renderDualSide(side);
+}
+
+function selectDualViewport(side) {
+    dualCase.active = side;
+    for (const name of ['R', 'L']) document.getElementById(`dualViewport${name}`).classList.toggle('is-selected', name === side);
+    const item = dualCase.sides[side];
+    document.getElementById('dualBrightness').value = item.brightness;
+    document.getElementById('dualContrast').value = item.contrast;
+}
+
+function renderDualSide(side) {
+    const item = dualCase.sides[side];
+    const canvas = document.getElementById(`dualCanvas${side}`);
+    if (!item.original || !item.mask) return;
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, 512, 512);
+    if (dualCase.layerMode !== 'mask') {
+        context.save();
+        context.filter = `brightness(${item.brightness}%) contrast(${item.contrast}%)`;
+        context.drawImage(item.original, 0, 0, 512, 512);
+        context.restore();
+    }
+    if (dualCase.showMask && dualCase.layerMode !== 'original') {
+        context.save();
+        context.globalAlpha = dualCase.layerMode === 'mask' ? 1 : dualCase.opacity;
+        context.drawImage(item.mask, 0, 0);
+        context.restore();
+    }
+    canvas.style.transform = `translate(${item.panX}px, ${item.panY}px) scale(${item.zoom})`;
+    document.getElementById(`dualZoom${side}`).textContent = `${Math.round(item.zoom * 100)}%`;
+    document.getElementById(`dualLayer${side}`).textContent = dualCase.layerMode === 'mask' ? 'Mask' : dualCase.layerMode === 'original' ? 'Original' : 'Original + Mask';
+}
+
+function renderDualComparison() {
+    for (const side of ['R', 'L']) {
+        const prediction = dualCase.sides[side].prediction;
+        if (!prediction) continue;
+        const metrics = prediction.measurements || {};
+        const calibrated = metrics.calibrated === true;
+        document.getElementById(`dualLesions${side}`).textContent = Number.isInteger(metrics.total_lesions) ? String(metrics.total_lesions) : '—';
+        document.getElementById(`dualDiameters${side}`).textContent = calibrated && Number.isFinite(metrics.max_diameter_mm) && Number.isFinite(metrics.ortho_diameter_mm)
+            ? `${metrics.max_diameter_mm.toFixed(1)} × ${metrics.ortho_diameter_mm.toFixed(1)} × ${Number.isFinite(metrics.d3_mm) ? metrics.d3_mm.toFixed(1) : '—'}` : 'Chưa hiệu chuẩn';
+        document.getElementById(`dualVolume${side}`).textContent = calibrated && Number.isFinite(metrics.total_volume_cm3)
+            ? metrics.total_volume_cm3.toFixed(2) : '—';
+        document.getElementById(`dualConfidence${side}`).textContent = Number.isFinite(prediction.confidence_score)
+            ? `${(prediction.confidence_score * 100).toFixed(1)}%` : '—';
+        document.getElementById(`dualClinical${side}`).textContent = 'Chờ đánh giá chuyên môn';
+    }
+}
+
+function setDualViewMode(mode) {
+    if (!['split', 'R', 'L'].includes(mode)) return;
+    dualCase.mode = mode;
+    const grid = document.getElementById('dualViewportGrid');
+    grid.className = `pacs-viewport-grid ${mode === 'split' ? '' : `focus-${mode}`}`;
+    for (const name of ['Split', 'R', 'L']) document.getElementById(`dualMode${name}`).classList.toggle('is-active', mode === (name === 'Split' ? 'split' : name));
+    if (mode !== 'split') selectDualViewport(mode);
+}
+
+function setDualLayerMode(mode) {
+    if (!['original', 'mask', 'overlay'].includes(mode)) return;
+    dualCase.layerMode = mode;
+    dualCase.showMask = mode !== 'original';
+    for (const name of ['Original', 'Mask', 'Overlay']) document.getElementById(`dualView${name}`).classList.toggle('is-active', name.toLowerCase() === mode);
+    const maskBtn = document.getElementById('dualMaskBtn');
+    maskBtn.setAttribute('aria-pressed', String(dualCase.showMask));
+    maskBtn.textContent = dualCase.showMask ? 'M · Mask' : 'M · Mask tắt';
+    for (const side of ['R', 'L']) renderDualSide(side);
+}
+
+function toggleDualMask() { setDualLayerMode(dualCase.showMask ? 'original' : 'overlay'); }
+
+function toggleDualSync() {
+    dualCase.sync = !dualCase.sync;
+    const button = document.getElementById('dualSyncBtn');
+    button.classList.toggle('is-active', dualCase.sync);
+    button.setAttribute('aria-pressed', String(dualCase.sync));
+    if (dualCase.sync) {
+        const active = dualCase.sides[dualCase.active];
+        const other = dualCase.sides[dualCase.active === 'R' ? 'L' : 'R'];
+        for (const key of ['zoom', 'panX', 'panY', 'brightness', 'contrast']) other[key] = active[key];
+        renderDualSide(dualCase.active === 'R' ? 'L' : 'R');
+    }
+}
+
+function setDualTool(tool) {
+    dualCase.tool = tool;
+    document.getElementById('dualBrushBtn').classList.toggle('is-active', tool === 'brush');
+    document.getElementById('dualEraserBtn').classList.toggle('is-active', tool === 'eraser');
+}
+
+function setDualBrushSize(value) {
+    dualCase.brushSize = Number(value);
+    document.getElementById('dualBrushSizeVal').textContent = `${value} px`;
+}
+
+function setDualOpacity(value) {
+    dualCase.opacity = Number(value) / 100;
+    document.getElementById('dualOpacityVal').textContent = `${value}%`;
+    for (const side of ['R', 'L']) renderDualSide(side);
+}
+
+function setDualLut(key, value) {
+    const sides = dualCase.sync ? ['R', 'L'] : [dualCase.active];
+    for (const side of sides) {
+        dualCase.sides[side][key] = Number(value);
+        renderDualSide(side);
+    }
+}
+
+function zoomDual(delta) {
+    const sides = dualCase.sync ? ['R', 'L'] : [dualCase.active];
+    for (const side of sides) {
+        const item = dualCase.sides[side];
+        item.zoom = Math.max(0.5, Math.min(4, Math.round((item.zoom + delta) * 100) / 100));
+        renderDualSide(side);
+    }
+}
+
+function resetDualZoom() {
+    const sides = dualCase.sync ? ['R', 'L'] : [dualCase.active];
+    for (const side of sides) {
+        const item = dualCase.sides[side];
+        item.zoom = 1;
+        item.panX = item.panY = 0;
+        renderDualSide(side);
+    }
+}
+
+function dualPointerPosition(side, event) {
+    const rect = document.getElementById(`dualCanvas${side}`).getBoundingClientRect();
+    return { x: (event.clientX - rect.left) * 512 / rect.width, y: (event.clientY - rect.top) * 512 / rect.height };
+}
+
+function dualPointerDown(side, event) {
+    const item = dualCase.sides[side];
+    if (!item.prediction || item.saving) return;
+    selectDualViewport(side);
+    event.preventDefault();
+    event.target.setPointerCapture(event.pointerId);
+    if (event.shiftKey) {
+        item.pointer = { mode: 'pan', x: event.clientX, y: event.clientY };
+    } else {
+        if (dualCase.layerMode === 'original') setDualLayerMode('overlay');
+        item.pointer = { mode: 'paint', ...dualPointerPosition(side, event) };
+        paintDualMask(side, item.pointer.x, item.pointer.y);
+    }
+}
+
+function dualPointerMove(side, event) {
+    const item = dualCase.sides[side];
+    if (!item.pointer) return;
+    if (item.pointer.mode === 'pan') {
+        const dx = event.clientX - item.pointer.x;
+        const dy = event.clientY - item.pointer.y;
+        for (const name of dualCase.sync ? ['R', 'L'] : [side]) {
+            dualCase.sides[name].panX += dx;
+            dualCase.sides[name].panY += dy;
+            renderDualSide(name);
+        }
+        item.pointer.x = event.clientX;
+        item.pointer.y = event.clientY;
+    } else {
+        const point = dualPointerPosition(side, event);
+        paintDualMask(side, point.x, point.y, item.pointer.x, item.pointer.y);
+        item.pointer.x = point.x;
+        item.pointer.y = point.y;
+    }
+}
+
+function dualPointerUp(side, event) {
+    const item = dualCase.sides[side];
+    if (!item.pointer) return;
+    const painted = item.pointer.mode === 'paint';
+    item.pointer = null;
+    if (event.target.hasPointerCapture(event.pointerId)) event.target.releasePointerCapture(event.pointerId);
+    if (painted) {
+        item.undo.push(item.mask.getContext('2d').getImageData(0, 0, 512, 512));
+        if (item.undo.length > 12) item.undo.shift();
+        item.redo.length = 0;
+        invalidateDualApproval(side);
+    }
+}
+
+function paintDualMask(side, x, y, prevX, prevY) {
+    const item = dualCase.sides[side];
+    const context = item.mask.getContext('2d');
+    context.save();
+    context.globalCompositeOperation = dualCase.tool === 'eraser' ? 'destination-out' : 'source-over';
+    context.strokeStyle = context.fillStyle = '#06b6d4';
+    context.lineCap = context.lineJoin = 'round';
+    context.lineWidth = dualCase.brushSize;
+    context.beginPath();
+    if (Number.isFinite(prevX) && Number.isFinite(prevY)) {
+        context.moveTo(prevX, prevY);
+        context.lineTo(x, y);
+        context.stroke();
+    } else {
+        context.arc(x, y, dualCase.brushSize / 2, 0, Math.PI * 2);
+        context.fill();
+    }
+    context.restore();
+    renderDualSide(side);
+}
+
+function undoDualMask() {
+    const item = dualCase.sides[dualCase.active];
+    if (item.saving || item.undo.length < 2) return;
+    item.redo.push(item.undo.pop());
+    item.mask.getContext('2d').putImageData(item.undo[item.undo.length - 1], 0, 0);
+    invalidateDualApproval(dualCase.active);
+    renderDualSide(dualCase.active);
+}
+
+function redoDualMask() {
+    const item = dualCase.sides[dualCase.active];
+    if (item.saving || !item.redo.length) return;
+    const next = item.redo.pop();
+    item.undo.push(next);
+    item.mask.getContext('2d').putImageData(next, 0, 0);
+    invalidateDualApproval(dualCase.active);
+    renderDualSide(dualCase.active);
+}
 
 function saveCanvasHistory() {
             const imgData = maskCtx.getImageData(0, 0, 512, 512);

@@ -1,0 +1,20 @@
+{
+  "group": "MMVinmec_2D",
+  "source_mapping_tables": [
+    "vinmec_2d_mapping.csv"
+  ],
+  "source_pairs": 1469,
+  "train": 1249,
+  "validation": 220,
+  "test": 0,
+  "split_level": "sample-level",
+  "patient_id_status": "Patient IDs unavailable; patient-level independence is not verified",
+  "source_test_included_in_pool": false,
+  "independent_test_available": false,
+  "seed": 42,
+  "validation_fraction": 0.15,
+  "csv_sha256": {
+    "train": "6c19aba26f4527380823b3ad8d8f8dc8becbd0016313198e8a050c35b75a895d",
+    "val": "db3ce467539b4d3106a199f249454734576a920ef624e07e135023b6f047a7bd"
+  }
+}

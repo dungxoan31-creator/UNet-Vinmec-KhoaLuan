@@ -1,0 +1,7259 @@
+{
+  "source": "dataset\\Vinmec_2D",
+  "seed": 42,
+  "val_fraction": 0.15,
+  "counts": {
+    "train": 697,
+    "val": 123,
+    "test": 382
+  },
+  "split_level": "image",
+  "patient_id_status": "synthetic metadata only; source patient identity unavailable",
+  "patient_split_status": "partitioned by synthetic patient_id; disjoint split validated",
+  "patient_id_format_required": "^100[0-9]{6}$",
+  "records_with_patient_id": {
+    "train": 697,
+    "val": 123,
+    "test": 382
+  },
+  "unique_patients_per_split": {
+    "train": 345,
+    "val": 62,
+    "test": 189
+  },
+  "source_test_preserved": true,
+  "exact_decoded_image_duplicates": 0,
+  "split_csv_sha256_before_synthetic_metadata": {
+    "train": "1a5a053659c14b061a687445ecc3e0f66a42ec1ad30ee89ef0135adbd1374e8c",
+    "val": "4d0a3e773dab1527f230e2c4f1792d1b9dbbc45f33ce0e68f57e0fb4b3689a93",
+    "test": "05aed7a0cf78be9fac159f9181eccfb4db3cbc9c75ffc1f52e28087930c037dc"
+  },
+  "synthetic_patient_metadata": true,
+  "source_patient_identity_verified": false,
+  "clinical_patient_leakage_excluded": false,
+  "synthetic_patient_group_size_range": [
+    1,
+    3
+  ],
+  "mapping_file": "ai_training/splits/patient_mapping.json",
+  "mapping_sha256": "4468f5bfb243bf61998978304cb9769cdee0d8954283a7ab45330e95a65a20e8",
+  "split_csv_sha256_with_synthetic_metadata": {
+    "train": "2af2a0654150507309cbff2346db1951094164c07691294173a745c37a619e20",
+    "val": "adf08ad2224cff708da94bd8767510827a11f54b5535ff753aef173858da4d34",
+    "test": "8eb11aa587e285d86ab8baa25750e7448b507f43b35cb3321d5b569862cc9ae7"
+  },
+  "records": [
+    {
+      "case_id": "167",
+      "image_path": "dataset/Vinmec_2D/train/train_image/167.JPG",
+      "split": "train",
+      "patient_id": "100598384"
+    },
+    {
+      "case_id": "744",
+      "image_path": "dataset/Vinmec_2D/train/train_image/744.JPG",
+      "split": "train",
+      "patient_id": "100749421"
+    },
+    {
+      "case_id": "713",
+      "image_path": "dataset/Vinmec_2D/train/train_image/713.JPG",
+      "split": "train",
+      "patient_id": "100711875"
+    },
+    {
+      "case_id": "499",
+      "image_path": "dataset/Vinmec_2D/train/train_image/499.JPG",
+      "split": "train",
+      "patient_id": "100548913"
+    },
+    {
+      "case_id": "1395",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1395.JPG",
+      "split": "train",
+      "patient_id": "100298910"
+    },
+    {
+      "case_id": "302",
+      "image_path": "dataset/Vinmec_2D/train/train_image/302.JPG",
+      "split": "train",
+      "patient_id": "100350905"
+    },
+    {
+      "case_id": "723",
+      "image_path": "dataset/Vinmec_2D/train/train_image/723.JPG",
+      "split": "train",
+      "patient_id": "100850916"
+    },
+    {
+      "case_id": "329",
+      "image_path": "dataset/Vinmec_2D/train/train_image/329.JPG",
+      "split": "train",
+      "patient_id": "100065858"
+    },
+    {
+      "case_id": "434",
+      "image_path": "dataset/Vinmec_2D/train/train_image/434.JPG",
+      "split": "train",
+      "patient_id": "100962526"
+    },
+    {
+      "case_id": "866",
+      "image_path": "dataset/Vinmec_2D/train/train_image/866.JPG",
+      "split": "train",
+      "patient_id": "100848343"
+    },
+    {
+      "case_id": "1409",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1409.JPG",
+      "split": "train",
+      "patient_id": "100732409"
+    },
+    {
+      "case_id": "615",
+      "image_path": "dataset/Vinmec_2D/train/train_image/615.JPG",
+      "split": "train",
+      "patient_id": "100551613"
+    },
+    {
+      "case_id": "467",
+      "image_path": "dataset/Vinmec_2D/train/train_image/467.JPG",
+      "split": "train",
+      "patient_id": "100491798"
+    },
+    {
+      "case_id": "55",
+      "image_path": "dataset/Vinmec_2D/train/train_image/55.JPG",
+      "split": "train",
+      "patient_id": "100551963"
+    },
+    {
+      "case_id": "308",
+      "image_path": "dataset/Vinmec_2D/train/train_image/308.JPG",
+      "split": "train",
+      "patient_id": "100264236"
+    },
+    {
+      "case_id": "843",
+      "image_path": "dataset/Vinmec_2D/train/train_image/843.JPG",
+      "split": "train",
+      "patient_id": "100736971"
+    },
+    {
+      "case_id": "928",
+      "image_path": "dataset/Vinmec_2D/train/train_image/928.JPG",
+      "split": "train",
+      "patient_id": "100669989"
+    },
+    {
+      "case_id": "849",
+      "image_path": "dataset/Vinmec_2D/train/train_image/849.JPG",
+      "split": "train",
+      "patient_id": "100249068"
+    },
+    {
+      "case_id": "630",
+      "image_path": "dataset/Vinmec_2D/train/train_image/630.JPG",
+      "split": "train",
+      "patient_id": "100806814"
+    },
+    {
+      "case_id": "1282",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1282.JPG",
+      "split": "train",
+      "patient_id": "100644674"
+    },
+    {
+      "case_id": "1070",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1070.JPG",
+      "split": "train",
+      "patient_id": "100458723"
+    },
+    {
+      "case_id": "858",
+      "image_path": "dataset/Vinmec_2D/train/train_image/858.JPG",
+      "split": "train",
+      "patient_id": "100116242"
+    },
+    {
+      "case_id": "196",
+      "image_path": "dataset/Vinmec_2D/train/train_image/196.JPG",
+      "split": "train",
+      "patient_id": "100169930"
+    },
+    {
+      "case_id": "1442",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1442.JPG",
+      "split": "train",
+      "patient_id": "100224597"
+    },
+    {
+      "case_id": "642",
+      "image_path": "dataset/Vinmec_2D/train/train_image/642.JPG",
+      "split": "train",
+      "patient_id": "100085461"
+    },
+    {
+      "case_id": "559",
+      "image_path": "dataset/Vinmec_2D/train/train_image/559.JPG",
+      "split": "train",
+      "patient_id": "100928818"
+    },
+    {
+      "case_id": "596",
+      "image_path": "dataset/Vinmec_2D/train/train_image/596.JPG",
+      "split": "train",
+      "patient_id": "100856572"
+    },
+    {
+      "case_id": "992",
+      "image_path": "dataset/Vinmec_2D/train/train_image/992.JPG",
+      "split": "train",
+      "patient_id": "100989441"
+    },
+    {
+      "case_id": "625",
+      "image_path": "dataset/Vinmec_2D/train/train_image/625.JPG",
+      "split": "train",
+      "patient_id": "100956771"
+    },
+    {
+      "case_id": "132",
+      "image_path": "dataset/Vinmec_2D/train/train_image/132.JPG",
+      "split": "train",
+      "patient_id": "100404924"
+    },
+    {
+      "case_id": "280",
+      "image_path": "dataset/Vinmec_2D/train/train_image/280.JPG",
+      "split": "train",
+      "patient_id": "100307696"
+    },
+    {
+      "case_id": "160",
+      "image_path": "dataset/Vinmec_2D/train/train_image/160.JPG",
+      "split": "train",
+      "patient_id": "100875522"
+    },
+    {
+      "case_id": "537",
+      "image_path": "dataset/Vinmec_2D/train/train_image/537.JPG",
+      "split": "train",
+      "patient_id": "100307696"
+    },
+    {
+      "case_id": "1225",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1225.JPG",
+      "split": "train",
+      "patient_id": "100324620"
+    },
+    {
+      "case_id": "252",
+      "image_path": "dataset/Vinmec_2D/train/train_image/252.JPG",
+      "split": "train",
+      "patient_id": "100669989"
+    },
+    {
+      "case_id": "1420",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1420.JPG",
+      "split": "train",
+      "patient_id": "100927601"
+    },
+    {
+      "case_id": "334",
+      "image_path": "dataset/Vinmec_2D/train/train_image/334.JPG",
+      "split": "train",
+      "patient_id": "100250021"
+    },
+    {
+      "case_id": "710",
+      "image_path": "dataset/Vinmec_2D/train/train_image/710.JPG",
+      "split": "train",
+      "patient_id": "100298910"
+    },
+    {
+      "case_id": "1418",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1418.JPG",
+      "split": "train",
+      "patient_id": "100795702"
+    },
+    {
+      "case_id": "454",
+      "image_path": "dataset/Vinmec_2D/train/train_image/454.JPG",
+      "split": "train",
+      "patient_id": "100406235"
+    },
+    {
+      "case_id": "305",
+      "image_path": "dataset/Vinmec_2D/train/train_image/305.JPG",
+      "split": "train",
+      "patient_id": "100852686"
+    },
+    {
+      "case_id": "1242",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1242.JPG",
+      "split": "train",
+      "patient_id": "100366566"
+    },
+    {
+      "case_id": "1006",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1006.JPG",
+      "split": "train",
+      "patient_id": "100694299"
+    },
+    {
+      "case_id": "1245",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1245.JPG",
+      "split": "train",
+      "patient_id": "100803373"
+    },
+    {
+      "case_id": "755",
+      "image_path": "dataset/Vinmec_2D/train/train_image/755.JPG",
+      "split": "train",
+      "patient_id": "100816990"
+    },
+    {
+      "case_id": "855",
+      "image_path": "dataset/Vinmec_2D/train/train_image/855.JPG",
+      "split": "train",
+      "patient_id": "100173580"
+    },
+    {
+      "case_id": "347",
+      "image_path": "dataset/Vinmec_2D/train/train_image/347.JPG",
+      "split": "train",
+      "patient_id": "100369412"
+    },
+    {
+      "case_id": "57",
+      "image_path": "dataset/Vinmec_2D/train/train_image/57.JPG",
+      "split": "train",
+      "patient_id": "100300814"
+    },
+    {
+      "case_id": "369",
+      "image_path": "dataset/Vinmec_2D/train/train_image/369.JPG",
+      "split": "train",
+      "patient_id": "100021322"
+    },
+    {
+      "case_id": "1196",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1196.JPG",
+      "split": "train",
+      "patient_id": "100553408"
+    },
+    {
+      "case_id": "38",
+      "image_path": "dataset/Vinmec_2D/train/train_image/38.JPG",
+      "split": "train",
+      "patient_id": "100875522"
+    },
+    {
+      "case_id": "1149",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1149.JPG",
+      "split": "train",
+      "patient_id": "100130734"
+    },
+    {
+      "case_id": "375",
+      "image_path": "dataset/Vinmec_2D/train/train_image/375.JPG",
+      "split": "train",
+      "patient_id": "100203440"
+    },
+    {
+      "case_id": "1180",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1180.JPG",
+      "split": "train",
+      "patient_id": "100054714"
+    },
+    {
+      "case_id": "1026",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1026.JPG",
+      "split": "train",
+      "patient_id": "100915408"
+    },
+    {
+      "case_id": "393",
+      "image_path": "dataset/Vinmec_2D/train/train_image/393.JPG",
+      "split": "train",
+      "patient_id": "100083074"
+    },
+    {
+      "case_id": "1060",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1060.JPG",
+      "split": "train",
+      "patient_id": "100830117"
+    },
+    {
+      "case_id": "1289",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1289.JPG",
+      "split": "train",
+      "patient_id": "100768544"
+    },
+    {
+      "case_id": "169",
+      "image_path": "dataset/Vinmec_2D/train/train_image/169.JPG",
+      "split": "train",
+      "patient_id": "100298768"
+    },
+    {
+      "case_id": "208",
+      "image_path": "dataset/Vinmec_2D/train/train_image/208.JPG",
+      "split": "train",
+      "patient_id": "100450089"
+    },
+    {
+      "case_id": "541",
+      "image_path": "dataset/Vinmec_2D/train/train_image/541.JPG",
+      "split": "train",
+      "patient_id": "100224597"
+    },
+    {
+      "case_id": "190",
+      "image_path": "dataset/Vinmec_2D/train/train_image/190.JPG",
+      "split": "train",
+      "patient_id": "100992386"
+    },
+    {
+      "case_id": "318",
+      "image_path": "dataset/Vinmec_2D/train/train_image/318.JPG",
+      "split": "train",
+      "patient_id": "100323869"
+    },
+    {
+      "case_id": "1226",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1226.JPG",
+      "split": "train",
+      "patient_id": "100405341"
+    },
+    {
+      "case_id": "1361",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1361.JPG",
+      "split": "train",
+      "patient_id": "100674751"
+    },
+    {
+      "case_id": "1150",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1150.JPG",
+      "split": "train",
+      "patient_id": "100824613"
+    },
+    {
+      "case_id": "731",
+      "image_path": "dataset/Vinmec_2D/train/train_image/731.JPG",
+      "split": "train",
+      "patient_id": "100553081"
+    },
+    {
+      "case_id": "556",
+      "image_path": "dataset/Vinmec_2D/train/train_image/556.JPG",
+      "split": "train",
+      "patient_id": "100826823"
+    },
+    {
+      "case_id": "839",
+      "image_path": "dataset/Vinmec_2D/train/train_image/839.JPG",
+      "split": "train",
+      "patient_id": "100054714"
+    },
+    {
+      "case_id": "730",
+      "image_path": "dataset/Vinmec_2D/train/train_image/730.JPG",
+      "split": "train",
+      "patient_id": "100732409"
+    },
+    {
+      "case_id": "22",
+      "image_path": "dataset/Vinmec_2D/train/train_image/22.JPG",
+      "split": "train",
+      "patient_id": "100150551"
+    },
+    {
+      "case_id": "768",
+      "image_path": "dataset/Vinmec_2D/train/train_image/768.JPG",
+      "split": "train",
+      "patient_id": "100572536"
+    },
+    {
+      "case_id": "450",
+      "image_path": "dataset/Vinmec_2D/train/train_image/450.JPG",
+      "split": "train",
+      "patient_id": "100479318"
+    },
+    {
+      "case_id": "489",
+      "image_path": "dataset/Vinmec_2D/train/train_image/489.JPG",
+      "split": "train",
+      "patient_id": "100808977"
+    },
+    {
+      "case_id": "218",
+      "image_path": "dataset/Vinmec_2D/train/train_image/218.JPG",
+      "split": "train",
+      "patient_id": "100631977"
+    },
+    {
+      "case_id": "1206",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1206.JPG",
+      "split": "train",
+      "patient_id": "100461999"
+    },
+    {
+      "case_id": "23",
+      "image_path": "dataset/Vinmec_2D/train/train_image/23.JPG",
+      "split": "train",
+      "patient_id": "100295459"
+    },
+    {
+      "case_id": "829",
+      "image_path": "dataset/Vinmec_2D/train/train_image/829.JPG",
+      "split": "train",
+      "patient_id": "100826403"
+    },
+    {
+      "case_id": "1425",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1425.JPG",
+      "split": "train",
+      "patient_id": "100784897"
+    },
+    {
+      "case_id": "492",
+      "image_path": "dataset/Vinmec_2D/train/train_image/492.JPG",
+      "split": "train",
+      "patient_id": "100393124"
+    },
+    {
+      "case_id": "765",
+      "image_path": "dataset/Vinmec_2D/train/train_image/765.JPG",
+      "split": "train",
+      "patient_id": "100674020"
+    },
+    {
+      "case_id": "1386",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1386.JPG",
+      "split": "train",
+      "patient_id": "100046489"
+    },
+    {
+      "case_id": "1415",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1415.JPG",
+      "split": "train",
+      "patient_id": "100553081"
+    },
+    {
+      "case_id": "351",
+      "image_path": "dataset/Vinmec_2D/train/train_image/351.JPG",
+      "split": "train",
+      "patient_id": "100947885"
+    },
+    {
+      "case_id": "462",
+      "image_path": "dataset/Vinmec_2D/train/train_image/462.JPG",
+      "split": "train",
+      "patient_id": "100681533"
+    },
+    {
+      "case_id": "851",
+      "image_path": "dataset/Vinmec_2D/train/train_image/851.JPG",
+      "split": "train",
+      "patient_id": "100144283"
+    },
+    {
+      "case_id": "500",
+      "image_path": "dataset/Vinmec_2D/train/train_image/500.JPG",
+      "split": "train",
+      "patient_id": "100350905"
+    },
+    {
+      "case_id": "1063",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1063.JPG",
+      "split": "train",
+      "patient_id": "100305420"
+    },
+    {
+      "case_id": "272",
+      "image_path": "dataset/Vinmec_2D/train/train_image/272.JPG",
+      "split": "train",
+      "patient_id": "100808554"
+    },
+    {
+      "case_id": "1228",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1228.JPG",
+      "split": "train",
+      "patient_id": "100045934"
+    },
+    {
+      "case_id": "37",
+      "image_path": "dataset/Vinmec_2D/train/train_image/37.JPG",
+      "split": "train",
+      "patient_id": "100491798"
+    },
+    {
+      "case_id": "410",
+      "image_path": "dataset/Vinmec_2D/train/train_image/410.JPG",
+      "split": "train",
+      "patient_id": "100822471"
+    },
+    {
+      "case_id": "1212",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1212.JPG",
+      "split": "train",
+      "patient_id": "100830117"
+    },
+    {
+      "case_id": "1298",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1298.JPG",
+      "split": "train",
+      "patient_id": "100409420"
+    },
+    {
+      "case_id": "307",
+      "image_path": "dataset/Vinmec_2D/train/train_image/307.JPG",
+      "split": "train",
+      "patient_id": "100729168"
+    },
+    {
+      "case_id": "901",
+      "image_path": "dataset/Vinmec_2D/train/train_image/901.JPG",
+      "split": "train",
+      "patient_id": "100038780"
+    },
+    {
+      "case_id": "28",
+      "image_path": "dataset/Vinmec_2D/train/train_image/28.JPG",
+      "split": "train",
+      "patient_id": "100677406"
+    },
+    {
+      "case_id": "131",
+      "image_path": "dataset/Vinmec_2D/train/train_image/131.JPG",
+      "split": "train",
+      "patient_id": "100553408"
+    },
+    {
+      "case_id": "605",
+      "image_path": "dataset/Vinmec_2D/train/train_image/605.JPG",
+      "split": "train",
+      "patient_id": "100949860"
+    },
+    {
+      "case_id": "1248",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1248.JPG",
+      "split": "train",
+      "patient_id": "100729168"
+    },
+    {
+      "case_id": "584",
+      "image_path": "dataset/Vinmec_2D/train/train_image/584.JPG",
+      "split": "train",
+      "patient_id": "100325301"
+    },
+    {
+      "case_id": "486",
+      "image_path": "dataset/Vinmec_2D/train/train_image/486.JPG",
+      "split": "train",
+      "patient_id": "100827564"
+    },
+    {
+      "case_id": "938",
+      "image_path": "dataset/Vinmec_2D/train/train_image/938.JPG",
+      "split": "train",
+      "patient_id": "100245369"
+    },
+    {
+      "case_id": "278",
+      "image_path": "dataset/Vinmec_2D/train/train_image/278.JPG",
+      "split": "train",
+      "patient_id": "100348671"
+    },
+    {
+      "case_id": "990",
+      "image_path": "dataset/Vinmec_2D/train/train_image/990.JPG",
+      "split": "train",
+      "patient_id": "100829538"
+    },
+    {
+      "case_id": "1053",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1053.JPG",
+      "split": "train",
+      "patient_id": "100892931"
+    },
+    {
+      "case_id": "485",
+      "image_path": "dataset/Vinmec_2D/train/train_image/485.JPG",
+      "split": "train",
+      "patient_id": "100019116"
+    },
+    {
+      "case_id": "1050",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1050.JPG",
+      "split": "train",
+      "patient_id": "100634035"
+    },
+    {
+      "case_id": "803",
+      "image_path": "dataset/Vinmec_2D/train/train_image/803.JPG",
+      "split": "train",
+      "patient_id": "100696643"
+    },
+    {
+      "case_id": "478",
+      "image_path": "dataset/Vinmec_2D/train/train_image/478.JPG",
+      "split": "train",
+      "patient_id": "100127767"
+    },
+    {
+      "case_id": "291",
+      "image_path": "dataset/Vinmec_2D/train/train_image/291.JPG",
+      "split": "train",
+      "patient_id": "100353123"
+    },
+    {
+      "case_id": "1437",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1437.JPG",
+      "split": "train",
+      "patient_id": "100404924"
+    },
+    {
+      "case_id": "1195",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1195.JPG",
+      "split": "train",
+      "patient_id": "100581070"
+    },
+    {
+      "case_id": "1216",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1216.JPG",
+      "split": "train",
+      "patient_id": "100559951"
+    },
+    {
+      "case_id": "828",
+      "image_path": "dataset/Vinmec_2D/train/train_image/828.JPG",
+      "split": "train",
+      "patient_id": "100928818"
+    },
+    {
+      "case_id": "674",
+      "image_path": "dataset/Vinmec_2D/train/train_image/674.JPG",
+      "split": "train",
+      "patient_id": "100626928"
+    },
+    {
+      "case_id": "108",
+      "image_path": "dataset/Vinmec_2D/train/train_image/108.JPG",
+      "split": "train",
+      "patient_id": "100019116"
+    },
+    {
+      "case_id": "110",
+      "image_path": "dataset/Vinmec_2D/train/train_image/110.JPG",
+      "split": "train",
+      "patient_id": "100551613"
+    },
+    {
+      "case_id": "728",
+      "image_path": "dataset/Vinmec_2D/train/train_image/728.JPG",
+      "split": "train",
+      "patient_id": "100611046"
+    },
+    {
+      "case_id": "1320",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1320.JPG",
+      "split": "train",
+      "patient_id": "100144247"
+    },
+    {
+      "case_id": "949",
+      "image_path": "dataset/Vinmec_2D/train/train_image/949.JPG",
+      "split": "train",
+      "patient_id": "100232823"
+    },
+    {
+      "case_id": "332",
+      "image_path": "dataset/Vinmec_2D/train/train_image/332.JPG",
+      "split": "train",
+      "patient_id": "100050068"
+    },
+    {
+      "case_id": "758",
+      "image_path": "dataset/Vinmec_2D/train/train_image/758.JPG",
+      "split": "train",
+      "patient_id": "100471145"
+    },
+    {
+      "case_id": "479",
+      "image_path": "dataset/Vinmec_2D/train/train_image/479.JPG",
+      "split": "train",
+      "patient_id": "100949115"
+    },
+    {
+      "case_id": "1309",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1309.JPG",
+      "split": "train",
+      "patient_id": "100813875"
+    },
+    {
+      "case_id": "986",
+      "image_path": "dataset/Vinmec_2D/train/train_image/986.JPG",
+      "split": "train",
+      "patient_id": "100979677"
+    },
+    {
+      "case_id": "357",
+      "image_path": "dataset/Vinmec_2D/train/train_image/357.JPG",
+      "split": "train",
+      "patient_id": "100096168"
+    },
+    {
+      "case_id": "214",
+      "image_path": "dataset/Vinmec_2D/train/train_image/214.JPG",
+      "split": "train",
+      "patient_id": "100183594"
+    },
+    {
+      "case_id": "174",
+      "image_path": "dataset/Vinmec_2D/train/train_image/174.JPG",
+      "split": "train",
+      "patient_id": "100150551"
+    },
+    {
+      "case_id": "4",
+      "image_path": "dataset/Vinmec_2D/train/train_image/4.JPG",
+      "split": "train",
+      "patient_id": "100774524"
+    },
+    {
+      "case_id": "519",
+      "image_path": "dataset/Vinmec_2D/train/train_image/519.JPG",
+      "split": "train",
+      "patient_id": "100709217"
+    },
+    {
+      "case_id": "279",
+      "image_path": "dataset/Vinmec_2D/train/train_image/279.JPG",
+      "split": "train",
+      "patient_id": "100753448"
+    },
+    {
+      "case_id": "93",
+      "image_path": "dataset/Vinmec_2D/train/train_image/93.JPG",
+      "split": "train",
+      "patient_id": "100325301"
+    },
+    {
+      "case_id": "590",
+      "image_path": "dataset/Vinmec_2D/train/train_image/590.JPG",
+      "split": "train",
+      "patient_id": "100538289"
+    },
+    {
+      "case_id": "788",
+      "image_path": "dataset/Vinmec_2D/train/train_image/788.JPG",
+      "split": "train",
+      "patient_id": "100553081"
+    },
+    {
+      "case_id": "1345",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1345.JPG",
+      "split": "train",
+      "patient_id": "100879940"
+    },
+    {
+      "case_id": "861",
+      "image_path": "dataset/Vinmec_2D/train/train_image/861.JPG",
+      "split": "train",
+      "patient_id": "100324500"
+    },
+    {
+      "case_id": "892",
+      "image_path": "dataset/Vinmec_2D/train/train_image/892.JPG",
+      "split": "train",
+      "patient_id": "100430816"
+    },
+    {
+      "case_id": "624",
+      "image_path": "dataset/Vinmec_2D/train/train_image/624.JPG",
+      "split": "train",
+      "patient_id": "100354803"
+    },
+    {
+      "case_id": "417",
+      "image_path": "dataset/Vinmec_2D/train/train_image/417.JPG",
+      "split": "train",
+      "patient_id": "100145121"
+    },
+    {
+      "case_id": "104",
+      "image_path": "dataset/Vinmec_2D/train/train_image/104.JPG",
+      "split": "train",
+      "patient_id": "100885447"
+    },
+    {
+      "case_id": "67",
+      "image_path": "dataset/Vinmec_2D/train/train_image/67.JPG",
+      "split": "train",
+      "patient_id": "100915754"
+    },
+    {
+      "case_id": "327",
+      "image_path": "dataset/Vinmec_2D/train/train_image/327.JPG",
+      "split": "train",
+      "patient_id": "100829538"
+    },
+    {
+      "case_id": "117",
+      "image_path": "dataset/Vinmec_2D/train/train_image/117.JPG",
+      "split": "train",
+      "patient_id": "100135215"
+    },
+    {
+      "case_id": "1192",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1192.JPG",
+      "split": "train",
+      "patient_id": "100145121"
+    },
+    {
+      "case_id": "18",
+      "image_path": "dataset/Vinmec_2D/train/train_image/18.JPG",
+      "split": "train",
+      "patient_id": "100581478"
+    },
+    {
+      "case_id": "1197",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1197.JPG",
+      "split": "train",
+      "patient_id": "100783618"
+    },
+    {
+      "case_id": "366",
+      "image_path": "dataset/Vinmec_2D/train/train_image/366.JPG",
+      "split": "train",
+      "patient_id": "100189630"
+    },
+    {
+      "case_id": "1281",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1281.JPG",
+      "split": "train",
+      "patient_id": "100946503"
+    },
+    {
+      "case_id": "1436",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1436.JPG",
+      "split": "train",
+      "patient_id": "100961278"
+    },
+    {
+      "case_id": "415",
+      "image_path": "dataset/Vinmec_2D/train/train_image/415.JPG",
+      "split": "train",
+      "patient_id": "100585066"
+    },
+    {
+      "case_id": "1072",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1072.JPG",
+      "split": "train",
+      "patient_id": "100085569"
+    },
+    {
+      "case_id": "1151",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1151.JPG",
+      "split": "train",
+      "patient_id": "100655087"
+    },
+    {
+      "case_id": "692",
+      "image_path": "dataset/Vinmec_2D/train/train_image/692.JPG",
+      "split": "train",
+      "patient_id": "100087949"
+    },
+    {
+      "case_id": "518",
+      "image_path": "dataset/Vinmec_2D/train/train_image/518.JPG",
+      "split": "train",
+      "patient_id": "100916578"
+    },
+    {
+      "case_id": "426",
+      "image_path": "dataset/Vinmec_2D/train/train_image/426.JPG",
+      "split": "train",
+      "patient_id": "100871728"
+    },
+    {
+      "case_id": "432",
+      "image_path": "dataset/Vinmec_2D/train/train_image/432.JPG",
+      "split": "train",
+      "patient_id": "100581070"
+    },
+    {
+      "case_id": "346",
+      "image_path": "dataset/Vinmec_2D/train/train_image/346.JPG",
+      "split": "train",
+      "patient_id": "100711256"
+    },
+    {
+      "case_id": "859",
+      "image_path": "dataset/Vinmec_2D/train/train_image/859.JPG",
+      "split": "train",
+      "patient_id": "100237547"
+    },
+    {
+      "case_id": "1264",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1264.JPG",
+      "split": "train",
+      "patient_id": "100662423"
+    },
+    {
+      "case_id": "192",
+      "image_path": "dataset/Vinmec_2D/train/train_image/192.JPG",
+      "split": "train",
+      "patient_id": "100415712"
+    },
+    {
+      "case_id": "314",
+      "image_path": "dataset/Vinmec_2D/train/train_image/314.JPG",
+      "split": "train",
+      "patient_id": "100548913"
+    },
+    {
+      "case_id": "796",
+      "image_path": "dataset/Vinmec_2D/train/train_image/796.JPG",
+      "split": "train",
+      "patient_id": "100148298"
+    },
+    {
+      "case_id": "1251",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1251.JPG",
+      "split": "train",
+      "patient_id": "100850916"
+    },
+    {
+      "case_id": "42",
+      "image_path": "dataset/Vinmec_2D/train/train_image/42.JPG",
+      "split": "train",
+      "patient_id": "100709217"
+    },
+    {
+      "case_id": "1456",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1456.JPG",
+      "split": "train",
+      "patient_id": "100436802"
+    },
+    {
+      "case_id": "1332",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1332.JPG",
+      "split": "train",
+      "patient_id": "100770899"
+    },
+    {
+      "case_id": "409",
+      "image_path": "dataset/Vinmec_2D/train/train_image/409.JPG",
+      "split": "train",
+      "patient_id": "100658775"
+    },
+    {
+      "case_id": "975",
+      "image_path": "dataset/Vinmec_2D/train/train_image/975.JPG",
+      "split": "train",
+      "patient_id": "100640255"
+    },
+    {
+      "case_id": "527",
+      "image_path": "dataset/Vinmec_2D/train/train_image/527.JPG",
+      "split": "train",
+      "patient_id": "100253690"
+    },
+    {
+      "case_id": "1349",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1349.JPG",
+      "split": "train",
+      "patient_id": "100438997"
+    },
+    {
+      "case_id": "597",
+      "image_path": "dataset/Vinmec_2D/train/train_image/597.JPG",
+      "split": "train",
+      "patient_id": "100918964"
+    },
+    {
+      "case_id": "857",
+      "image_path": "dataset/Vinmec_2D/train/train_image/857.JPG",
+      "split": "train",
+      "patient_id": "100157677"
+    },
+    {
+      "case_id": "389",
+      "image_path": "dataset/Vinmec_2D/train/train_image/389.JPG",
+      "split": "train",
+      "patient_id": "100268355"
+    },
+    {
+      "case_id": "1247",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1247.JPG",
+      "split": "train",
+      "patient_id": "100019116"
+    },
+    {
+      "case_id": "49",
+      "image_path": "dataset/Vinmec_2D/train/train_image/49.JPG",
+      "split": "train",
+      "patient_id": "100808977"
+    },
+    {
+      "case_id": "832",
+      "image_path": "dataset/Vinmec_2D/train/train_image/832.JPG",
+      "split": "train",
+      "patient_id": "100678748"
+    },
+    {
+      "case_id": "1334",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1334.JPG",
+      "split": "train",
+      "patient_id": "100157677"
+    },
+    {
+      "case_id": "53",
+      "image_path": "dataset/Vinmec_2D/train/train_image/53.JPG",
+      "split": "train",
+      "patient_id": "100745957"
+    },
+    {
+      "case_id": "425",
+      "image_path": "dataset/Vinmec_2D/train/train_image/425.JPG",
+      "split": "train",
+      "patient_id": "100821874"
+    },
+    {
+      "case_id": "40",
+      "image_path": "dataset/Vinmec_2D/train/train_image/40.JPG",
+      "split": "train",
+      "patient_id": "100443973"
+    },
+    {
+      "case_id": "1107",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1107.JPG",
+      "split": "train",
+      "patient_id": "100762560"
+    },
+    {
+      "case_id": "738",
+      "image_path": "dataset/Vinmec_2D/train/train_image/738.JPG",
+      "split": "train",
+      "patient_id": "100700674"
+    },
+    {
+      "case_id": "668",
+      "image_path": "dataset/Vinmec_2D/train/train_image/668.JPG",
+      "split": "train",
+      "patient_id": "100385709"
+    },
+    {
+      "case_id": "449",
+      "image_path": "dataset/Vinmec_2D/train/train_image/449.JPG",
+      "split": "train",
+      "patient_id": "100803531"
+    },
+    {
+      "case_id": "801",
+      "image_path": "dataset/Vinmec_2D/train/train_image/801.JPG",
+      "split": "train",
+      "patient_id": "100134001"
+    },
+    {
+      "case_id": "319",
+      "image_path": "dataset/Vinmec_2D/train/train_image/319.JPG",
+      "split": "train",
+      "patient_id": "100711256"
+    },
+    {
+      "case_id": "589",
+      "image_path": "dataset/Vinmec_2D/train/train_image/589.JPG",
+      "split": "train",
+      "patient_id": "100869226"
+    },
+    {
+      "case_id": "797",
+      "image_path": "dataset/Vinmec_2D/train/train_image/797.JPG",
+      "split": "train",
+      "patient_id": "100918964"
+    },
+    {
+      "case_id": "1439",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1439.JPG",
+      "split": "train",
+      "patient_id": "100581478"
+    },
+    {
+      "case_id": "717",
+      "image_path": "dataset/Vinmec_2D/train/train_image/717.JPG",
+      "split": "train",
+      "patient_id": "100962526"
+    },
+    {
+      "case_id": "815",
+      "image_path": "dataset/Vinmec_2D/train/train_image/815.JPG",
+      "split": "train",
+      "patient_id": "100264236"
+    },
+    {
+      "case_id": "360",
+      "image_path": "dataset/Vinmec_2D/train/train_image/360.JPG",
+      "split": "train",
+      "patient_id": "100774524"
+    },
+    {
+      "case_id": "1213",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1213.JPG",
+      "split": "train",
+      "patient_id": "100736971"
+    },
+    {
+      "case_id": "1164",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1164.JPG",
+      "split": "train",
+      "patient_id": "100681533"
+    },
+    {
+      "case_id": "17",
+      "image_path": "dataset/Vinmec_2D/train/train_image/17.JPG",
+      "split": "train",
+      "patient_id": "100250786"
+    },
+    {
+      "case_id": "1318",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1318.JPG",
+      "split": "train",
+      "patient_id": "100572536"
+    },
+    {
+      "case_id": "406",
+      "image_path": "dataset/Vinmec_2D/train/train_image/406.JPG",
+      "split": "train",
+      "patient_id": "100249068"
+    },
+    {
+      "case_id": "1433",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1433.JPG",
+      "split": "train",
+      "patient_id": "100743266"
+    },
+    {
+      "case_id": "195",
+      "image_path": "dataset/Vinmec_2D/train/train_image/195.JPG",
+      "split": "train",
+      "patient_id": "100749421"
+    },
+    {
+      "case_id": "954",
+      "image_path": "dataset/Vinmec_2D/train/train_image/954.JPG",
+      "split": "train",
+      "patient_id": "100926607"
+    },
+    {
+      "case_id": "725",
+      "image_path": "dataset/Vinmec_2D/train/train_image/725.JPG",
+      "split": "train",
+      "patient_id": "100726501"
+    },
+    {
+      "case_id": "1287",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1287.JPG",
+      "split": "train",
+      "patient_id": "100471145"
+    },
+    {
+      "case_id": "525",
+      "image_path": "dataset/Vinmec_2D/train/train_image/525.JPG",
+      "split": "train",
+      "patient_id": "100989441"
+    },
+    {
+      "case_id": "726",
+      "image_path": "dataset/Vinmec_2D/train/train_image/726.JPG",
+      "split": "train",
+      "patient_id": "100310160"
+    },
+    {
+      "case_id": "575",
+      "image_path": "dataset/Vinmec_2D/train/train_image/575.JPG",
+      "split": "train",
+      "patient_id": "100662652"
+    },
+    {
+      "case_id": "282",
+      "image_path": "dataset/Vinmec_2D/train/train_image/282.JPG",
+      "split": "train",
+      "patient_id": "100875522"
+    },
+    {
+      "case_id": "372",
+      "image_path": "dataset/Vinmec_2D/train/train_image/372.JPG",
+      "split": "train",
+      "patient_id": "100189019"
+    },
+    {
+      "case_id": "172",
+      "image_path": "dataset/Vinmec_2D/train/train_image/172.JPG",
+      "split": "train",
+      "patient_id": "100443814"
+    },
+    {
+      "case_id": "297",
+      "image_path": "dataset/Vinmec_2D/train/train_image/297.JPG",
+      "split": "train",
+      "patient_id": "100054909"
+    },
+    {
+      "case_id": "756",
+      "image_path": "dataset/Vinmec_2D/train/train_image/756.JPG",
+      "split": "train",
+      "patient_id": "100985898"
+    },
+    {
+      "case_id": "781",
+      "image_path": "dataset/Vinmec_2D/train/train_image/781.JPG",
+      "split": "train",
+      "patient_id": "100491798"
+    },
+    {
+      "case_id": "1021",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1021.JPG",
+      "split": "train",
+      "patient_id": "100687923"
+    },
+    {
+      "case_id": "680",
+      "image_path": "dataset/Vinmec_2D/train/train_image/680.JPG",
+      "split": "train",
+      "patient_id": "100201332"
+    },
+    {
+      "case_id": "813",
+      "image_path": "dataset/Vinmec_2D/train/train_image/813.JPG",
+      "split": "train",
+      "patient_id": "100610169"
+    },
+    {
+      "case_id": "65",
+      "image_path": "dataset/Vinmec_2D/train/train_image/65.JPG",
+      "split": "train",
+      "patient_id": "100430816"
+    },
+    {
+      "case_id": "1431",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1431.JPG",
+      "split": "train",
+      "patient_id": "100826823"
+    },
+    {
+      "case_id": "219",
+      "image_path": "dataset/Vinmec_2D/train/train_image/219.JPG",
+      "split": "train",
+      "patient_id": "100374440"
+    },
+    {
+      "case_id": "335",
+      "image_path": "dataset/Vinmec_2D/train/train_image/335.JPG",
+      "split": "train",
+      "patient_id": "100527335"
+    },
+    {
+      "case_id": "91",
+      "image_path": "dataset/Vinmec_2D/train/train_image/91.JPG",
+      "split": "train",
+      "patient_id": "100443973"
+    },
+    {
+      "case_id": "667",
+      "image_path": "dataset/Vinmec_2D/train/train_image/667.JPG",
+      "split": "train",
+      "patient_id": "100501776"
+    },
+    {
+      "case_id": "794",
+      "image_path": "dataset/Vinmec_2D/train/train_image/794.JPG",
+      "split": "train",
+      "patient_id": "100249068"
+    },
+    {
+      "case_id": "555",
+      "image_path": "dataset/Vinmec_2D/train/train_image/555.JPG",
+      "split": "train",
+      "patient_id": "100325301"
+    },
+    {
+      "case_id": "1328",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1328.JPG",
+      "split": "train",
+      "patient_id": "100038780"
+    },
+    {
+      "case_id": "1165",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1165.JPG",
+      "split": "train",
+      "patient_id": "100768544"
+    },
+    {
+      "case_id": "236",
+      "image_path": "dataset/Vinmec_2D/train/train_image/236.JPG",
+      "split": "train",
+      "patient_id": "100066165"
+    },
+    {
+      "case_id": "298",
+      "image_path": "dataset/Vinmec_2D/train/train_image/298.JPG",
+      "split": "train",
+      "patient_id": "100795702"
+    },
+    {
+      "case_id": "875",
+      "image_path": "dataset/Vinmec_2D/train/train_image/875.JPG",
+      "split": "train",
+      "patient_id": "100774661"
+    },
+    {
+      "case_id": "1193",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1193.JPG",
+      "split": "train",
+      "patient_id": "100209159"
+    },
+    {
+      "case_id": "876",
+      "image_path": "dataset/Vinmec_2D/train/train_image/876.JPG",
+      "split": "train",
+      "patient_id": "100645239"
+    },
+    {
+      "case_id": "1292",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1292.JPG",
+      "split": "train",
+      "patient_id": "100949115"
+    },
+    {
+      "case_id": "780",
+      "image_path": "dataset/Vinmec_2D/train/train_image/780.JPG",
+      "split": "train",
+      "patient_id": "100694083"
+    },
+    {
+      "case_id": "1172",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1172.JPG",
+      "split": "train",
+      "patient_id": "100103896"
+    },
+    {
+      "case_id": "119",
+      "image_path": "dataset/Vinmec_2D/train/train_image/119.JPG",
+      "split": "train",
+      "patient_id": "100046489"
+    },
+    {
+      "case_id": "822",
+      "image_path": "dataset/Vinmec_2D/train/train_image/822.JPG",
+      "split": "train",
+      "patient_id": "100252838"
+    },
+    {
+      "case_id": "712",
+      "image_path": "dataset/Vinmec_2D/train/train_image/712.JPG",
+      "split": "train",
+      "patient_id": "100065858"
+    },
+    {
+      "case_id": "1312",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1312.JPG",
+      "split": "train",
+      "patient_id": "100739808"
+    },
+    {
+      "case_id": "60",
+      "image_path": "dataset/Vinmec_2D/train/train_image/60.JPG",
+      "split": "train",
+      "patient_id": "100703024"
+    },
+    {
+      "case_id": "283",
+      "image_path": "dataset/Vinmec_2D/train/train_image/283.JPG",
+      "split": "train",
+      "patient_id": "100479911"
+    },
+    {
+      "case_id": "86",
+      "image_path": "dataset/Vinmec_2D/train/train_image/86.JPG",
+      "split": "train",
+      "patient_id": "100985898"
+    },
+    {
+      "case_id": "1223",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1223.JPG",
+      "split": "train",
+      "patient_id": "100559951"
+    },
+    {
+      "case_id": "311",
+      "image_path": "dataset/Vinmec_2D/train/train_image/311.JPG",
+      "split": "train",
+      "patient_id": "100694083"
+    },
+    {
+      "case_id": "458",
+      "image_path": "dataset/Vinmec_2D/train/train_image/458.JPG",
+      "split": "train",
+      "patient_id": "100813875"
+    },
+    {
+      "case_id": "1343",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1343.JPG",
+      "split": "train",
+      "patient_id": "100754540"
+    },
+    {
+      "case_id": "418",
+      "image_path": "dataset/Vinmec_2D/train/train_image/418.JPG",
+      "split": "train",
+      "patient_id": "100435050"
+    },
+    {
+      "case_id": "1156",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1156.JPG",
+      "split": "train",
+      "patient_id": "100450089"
+    },
+    {
+      "case_id": "1019",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1019.JPG",
+      "split": "train",
+      "patient_id": "100450089"
+    },
+    {
+      "case_id": "1344",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1344.JPG",
+      "split": "train",
+      "patient_id": "100350905"
+    },
+    {
+      "case_id": "1155",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1155.JPG",
+      "split": "train",
+      "patient_id": "100127767"
+    },
+    {
+      "case_id": "1148",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1148.JPG",
+      "split": "train",
+      "patient_id": "100393124"
+    },
+    {
+      "case_id": "1198",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1198.JPG",
+      "split": "train",
+      "patient_id": "100209159"
+    },
+    {
+      "case_id": "384",
+      "image_path": "dataset/Vinmec_2D/train/train_image/384.JPG",
+      "split": "train",
+      "patient_id": "100623945"
+    },
+    {
+      "case_id": "470",
+      "image_path": "dataset/Vinmec_2D/train/train_image/470.JPG",
+      "split": "train",
+      "patient_id": "100265971"
+    },
+    {
+      "case_id": "1333",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1333.JPG",
+      "split": "train",
+      "patient_id": "100949115"
+    },
+    {
+      "case_id": "147",
+      "image_path": "dataset/Vinmec_2D/train/train_image/147.JPG",
+      "split": "train",
+      "patient_id": "100830117"
+    },
+    {
+      "case_id": "1294",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1294.JPG",
+      "split": "train",
+      "patient_id": "100885447"
+    },
+    {
+      "case_id": "1097",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1097.JPG",
+      "split": "train",
+      "patient_id": "100533188"
+    },
+    {
+      "case_id": "402",
+      "image_path": "dataset/Vinmec_2D/train/train_image/402.JPG",
+      "split": "train",
+      "patient_id": "100570511"
+    },
+    {
+      "case_id": "886",
+      "image_path": "dataset/Vinmec_2D/train/train_image/886.JPG",
+      "split": "train",
+      "patient_id": "100209398"
+    },
+    {
+      "case_id": "263",
+      "image_path": "dataset/Vinmec_2D/train/train_image/263.JPG",
+      "split": "train",
+      "patient_id": "100886982"
+    },
+    {
+      "case_id": "379",
+      "image_path": "dataset/Vinmec_2D/train/train_image/379.JPG",
+      "split": "train",
+      "patient_id": "100975670"
+    },
+    {
+      "case_id": "1297",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1297.JPG",
+      "split": "train",
+      "patient_id": "100950369"
+    },
+    {
+      "case_id": "471",
+      "image_path": "dataset/Vinmec_2D/train/train_image/471.JPG",
+      "split": "train",
+      "patient_id": "100428625"
+    },
+    {
+      "case_id": "13",
+      "image_path": "dataset/Vinmec_2D/train/train_image/13.JPG",
+      "split": "train",
+      "patient_id": "100250021"
+    },
+    {
+      "case_id": "1256",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1256.JPG",
+      "split": "train",
+      "patient_id": "100702667"
+    },
+    {
+      "case_id": "647",
+      "image_path": "dataset/Vinmec_2D/train/train_image/647.JPG",
+      "split": "train",
+      "patient_id": "100349555"
+    },
+    {
+      "case_id": "654",
+      "image_path": "dataset/Vinmec_2D/train/train_image/654.JPG",
+      "split": "train",
+      "patient_id": "100784897"
+    },
+    {
+      "case_id": "910",
+      "image_path": "dataset/Vinmec_2D/train/train_image/910.JPG",
+      "split": "train",
+      "patient_id": "100154506"
+    },
+    {
+      "case_id": "1138",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1138.JPG",
+      "split": "train",
+      "patient_id": "100296635"
+    },
+    {
+      "case_id": "799",
+      "image_path": "dataset/Vinmec_2D/train/train_image/799.JPG",
+      "split": "train",
+      "patient_id": "100405674"
+    },
+    {
+      "case_id": "562",
+      "image_path": "dataset/Vinmec_2D/train/train_image/562.JPG",
+      "split": "train",
+      "patient_id": "100717941"
+    },
+    {
+      "case_id": "939",
+      "image_path": "dataset/Vinmec_2D/train/train_image/939.JPG",
+      "split": "train",
+      "patient_id": "100783618"
+    },
+    {
+      "case_id": "1028",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1028.JPG",
+      "split": "train",
+      "patient_id": "100875686"
+    },
+    {
+      "case_id": "1455",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1455.JPG",
+      "split": "train",
+      "patient_id": "100610169"
+    },
+    {
+      "case_id": "1139",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1139.JPG",
+      "split": "train",
+      "patient_id": "100070841"
+    },
+    {
+      "case_id": "277",
+      "image_path": "dataset/Vinmec_2D/train/train_image/277.JPG",
+      "split": "train",
+      "patient_id": "100540970"
+    },
+    {
+      "case_id": "1059",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1059.JPG",
+      "split": "train",
+      "patient_id": "100689023"
+    },
+    {
+      "case_id": "82",
+      "image_path": "dataset/Vinmec_2D/train/train_image/82.JPG",
+      "split": "train",
+      "patient_id": "100392127"
+    },
+    {
+      "case_id": "404",
+      "image_path": "dataset/Vinmec_2D/train/train_image/404.JPG",
+      "split": "train",
+      "patient_id": "100916578"
+    },
+    {
+      "case_id": "150",
+      "image_path": "dataset/Vinmec_2D/train/train_image/150.JPG",
+      "split": "train",
+      "patient_id": "100295459"
+    },
+    {
+      "case_id": "678",
+      "image_path": "dataset/Vinmec_2D/train/train_image/678.JPG",
+      "split": "train",
+      "patient_id": "100997373"
+    },
+    {
+      "case_id": "287",
+      "image_path": "dataset/Vinmec_2D/train/train_image/287.JPG",
+      "split": "train",
+      "patient_id": "100209159"
+    },
+    {
+      "case_id": "1459",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1459.JPG",
+      "split": "train",
+      "patient_id": "100527335"
+    },
+    {
+      "case_id": "1375",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1375.JPG",
+      "split": "train",
+      "patient_id": "100672324"
+    },
+    {
+      "case_id": "85",
+      "image_path": "dataset/Vinmec_2D/train/train_image/85.JPG",
+      "split": "train",
+      "patient_id": "100141403"
+    },
+    {
+      "case_id": "498",
+      "image_path": "dataset/Vinmec_2D/train/train_image/498.JPG",
+      "split": "train",
+      "patient_id": "100170128"
+    },
+    {
+      "case_id": "1220",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1220.JPG",
+      "split": "train",
+      "patient_id": "100871728"
+    },
+    {
+      "case_id": "215",
+      "image_path": "dataset/Vinmec_2D/train/train_image/215.JPG",
+      "split": "train",
+      "patient_id": "100400422"
+    },
+    {
+      "case_id": "1116",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1116.JPG",
+      "split": "train",
+      "patient_id": "100130734"
+    },
+    {
+      "case_id": "760",
+      "image_path": "dataset/Vinmec_2D/train/train_image/760.JPG",
+      "split": "train",
+      "patient_id": "100154506"
+    },
+    {
+      "case_id": "564",
+      "image_path": "dataset/Vinmec_2D/train/train_image/564.JPG",
+      "split": "train",
+      "patient_id": "100380211"
+    },
+    {
+      "case_id": "10",
+      "image_path": "dataset/Vinmec_2D/train/train_image/10.JPG",
+      "split": "train",
+      "patient_id": "100992386"
+    },
+    {
+      "case_id": "1037",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1037.JPG",
+      "split": "train",
+      "patient_id": "100302096"
+    },
+    {
+      "case_id": "774",
+      "image_path": "dataset/Vinmec_2D/train/train_image/774.JPG",
+      "split": "train",
+      "patient_id": "100758889"
+    },
+    {
+      "case_id": "716",
+      "image_path": "dataset/Vinmec_2D/train/train_image/716.JPG",
+      "split": "train",
+      "patient_id": "100298768"
+    },
+    {
+      "case_id": "373",
+      "image_path": "dataset/Vinmec_2D/train/train_image/373.JPG",
+      "split": "train",
+      "patient_id": "100302096"
+    },
+    {
+      "case_id": "1084",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1084.JPG",
+      "split": "train",
+      "patient_id": "100046489"
+    },
+    {
+      "case_id": "1044",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1044.JPG",
+      "split": "train",
+      "patient_id": "100718709"
+    },
+    {
+      "case_id": "69",
+      "image_path": "dataset/Vinmec_2D/train/train_image/69.JPG",
+      "split": "train",
+      "patient_id": "100871415"
+    },
+    {
+      "case_id": "833",
+      "image_path": "dataset/Vinmec_2D/train/train_image/833.JPG",
+      "split": "train",
+      "patient_id": "100055843"
+    },
+    {
+      "case_id": "1428",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1428.JPG",
+      "split": "train",
+      "patient_id": "100853025"
+    },
+    {
+      "case_id": "396",
+      "image_path": "dataset/Vinmec_2D/train/train_image/396.JPG",
+      "split": "train",
+      "patient_id": "100674751"
+    },
+    {
+      "case_id": "213",
+      "image_path": "dataset/Vinmec_2D/train/train_image/213.JPG",
+      "split": "train",
+      "patient_id": "100173580"
+    },
+    {
+      "case_id": "273",
+      "image_path": "dataset/Vinmec_2D/train/train_image/273.JPG",
+      "split": "train",
+      "patient_id": "100847903"
+    },
+    {
+      "case_id": "459",
+      "image_path": "dataset/Vinmec_2D/train/train_image/459.JPG",
+      "split": "train",
+      "patient_id": "100473041"
+    },
+    {
+      "case_id": "835",
+      "image_path": "dataset/Vinmec_2D/train/train_image/835.JPG",
+      "split": "train",
+      "patient_id": "100696643"
+    },
+    {
+      "case_id": "902",
+      "image_path": "dataset/Vinmec_2D/train/train_image/902.JPG",
+      "split": "train",
+      "patient_id": "100808320"
+    },
+    {
+      "case_id": "1182",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1182.JPG",
+      "split": "train",
+      "patient_id": "100039581"
+    },
+    {
+      "case_id": "194",
+      "image_path": "dataset/Vinmec_2D/train/train_image/194.JPG",
+      "split": "train",
+      "patient_id": "100626928"
+    },
+    {
+      "case_id": "1237",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1237.JPG",
+      "split": "train",
+      "patient_id": "100145121"
+    },
+    {
+      "case_id": "1227",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1227.JPG",
+      "split": "train",
+      "patient_id": "100983566"
+    },
+    {
+      "case_id": "1144",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1144.JPG",
+      "split": "train",
+      "patient_id": "100736971"
+    },
+    {
+      "case_id": "400",
+      "image_path": "dataset/Vinmec_2D/train/train_image/400.JPG",
+      "split": "train",
+      "patient_id": "100237547"
+    },
+    {
+      "case_id": "310",
+      "image_path": "dataset/Vinmec_2D/train/train_image/310.JPG",
+      "split": "train",
+      "patient_id": "100503935"
+    },
+    {
+      "case_id": "1099",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1099.JPG",
+      "split": "train",
+      "patient_id": "100001640"
+    },
+    {
+      "case_id": "52",
+      "image_path": "dataset/Vinmec_2D/train/train_image/52.JPG",
+      "split": "train",
+      "patient_id": "100648052"
+    },
+    {
+      "case_id": "424",
+      "image_path": "dataset/Vinmec_2D/train/train_image/424.JPG",
+      "split": "train",
+      "patient_id": "100203440"
+    },
+    {
+      "case_id": "1118",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1118.JPG",
+      "split": "train",
+      "patient_id": "100458723"
+    },
+    {
+      "case_id": "1098",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1098.JPG",
+      "split": "train",
+      "patient_id": "100130734"
+    },
+    {
+      "case_id": "239",
+      "image_path": "dataset/Vinmec_2D/train/train_image/239.JPG",
+      "split": "train",
+      "patient_id": "100662652"
+    },
+    {
+      "case_id": "446",
+      "image_path": "dataset/Vinmec_2D/train/train_image/446.JPG",
+      "split": "train",
+      "patient_id": "100875679"
+    },
+    {
+      "case_id": "1462",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1462.JPG",
+      "split": "train",
+      "patient_id": "100106053"
+    },
+    {
+      "case_id": "365",
+      "image_path": "dataset/Vinmec_2D/train/train_image/365.JPG",
+      "split": "train",
+      "patient_id": "100374440"
+    },
+    {
+      "case_id": "241",
+      "image_path": "dataset/Vinmec_2D/train/train_image/241.JPG",
+      "split": "train",
+      "patient_id": "100361551"
+    },
+    {
+      "case_id": "460",
+      "image_path": "dataset/Vinmec_2D/train/train_image/460.JPG",
+      "split": "train",
+      "patient_id": "100840181"
+    },
+    {
+      "case_id": "9",
+      "image_path": "dataset/Vinmec_2D/train/train_image/9.JPG",
+      "split": "train",
+      "patient_id": "100297949"
+    },
+    {
+      "case_id": "232",
+      "image_path": "dataset/Vinmec_2D/train/train_image/232.JPG",
+      "split": "train",
+      "patient_id": "100080913"
+    },
+    {
+      "case_id": "355",
+      "image_path": "dataset/Vinmec_2D/train/train_image/355.JPG",
+      "split": "train",
+      "patient_id": "100956771"
+    },
+    {
+      "case_id": "198",
+      "image_path": "dataset/Vinmec_2D/train/train_image/198.JPG",
+      "split": "train",
+      "patient_id": "100915408"
+    },
+    {
+      "case_id": "1250",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1250.JPG",
+      "split": "train",
+      "patient_id": "100400422"
+    },
+    {
+      "case_id": "286",
+      "image_path": "dataset/Vinmec_2D/train/train_image/286.JPG",
+      "split": "train",
+      "patient_id": "100156782"
+    },
+    {
+      "case_id": "1453",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1453.JPG",
+      "split": "train",
+      "patient_id": "100252249"
+    },
+    {
+      "case_id": "374",
+      "image_path": "dataset/Vinmec_2D/train/train_image/374.JPG",
+      "split": "train",
+      "patient_id": "100768544"
+    },
+    {
+      "case_id": "775",
+      "image_path": "dataset/Vinmec_2D/train/train_image/775.JPG",
+      "split": "train",
+      "patient_id": "100495404"
+    },
+    {
+      "case_id": "698",
+      "image_path": "dataset/Vinmec_2D/train/train_image/698.JPG",
+      "split": "train",
+      "patient_id": "100156782"
+    },
+    {
+      "case_id": "1239",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1239.JPG",
+      "split": "train",
+      "patient_id": "100726501"
+    },
+    {
+      "case_id": "1301",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1301.JPG",
+      "split": "train",
+      "patient_id": "100871415"
+    },
+    {
+      "case_id": "1207",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1207.JPG",
+      "split": "train",
+      "patient_id": "100638457"
+    },
+    {
+      "case_id": "407",
+      "image_path": "dataset/Vinmec_2D/train/train_image/407.JPG",
+      "split": "train",
+      "patient_id": "100235445"
+    },
+    {
+      "case_id": "1056",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1056.JPG",
+      "split": "train",
+      "patient_id": "100088834"
+    },
+    {
+      "case_id": "408",
+      "image_path": "dataset/Vinmec_2D/train/train_image/408.JPG",
+      "split": "train",
+      "patient_id": "100565990"
+    },
+    {
+      "case_id": "1290",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1290.JPG",
+      "split": "train",
+      "patient_id": "100946503"
+    },
+    {
+      "case_id": "613",
+      "image_path": "dataset/Vinmec_2D/train/train_image/613.JPG",
+      "split": "train",
+      "patient_id": "100050068"
+    },
+    {
+      "case_id": "683",
+      "image_path": "dataset/Vinmec_2D/train/train_image/683.JPG",
+      "split": "train",
+      "patient_id": "100168099"
+    },
+    {
+      "case_id": "1429",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1429.JPG",
+      "split": "train",
+      "patient_id": "100501776"
+    },
+    {
+      "case_id": "1185",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1185.JPG",
+      "split": "train",
+      "patient_id": "100856375"
+    },
+    {
+      "case_id": "1450",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1450.JPG",
+      "split": "train",
+      "patient_id": "100877330"
+    },
+    {
+      "case_id": "437",
+      "image_path": "dataset/Vinmec_2D/train/train_image/437.JPG",
+      "split": "train",
+      "patient_id": "100915700"
+    },
+    {
+      "case_id": "51",
+      "image_path": "dataset/Vinmec_2D/train/train_image/51.JPG",
+      "split": "train",
+      "patient_id": "100191132"
+    },
+    {
+      "case_id": "151",
+      "image_path": "dataset/Vinmec_2D/train/train_image/151.JPG",
+      "split": "train",
+      "patient_id": "100586072"
+    },
+    {
+      "case_id": "205",
+      "image_path": "dataset/Vinmec_2D/train/train_image/205.JPG",
+      "split": "train",
+      "patient_id": "100324620"
+    },
+    {
+      "case_id": "444",
+      "image_path": "dataset/Vinmec_2D/train/train_image/444.JPG",
+      "split": "train",
+      "patient_id": "100672324"
+    },
+    {
+      "case_id": "1001",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1001.JPG",
+      "split": "train",
+      "patient_id": "100487192"
+    },
+    {
+      "case_id": "1058",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1058.JPG",
+      "split": "train",
+      "patient_id": "100611046"
+    },
+    {
+      "case_id": "317",
+      "image_path": "dataset/Vinmec_2D/train/train_image/317.JPG",
+      "split": "train",
+      "patient_id": "100298910"
+    },
+    {
+      "case_id": "435",
+      "image_path": "dataset/Vinmec_2D/train/train_image/435.JPG",
+      "split": "train",
+      "patient_id": "100672324"
+    },
+    {
+      "case_id": "461",
+      "image_path": "dataset/Vinmec_2D/train/train_image/461.JPG",
+      "split": "train",
+      "patient_id": "100334165"
+    },
+    {
+      "case_id": "635",
+      "image_path": "dataset/Vinmec_2D/train/train_image/635.JPG",
+      "split": "train",
+      "patient_id": "100732409"
+    },
+    {
+      "case_id": "1249",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1249.JPG",
+      "split": "train",
+      "patient_id": "100745957"
+    },
+    {
+      "case_id": "223",
+      "image_path": "dataset/Vinmec_2D/train/train_image/223.JPG",
+      "split": "train",
+      "patient_id": "100533188"
+    },
+    {
+      "case_id": "250",
+      "image_path": "dataset/Vinmec_2D/train/train_image/250.JPG",
+      "split": "train",
+      "patient_id": "100745957"
+    },
+    {
+      "case_id": "812",
+      "image_path": "dataset/Vinmec_2D/train/train_image/812.JPG",
+      "split": "train",
+      "patient_id": "100344432"
+    },
+    {
+      "case_id": "1326",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1326.JPG",
+      "split": "train",
+      "patient_id": "100653064"
+    },
+    {
+      "case_id": "617",
+      "image_path": "dataset/Vinmec_2D/train/train_image/617.JPG",
+      "split": "train",
+      "patient_id": "100610169"
+    },
+    {
+      "case_id": "1201",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1201.JPG",
+      "split": "train",
+      "patient_id": "100840181"
+    },
+    {
+      "case_id": "1260",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1260.JPG",
+      "split": "train",
+      "patient_id": "100626258"
+    },
+    {
+      "case_id": "293",
+      "image_path": "dataset/Vinmec_2D/train/train_image/293.JPG",
+      "split": "train",
+      "patient_id": "100087949"
+    },
+    {
+      "case_id": "25",
+      "image_path": "dataset/Vinmec_2D/train/train_image/25.JPG",
+      "split": "train",
+      "patient_id": "100487192"
+    },
+    {
+      "case_id": "909",
+      "image_path": "dataset/Vinmec_2D/train/train_image/909.JPG",
+      "split": "train",
+      "patient_id": "100803531"
+    },
+    {
+      "case_id": "1219",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1219.JPG",
+      "split": "train",
+      "patient_id": "100484106"
+    },
+    {
+      "case_id": "601",
+      "image_path": "dataset/Vinmec_2D/train/train_image/601.JPG",
+      "split": "train",
+      "patient_id": "100354992"
+    },
+    {
+      "case_id": "950",
+      "image_path": "dataset/Vinmec_2D/train/train_image/950.JPG",
+      "split": "train",
+      "patient_id": "100001640"
+    },
+    {
+      "case_id": "1441",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1441.JPG",
+      "split": "train",
+      "patient_id": "100226130"
+    },
+    {
+      "case_id": "153",
+      "image_path": "dataset/Vinmec_2D/train/train_image/153.JPG",
+      "split": "train",
+      "patient_id": "100770899"
+    },
+    {
+      "case_id": "173",
+      "image_path": "dataset/Vinmec_2D/train/train_image/173.JPG",
+      "split": "train",
+      "patient_id": "100029556"
+    },
+    {
+      "case_id": "235",
+      "image_path": "dataset/Vinmec_2D/train/train_image/235.JPG",
+      "split": "train",
+      "patient_id": "100157677"
+    },
+    {
+      "case_id": "848",
+      "image_path": "dataset/Vinmec_2D/train/train_image/848.JPG",
+      "split": "train",
+      "patient_id": "100247231"
+    },
+    {
+      "case_id": "1064",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1064.JPG",
+      "split": "train",
+      "patient_id": "100379404"
+    },
+    {
+      "case_id": "200",
+      "image_path": "dataset/Vinmec_2D/train/train_image/200.JPG",
+      "split": "train",
+      "patient_id": "100532351"
+    },
+    {
+      "case_id": "103",
+      "image_path": "dataset/Vinmec_2D/train/train_image/103.JPG",
+      "split": "train",
+      "patient_id": "100770899"
+    },
+    {
+      "case_id": "188",
+      "image_path": "dataset/Vinmec_2D/train/train_image/188.JPG",
+      "split": "train",
+      "patient_id": "100687923"
+    },
+    {
+      "case_id": "893",
+      "image_path": "dataset/Vinmec_2D/train/train_image/893.JPG",
+      "split": "train",
+      "patient_id": "100406235"
+    },
+    {
+      "case_id": "1209",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1209.JPG",
+      "split": "train",
+      "patient_id": "100436802"
+    },
+    {
+      "case_id": "161",
+      "image_path": "dataset/Vinmec_2D/train/train_image/161.JPG",
+      "split": "train",
+      "patient_id": "100410997"
+    },
+    {
+      "case_id": "411",
+      "image_path": "dataset/Vinmec_2D/train/train_image/411.JPG",
+      "split": "train",
+      "patient_id": "100096168"
+    },
+    {
+      "case_id": "447",
+      "image_path": "dataset/Vinmec_2D/train/train_image/447.JPG",
+      "split": "train",
+      "patient_id": "100300814"
+    },
+    {
+      "case_id": "1105",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1105.JPG",
+      "split": "train",
+      "patient_id": "100743266"
+    },
+    {
+      "case_id": "1330",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1330.JPG",
+      "split": "train",
+      "patient_id": "100674020"
+    },
+    {
+      "case_id": "140",
+      "image_path": "dataset/Vinmec_2D/train/train_image/140.JPG",
+      "split": "train",
+      "patient_id": "100658775"
+    },
+    {
+      "case_id": "983",
+      "image_path": "dataset/Vinmec_2D/train/train_image/983.JPG",
+      "split": "train",
+      "patient_id": "100729168"
+    },
+    {
+      "case_id": "724",
+      "image_path": "dataset/Vinmec_2D/train/train_image/724.JPG",
+      "split": "train",
+      "patient_id": "100531971"
+    },
+    {
+      "case_id": "1303",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1303.JPG",
+      "split": "train",
+      "patient_id": "100345705"
+    },
+    {
+      "case_id": "1147",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1147.JPG",
+      "split": "train",
+      "patient_id": "100465776"
+    },
+    {
+      "case_id": "772",
+      "image_path": "dataset/Vinmec_2D/train/train_image/772.JPG",
+      "split": "train",
+      "patient_id": "100045814"
+    },
+    {
+      "case_id": "745",
+      "image_path": "dataset/Vinmec_2D/train/train_image/745.JPG",
+      "split": "train",
+      "patient_id": "100824613"
+    },
+    {
+      "case_id": "497",
+      "image_path": "dataset/Vinmec_2D/train/train_image/497.JPG",
+      "split": "train",
+      "patient_id": "100069113"
+    },
+    {
+      "case_id": "455",
+      "image_path": "dataset/Vinmec_2D/train/train_image/455.JPG",
+      "split": "train",
+      "patient_id": "100975670"
+    },
+    {
+      "case_id": "570",
+      "image_path": "dataset/Vinmec_2D/train/train_image/570.JPG",
+      "split": "train",
+      "patient_id": "100949282"
+    },
+    {
+      "case_id": "1101",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1101.JPG",
+      "split": "train",
+      "patient_id": "100085461"
+    },
+    {
+      "case_id": "209",
+      "image_path": "dataset/Vinmec_2D/train/train_image/209.JPG",
+      "split": "train",
+      "patient_id": "100552108"
+    },
+    {
+      "case_id": "754",
+      "image_path": "dataset/Vinmec_2D/train/train_image/754.JPG",
+      "split": "train",
+      "patient_id": "100688457"
+    },
+    {
+      "case_id": "706",
+      "image_path": "dataset/Vinmec_2D/train/train_image/706.JPG",
+      "split": "train",
+      "patient_id": "100116587"
+    },
+    {
+      "case_id": "1362",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1362.JPG",
+      "split": "train",
+      "patient_id": "100096168"
+    },
+    {
+      "case_id": "183",
+      "image_path": "dataset/Vinmec_2D/train/train_image/183.JPG",
+      "split": "train",
+      "patient_id": "100055843"
+    },
+    {
+      "case_id": "59",
+      "image_path": "dataset/Vinmec_2D/train/train_image/59.JPG",
+      "split": "train",
+      "patient_id": "100808554"
+    },
+    {
+      "case_id": "1258",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1258.JPG",
+      "split": "train",
+      "patient_id": "100017031"
+    },
+    {
+      "case_id": "466",
+      "image_path": "dataset/Vinmec_2D/train/train_image/466.JPG",
+      "split": "train",
+      "patient_id": "100532351"
+    },
+    {
+      "case_id": "604",
+      "image_path": "dataset/Vinmec_2D/train/train_image/604.JPG",
+      "split": "train",
+      "patient_id": "100915408"
+    },
+    {
+      "case_id": "166",
+      "image_path": "dataset/Vinmec_2D/train/train_image/166.JPG",
+      "split": "train",
+      "patient_id": "100045649"
+    },
+    {
+      "case_id": "423",
+      "image_path": "dataset/Vinmec_2D/train/train_image/423.JPG",
+      "split": "train",
+      "patient_id": "100019927"
+    },
+    {
+      "case_id": "95",
+      "image_path": "dataset/Vinmec_2D/train/train_image/95.JPG",
+      "split": "train",
+      "patient_id": "100070841"
+    },
+    {
+      "case_id": "337",
+      "image_path": "dataset/Vinmec_2D/train/train_image/337.JPG",
+      "split": "train",
+      "patient_id": "100803373"
+    },
+    {
+      "case_id": "100",
+      "image_path": "dataset/Vinmec_2D/train/train_image/100.JPG",
+      "split": "train",
+      "patient_id": "100565990"
+    },
+    {
+      "case_id": "869",
+      "image_path": "dataset/Vinmec_2D/train/train_image/869.JPG",
+      "split": "train",
+      "patient_id": "100443814"
+    },
+    {
+      "case_id": "1278",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1278.JPG",
+      "split": "train",
+      "patient_id": "100379404"
+    },
+    {
+      "case_id": "637",
+      "image_path": "dataset/Vinmec_2D/train/train_image/637.JPG",
+      "split": "train",
+      "patient_id": "100856572"
+    },
+    {
+      "case_id": "814",
+      "image_path": "dataset/Vinmec_2D/train/train_image/814.JPG",
+      "split": "train",
+      "patient_id": "100702667"
+    },
+    {
+      "case_id": "1353",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1353.JPG",
+      "split": "train",
+      "patient_id": "100137414"
+    },
+    {
+      "case_id": "46",
+      "image_path": "dataset/Vinmec_2D/train/train_image/46.JPG",
+      "split": "train",
+      "patient_id": "100029556"
+    },
+    {
+      "case_id": "62",
+      "image_path": "dataset/Vinmec_2D/train/train_image/62.JPG",
+      "split": "train",
+      "patient_id": "100879940"
+    },
+    {
+      "case_id": "612",
+      "image_path": "dataset/Vinmec_2D/train/train_image/612.JPG",
+      "split": "train",
+      "patient_id": "100471145"
+    },
+    {
+      "case_id": "1280",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1280.JPG",
+      "split": "train",
+      "patient_id": "100661532"
+    },
+    {
+      "case_id": "1402",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1402.JPG",
+      "split": "train",
+      "patient_id": "100438997"
+    },
+    {
+      "case_id": "967",
+      "image_path": "dataset/Vinmec_2D/train/train_image/967.JPG",
+      "split": "train",
+      "patient_id": "100162471"
+    },
+    {
+      "case_id": "1022",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1022.JPG",
+      "split": "train",
+      "patient_id": "100465776"
+    },
+    {
+      "case_id": "1093",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1093.JPG",
+      "split": "train",
+      "patient_id": "100743266"
+    },
+    {
+      "case_id": "785",
+      "image_path": "dataset/Vinmec_2D/train/train_image/785.JPG",
+      "split": "train",
+      "patient_id": "100088834"
+    },
+    {
+      "case_id": "41",
+      "image_path": "dataset/Vinmec_2D/train/train_image/41.JPG",
+      "split": "train",
+      "patient_id": "100540970"
+    },
+    {
+      "case_id": "1141",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1141.JPG",
+      "split": "train",
+      "patient_id": "100961959"
+    },
+    {
+      "case_id": "1424",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1424.JPG",
+      "split": "train",
+      "patient_id": "100750827"
+    },
+    {
+      "case_id": "831",
+      "image_path": "dataset/Vinmec_2D/train/train_image/831.JPG",
+      "split": "train",
+      "patient_id": "100875679"
+    },
+    {
+      "case_id": "622",
+      "image_path": "dataset/Vinmec_2D/train/train_image/622.JPG",
+      "split": "train",
+      "patient_id": "100358332"
+    },
+    {
+      "case_id": "130",
+      "image_path": "dataset/Vinmec_2D/train/train_image/130.JPG",
+      "split": "train",
+      "patient_id": "100211383"
+    },
+    {
+      "case_id": "764",
+      "image_path": "dataset/Vinmec_2D/train/train_image/764.JPG",
+      "split": "train",
+      "patient_id": "100540410"
+    },
+    {
+      "case_id": "1236",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1236.JPG",
+      "split": "train",
+      "patient_id": "100856572"
+    },
+    {
+      "case_id": "933",
+      "image_path": "dataset/Vinmec_2D/train/train_image/933.JPG",
+      "split": "train",
+      "patient_id": "100458933"
+    },
+    {
+      "case_id": "840",
+      "image_path": "dataset/Vinmec_2D/train/train_image/840.JPG",
+      "split": "train",
+      "patient_id": "100808320"
+    },
+    {
+      "case_id": "611",
+      "image_path": "dataset/Vinmec_2D/train/train_image/611.JPG",
+      "split": "train",
+      "patient_id": "100395019"
+    },
+    {
+      "case_id": "871",
+      "image_path": "dataset/Vinmec_2D/train/train_image/871.JPG",
+      "split": "train",
+      "patient_id": "100666549"
+    },
+    {
+      "case_id": "1423",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1423.JPG",
+      "split": "train",
+      "patient_id": "100055843"
+    },
+    {
+      "case_id": "1187",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1187.JPG",
+      "split": "train",
+      "patient_id": "100440218"
+    },
+    {
+      "case_id": "260",
+      "image_path": "dataset/Vinmec_2D/train/train_image/260.JPG",
+      "split": "train",
+      "patient_id": "100083074"
+    },
+    {
+      "case_id": "353",
+      "image_path": "dataset/Vinmec_2D/train/train_image/353.JPG",
+      "split": "train",
+      "patient_id": "100985898"
+    },
+    {
+      "case_id": "1106",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1106.JPG",
+      "split": "train",
+      "patient_id": "100586072"
+    },
+    {
+      "case_id": "1168",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1168.JPG",
+      "split": "train",
+      "patient_id": "100385709"
+    },
+    {
+      "case_id": "11",
+      "image_path": "dataset/Vinmec_2D/train/train_image/11.JPG",
+      "split": "train",
+      "patient_id": "100378120"
+    },
+    {
+      "case_id": "439",
+      "image_path": "dataset/Vinmec_2D/train/train_image/439.JPG",
+      "split": "train",
+      "patient_id": "100295459"
+    },
+    {
+      "case_id": "367",
+      "image_path": "dataset/Vinmec_2D/train/train_image/367.JPG",
+      "split": "train",
+      "patient_id": "100739808"
+    },
+    {
+      "case_id": "677",
+      "image_path": "dataset/Vinmec_2D/train/train_image/677.JPG",
+      "split": "train",
+      "patient_id": "100625726"
+    },
+    {
+      "case_id": "289",
+      "image_path": "dataset/Vinmec_2D/train/train_image/289.JPG",
+      "split": "train",
+      "patient_id": "100871728"
+    },
+    {
+      "case_id": "398",
+      "image_path": "dataset/Vinmec_2D/train/train_image/398.JPG",
+      "split": "train",
+      "patient_id": "100394976"
+    },
+    {
+      "case_id": "903",
+      "image_path": "dataset/Vinmec_2D/train/train_image/903.JPG",
+      "split": "train",
+      "patient_id": "100249183"
+    },
+    {
+      "case_id": "1163",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1163.JPG",
+      "split": "train",
+      "patient_id": "100334165"
+    },
+    {
+      "case_id": "1310",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1310.JPG",
+      "split": "train",
+      "patient_id": "100465776"
+    },
+    {
+      "case_id": "362",
+      "image_path": "dataset/Vinmec_2D/train/train_image/362.JPG",
+      "split": "train",
+      "patient_id": "100189630"
+    },
+    {
+      "case_id": "7",
+      "image_path": "dataset/Vinmec_2D/train/train_image/7.JPG",
+      "split": "train",
+      "patient_id": "100774524"
+    },
+    {
+      "case_id": "1417",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1417.JPG",
+      "split": "train",
+      "patient_id": "100085569"
+    },
+    {
+      "case_id": "45",
+      "image_path": "dataset/Vinmec_2D/train/train_image/45.JPG",
+      "split": "train",
+      "patient_id": "100189630"
+    },
+    {
+      "case_id": "1222",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1222.JPG",
+      "split": "train",
+      "patient_id": "100739808"
+    },
+    {
+      "case_id": "675",
+      "image_path": "dataset/Vinmec_2D/train/train_image/675.JPG",
+      "split": "train",
+      "patient_id": "100141403"
+    },
+    {
+      "case_id": "1355",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1355.JPG",
+      "split": "train",
+      "patient_id": "100145534"
+    },
+    {
+      "case_id": "696",
+      "image_path": "dataset/Vinmec_2D/train/train_image/696.JPG",
+      "split": "train",
+      "patient_id": "100694083"
+    },
+    {
+      "case_id": "1465",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1465.JPG",
+      "split": "train",
+      "patient_id": "100524108"
+    },
+    {
+      "case_id": "1408",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1408.JPG",
+      "split": "train",
+      "patient_id": "100669989"
+    },
+    {
+      "case_id": "526",
+      "image_path": "dataset/Vinmec_2D/train/train_image/526.JPG",
+      "split": "train",
+      "patient_id": "100793435"
+    },
+    {
+      "case_id": "641",
+      "image_path": "dataset/Vinmec_2D/train/train_image/641.JPG",
+      "split": "train",
+      "patient_id": "100526392"
+    },
+    {
+      "case_id": "238",
+      "image_path": "dataset/Vinmec_2D/train/train_image/238.JPG",
+      "split": "train",
+      "patient_id": "100729884"
+    },
+    {
+      "case_id": "818",
+      "image_path": "dataset/Vinmec_2D/train/train_image/818.JPG",
+      "split": "train",
+      "patient_id": "100800185"
+    },
+    {
+      "case_id": "1119",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1119.JPG",
+      "split": "train",
+      "patient_id": "100756215"
+    },
+    {
+      "case_id": "819",
+      "image_path": "dataset/Vinmec_2D/train/train_image/819.JPG",
+      "split": "train",
+      "patient_id": "100017031"
+    },
+    {
+      "case_id": "1103",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1103.JPG",
+      "split": "train",
+      "patient_id": "100870720"
+    },
+    {
+      "case_id": "1128",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1128.JPG",
+      "split": "train",
+      "patient_id": "100366813"
+    },
+    {
+      "case_id": "1008",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1008.JPG",
+      "split": "train",
+      "patient_id": "100847903"
+    },
+    {
+      "case_id": "935",
+      "image_path": "dataset/Vinmec_2D/train/train_image/935.JPG",
+      "split": "train",
+      "patient_id": "100658775"
+    },
+    {
+      "case_id": "1391",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1391.JPG",
+      "split": "train",
+      "patient_id": "100847903"
+    },
+    {
+      "case_id": "6",
+      "image_path": "dataset/Vinmec_2D/train/train_image/6.JPG",
+      "split": "train",
+      "patient_id": "100491897"
+    },
+    {
+      "case_id": "1036",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1036.JPG",
+      "split": "train",
+      "patient_id": "100875679"
+    },
+    {
+      "case_id": "259",
+      "image_path": "dataset/Vinmec_2D/train/train_image/259.JPG",
+      "split": "train",
+      "patient_id": "100461999"
+    },
+    {
+      "case_id": "761",
+      "image_path": "dataset/Vinmec_2D/train/train_image/761.JPG",
+      "split": "train",
+      "patient_id": "100249183"
+    },
+    {
+      "case_id": "1380",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1380.JPG",
+      "split": "train",
+      "patient_id": "100570511"
+    },
+    {
+      "case_id": "1422",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1422.JPG",
+      "split": "train",
+      "patient_id": "100170128"
+    },
+    {
+      "case_id": "1205",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1205.JPG",
+      "split": "train",
+      "patient_id": "100949860"
+    },
+    {
+      "case_id": "419",
+      "image_path": "dataset/Vinmec_2D/train/train_image/419.JPG",
+      "split": "train",
+      "patient_id": "100153143"
+    },
+    {
+      "case_id": "533",
+      "image_path": "dataset/Vinmec_2D/train/train_image/533.JPG",
+      "split": "train",
+      "patient_id": "100795702"
+    },
+    {
+      "case_id": "405",
+      "image_path": "dataset/Vinmec_2D/train/train_image/405.JPG",
+      "split": "train",
+      "patient_id": "100148298"
+    },
+    {
+      "case_id": "865",
+      "image_path": "dataset/Vinmec_2D/train/train_image/865.JPG",
+      "split": "train",
+      "patient_id": "100879940"
+    },
+    {
+      "case_id": "78",
+      "image_path": "dataset/Vinmec_2D/train/train_image/78.JPG",
+      "split": "train",
+      "patient_id": "100753448"
+    },
+    {
+      "case_id": "207",
+      "image_path": "dataset/Vinmec_2D/train/train_image/207.JPG",
+      "split": "train",
+      "patient_id": "100116587"
+    },
+    {
+      "case_id": "133",
+      "image_path": "dataset/Vinmec_2D/train/train_image/133.JPG",
+      "split": "train",
+      "patient_id": "100366813"
+    },
+    {
+      "case_id": "727",
+      "image_path": "dataset/Vinmec_2D/train/train_image/727.JPG",
+      "split": "train",
+      "patient_id": "100926607"
+    },
+    {
+      "case_id": "811",
+      "image_path": "dataset/Vinmec_2D/train/train_image/811.JPG",
+      "split": "train",
+      "patient_id": "100353123"
+    },
+    {
+      "case_id": "381",
+      "image_path": "dataset/Vinmec_2D/train/train_image/381.JPG",
+      "split": "train",
+      "patient_id": "100806814"
+    },
+    {
+      "case_id": "56",
+      "image_path": "dataset/Vinmec_2D/train/train_image/56.JPG",
+      "split": "train",
+      "patient_id": "100106053"
+    },
+    {
+      "case_id": "795",
+      "image_path": "dataset/Vinmec_2D/train/train_image/795.JPG",
+      "split": "train",
+      "patient_id": "100286042"
+    },
+    {
+      "case_id": "1279",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1279.JPG",
+      "split": "train",
+      "patient_id": "100870068"
+    },
+    {
+      "case_id": "593",
+      "image_path": "dataset/Vinmec_2D/train/train_image/593.JPG",
+      "split": "train",
+      "patient_id": "100829822"
+    },
+    {
+      "case_id": "451",
+      "image_path": "dataset/Vinmec_2D/train/train_image/451.JPG",
+      "split": "train",
+      "patient_id": "100153143"
+    },
+    {
+      "case_id": "1215",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1215.JPG",
+      "split": "train",
+      "patient_id": "100305420"
+    },
+    {
+      "case_id": "1211",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1211.JPG",
+      "split": "train",
+      "patient_id": "100491897"
+    },
+    {
+      "case_id": "565",
+      "image_path": "dataset/Vinmec_2D/train/train_image/565.JPG",
+      "split": "train",
+      "patient_id": "100040163"
+    },
+    {
+      "case_id": "1125",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1125.JPG",
+      "split": "train",
+      "patient_id": "100369954"
+    },
+    {
+      "case_id": "465",
+      "image_path": "dataset/Vinmec_2D/train/train_image/465.JPG",
+      "split": "train",
+      "patient_id": "100135215"
+    },
+    {
+      "case_id": "1152",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1152.JPG",
+      "split": "train",
+      "patient_id": "100552108"
+    },
+    {
+      "case_id": "881",
+      "image_path": "dataset/Vinmec_2D/train/train_image/881.JPG",
+      "split": "train",
+      "patient_id": "100353123"
+    },
+    {
+      "case_id": "81",
+      "image_path": "dataset/Vinmec_2D/train/train_image/81.JPG",
+      "split": "train",
+      "patient_id": "100296635"
+    },
+    {
+      "case_id": "1414",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1414.JPG",
+      "split": "train",
+      "patient_id": "100409420"
+    },
+    {
+      "case_id": "1102",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1102.JPG",
+      "split": "train",
+      "patient_id": "100856375"
+    },
+    {
+      "case_id": "1412",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1412.JPG",
+      "split": "train",
+      "patient_id": "100054909"
+    },
+    {
+      "case_id": "199",
+      "image_path": "dataset/Vinmec_2D/train/train_image/199.JPG",
+      "split": "train",
+      "patient_id": "100351577"
+    },
+    {
+      "case_id": "300",
+      "image_path": "dataset/Vinmec_2D/train/train_image/300.JPG",
+      "split": "train",
+      "patient_id": "100774661"
+    },
+    {
+      "case_id": "742",
+      "image_path": "dataset/Vinmec_2D/train/train_image/742.JPG",
+      "split": "train",
+      "patient_id": "100677406"
+    },
+    {
+      "case_id": "1029",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1029.JPG",
+      "split": "train",
+      "patient_id": "100017031"
+    },
+    {
+      "case_id": "469",
+      "image_path": "dataset/Vinmec_2D/train/train_image/469.JPG",
+      "split": "train",
+      "patient_id": "100700674"
+    },
+    {
+      "case_id": "224",
+      "image_path": "dataset/Vinmec_2D/train/train_image/224.JPG",
+      "split": "train",
+      "patient_id": "100162471"
+    },
+    {
+      "case_id": "676",
+      "image_path": "dataset/Vinmec_2D/train/train_image/676.JPG",
+      "split": "train",
+      "patient_id": "100470735"
+    },
+    {
+      "case_id": "1",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1.JPG",
+      "split": "train",
+      "patient_id": "100993137"
+    },
+    {
+      "case_id": "563",
+      "image_path": "dataset/Vinmec_2D/train/train_image/563.JPG",
+      "split": "train",
+      "patient_id": "100189019"
+    },
+    {
+      "case_id": "577",
+      "image_path": "dataset/Vinmec_2D/train/train_image/577.JPG",
+      "split": "train",
+      "patient_id": "100479911"
+    },
+    {
+      "case_id": "1265",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1265.JPG",
+      "split": "train",
+      "patient_id": "100354803"
+    },
+    {
+      "case_id": "312",
+      "image_path": "dataset/Vinmec_2D/train/train_image/312.JPG",
+      "split": "train",
+      "patient_id": "100696643"
+    },
+    {
+      "case_id": "767",
+      "image_path": "dataset/Vinmec_2D/train/train_image/767.JPG",
+      "split": "train",
+      "patient_id": "100631977"
+    },
+    {
+      "case_id": "943",
+      "image_path": "dataset/Vinmec_2D/train/train_image/943.JPG",
+      "split": "train",
+      "patient_id": "100409420"
+    },
+    {
+      "case_id": "838",
+      "image_path": "dataset/Vinmec_2D/train/train_image/838.JPG",
+      "split": "train",
+      "patient_id": "100203440"
+    },
+    {
+      "case_id": "836",
+      "image_path": "dataset/Vinmec_2D/train/train_image/836.JPG",
+      "split": "train",
+      "patient_id": "100526392"
+    },
+    {
+      "case_id": "189",
+      "image_path": "dataset/Vinmec_2D/train/train_image/189.JPG",
+      "split": "train",
+      "patient_id": "100997373"
+    },
+    {
+      "case_id": "72",
+      "image_path": "dataset/Vinmec_2D/train/train_image/72.JPG",
+      "split": "train",
+      "patient_id": "100774661"
+    },
+    {
+      "case_id": "1183",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1183.JPG",
+      "split": "train",
+      "patient_id": "100351577"
+    },
+    {
+      "case_id": "505",
+      "image_path": "dataset/Vinmec_2D/train/train_image/505.JPG",
+      "split": "train",
+      "patient_id": "100762560"
+    },
+    {
+      "case_id": "1296",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1296.JPG",
+      "split": "train",
+      "patient_id": "100107573"
+    },
+    {
+      "case_id": "491",
+      "image_path": "dataset/Vinmec_2D/train/train_image/491.JPG",
+      "split": "train",
+      "patient_id": "100435050"
+    },
+    {
+      "case_id": "786",
+      "image_path": "dataset/Vinmec_2D/train/train_image/786.JPG",
+      "split": "train",
+      "patient_id": "100250021"
+    },
+    {
+      "case_id": "1000",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1000.JPG",
+      "split": "train",
+      "patient_id": "100631977"
+    },
+    {
+      "case_id": "853",
+      "image_path": "dataset/Vinmec_2D/train/train_image/853.JPG",
+      "split": "train",
+      "patient_id": "100993702"
+    },
+    {
+      "case_id": "1261",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1261.JPG",
+      "split": "train",
+      "patient_id": "100209398"
+    },
+    {
+      "case_id": "401",
+      "image_path": "dataset/Vinmec_2D/train/train_image/401.JPG",
+      "split": "train",
+      "patient_id": "100394976"
+    },
+    {
+      "case_id": "977",
+      "image_path": "dataset/Vinmec_2D/train/train_image/977.JPG",
+      "split": "train",
+      "patient_id": "100949282"
+    },
+    {
+      "case_id": "997",
+      "image_path": "dataset/Vinmec_2D/train/train_image/997.JPG",
+      "split": "train",
+      "patient_id": "100695847"
+    },
+    {
+      "case_id": "92",
+      "image_path": "dataset/Vinmec_2D/train/train_image/92.JPG",
+      "split": "train",
+      "patient_id": "100027965"
+    },
+    {
+      "case_id": "737",
+      "image_path": "dataset/Vinmec_2D/train/train_image/737.JPG",
+      "split": "train",
+      "patient_id": "100829822"
+    },
+    {
+      "case_id": "942",
+      "image_path": "dataset/Vinmec_2D/train/train_image/942.JPG",
+      "split": "train",
+      "patient_id": "100262147"
+    },
+    {
+      "case_id": "891",
+      "image_path": "dataset/Vinmec_2D/train/train_image/891.JPG",
+      "split": "train",
+      "patient_id": "100381995"
+    },
+    {
+      "case_id": "1194",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1194.JPG",
+      "split": "train",
+      "patient_id": "100570511"
+    },
+    {
+      "case_id": "1016",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1016.JPG",
+      "split": "train",
+      "patient_id": "100144247"
+    },
+    {
+      "case_id": "599",
+      "image_path": "dataset/Vinmec_2D/train/train_image/599.JPG",
+      "split": "train",
+      "patient_id": "100598384"
+    },
+    {
+      "case_id": "1426",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1426.JPG",
+      "split": "train",
+      "patient_id": "100559951"
+    },
+    {
+      "case_id": "561",
+      "image_path": "dataset/Vinmec_2D/train/train_image/561.JPG",
+      "split": "train",
+      "patient_id": "100324620"
+    },
+    {
+      "case_id": "44",
+      "image_path": "dataset/Vinmec_2D/train/train_image/44.JPG",
+      "split": "train",
+      "patient_id": "100108699"
+    },
+    {
+      "case_id": "763",
+      "image_path": "dataset/Vinmec_2D/train/train_image/763.JPG",
+      "split": "train",
+      "patient_id": "100626258"
+    },
+    {
+      "case_id": "324",
+      "image_path": "dataset/Vinmec_2D/train/train_image/324.JPG",
+      "split": "train",
+      "patient_id": "100677406"
+    },
+    {
+      "case_id": "33",
+      "image_path": "dataset/Vinmec_2D/train/train_image/33.JPG",
+      "split": "train",
+      "patient_id": "100183594"
+    },
+    {
+      "case_id": "1112",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1112.JPG",
+      "split": "train",
+      "patient_id": "100562093"
+    },
+    {
+      "case_id": "673",
+      "image_path": "dataset/Vinmec_2D/train/train_image/673.JPG",
+      "split": "train",
+      "patient_id": "100391435"
+    },
+    {
+      "case_id": "920",
+      "image_path": "dataset/Vinmec_2D/train/train_image/920.JPG",
+      "split": "train",
+      "patient_id": "100784897"
+    },
+    {
+      "case_id": "926",
+      "image_path": "dataset/Vinmec_2D/train/train_image/926.JPG",
+      "split": "train",
+      "patient_id": "100097992"
+    },
+    {
+      "case_id": "721",
+      "image_path": "dataset/Vinmec_2D/train/train_image/721.JPG",
+      "split": "train",
+      "patient_id": "100956771"
+    },
+    {
+      "case_id": "1253",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1253.JPG",
+      "split": "train",
+      "patient_id": "100134001"
+    },
+    {
+      "case_id": "1189",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1189.JPG",
+      "split": "train",
+      "patient_id": "100196412"
+    },
+    {
+      "case_id": "1087",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1087.JPG",
+      "split": "train",
+      "patient_id": "100532351"
+    },
+    {
+      "case_id": "1159",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1159.JPG",
+      "split": "train",
+      "patient_id": "100045934"
+    },
+    {
+      "case_id": "480",
+      "image_path": "dataset/Vinmec_2D/train/train_image/480.JPG",
+      "split": "train",
+      "patient_id": "100099096"
+    },
+    {
+      "case_id": "513",
+      "image_path": "dataset/Vinmec_2D/train/train_image/513.JPG",
+      "split": "train",
+      "patient_id": "100695847"
+    },
+    {
+      "case_id": "1231",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1231.JPG",
+      "split": "train",
+      "patient_id": "100954733"
+    },
+    {
+      "case_id": "823",
+      "image_path": "dataset/Vinmec_2D/train/train_image/823.JPG",
+      "split": "train",
+      "patient_id": "100154506"
+    },
+    {
+      "case_id": "874",
+      "image_path": "dataset/Vinmec_2D/train/train_image/874.JPG",
+      "split": "train",
+      "patient_id": "100527335"
+    },
+    {
+      "case_id": "348",
+      "image_path": "dataset/Vinmec_2D/train/train_image/348.JPG",
+      "split": "train",
+      "patient_id": "100144247"
+    },
+    {
+      "case_id": "645",
+      "image_path": "dataset/Vinmec_2D/train/train_image/645.JPG",
+      "split": "train",
+      "patient_id": "100674020"
+    },
+    {
+      "case_id": "395",
+      "image_path": "dataset/Vinmec_2D/train/train_image/395.JPG",
+      "split": "train",
+      "patient_id": "100551613"
+    },
+    {
+      "case_id": "646",
+      "image_path": "dataset/Vinmec_2D/train/train_image/646.JPG",
+      "split": "train",
+      "patient_id": "100509892"
+    },
+    {
+      "case_id": "1443",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1443.JPG",
+      "split": "train",
+      "patient_id": "100533188"
+    },
+    {
+      "case_id": "576",
+      "image_path": "dataset/Vinmec_2D/train/train_image/576.JPG",
+      "split": "train",
+      "patient_id": "100832463"
+    },
+    {
+      "case_id": "946",
+      "image_path": "dataset/Vinmec_2D/train/train_image/946.JPG",
+      "split": "train",
+      "patient_id": "100689023"
+    },
+    {
+      "case_id": "1421",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1421.JPG",
+      "split": "train",
+      "patient_id": "100726501"
+    },
+    {
+      "case_id": "984",
+      "image_path": "dataset/Vinmec_2D/train/train_image/984.JPG",
+      "split": "train",
+      "patient_id": "100435050"
+    },
+    {
+      "case_id": "1446",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1446.JPG",
+      "split": "train",
+      "patient_id": "100875686"
+    },
+    {
+      "case_id": "1240",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1240.JPG",
+      "split": "train",
+      "patient_id": "100989441"
+    },
+    {
+      "case_id": "427",
+      "image_path": "dataset/Vinmec_2D/train/train_image/427.JPG",
+      "split": "train",
+      "patient_id": "100389244"
+    },
+    {
+      "case_id": "739",
+      "image_path": "dataset/Vinmec_2D/train/train_image/739.JPG",
+      "split": "train",
+      "patient_id": "100950369"
+    },
+    {
+      "case_id": "343",
+      "image_path": "dataset/Vinmec_2D/train/train_image/343.JPG",
+      "split": "train",
+      "patient_id": "100877330"
+    },
+    {
+      "case_id": "490",
+      "image_path": "dataset/Vinmec_2D/train/train_image/490.JPG",
+      "split": "train",
+      "patient_id": "100947885"
+    },
+    {
+      "case_id": "759",
+      "image_path": "dataset/Vinmec_2D/train/train_image/759.JPG",
+      "split": "train",
+      "patient_id": "100611046"
+    },
+    {
+      "case_id": "1351",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1351.JPG",
+      "split": "train",
+      "patient_id": "100374440"
+    },
+    {
+      "case_id": "211",
+      "image_path": "dataset/Vinmec_2D/train/train_image/211.JPG",
+      "split": "train",
+      "patient_id": "100586072"
+    },
+    {
+      "case_id": "616",
+      "image_path": "dataset/Vinmec_2D/train/train_image/616.JPG",
+      "split": "train",
+      "patient_id": "100553408"
+    },
+    {
+      "case_id": "1350",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1350.JPG",
+      "split": "train",
+      "patient_id": "100491897"
+    },
+    {
+      "case_id": "1117",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1117.JPG",
+      "split": "train",
+      "patient_id": "100661532"
+    },
+    {
+      "case_id": "1449",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1449.JPG",
+      "split": "train",
+      "patient_id": "100381995"
+    },
+    {
+      "case_id": "35",
+      "image_path": "dataset/Vinmec_2D/train/train_image/35.JPG",
+      "split": "train",
+      "patient_id": "100169930"
+    },
+    {
+      "case_id": "212",
+      "image_path": "dataset/Vinmec_2D/train/train_image/212.JPG",
+      "split": "train",
+      "patient_id": "100389244"
+    },
+    {
+      "case_id": "969",
+      "image_path": "dataset/Vinmec_2D/train/train_image/969.JPG",
+      "split": "train",
+      "patient_id": "100249183"
+    },
+    {
+      "case_id": "139",
+      "image_path": "dataset/Vinmec_2D/train/train_image/139.JPG",
+      "split": "train",
+      "patient_id": "100017233"
+    },
+    {
+      "case_id": "1100",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1100.JPG",
+      "split": "train",
+      "patient_id": "100871482"
+    },
+    {
+      "case_id": "226",
+      "image_path": "dataset/Vinmec_2D/train/train_image/226.JPG",
+      "split": "train",
+      "patient_id": "100354992"
+    },
+    {
+      "case_id": "80",
+      "image_path": "dataset/Vinmec_2D/train/train_image/80.JPG",
+      "split": "train",
+      "patient_id": "100702667"
+    },
+    {
+      "case_id": "1370",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1370.JPG",
+      "split": "train",
+      "patient_id": "100640255"
+    },
+    {
+      "case_id": "603",
+      "image_path": "dataset/Vinmec_2D/train/train_image/603.JPG",
+      "split": "train",
+      "patient_id": "100812085"
+    },
+    {
+      "case_id": "805",
+      "image_path": "dataset/Vinmec_2D/train/train_image/805.JPG",
+      "split": "train",
+      "patient_id": "100050068"
+    },
+    {
+      "case_id": "736",
+      "image_path": "dataset/Vinmec_2D/train/train_image/736.JPG",
+      "split": "train",
+      "patient_id": "100602980"
+    },
+    {
+      "case_id": "1451",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1451.JPG",
+      "split": "train",
+      "patient_id": "100976041"
+    },
+    {
+      "case_id": "320",
+      "image_path": "dataset/Vinmec_2D/train/train_image/320.JPG",
+      "split": "train",
+      "patient_id": "100626928"
+    },
+    {
+      "case_id": "433",
+      "image_path": "dataset/Vinmec_2D/train/train_image/433.JPG",
+      "split": "train",
+      "patient_id": "100380211"
+    },
+    {
+      "case_id": "1272",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1272.JPG",
+      "split": "train",
+      "patient_id": "100993702"
+    },
+    {
+      "case_id": "99",
+      "image_path": "dataset/Vinmec_2D/train/train_image/99.JPG",
+      "split": "train",
+      "patient_id": "100345705"
+    },
+    {
+      "case_id": "569",
+      "image_path": "dataset/Vinmec_2D/train/train_image/569.JPG",
+      "split": "train",
+      "patient_id": "100201332"
+    },
+    {
+      "case_id": "1286",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1286.JPG",
+      "split": "train",
+      "patient_id": "100141403"
+    },
+    {
+      "case_id": "852",
+      "image_path": "dataset/Vinmec_2D/train/train_image/852.JPG",
+      "split": "train",
+      "patient_id": "100045934"
+    },
+    {
+      "case_id": "695",
+      "image_path": "dataset/Vinmec_2D/train/train_image/695.JPG",
+      "split": "train",
+      "patient_id": "100315779"
+    },
+    {
+      "case_id": "1129",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1129.JPG",
+      "split": "train",
+      "patient_id": "100005506"
+    },
+    {
+      "case_id": "749",
+      "image_path": "dataset/Vinmec_2D/train/train_image/749.JPG",
+      "split": "train",
+      "patient_id": "100428625"
+    },
+    {
+      "case_id": "798",
+      "image_path": "dataset/Vinmec_2D/train/train_image/798.JPG",
+      "split": "train",
+      "patient_id": "100832463"
+    },
+    {
+      "case_id": "940",
+      "image_path": "dataset/Vinmec_2D/train/train_image/940.JPG",
+      "split": "train",
+      "patient_id": "100808320"
+    },
+    {
+      "case_id": "1448",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1448.JPG",
+      "split": "train",
+      "patient_id": "100087949"
+    },
+    {
+      "case_id": "777",
+      "image_path": "dataset/Vinmec_2D/train/train_image/777.JPG",
+      "split": "train",
+      "patient_id": "100815922"
+    },
+    {
+      "case_id": "1348",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1348.JPG",
+      "split": "train",
+      "patient_id": "100551963"
+    },
+    {
+      "case_id": "29",
+      "image_path": "dataset/Vinmec_2D/train/train_image/29.JPG",
+      "split": "train",
+      "patient_id": "100492972"
+    },
+    {
+      "case_id": "31",
+      "image_path": "dataset/Vinmec_2D/train/train_image/31.JPG",
+      "split": "train",
+      "patient_id": "100161745"
+    },
+    {
+      "case_id": "1266",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1266.JPG",
+      "split": "train",
+      "patient_id": "100315779"
+    },
+    {
+      "case_id": "303",
+      "image_path": "dataset/Vinmec_2D/train/train_image/303.JPG",
+      "split": "train",
+      "patient_id": "100479911"
+    },
+    {
+      "case_id": "729",
+      "image_path": "dataset/Vinmec_2D/train/train_image/729.JPG",
+      "split": "train",
+      "patient_id": "100993115"
+    },
+    {
+      "case_id": "420",
+      "image_path": "dataset/Vinmec_2D/train/train_image/420.JPG",
+      "split": "train",
+      "patient_id": "100487192"
+    },
+    {
+      "case_id": "918",
+      "image_path": "dataset/Vinmec_2D/train/train_image/918.JPG",
+      "split": "train",
+      "patient_id": "100209398"
+    },
+    {
+      "case_id": "907",
+      "image_path": "dataset/Vinmec_2D/train/train_image/907.JPG",
+      "split": "train",
+      "patient_id": "100054909"
+    },
+    {
+      "case_id": "1174",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1174.JPG",
+      "split": "train",
+      "patient_id": "100634035"
+    },
+    {
+      "case_id": "951",
+      "image_path": "dataset/Vinmec_2D/train/train_image/951.JPG",
+      "split": "train",
+      "patient_id": "100080913"
+    },
+    {
+      "case_id": "1146",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1146.JPG",
+      "split": "train",
+      "patient_id": "100999716"
+    },
+    {
+      "case_id": "171",
+      "image_path": "dataset/Vinmec_2D/train/train_image/171.JPG",
+      "split": "train",
+      "patient_id": "100871415"
+    },
+    {
+      "case_id": "1387",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1387.JPG",
+      "split": "train",
+      "patient_id": "100262147"
+    },
+    {
+      "case_id": "766",
+      "image_path": "dataset/Vinmec_2D/train/train_image/766.JPG",
+      "split": "train",
+      "patient_id": "100366813"
+    },
+    {
+      "case_id": "1080",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1080.JPG",
+      "split": "train",
+      "patient_id": "100345705"
+    },
+    {
+      "case_id": "1126",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1126.JPG",
+      "split": "train",
+      "patient_id": "100575462"
+    },
+    {
+      "case_id": "830",
+      "image_path": "dataset/Vinmec_2D/train/train_image/830.JPG",
+      "split": "train",
+      "patient_id": "100548913"
+    },
+    {
+      "case_id": "1313",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1313.JPG",
+      "split": "train",
+      "patient_id": "100029556"
+    },
+    {
+      "case_id": "634",
+      "image_path": "dataset/Vinmec_2D/train/train_image/634.JPG",
+      "split": "train",
+      "patient_id": "100458933"
+    },
+    {
+      "case_id": "30",
+      "image_path": "dataset/Vinmec_2D/train/train_image/30.JPG",
+      "split": "train",
+      "patient_id": "100875686"
+    },
+    {
+      "case_id": "711",
+      "image_path": "dataset/Vinmec_2D/train/train_image/711.JPG",
+      "split": "train",
+      "patient_id": "100354992"
+    },
+    {
+      "case_id": "722",
+      "image_path": "dataset/Vinmec_2D/train/train_image/722.JPG",
+      "split": "train",
+      "patient_id": "100324500"
+    },
+    {
+      "case_id": "178",
+      "image_path": "dataset/Vinmec_2D/train/train_image/178.JPG",
+      "split": "train",
+      "patient_id": "100404924"
+    },
+    {
+      "case_id": "598",
+      "image_path": "dataset/Vinmec_2D/train/train_image/598.JPG",
+      "split": "train",
+      "patient_id": "100395019"
+    },
+    {
+      "case_id": "1145",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1145.JPG",
+      "split": "train",
+      "patient_id": "100264236"
+    },
+    {
+      "case_id": "32",
+      "image_path": "dataset/Vinmec_2D/train/train_image/32.JPG",
+      "split": "train",
+      "patient_id": "100470392"
+    },
+    {
+      "case_id": "1210",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1210.JPG",
+      "split": "train",
+      "patient_id": "100997373"
+    },
+    {
+      "case_id": "571",
+      "image_path": "dataset/Vinmec_2D/train/train_image/571.JPG",
+      "split": "train",
+      "patient_id": "100089772"
+    },
+    {
+      "case_id": "428",
+      "image_path": "dataset/Vinmec_2D/train/train_image/428.JPG",
+      "split": "train",
+      "patient_id": "100492972"
+    },
+    {
+      "case_id": "860",
+      "image_path": "dataset/Vinmec_2D/train/train_image/860.JPG",
+      "split": "train",
+      "patient_id": "100718709"
+    },
+    {
+      "case_id": "1077",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1077.JPG",
+      "split": "train",
+      "patient_id": "100853025"
+    },
+    {
+      "case_id": "1445",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1445.JPG",
+      "split": "train",
+      "patient_id": "100070966"
+    },
+    {
+      "case_id": "681",
+      "image_path": "dataset/Vinmec_2D/train/train_image/681.JPG",
+      "split": "train",
+      "patient_id": "100644674"
+    },
+    {
+      "case_id": "276",
+      "image_path": "dataset/Vinmec_2D/train/train_image/276.JPG",
+      "split": "train",
+      "patient_id": "100305420"
+    },
+    {
+      "case_id": "294",
+      "image_path": "dataset/Vinmec_2D/train/train_image/294.JPG",
+      "split": "train",
+      "patient_id": "100458723"
+    },
+    {
+      "case_id": "1166",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1166.JPG",
+      "split": "train",
+      "patient_id": "100949860"
+    },
+    {
+      "case_id": "321",
+      "image_path": "dataset/Vinmec_2D/train/train_image/321.JPG",
+      "split": "train",
+      "patient_id": "100999716"
+    },
+    {
+      "case_id": "1160",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1160.JPG",
+      "split": "train",
+      "patient_id": "100655087"
+    },
+    {
+      "case_id": "982",
+      "image_path": "dataset/Vinmec_2D/train/train_image/982.JPG",
+      "split": "train",
+      "patient_id": "100106053"
+    },
+    {
+      "case_id": "251",
+      "image_path": "dataset/Vinmec_2D/train/train_image/251.JPG",
+      "split": "train",
+      "patient_id": "100503935"
+    },
+    {
+      "case_id": "1356",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1356.JPG",
+      "split": "train",
+      "patient_id": "100080913"
+    },
+    {
+      "case_id": "1259",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1259.JPG",
+      "split": "train",
+      "patient_id": "100043941"
+    },
+    {
+      "case_id": "929",
+      "image_path": "dataset/Vinmec_2D/train/train_image/929.JPG",
+      "split": "train",
+      "patient_id": "100393124"
+    },
+    {
+      "case_id": "262",
+      "image_path": "dataset/Vinmec_2D/train/train_image/262.JPG",
+      "split": "train",
+      "patient_id": "100551963"
+    },
+    {
+      "case_id": "972",
+      "image_path": "dataset/Vinmec_2D/train/train_image/972.JPG",
+      "split": "train",
+      "patient_id": "100348671"
+    },
+    {
+      "case_id": "820",
+      "image_path": "dataset/Vinmec_2D/train/train_image/820.JPG",
+      "split": "train",
+      "patient_id": "100711332"
+    },
+    {
+      "case_id": "1263",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1263.JPG",
+      "split": "train",
+      "patient_id": "100538289"
+    },
+    {
+      "case_id": "915",
+      "image_path": "dataset/Vinmec_2D/train/train_image/915.JPG",
+      "split": "train",
+      "patient_id": "100575462"
+    },
+    {
+      "case_id": "1007",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1007.JPG",
+      "split": "train",
+      "patient_id": "100762560"
+    },
+    {
+      "case_id": "1463",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1463.JPG",
+      "split": "train",
+      "patient_id": "100039581"
+    },
+    {
+      "case_id": "66",
+      "image_path": "dataset/Vinmec_2D/train/train_image/66.JPG",
+      "split": "train",
+      "patient_id": "100793435"
+    },
+    {
+      "case_id": "416",
+      "image_path": "dataset/Vinmec_2D/train/train_image/416.JPG",
+      "split": "train",
+      "patient_id": "100999716"
+    },
+    {
+      "case_id": "1372",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1372.JPG",
+      "split": "train",
+      "patient_id": "100813894"
+    },
+    {
+      "case_id": "378",
+      "image_path": "dataset/Vinmec_2D/train/train_image/378.JPG",
+      "split": "train",
+      "patient_id": "100581070"
+    },
+    {
+      "case_id": "976",
+      "image_path": "dataset/Vinmec_2D/train/train_image/976.JPG",
+      "split": "train",
+      "patient_id": "100298768"
+    },
+    {
+      "case_id": "827",
+      "image_path": "dataset/Vinmec_2D/train/train_image/827.JPG",
+      "split": "train",
+      "patient_id": "100191132"
+    },
+    {
+      "case_id": "753",
+      "image_path": "dataset/Vinmec_2D/train/train_image/753.JPG",
+      "split": "train",
+      "patient_id": "100436802"
+    },
+    {
+      "case_id": "845",
+      "image_path": "dataset/Vinmec_2D/train/train_image/845.JPG",
+      "split": "train",
+      "patient_id": "100250786"
+    },
+    {
+      "case_id": "1327",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1327.JPG",
+      "split": "train",
+      "patient_id": "100065858"
+    },
+    {
+      "case_id": "608",
+      "image_path": "dataset/Vinmec_2D/train/train_image/608.JPG",
+      "split": "train",
+      "patient_id": "100189019"
+    },
+    {
+      "case_id": "1045",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1045.JPG",
+      "split": "train",
+      "patient_id": "100961959"
+    },
+    {
+      "case_id": "68",
+      "image_path": "dataset/Vinmec_2D/train/train_image/68.JPG",
+      "split": "train",
+      "patient_id": "100532280"
+    },
+    {
+      "case_id": "50",
+      "image_path": "dataset/Vinmec_2D/train/train_image/50.JPG",
+      "split": "train",
+      "patient_id": "100196412"
+    },
+    {
+      "case_id": "1396",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1396.JPG",
+      "split": "train",
+      "patient_id": "100265971"
+    },
+    {
+      "case_id": "1368",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1368.JPG",
+      "split": "train",
+      "patient_id": "100575462"
+    },
+    {
+      "case_id": "1161",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1161.JPG",
+      "split": "train",
+      "patient_id": "100687923"
+    },
+    {
+      "case_id": "105",
+      "image_path": "dataset/Vinmec_2D/train/train_image/105.JPG",
+      "split": "train",
+      "patient_id": "100598128"
+    },
+    {
+      "case_id": "1051",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1051.JPG",
+      "split": "train",
+      "patient_id": "100139890"
+    },
+    {
+      "case_id": "380",
+      "image_path": "dataset/Vinmec_2D/train/train_image/380.JPG",
+      "split": "train",
+      "patient_id": "100788939"
+    },
+    {
+      "case_id": "666",
+      "image_path": "dataset/Vinmec_2D/train/train_image/666.JPG",
+      "split": "train",
+      "patient_id": "100927601"
+    },
+    {
+      "case_id": "1154",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1154.JPG",
+      "split": "train",
+      "patient_id": "100832463"
+    },
+    {
+      "case_id": "586",
+      "image_path": "dataset/Vinmec_2D/train/train_image/586.JPG",
+      "split": "train",
+      "patient_id": "100252838"
+    },
+    {
+      "case_id": "879",
+      "image_path": "dataset/Vinmec_2D/train/train_image/879.JPG",
+      "split": "train",
+      "patient_id": "100191132"
+    },
+    {
+      "case_id": "787",
+      "image_path": "dataset/Vinmec_2D/train/train_image/787.JPG",
+      "split": "train",
+      "patient_id": "100662652"
+    },
+    {
+      "case_id": "1177",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1177.JPG",
+      "split": "train",
+      "patient_id": "100754540"
+    },
+    {
+      "case_id": "873",
+      "image_path": "dataset/Vinmec_2D/train/train_image/873.JPG",
+      "split": "train",
+      "patient_id": "100813894"
+    },
+    {
+      "case_id": "1233",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1233.JPG",
+      "split": "train",
+      "patient_id": "100501776"
+    },
+    {
+      "case_id": "1379",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1379.JPG",
+      "split": "train",
+      "patient_id": "100783618"
+    },
+    {
+      "case_id": "1419",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1419.JPG",
+      "split": "train",
+      "patient_id": "100134001"
+    },
+    {
+      "case_id": "1457",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1457.JPG",
+      "split": "train",
+      "patient_id": "100108699"
+    },
+    {
+      "case_id": "880",
+      "image_path": "dataset/Vinmec_2D/train/train_image/880.JPG",
+      "split": "train",
+      "patient_id": "100871482"
+    },
+    {
+      "case_id": "1043",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1043.JPG",
+      "split": "train",
+      "patient_id": "100729884"
+    },
+    {
+      "case_id": "1191",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1191.JPG",
+      "split": "train",
+      "patient_id": "100070966"
+    },
+    {
+      "case_id": "734",
+      "image_path": "dataset/Vinmec_2D/train/train_image/734.JPG",
+      "split": "train",
+      "patient_id": "100892512"
+    },
+    {
+      "case_id": "43",
+      "image_path": "dataset/Vinmec_2D/train/train_image/43.JPG",
+      "split": "val",
+      "patient_id": "100445120"
+    },
+    {
+      "case_id": "867",
+      "image_path": "dataset/Vinmec_2D/train/train_image/867.JPG",
+      "split": "val",
+      "patient_id": "100355505"
+    },
+    {
+      "case_id": "974",
+      "image_path": "dataset/Vinmec_2D/train/train_image/974.JPG",
+      "split": "val",
+      "patient_id": "100540418"
+    },
+    {
+      "case_id": "54",
+      "image_path": "dataset/Vinmec_2D/train/train_image/54.JPG",
+      "split": "val",
+      "patient_id": "100520306"
+    },
+    {
+      "case_id": "733",
+      "image_path": "dataset/Vinmec_2D/train/train_image/733.JPG",
+      "split": "val",
+      "patient_id": "100189222"
+    },
+    {
+      "case_id": "757",
+      "image_path": "dataset/Vinmec_2D/train/train_image/757.JPG",
+      "split": "val",
+      "patient_id": "100330926"
+    },
+    {
+      "case_id": "79",
+      "image_path": "dataset/Vinmec_2D/train/train_image/79.JPG",
+      "split": "val",
+      "patient_id": "100086624"
+    },
+    {
+      "case_id": "109",
+      "image_path": "dataset/Vinmec_2D/train/train_image/109.JPG",
+      "split": "val",
+      "patient_id": "100938095"
+    },
+    {
+      "case_id": "1392",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1392.JPG",
+      "split": "val",
+      "patient_id": "100286488"
+    },
+    {
+      "case_id": "1243",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1243.JPG",
+      "split": "val",
+      "patient_id": "100779414"
+    },
+    {
+      "case_id": "397",
+      "image_path": "dataset/Vinmec_2D/train/train_image/397.JPG",
+      "split": "val",
+      "patient_id": "100789882"
+    },
+    {
+      "case_id": "1158",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1158.JPG",
+      "split": "val",
+      "patient_id": "100631718"
+    },
+    {
+      "case_id": "2",
+      "image_path": "dataset/Vinmec_2D/train/train_image/2.JPG",
+      "split": "val",
+      "patient_id": "100130521"
+    },
+    {
+      "case_id": "77",
+      "image_path": "dataset/Vinmec_2D/train/train_image/77.JPG",
+      "split": "val",
+      "patient_id": "100310000"
+    },
+    {
+      "case_id": "927",
+      "image_path": "dataset/Vinmec_2D/train/train_image/927.JPG",
+      "split": "val",
+      "patient_id": "100451524"
+    },
+    {
+      "case_id": "24",
+      "image_path": "dataset/Vinmec_2D/train/train_image/24.JPG",
+      "split": "val",
+      "patient_id": "100520306"
+    },
+    {
+      "case_id": "750",
+      "image_path": "dataset/Vinmec_2D/train/train_image/750.JPG",
+      "split": "val",
+      "patient_id": "100521691"
+    },
+    {
+      "case_id": "618",
+      "image_path": "dataset/Vinmec_2D/train/train_image/618.JPG",
+      "split": "val",
+      "patient_id": "100932694"
+    },
+    {
+      "case_id": "697",
+      "image_path": "dataset/Vinmec_2D/train/train_image/697.JPG",
+      "split": "val",
+      "patient_id": "100419453"
+    },
+    {
+      "case_id": "715",
+      "image_path": "dataset/Vinmec_2D/train/train_image/715.JPG",
+      "split": "val",
+      "patient_id": "100818771"
+    },
+    {
+      "case_id": "846",
+      "image_path": "dataset/Vinmec_2D/train/train_image/846.JPG",
+      "split": "val",
+      "patient_id": "100343848"
+    },
+    {
+      "case_id": "684",
+      "image_path": "dataset/Vinmec_2D/train/train_image/684.JPG",
+      "split": "val",
+      "patient_id": "100687584"
+    },
+    {
+      "case_id": "338",
+      "image_path": "dataset/Vinmec_2D/train/train_image/338.JPG",
+      "split": "val",
+      "patient_id": "100417568"
+    },
+    {
+      "case_id": "850",
+      "image_path": "dataset/Vinmec_2D/train/train_image/850.JPG",
+      "split": "val",
+      "patient_id": "100789882"
+    },
+    {
+      "case_id": "330",
+      "image_path": "dataset/Vinmec_2D/train/train_image/330.JPG",
+      "split": "val",
+      "patient_id": "100840064"
+    },
+    {
+      "case_id": "1057",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1057.JPG",
+      "split": "val",
+      "patient_id": "100325138"
+    },
+    {
+      "case_id": "1041",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1041.JPG",
+      "split": "val",
+      "patient_id": "100836020"
+    },
+    {
+      "case_id": "328",
+      "image_path": "dataset/Vinmec_2D/train/train_image/328.JPG",
+      "split": "val",
+      "patient_id": "100569408"
+    },
+    {
+      "case_id": "58",
+      "image_path": "dataset/Vinmec_2D/train/train_image/58.JPG",
+      "split": "val",
+      "patient_id": "100405426"
+    },
+    {
+      "case_id": "885",
+      "image_path": "dataset/Vinmec_2D/train/train_image/885.JPG",
+      "split": "val",
+      "patient_id": "100385896"
+    },
+    {
+      "case_id": "118",
+      "image_path": "dataset/Vinmec_2D/train/train_image/118.JPG",
+      "split": "val",
+      "patient_id": "100520306"
+    },
+    {
+      "case_id": "578",
+      "image_path": "dataset/Vinmec_2D/train/train_image/578.JPG",
+      "split": "val",
+      "patient_id": "100779414"
+    },
+    {
+      "case_id": "20",
+      "image_path": "dataset/Vinmec_2D/train/train_image/20.JPG",
+      "split": "val",
+      "patient_id": "100631718"
+    },
+    {
+      "case_id": "414",
+      "image_path": "dataset/Vinmec_2D/train/train_image/414.JPG",
+      "split": "val",
+      "patient_id": "100540418"
+    },
+    {
+      "case_id": "670",
+      "image_path": "dataset/Vinmec_2D/train/train_image/670.JPG",
+      "split": "val",
+      "patient_id": "100969209"
+    },
+    {
+      "case_id": "1109",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1109.JPG",
+      "split": "val",
+      "patient_id": "100838171"
+    },
+    {
+      "case_id": "924",
+      "image_path": "dataset/Vinmec_2D/train/train_image/924.JPG",
+      "split": "val",
+      "patient_id": "100336814"
+    },
+    {
+      "case_id": "908",
+      "image_path": "dataset/Vinmec_2D/train/train_image/908.JPG",
+      "split": "val",
+      "patient_id": "100904017"
+    },
+    {
+      "case_id": "349",
+      "image_path": "dataset/Vinmec_2D/train/train_image/349.JPG",
+      "split": "val",
+      "patient_id": "100130521"
+    },
+    {
+      "case_id": "1438",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1438.JPG",
+      "split": "val",
+      "patient_id": "100195892"
+    },
+    {
+      "case_id": "1027",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1027.JPG",
+      "split": "val",
+      "patient_id": "100631718"
+    },
+    {
+      "case_id": "771",
+      "image_path": "dataset/Vinmec_2D/train/train_image/771.JPG",
+      "split": "val",
+      "patient_id": "100321384"
+    },
+    {
+      "case_id": "1052",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1052.JPG",
+      "split": "val",
+      "patient_id": "100321384"
+    },
+    {
+      "case_id": "941",
+      "image_path": "dataset/Vinmec_2D/train/train_image/941.JPG",
+      "split": "val",
+      "patient_id": "100038399"
+    },
+    {
+      "case_id": "481",
+      "image_path": "dataset/Vinmec_2D/train/train_image/481.JPG",
+      "split": "val",
+      "patient_id": "100467576"
+    },
+    {
+      "case_id": "342",
+      "image_path": "dataset/Vinmec_2D/train/train_image/342.JPG",
+      "split": "val",
+      "patient_id": "100779414"
+    },
+    {
+      "case_id": "14",
+      "image_path": "dataset/Vinmec_2D/train/train_image/14.JPG",
+      "split": "val",
+      "patient_id": "100279676"
+    },
+    {
+      "case_id": "1048",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1048.JPG",
+      "split": "val",
+      "patient_id": "100904017"
+    },
+    {
+      "case_id": "456",
+      "image_path": "dataset/Vinmec_2D/train/train_image/456.JPG",
+      "split": "val",
+      "patient_id": "100374314"
+    },
+    {
+      "case_id": "1322",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1322.JPG",
+      "split": "val",
+      "patient_id": "100200386"
+    },
+    {
+      "case_id": "1153",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1153.JPG",
+      "split": "val",
+      "patient_id": "100385896"
+    },
+    {
+      "case_id": "413",
+      "image_path": "dataset/Vinmec_2D/train/train_image/413.JPG",
+      "split": "val",
+      "patient_id": "100308036"
+    },
+    {
+      "case_id": "1186",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1186.JPG",
+      "split": "val",
+      "patient_id": "100467576"
+    },
+    {
+      "case_id": "19",
+      "image_path": "dataset/Vinmec_2D/train/train_image/19.JPG",
+      "split": "val",
+      "patient_id": "100461097"
+    },
+    {
+      "case_id": "824",
+      "image_path": "dataset/Vinmec_2D/train/train_image/824.JPG",
+      "split": "val",
+      "patient_id": "100286488"
+    },
+    {
+      "case_id": "629",
+      "image_path": "dataset/Vinmec_2D/train/train_image/629.JPG",
+      "split": "val",
+      "patient_id": "100050126"
+    },
+    {
+      "case_id": "340",
+      "image_path": "dataset/Vinmec_2D/train/train_image/340.JPG",
+      "split": "val",
+      "patient_id": "100836020"
+    },
+    {
+      "case_id": "1284",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1284.JPG",
+      "split": "val",
+      "patient_id": "100038399"
+    },
+    {
+      "case_id": "1434",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1434.JPG",
+      "split": "val",
+      "patient_id": "100862287"
+    },
+    {
+      "case_id": "746",
+      "image_path": "dataset/Vinmec_2D/train/train_image/746.JPG",
+      "split": "val",
+      "patient_id": "100086624"
+    },
+    {
+      "case_id": "34",
+      "image_path": "dataset/Vinmec_2D/train/train_image/34.JPG",
+      "split": "val",
+      "patient_id": "100631894"
+    },
+    {
+      "case_id": "1447",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1447.JPG",
+      "split": "val",
+      "patient_id": "100330926"
+    },
+    {
+      "case_id": "709",
+      "image_path": "dataset/Vinmec_2D/train/train_image/709.JPG",
+      "split": "val",
+      "patient_id": "100725686"
+    },
+    {
+      "case_id": "290",
+      "image_path": "dataset/Vinmec_2D/train/train_image/290.JPG",
+      "split": "val",
+      "patient_id": "100336814"
+    },
+    {
+      "case_id": "1400",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1400.JPG",
+      "split": "val",
+      "patient_id": "100200386"
+    },
+    {
+      "case_id": "900",
+      "image_path": "dataset/Vinmec_2D/train/train_image/900.JPG",
+      "split": "val",
+      "patient_id": "100082760"
+    },
+    {
+      "case_id": "643",
+      "image_path": "dataset/Vinmec_2D/train/train_image/643.JPG",
+      "split": "val",
+      "patient_id": "100279676"
+    },
+    {
+      "case_id": "438",
+      "image_path": "dataset/Vinmec_2D/train/train_image/438.JPG",
+      "split": "val",
+      "patient_id": "100348048"
+    },
+    {
+      "case_id": "1142",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1142.JPG",
+      "split": "val",
+      "patient_id": "100978710"
+    },
+    {
+      "case_id": "376",
+      "image_path": "dataset/Vinmec_2D/train/train_image/376.JPG",
+      "split": "val",
+      "patient_id": "100762400"
+    },
+    {
+      "case_id": "1010",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1010.JPG",
+      "split": "val",
+      "patient_id": "100189222"
+    },
+    {
+      "case_id": "309",
+      "image_path": "dataset/Vinmec_2D/train/train_image/309.JPG",
+      "split": "val",
+      "patient_id": "100458176"
+    },
+    {
+      "case_id": "1090",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1090.JPG",
+      "split": "val",
+      "patient_id": "100496395"
+    },
+    {
+      "case_id": "1385",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1385.JPG",
+      "split": "val",
+      "patient_id": "100385896"
+    },
+    {
+      "case_id": "1304",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1304.JPG",
+      "split": "val",
+      "patient_id": "100687584"
+    },
+    {
+      "case_id": "197",
+      "image_path": "dataset/Vinmec_2D/train/train_image/197.JPG",
+      "split": "val",
+      "patient_id": "100419453"
+    },
+    {
+      "case_id": "1283",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1283.JPG",
+      "split": "val",
+      "patient_id": "100374314"
+    },
+    {
+      "case_id": "1135",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1135.JPG",
+      "split": "val",
+      "patient_id": "100855015"
+    },
+    {
+      "case_id": "1020",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1020.JPG",
+      "split": "val",
+      "patient_id": "100265618"
+    },
+    {
+      "case_id": "390",
+      "image_path": "dataset/Vinmec_2D/train/train_image/390.JPG",
+      "split": "val",
+      "patient_id": "100544500"
+    },
+    {
+      "case_id": "1299",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1299.JPG",
+      "split": "val",
+      "patient_id": "100544500"
+    },
+    {
+      "case_id": "708",
+      "image_path": "dataset/Vinmec_2D/train/train_image/708.JPG",
+      "split": "val",
+      "patient_id": "100417568"
+    },
+    {
+      "case_id": "583",
+      "image_path": "dataset/Vinmec_2D/train/train_image/583.JPG",
+      "split": "val",
+      "patient_id": "100521691"
+    },
+    {
+      "case_id": "978",
+      "image_path": "dataset/Vinmec_2D/train/train_image/978.JPG",
+      "split": "val",
+      "patient_id": "100932694"
+    },
+    {
+      "case_id": "1346",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1346.JPG",
+      "split": "val",
+      "patient_id": "100308036"
+    },
+    {
+      "case_id": "669",
+      "image_path": "dataset/Vinmec_2D/train/train_image/669.JPG",
+      "split": "val",
+      "patient_id": "100310000"
+    },
+    {
+      "case_id": "138",
+      "image_path": "dataset/Vinmec_2D/train/train_image/138.JPG",
+      "split": "val",
+      "patient_id": "100904017"
+    },
+    {
+      "case_id": "1377",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1377.JPG",
+      "split": "val",
+      "patient_id": "100678324"
+    },
+    {
+      "case_id": "1452",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1452.JPG",
+      "split": "val",
+      "patient_id": "100107581"
+    },
+    {
+      "case_id": "628",
+      "image_path": "dataset/Vinmec_2D/train/train_image/628.JPG",
+      "split": "val",
+      "patient_id": "100836020"
+    },
+    {
+      "case_id": "233",
+      "image_path": "dataset/Vinmec_2D/train/train_image/233.JPG",
+      "split": "val",
+      "patient_id": "100355505"
+    },
+    {
+      "case_id": "1300",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1300.JPG",
+      "split": "val",
+      "patient_id": "100405426"
+    },
+    {
+      "case_id": "619",
+      "image_path": "dataset/Vinmec_2D/train/train_image/619.JPG",
+      "split": "val",
+      "patient_id": "100300009"
+    },
+    {
+      "case_id": "1293",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1293.JPG",
+      "split": "val",
+      "patient_id": "100855015"
+    },
+    {
+      "case_id": "968",
+      "image_path": "dataset/Vinmec_2D/train/train_image/968.JPG",
+      "split": "val",
+      "patient_id": "100907855"
+    },
+    {
+      "case_id": "702",
+      "image_path": "dataset/Vinmec_2D/train/train_image/702.JPG",
+      "split": "val",
+      "patient_id": "100417568"
+    },
+    {
+      "case_id": "304",
+      "image_path": "dataset/Vinmec_2D/train/train_image/304.JPG",
+      "split": "val",
+      "patient_id": "100348048"
+    },
+    {
+      "case_id": "1262",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1262.JPG",
+      "split": "val",
+      "patient_id": "100571971"
+    },
+    {
+      "case_id": "996",
+      "image_path": "dataset/Vinmec_2D/train/train_image/996.JPG",
+      "split": "val",
+      "patient_id": "100461097"
+    },
+    {
+      "case_id": "655",
+      "image_path": "dataset/Vinmec_2D/train/train_image/655.JPG",
+      "split": "val",
+      "patient_id": "100419453"
+    },
+    {
+      "case_id": "999",
+      "image_path": "dataset/Vinmec_2D/train/train_image/999.JPG",
+      "split": "val",
+      "patient_id": "100540418"
+    },
+    {
+      "case_id": "182",
+      "image_path": "dataset/Vinmec_2D/train/train_image/182.JPG",
+      "split": "val",
+      "patient_id": "100355505"
+    },
+    {
+      "case_id": "720",
+      "image_path": "dataset/Vinmec_2D/train/train_image/720.JPG",
+      "split": "val",
+      "patient_id": "100838171"
+    },
+    {
+      "case_id": "463",
+      "image_path": "dataset/Vinmec_2D/train/train_image/463.JPG",
+      "split": "val",
+      "patient_id": "100286488"
+    },
+    {
+      "case_id": "579",
+      "image_path": "dataset/Vinmec_2D/train/train_image/579.JPG",
+      "split": "val",
+      "patient_id": "100308036"
+    },
+    {
+      "case_id": "101",
+      "image_path": "dataset/Vinmec_2D/train/train_image/101.JPG",
+      "split": "val",
+      "patient_id": "100405426"
+    },
+    {
+      "case_id": "368",
+      "image_path": "dataset/Vinmec_2D/train/train_image/368.JPG",
+      "split": "val",
+      "patient_id": "100385191"
+    },
+    {
+      "case_id": "1047",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1047.JPG",
+      "split": "val",
+      "patient_id": "100451524"
+    },
+    {
+      "case_id": "895",
+      "image_path": "dataset/Vinmec_2D/train/train_image/895.JPG",
+      "split": "val",
+      "patient_id": "100445120"
+    },
+    {
+      "case_id": "341",
+      "image_path": "dataset/Vinmec_2D/train/train_image/341.JPG",
+      "split": "val",
+      "patient_id": "100693024"
+    },
+    {
+      "case_id": "1246",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1246.JPG",
+      "split": "val",
+      "patient_id": "100544500"
+    },
+    {
+      "case_id": "834",
+      "image_path": "dataset/Vinmec_2D/train/train_image/834.JPG",
+      "split": "val",
+      "patient_id": "100130521"
+    },
+    {
+      "case_id": "547",
+      "image_path": "dataset/Vinmec_2D/train/train_image/547.JPG",
+      "split": "val",
+      "patient_id": "100086624"
+    },
+    {
+      "case_id": "841",
+      "image_path": "dataset/Vinmec_2D/train/train_image/841.JPG",
+      "split": "val",
+      "patient_id": "100907855"
+    },
+    {
+      "case_id": "1011",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1011.JPG",
+      "split": "val",
+      "patient_id": "100195892"
+    },
+    {
+      "case_id": "1321",
+      "image_path": "dataset/Vinmec_2D/train/train_image/1321.JPG",
+      "split": "val",
+      "patient_id": "100521691"
+    },
+    {
+      "case_id": "719",
+      "image_path": "dataset/Vinmec_2D/train/train_image/719.JPG",
+      "split": "val",
+      "patient_id": "100496395"
+    },
+    {
+      "case_id": "607",
+      "image_path": "dataset/Vinmec_2D/train/train_image/607.JPG",
+      "split": "val",
+      "patient_id": "100200386"
+    },
+    {
+      "case_id": "540",
+      "image_path": "dataset/Vinmec_2D/train/train_image/540.JPG",
+      "split": "val",
+      "patient_id": "100451524"
+    },
+    {
+      "case_id": "61",
+      "image_path": "dataset/Vinmec_2D/train/train_image/61.JPG",
+      "split": "val",
+      "patient_id": "100343848"
+    },
+    {
+      "case_id": "364",
+      "image_path": "dataset/Vinmec_2D/train/train_image/364.JPG",
+      "split": "val",
+      "patient_id": "100083958"
+    },
+    {
+      "case_id": "769",
+      "image_path": "dataset/Vinmec_2D/train/train_image/769.JPG",
+      "split": "val",
+      "patient_id": "100038399"
+    },
+    {
+      "case_id": "538",
+      "image_path": "dataset/Vinmec_2D/train/train_image/538.JPG",
+      "split": "val",
+      "patient_id": "100938095"
+    },
+    {
+      "case_id": "1012",
+      "image_path": "dataset/Vinmec_2D/test/image/1012.JPG",
+      "split": "test",
+      "patient_id": "100077649"
+    },
+    {
+      "case_id": "1013",
+      "image_path": "dataset/Vinmec_2D/test/image/1013.JPG",
+      "split": "test",
+      "patient_id": "100078686"
+    },
+    {
+      "case_id": "1017",
+      "image_path": "dataset/Vinmec_2D/test/image/1017.JPG",
+      "split": "test",
+      "patient_id": "100287892"
+    },
+    {
+      "case_id": "1018",
+      "image_path": "dataset/Vinmec_2D/test/image/1018.JPG",
+      "split": "test",
+      "patient_id": "100727691"
+    },
+    {
+      "case_id": "102",
+      "image_path": "dataset/Vinmec_2D/test/image/102.JPG",
+      "split": "test",
+      "patient_id": "100453633"
+    },
+    {
+      "case_id": "1023",
+      "image_path": "dataset/Vinmec_2D/test/image/1023.JPG",
+      "split": "test",
+      "patient_id": "100849884"
+    },
+    {
+      "case_id": "1024",
+      "image_path": "dataset/Vinmec_2D/test/image/1024.JPG",
+      "split": "test",
+      "patient_id": "100960997"
+    },
+    {
+      "case_id": "1025",
+      "image_path": "dataset/Vinmec_2D/test/image/1025.JPG",
+      "split": "test",
+      "patient_id": "100578443"
+    },
+    {
+      "case_id": "1030",
+      "image_path": "dataset/Vinmec_2D/test/image/1030.JPG",
+      "split": "test",
+      "patient_id": "100744031"
+    },
+    {
+      "case_id": "1032",
+      "image_path": "dataset/Vinmec_2D/test/image/1032.JPG",
+      "split": "test",
+      "patient_id": "100670532"
+    },
+    {
+      "case_id": "1038",
+      "image_path": "dataset/Vinmec_2D/test/image/1038.JPG",
+      "split": "test",
+      "patient_id": "100401451"
+    },
+    {
+      "case_id": "1042",
+      "image_path": "dataset/Vinmec_2D/test/image/1042.JPG",
+      "split": "test",
+      "patient_id": "100488461"
+    },
+    {
+      "case_id": "1046",
+      "image_path": "dataset/Vinmec_2D/test/image/1046.JPG",
+      "split": "test",
+      "patient_id": "100378427"
+    },
+    {
+      "case_id": "1049",
+      "image_path": "dataset/Vinmec_2D/test/image/1049.JPG",
+      "split": "test",
+      "patient_id": "100467951"
+    },
+    {
+      "case_id": "1054",
+      "image_path": "dataset/Vinmec_2D/test/image/1054.JPG",
+      "split": "test",
+      "patient_id": "100144383"
+    },
+    {
+      "case_id": "1055",
+      "image_path": "dataset/Vinmec_2D/test/image/1055.JPG",
+      "split": "test",
+      "patient_id": "100576713"
+    },
+    {
+      "case_id": "1061",
+      "image_path": "dataset/Vinmec_2D/test/image/1061.JPG",
+      "split": "test",
+      "patient_id": "100272933"
+    },
+    {
+      "case_id": "1062",
+      "image_path": "dataset/Vinmec_2D/test/image/1062.JPG",
+      "split": "test",
+      "patient_id": "100863333"
+    },
+    {
+      "case_id": "1065",
+      "image_path": "dataset/Vinmec_2D/test/image/1065.JPG",
+      "split": "test",
+      "patient_id": "100027172"
+    },
+    {
+      "case_id": "1071",
+      "image_path": "dataset/Vinmec_2D/test/image/1071.JPG",
+      "split": "test",
+      "patient_id": "100830541"
+    },
+    {
+      "case_id": "1073",
+      "image_path": "dataset/Vinmec_2D/test/image/1073.JPG",
+      "split": "test",
+      "patient_id": "100602826"
+    },
+    {
+      "case_id": "1076",
+      "image_path": "dataset/Vinmec_2D/test/image/1076.JPG",
+      "split": "test",
+      "patient_id": "100829924"
+    },
+    {
+      "case_id": "1082",
+      "image_path": "dataset/Vinmec_2D/test/image/1082.JPG",
+      "split": "test",
+      "patient_id": "100032653"
+    },
+    {
+      "case_id": "1083",
+      "image_path": "dataset/Vinmec_2D/test/image/1083.JPG",
+      "split": "test",
+      "patient_id": "100145622"
+    },
+    {
+      "case_id": "1086",
+      "image_path": "dataset/Vinmec_2D/test/image/1086.JPG",
+      "split": "test",
+      "patient_id": "100210743"
+    },
+    {
+      "case_id": "1088",
+      "image_path": "dataset/Vinmec_2D/test/image/1088.JPG",
+      "split": "test",
+      "patient_id": "100077767"
+    },
+    {
+      "case_id": "1089",
+      "image_path": "dataset/Vinmec_2D/test/image/1089.JPG",
+      "split": "test",
+      "patient_id": "100723270"
+    },
+    {
+      "case_id": "1091",
+      "image_path": "dataset/Vinmec_2D/test/image/1091.JPG",
+      "split": "test",
+      "patient_id": "100123481"
+    },
+    {
+      "case_id": "1092",
+      "image_path": "dataset/Vinmec_2D/test/image/1092.JPG",
+      "split": "test",
+      "patient_id": "100209902"
+    },
+    {
+      "case_id": "1095",
+      "image_path": "dataset/Vinmec_2D/test/image/1095.JPG",
+      "split": "test",
+      "patient_id": "100210743"
+    },
+    {
+      "case_id": "1096",
+      "image_path": "dataset/Vinmec_2D/test/image/1096.JPG",
+      "split": "test",
+      "patient_id": "100644718"
+    },
+    {
+      "case_id": "1104",
+      "image_path": "dataset/Vinmec_2D/test/image/1104.JPG",
+      "split": "test",
+      "patient_id": "100364301"
+    },
+    {
+      "case_id": "1108",
+      "image_path": "dataset/Vinmec_2D/test/image/1108.JPG",
+      "split": "test",
+      "patient_id": "100027560"
+    },
+    {
+      "case_id": "1122",
+      "image_path": "dataset/Vinmec_2D/test/image/1122.JPG",
+      "split": "test",
+      "patient_id": "100894253"
+    },
+    {
+      "case_id": "1123",
+      "image_path": "dataset/Vinmec_2D/test/image/1123.JPG",
+      "split": "test",
+      "patient_id": "100235134"
+    },
+    {
+      "case_id": "1124",
+      "image_path": "dataset/Vinmec_2D/test/image/1124.JPG",
+      "split": "test",
+      "patient_id": "100167758"
+    },
+    {
+      "case_id": "1130",
+      "image_path": "dataset/Vinmec_2D/test/image/1130.JPG",
+      "split": "test",
+      "patient_id": "100036489"
+    },
+    {
+      "case_id": "1132",
+      "image_path": "dataset/Vinmec_2D/test/image/1132.JPG",
+      "split": "test",
+      "patient_id": "100190802"
+    },
+    {
+      "case_id": "1133",
+      "image_path": "dataset/Vinmec_2D/test/image/1133.JPG",
+      "split": "test",
+      "patient_id": "100927199"
+    },
+    {
+      "case_id": "1134",
+      "image_path": "dataset/Vinmec_2D/test/image/1134.JPG",
+      "split": "test",
+      "patient_id": "100182547"
+    },
+    {
+      "case_id": "1140",
+      "image_path": "dataset/Vinmec_2D/test/image/1140.JPG",
+      "split": "test",
+      "patient_id": "100160448"
+    },
+    {
+      "case_id": "1143",
+      "image_path": "dataset/Vinmec_2D/test/image/1143.JPG",
+      "split": "test",
+      "patient_id": "100703787"
+    },
+    {
+      "case_id": "1157",
+      "image_path": "dataset/Vinmec_2D/test/image/1157.JPG",
+      "split": "test",
+      "patient_id": "100247459"
+    },
+    {
+      "case_id": "1162",
+      "image_path": "dataset/Vinmec_2D/test/image/1162.JPG",
+      "split": "test",
+      "patient_id": "100994913"
+    },
+    {
+      "case_id": "1167",
+      "image_path": "dataset/Vinmec_2D/test/image/1167.JPG",
+      "split": "test",
+      "patient_id": "100209902"
+    },
+    {
+      "case_id": "1169",
+      "image_path": "dataset/Vinmec_2D/test/image/1169.JPG",
+      "split": "test",
+      "patient_id": "100132361"
+    },
+    {
+      "case_id": "1170",
+      "image_path": "dataset/Vinmec_2D/test/image/1170.JPG",
+      "split": "test",
+      "patient_id": "100806527"
+    },
+    {
+      "case_id": "1171",
+      "image_path": "dataset/Vinmec_2D/test/image/1171.JPG",
+      "split": "test",
+      "patient_id": "100594799"
+    },
+    {
+      "case_id": "1173",
+      "image_path": "dataset/Vinmec_2D/test/image/1173.JPG",
+      "split": "test",
+      "patient_id": "100744007"
+    },
+    {
+      "case_id": "1175",
+      "image_path": "dataset/Vinmec_2D/test/image/1175.JPG",
+      "split": "test",
+      "patient_id": "100077333"
+    },
+    {
+      "case_id": "1176",
+      "image_path": "dataset/Vinmec_2D/test/image/1176.JPG",
+      "split": "test",
+      "patient_id": "100446815"
+    },
+    {
+      "case_id": "1181",
+      "image_path": "dataset/Vinmec_2D/test/image/1181.JPG",
+      "split": "test",
+      "patient_id": "100712048"
+    },
+    {
+      "case_id": "1184",
+      "image_path": "dataset/Vinmec_2D/test/image/1184.JPG",
+      "split": "test",
+      "patient_id": "100748022"
+    },
+    {
+      "case_id": "1188",
+      "image_path": "dataset/Vinmec_2D/test/image/1188.JPG",
+      "split": "test",
+      "patient_id": "100942333"
+    },
+    {
+      "case_id": "1190",
+      "image_path": "dataset/Vinmec_2D/test/image/1190.JPG",
+      "split": "test",
+      "patient_id": "100134568"
+    },
+    {
+      "case_id": "1199",
+      "image_path": "dataset/Vinmec_2D/test/image/1199.JPG",
+      "split": "test",
+      "patient_id": "100580933"
+    },
+    {
+      "case_id": "12",
+      "image_path": "dataset/Vinmec_2D/test/image/12.JPG",
+      "split": "test",
+      "patient_id": "100957918"
+    },
+    {
+      "case_id": "1200",
+      "image_path": "dataset/Vinmec_2D/test/image/1200.JPG",
+      "split": "test",
+      "patient_id": "100390084"
+    },
+    {
+      "case_id": "1208",
+      "image_path": "dataset/Vinmec_2D/test/image/1208.JPG",
+      "split": "test",
+      "patient_id": "100090403"
+    },
+    {
+      "case_id": "1214",
+      "image_path": "dataset/Vinmec_2D/test/image/1214.JPG",
+      "split": "test",
+      "patient_id": "100248235"
+    },
+    {
+      "case_id": "1217",
+      "image_path": "dataset/Vinmec_2D/test/image/1217.JPG",
+      "split": "test",
+      "patient_id": "100127257"
+    },
+    {
+      "case_id": "1218",
+      "image_path": "dataset/Vinmec_2D/test/image/1218.JPG",
+      "split": "test",
+      "patient_id": "100889894"
+    },
+    {
+      "case_id": "1224",
+      "image_path": "dataset/Vinmec_2D/test/image/1224.JPG",
+      "split": "test",
+      "patient_id": "100092055"
+    },
+    {
+      "case_id": "1229",
+      "image_path": "dataset/Vinmec_2D/test/image/1229.JPG",
+      "split": "test",
+      "patient_id": "100490110"
+    },
+    {
+      "case_id": "1230",
+      "image_path": "dataset/Vinmec_2D/test/image/1230.JPG",
+      "split": "test",
+      "patient_id": "100128594"
+    },
+    {
+      "case_id": "1232",
+      "image_path": "dataset/Vinmec_2D/test/image/1232.JPG",
+      "split": "test",
+      "patient_id": "100993949"
+    },
+    {
+      "case_id": "1234",
+      "image_path": "dataset/Vinmec_2D/test/image/1234.JPG",
+      "split": "test",
+      "patient_id": "100380959"
+    },
+    {
+      "case_id": "1235",
+      "image_path": "dataset/Vinmec_2D/test/image/1235.JPG",
+      "split": "test",
+      "patient_id": "100429322"
+    },
+    {
+      "case_id": "1238",
+      "image_path": "dataset/Vinmec_2D/test/image/1238.JPG",
+      "split": "test",
+      "patient_id": "100912300"
+    },
+    {
+      "case_id": "1241",
+      "image_path": "dataset/Vinmec_2D/test/image/1241.JPG",
+      "split": "test",
+      "patient_id": "100993949"
+    },
+    {
+      "case_id": "1244",
+      "image_path": "dataset/Vinmec_2D/test/image/1244.JPG",
+      "split": "test",
+      "patient_id": "100077333"
+    },
+    {
+      "case_id": "125",
+      "image_path": "dataset/Vinmec_2D/test/image/125.JPG",
+      "split": "test",
+      "patient_id": "100248235"
+    },
+    {
+      "case_id": "1252",
+      "image_path": "dataset/Vinmec_2D/test/image/1252.JPG",
+      "split": "test",
+      "patient_id": "100927199"
+    },
+    {
+      "case_id": "1254",
+      "image_path": "dataset/Vinmec_2D/test/image/1254.JPG",
+      "split": "test",
+      "patient_id": "100058104"
+    },
+    {
+      "case_id": "1255",
+      "image_path": "dataset/Vinmec_2D/test/image/1255.JPG",
+      "split": "test",
+      "patient_id": "100338334"
+    },
+    {
+      "case_id": "1257",
+      "image_path": "dataset/Vinmec_2D/test/image/1257.JPG",
+      "split": "test",
+      "patient_id": "100417368"
+    },
+    {
+      "case_id": "1270",
+      "image_path": "dataset/Vinmec_2D/test/image/1270.JPG",
+      "split": "test",
+      "patient_id": "100465471"
+    },
+    {
+      "case_id": "1271",
+      "image_path": "dataset/Vinmec_2D/test/image/1271.JPG",
+      "split": "test",
+      "patient_id": "100542895"
+    },
+    {
+      "case_id": "1273",
+      "image_path": "dataset/Vinmec_2D/test/image/1273.JPG",
+      "split": "test",
+      "patient_id": "100538009"
+    },
+    {
+      "case_id": "1285",
+      "image_path": "dataset/Vinmec_2D/test/image/1285.JPG",
+      "split": "test",
+      "patient_id": "100816332"
+    },
+    {
+      "case_id": "1288",
+      "image_path": "dataset/Vinmec_2D/test/image/1288.JPG",
+      "split": "test",
+      "patient_id": "100190802"
+    },
+    {
+      "case_id": "1291",
+      "image_path": "dataset/Vinmec_2D/test/image/1291.JPG",
+      "split": "test",
+      "patient_id": "100712413"
+    },
+    {
+      "case_id": "1295",
+      "image_path": "dataset/Vinmec_2D/test/image/1295.JPG",
+      "split": "test",
+      "patient_id": "100299449"
+    },
+    {
+      "case_id": "1302",
+      "image_path": "dataset/Vinmec_2D/test/image/1302.JPG",
+      "split": "test",
+      "patient_id": "100329657"
+    },
+    {
+      "case_id": "1305",
+      "image_path": "dataset/Vinmec_2D/test/image/1305.JPG",
+      "split": "test",
+      "patient_id": "100751759"
+    },
+    {
+      "case_id": "1306",
+      "image_path": "dataset/Vinmec_2D/test/image/1306.JPG",
+      "split": "test",
+      "patient_id": "100092055"
+    },
+    {
+      "case_id": "1307",
+      "image_path": "dataset/Vinmec_2D/test/image/1307.JPG",
+      "split": "test",
+      "patient_id": "100668480"
+    },
+    {
+      "case_id": "1308",
+      "image_path": "dataset/Vinmec_2D/test/image/1308.JPG",
+      "split": "test",
+      "patient_id": "100160448"
+    },
+    {
+      "case_id": "1311",
+      "image_path": "dataset/Vinmec_2D/test/image/1311.JPG",
+      "split": "test",
+      "patient_id": "100762120"
+    },
+    {
+      "case_id": "1317",
+      "image_path": "dataset/Vinmec_2D/test/image/1317.JPG",
+      "split": "test",
+      "patient_id": "100160448"
+    },
+    {
+      "case_id": "1319",
+      "image_path": "dataset/Vinmec_2D/test/image/1319.JPG",
+      "split": "test",
+      "patient_id": "100446815"
+    },
+    {
+      "case_id": "1325",
+      "image_path": "dataset/Vinmec_2D/test/image/1325.JPG",
+      "split": "test",
+      "patient_id": "100568507"
+    },
+    {
+      "case_id": "1329",
+      "image_path": "dataset/Vinmec_2D/test/image/1329.JPG",
+      "split": "test",
+      "patient_id": "100318897"
+    },
+    {
+      "case_id": "1331",
+      "image_path": "dataset/Vinmec_2D/test/image/1331.JPG",
+      "split": "test",
+      "patient_id": "100712048"
+    },
+    {
+      "case_id": "1335",
+      "image_path": "dataset/Vinmec_2D/test/image/1335.JPG",
+      "split": "test",
+      "patient_id": "100533469"
+    },
+    {
+      "case_id": "1336",
+      "image_path": "dataset/Vinmec_2D/test/image/1336.JPG",
+      "split": "test",
+      "patient_id": "100468849"
+    },
+    {
+      "case_id": "1337",
+      "image_path": "dataset/Vinmec_2D/test/image/1337.JPG",
+      "split": "test",
+      "patient_id": "100955889"
+    },
+    {
+      "case_id": "1347",
+      "image_path": "dataset/Vinmec_2D/test/image/1347.JPG",
+      "split": "test",
+      "patient_id": "100131414"
+    },
+    {
+      "case_id": "1352",
+      "image_path": "dataset/Vinmec_2D/test/image/1352.JPG",
+      "split": "test",
+      "patient_id": "100080620"
+    },
+    {
+      "case_id": "1354",
+      "image_path": "dataset/Vinmec_2D/test/image/1354.JPG",
+      "split": "test",
+      "patient_id": "100235134"
+    },
+    {
+      "case_id": "1357",
+      "image_path": "dataset/Vinmec_2D/test/image/1357.JPG",
+      "split": "test",
+      "patient_id": "100384123"
+    },
+    {
+      "case_id": "1358",
+      "image_path": "dataset/Vinmec_2D/test/image/1358.JPG",
+      "split": "test",
+      "patient_id": "100920607"
+    },
+    {
+      "case_id": "1365",
+      "image_path": "dataset/Vinmec_2D/test/image/1365.JPG",
+      "split": "test",
+      "patient_id": "100430749"
+    },
+    {
+      "case_id": "1366",
+      "image_path": "dataset/Vinmec_2D/test/image/1366.JPG",
+      "split": "test",
+      "patient_id": "100538009"
+    },
+    {
+      "case_id": "1367",
+      "image_path": "dataset/Vinmec_2D/test/image/1367.JPG",
+      "split": "test",
+      "patient_id": "100972370"
+    },
+    {
+      "case_id": "1369",
+      "image_path": "dataset/Vinmec_2D/test/image/1369.JPG",
+      "split": "test",
+      "patient_id": "100994913"
+    },
+    {
+      "case_id": "137",
+      "image_path": "dataset/Vinmec_2D/test/image/137.JPG",
+      "split": "test",
+      "patient_id": "100668676"
+    },
+    {
+      "case_id": "1373",
+      "image_path": "dataset/Vinmec_2D/test/image/1373.JPG",
+      "split": "test",
+      "patient_id": "100832250"
+    },
+    {
+      "case_id": "1374",
+      "image_path": "dataset/Vinmec_2D/test/image/1374.JPG",
+      "split": "test",
+      "patient_id": "100174739"
+    },
+    {
+      "case_id": "1376",
+      "image_path": "dataset/Vinmec_2D/test/image/1376.JPG",
+      "split": "test",
+      "patient_id": "100195085"
+    },
+    {
+      "case_id": "1378",
+      "image_path": "dataset/Vinmec_2D/test/image/1378.JPG",
+      "split": "test",
+      "patient_id": "100800152"
+    },
+    {
+      "case_id": "1381",
+      "image_path": "dataset/Vinmec_2D/test/image/1381.JPG",
+      "split": "test",
+      "patient_id": "100637086"
+    },
+    {
+      "case_id": "1388",
+      "image_path": "dataset/Vinmec_2D/test/image/1388.JPG",
+      "split": "test",
+      "patient_id": "100131414"
+    },
+    {
+      "case_id": "1401",
+      "image_path": "dataset/Vinmec_2D/test/image/1401.JPG",
+      "split": "test",
+      "patient_id": "100027560"
+    },
+    {
+      "case_id": "1410",
+      "image_path": "dataset/Vinmec_2D/test/image/1410.JPG",
+      "split": "test",
+      "patient_id": "100272933"
+    },
+    {
+      "case_id": "1411",
+      "image_path": "dataset/Vinmec_2D/test/image/1411.JPG",
+      "split": "test",
+      "patient_id": "100641674"
+    },
+    {
+      "case_id": "1413",
+      "image_path": "dataset/Vinmec_2D/test/image/1413.JPG",
+      "split": "test",
+      "patient_id": "100533469"
+    },
+    {
+      "case_id": "1416",
+      "image_path": "dataset/Vinmec_2D/test/image/1416.JPG",
+      "split": "test",
+      "patient_id": "100332427"
+    },
+    {
+      "case_id": "1427",
+      "image_path": "dataset/Vinmec_2D/test/image/1427.JPG",
+      "split": "test",
+      "patient_id": "100058104"
+    },
+    {
+      "case_id": "1430",
+      "image_path": "dataset/Vinmec_2D/test/image/1430.JPG",
+      "split": "test",
+      "patient_id": "100580933"
+    },
+    {
+      "case_id": "1432",
+      "image_path": "dataset/Vinmec_2D/test/image/1432.JPG",
+      "split": "test",
+      "patient_id": "100538009"
+    },
+    {
+      "case_id": "1435",
+      "image_path": "dataset/Vinmec_2D/test/image/1435.JPG",
+      "split": "test",
+      "patient_id": "100361249"
+    },
+    {
+      "case_id": "1440",
+      "image_path": "dataset/Vinmec_2D/test/image/1440.JPG",
+      "split": "test",
+      "patient_id": "100523285"
+    },
+    {
+      "case_id": "1444",
+      "image_path": "dataset/Vinmec_2D/test/image/1444.JPG",
+      "split": "test",
+      "patient_id": "100130192"
+    },
+    {
+      "case_id": "1454",
+      "image_path": "dataset/Vinmec_2D/test/image/1454.JPG",
+      "split": "test",
+      "patient_id": "100465504"
+    },
+    {
+      "case_id": "1458",
+      "image_path": "dataset/Vinmec_2D/test/image/1458.JPG",
+      "split": "test",
+      "patient_id": "100169834"
+    },
+    {
+      "case_id": "1460",
+      "image_path": "dataset/Vinmec_2D/test/image/1460.JPG",
+      "split": "test",
+      "patient_id": "100711027"
+    },
+    {
+      "case_id": "1461",
+      "image_path": "dataset/Vinmec_2D/test/image/1461.JPG",
+      "split": "test",
+      "patient_id": "100379742"
+    },
+    {
+      "case_id": "1464",
+      "image_path": "dataset/Vinmec_2D/test/image/1464.JPG",
+      "split": "test",
+      "patient_id": "100818164"
+    },
+    {
+      "case_id": "1466",
+      "image_path": "dataset/Vinmec_2D/test/image/1466.JPG",
+      "split": "test",
+      "patient_id": "100723270"
+    },
+    {
+      "case_id": "1467",
+      "image_path": "dataset/Vinmec_2D/test/image/1467.JPG",
+      "split": "test",
+      "patient_id": "100954951"
+    },
+    {
+      "case_id": "1468",
+      "image_path": "dataset/Vinmec_2D/test/image/1468.JPG",
+      "split": "test",
+      "patient_id": "100417500"
+    },
+    {
+      "case_id": "1469",
+      "image_path": "dataset/Vinmec_2D/test/image/1469.JPG",
+      "split": "test",
+      "patient_id": "100594799"
+    },
+    {
+      "case_id": "148",
+      "image_path": "dataset/Vinmec_2D/test/image/148.JPG",
+      "split": "test",
+      "patient_id": "100405785"
+    },
+    {
+      "case_id": "149",
+      "image_path": "dataset/Vinmec_2D/test/image/149.JPG",
+      "split": "test",
+      "patient_id": "100386831"
+    },
+    {
+      "case_id": "15",
+      "image_path": "dataset/Vinmec_2D/test/image/15.JPG",
+      "split": "test",
+      "patient_id": "100842700"
+    },
+    {
+      "case_id": "152",
+      "image_path": "dataset/Vinmec_2D/test/image/152.JPG",
+      "split": "test",
+      "patient_id": "100456068"
+    },
+    {
+      "case_id": "159",
+      "image_path": "dataset/Vinmec_2D/test/image/159.JPG",
+      "split": "test",
+      "patient_id": "100235134"
+    },
+    {
+      "case_id": "16",
+      "image_path": "dataset/Vinmec_2D/test/image/16.JPG",
+      "split": "test",
+      "patient_id": "100832250"
+    },
+    {
+      "case_id": "162",
+      "image_path": "dataset/Vinmec_2D/test/image/162.JPG",
+      "split": "test",
+      "patient_id": "100751759"
+    },
+    {
+      "case_id": "163",
+      "image_path": "dataset/Vinmec_2D/test/image/163.JPG",
+      "split": "test",
+      "patient_id": "100471832"
+    },
+    {
+      "case_id": "164",
+      "image_path": "dataset/Vinmec_2D/test/image/164.JPG",
+      "split": "test",
+      "patient_id": "100942333"
+    },
+    {
+      "case_id": "168",
+      "image_path": "dataset/Vinmec_2D/test/image/168.JPG",
+      "split": "test",
+      "patient_id": "100368623"
+    },
+    {
+      "case_id": "170",
+      "image_path": "dataset/Vinmec_2D/test/image/170.JPG",
+      "split": "test",
+      "patient_id": "100637086"
+    },
+    {
+      "case_id": "177",
+      "image_path": "dataset/Vinmec_2D/test/image/177.JPG",
+      "split": "test",
+      "patient_id": "100466732"
+    },
+    {
+      "case_id": "179",
+      "image_path": "dataset/Vinmec_2D/test/image/179.JPG",
+      "split": "test",
+      "patient_id": "100676502"
+    },
+    {
+      "case_id": "180",
+      "image_path": "dataset/Vinmec_2D/test/image/180.JPG",
+      "split": "test",
+      "patient_id": "100332427"
+    },
+    {
+      "case_id": "181",
+      "image_path": "dataset/Vinmec_2D/test/image/181.JPG",
+      "split": "test",
+      "patient_id": "100135300"
+    },
+    {
+      "case_id": "191",
+      "image_path": "dataset/Vinmec_2D/test/image/191.JPG",
+      "split": "test",
+      "patient_id": "100384123"
+    },
+    {
+      "case_id": "206",
+      "image_path": "dataset/Vinmec_2D/test/image/206.JPG",
+      "split": "test",
+      "patient_id": "100401451"
+    },
+    {
+      "case_id": "21",
+      "image_path": "dataset/Vinmec_2D/test/image/21.JPG",
+      "split": "test",
+      "patient_id": "100832250"
+    },
+    {
+      "case_id": "220",
+      "image_path": "dataset/Vinmec_2D/test/image/220.JPG",
+      "split": "test",
+      "patient_id": "100713145"
+    },
+    {
+      "case_id": "225",
+      "image_path": "dataset/Vinmec_2D/test/image/225.JPG",
+      "split": "test",
+      "patient_id": "100849884"
+    },
+    {
+      "case_id": "227",
+      "image_path": "dataset/Vinmec_2D/test/image/227.JPG",
+      "split": "test",
+      "patient_id": "100670872"
+    },
+    {
+      "case_id": "228",
+      "image_path": "dataset/Vinmec_2D/test/image/228.JPG",
+      "split": "test",
+      "patient_id": "100920607"
+    },
+    {
+      "case_id": "229",
+      "image_path": "dataset/Vinmec_2D/test/image/229.JPG",
+      "split": "test",
+      "patient_id": "100830541"
+    },
+    {
+      "case_id": "234",
+      "image_path": "dataset/Vinmec_2D/test/image/234.JPG",
+      "split": "test",
+      "patient_id": "100080620"
+    },
+    {
+      "case_id": "237",
+      "image_path": "dataset/Vinmec_2D/test/image/237.JPG",
+      "split": "test",
+      "patient_id": "100972370"
+    },
+    {
+      "case_id": "240",
+      "image_path": "dataset/Vinmec_2D/test/image/240.JPG",
+      "split": "test",
+      "patient_id": "100602826"
+    },
+    {
+      "case_id": "248",
+      "image_path": "dataset/Vinmec_2D/test/image/248.JPG",
+      "split": "test",
+      "patient_id": "100292227"
+    },
+    {
+      "case_id": "249",
+      "image_path": "dataset/Vinmec_2D/test/image/249.JPG",
+      "split": "test",
+      "patient_id": "100390084"
+    },
+    {
+      "case_id": "253",
+      "image_path": "dataset/Vinmec_2D/test/image/253.JPG",
+      "split": "test",
+      "patient_id": "100465471"
+    },
+    {
+      "case_id": "254",
+      "image_path": "dataset/Vinmec_2D/test/image/254.JPG",
+      "split": "test",
+      "patient_id": "100132361"
+    },
+    {
+      "case_id": "255",
+      "image_path": "dataset/Vinmec_2D/test/image/255.JPG",
+      "split": "test",
+      "patient_id": "100715054"
+    },
+    {
+      "case_id": "26",
+      "image_path": "dataset/Vinmec_2D/test/image/26.JPG",
+      "split": "test",
+      "patient_id": "100715054"
+    },
+    {
+      "case_id": "261",
+      "image_path": "dataset/Vinmec_2D/test/image/261.JPG",
+      "split": "test",
+      "patient_id": "100568507"
+    },
+    {
+      "case_id": "264",
+      "image_path": "dataset/Vinmec_2D/test/image/264.JPG",
+      "split": "test",
+      "patient_id": "100752524"
+    },
+    {
+      "case_id": "267",
+      "image_path": "dataset/Vinmec_2D/test/image/267.JPG",
+      "split": "test",
+      "patient_id": "100806527"
+    },
+    {
+      "case_id": "268",
+      "image_path": "dataset/Vinmec_2D/test/image/268.JPG",
+      "split": "test",
+      "patient_id": "100261736"
+    },
+    {
+      "case_id": "269",
+      "image_path": "dataset/Vinmec_2D/test/image/269.JPG",
+      "split": "test",
+      "patient_id": "100886593"
+    },
+    {
+      "case_id": "27",
+      "image_path": "dataset/Vinmec_2D/test/image/27.JPG",
+      "split": "test",
+      "patient_id": "100995588"
+    },
+    {
+      "case_id": "281",
+      "image_path": "dataset/Vinmec_2D/test/image/281.JPG",
+      "split": "test",
+      "patient_id": "100533469"
+    },
+    {
+      "case_id": "288",
+      "image_path": "dataset/Vinmec_2D/test/image/288.JPG",
+      "split": "test",
+      "patient_id": "100752524"
+    },
+    {
+      "case_id": "292",
+      "image_path": "dataset/Vinmec_2D/test/image/292.JPG",
+      "split": "test",
+      "patient_id": "100068941"
+    },
+    {
+      "case_id": "295",
+      "image_path": "dataset/Vinmec_2D/test/image/295.JPG",
+      "split": "test",
+      "patient_id": "100036489"
+    },
+    {
+      "case_id": "296",
+      "image_path": "dataset/Vinmec_2D/test/image/296.JPG",
+      "split": "test",
+      "patient_id": "100934629"
+    },
+    {
+      "case_id": "299",
+      "image_path": "dataset/Vinmec_2D/test/image/299.JPG",
+      "split": "test",
+      "patient_id": "100616338"
+    },
+    {
+      "case_id": "3",
+      "image_path": "dataset/Vinmec_2D/test/image/3.JPG",
+      "split": "test",
+      "patient_id": "100641599"
+    },
+    {
+      "case_id": "301",
+      "image_path": "dataset/Vinmec_2D/test/image/301.JPG",
+      "split": "test",
+      "patient_id": "100379052"
+    },
+    {
+      "case_id": "306",
+      "image_path": "dataset/Vinmec_2D/test/image/306.JPG",
+      "split": "test",
+      "patient_id": "100060144"
+    },
+    {
+      "case_id": "313",
+      "image_path": "dataset/Vinmec_2D/test/image/313.JPG",
+      "split": "test",
+      "patient_id": "100131414"
+    },
+    {
+      "case_id": "315",
+      "image_path": "dataset/Vinmec_2D/test/image/315.JPG",
+      "split": "test",
+      "patient_id": "100261736"
+    },
+    {
+      "case_id": "316",
+      "image_path": "dataset/Vinmec_2D/test/image/316.JPG",
+      "split": "test",
+      "patient_id": "100681113"
+    },
+    {
+      "case_id": "322",
+      "image_path": "dataset/Vinmec_2D/test/image/322.JPG",
+      "split": "test",
+      "patient_id": "100542491"
+    },
+    {
+      "case_id": "323",
+      "image_path": "dataset/Vinmec_2D/test/image/323.JPG",
+      "split": "test",
+      "patient_id": "100036489"
+    },
+    {
+      "case_id": "325",
+      "image_path": "dataset/Vinmec_2D/test/image/325.JPG",
+      "split": "test",
+      "patient_id": "100894253"
+    },
+    {
+      "case_id": "326",
+      "image_path": "dataset/Vinmec_2D/test/image/326.JPG",
+      "split": "test",
+      "patient_id": "100429322"
+    },
+    {
+      "case_id": "331",
+      "image_path": "dataset/Vinmec_2D/test/image/331.JPG",
+      "split": "test",
+      "patient_id": "100501916"
+    },
+    {
+      "case_id": "333",
+      "image_path": "dataset/Vinmec_2D/test/image/333.JPG",
+      "split": "test",
+      "patient_id": "100386831"
+    },
+    {
+      "case_id": "336",
+      "image_path": "dataset/Vinmec_2D/test/image/336.JPG",
+      "split": "test",
+      "patient_id": "100299449"
+    },
+    {
+      "case_id": "339",
+      "image_path": "dataset/Vinmec_2D/test/image/339.JPG",
+      "split": "test",
+      "patient_id": "100600076"
+    },
+    {
+      "case_id": "344",
+      "image_path": "dataset/Vinmec_2D/test/image/344.JPG",
+      "split": "test",
+      "patient_id": "100144383"
+    },
+    {
+      "case_id": "345",
+      "image_path": "dataset/Vinmec_2D/test/image/345.JPG",
+      "split": "test",
+      "patient_id": "100840010"
+    },
+    {
+      "case_id": "350",
+      "image_path": "dataset/Vinmec_2D/test/image/350.JPG",
+      "split": "test",
+      "patient_id": "100388984"
+    },
+    {
+      "case_id": "352",
+      "image_path": "dataset/Vinmec_2D/test/image/352.JPG",
+      "split": "test",
+      "patient_id": "100070499"
+    },
+    {
+      "case_id": "354",
+      "image_path": "dataset/Vinmec_2D/test/image/354.JPG",
+      "split": "test",
+      "patient_id": "100543269"
+    },
+    {
+      "case_id": "356",
+      "image_path": "dataset/Vinmec_2D/test/image/356.JPG",
+      "split": "test",
+      "patient_id": "100920607"
+    },
+    {
+      "case_id": "358",
+      "image_path": "dataset/Vinmec_2D/test/image/358.JPG",
+      "split": "test",
+      "patient_id": "100033958"
+    },
+    {
+      "case_id": "359",
+      "image_path": "dataset/Vinmec_2D/test/image/359.JPG",
+      "split": "test",
+      "patient_id": "100384774"
+    },
+    {
+      "case_id": "36",
+      "image_path": "dataset/Vinmec_2D/test/image/36.JPG",
+      "split": "test",
+      "patient_id": "100762120"
+    },
+    {
+      "case_id": "361",
+      "image_path": "dataset/Vinmec_2D/test/image/361.JPG",
+      "split": "test",
+      "patient_id": "100077649"
+    },
+    {
+      "case_id": "363",
+      "image_path": "dataset/Vinmec_2D/test/image/363.JPG",
+      "split": "test",
+      "patient_id": "100681113"
+    },
+    {
+      "case_id": "370",
+      "image_path": "dataset/Vinmec_2D/test/image/370.JPG",
+      "split": "test",
+      "patient_id": "100488461"
+    },
+    {
+      "case_id": "371",
+      "image_path": "dataset/Vinmec_2D/test/image/371.JPG",
+      "split": "test",
+      "patient_id": "100641674"
+    },
+    {
+      "case_id": "377",
+      "image_path": "dataset/Vinmec_2D/test/image/377.JPG",
+      "split": "test",
+      "patient_id": "100515060"
+    },
+    {
+      "case_id": "382",
+      "image_path": "dataset/Vinmec_2D/test/image/382.JPG",
+      "split": "test",
+      "patient_id": "100167758"
+    },
+    {
+      "case_id": "383",
+      "image_path": "dataset/Vinmec_2D/test/image/383.JPG",
+      "split": "test",
+      "patient_id": "100417368"
+    },
+    {
+      "case_id": "385",
+      "image_path": "dataset/Vinmec_2D/test/image/385.JPG",
+      "split": "test",
+      "patient_id": "100723270"
+    },
+    {
+      "case_id": "386",
+      "image_path": "dataset/Vinmec_2D/test/image/386.JPG",
+      "split": "test",
+      "patient_id": "100786325"
+    },
+    {
+      "case_id": "387",
+      "image_path": "dataset/Vinmec_2D/test/image/387.JPG",
+      "split": "test",
+      "patient_id": "100828766"
+    },
+    {
+      "case_id": "388",
+      "image_path": "dataset/Vinmec_2D/test/image/388.JPG",
+      "split": "test",
+      "patient_id": "100172655"
+    },
+    {
+      "case_id": "39",
+      "image_path": "dataset/Vinmec_2D/test/image/39.JPG",
+      "split": "test",
+      "patient_id": "100523285"
+    },
+    {
+      "case_id": "391",
+      "image_path": "dataset/Vinmec_2D/test/image/391.JPG",
+      "split": "test",
+      "patient_id": "100430749"
+    },
+    {
+      "case_id": "392",
+      "image_path": "dataset/Vinmec_2D/test/image/392.JPG",
+      "split": "test",
+      "patient_id": "100734233"
+    },
+    {
+      "case_id": "394",
+      "image_path": "dataset/Vinmec_2D/test/image/394.JPG",
+      "split": "test",
+      "patient_id": "100368623"
+    },
+    {
+      "case_id": "399",
+      "image_path": "dataset/Vinmec_2D/test/image/399.JPG",
+      "split": "test",
+      "patient_id": "100384123"
+    },
+    {
+      "case_id": "403",
+      "image_path": "dataset/Vinmec_2D/test/image/403.JPG",
+      "split": "test",
+      "patient_id": "100752524"
+    },
+    {
+      "case_id": "412",
+      "image_path": "dataset/Vinmec_2D/test/image/412.JPG",
+      "split": "test",
+      "patient_id": "100578083"
+    },
+    {
+      "case_id": "429",
+      "image_path": "dataset/Vinmec_2D/test/image/429.JPG",
+      "split": "test",
+      "patient_id": "100314527"
+    },
+    {
+      "case_id": "430",
+      "image_path": "dataset/Vinmec_2D/test/image/430.JPG",
+      "split": "test",
+      "patient_id": "100812609"
+    },
+    {
+      "case_id": "431",
+      "image_path": "dataset/Vinmec_2D/test/image/431.JPG",
+      "split": "test",
+      "patient_id": "100727691"
+    },
+    {
+      "case_id": "436",
+      "image_path": "dataset/Vinmec_2D/test/image/436.JPG",
+      "split": "test",
+      "patient_id": "100027172"
+    },
+    {
+      "case_id": "440",
+      "image_path": "dataset/Vinmec_2D/test/image/440.JPG",
+      "split": "test",
+      "patient_id": "100165156"
+    },
+    {
+      "case_id": "441",
+      "image_path": "dataset/Vinmec_2D/test/image/441.JPG",
+      "split": "test",
+      "patient_id": "100181043"
+    },
+    {
+      "case_id": "443",
+      "image_path": "dataset/Vinmec_2D/test/image/443.JPG",
+      "split": "test",
+      "patient_id": "100304466"
+    },
+    {
+      "case_id": "445",
+      "image_path": "dataset/Vinmec_2D/test/image/445.JPG",
+      "split": "test",
+      "patient_id": "100863333"
+    },
+    {
+      "case_id": "448",
+      "image_path": "dataset/Vinmec_2D/test/image/448.JPG",
+      "split": "test",
+      "patient_id": "100190802"
+    },
+    {
+      "case_id": "452",
+      "image_path": "dataset/Vinmec_2D/test/image/452.JPG",
+      "split": "test",
+      "patient_id": "100127257"
+    },
+    {
+      "case_id": "453",
+      "image_path": "dataset/Vinmec_2D/test/image/453.JPG",
+      "split": "test",
+      "patient_id": "100380959"
+    },
+    {
+      "case_id": "457",
+      "image_path": "dataset/Vinmec_2D/test/image/457.JPG",
+      "split": "test",
+      "patient_id": "100425942"
+    },
+    {
+      "case_id": "464",
+      "image_path": "dataset/Vinmec_2D/test/image/464.JPG",
+      "split": "test",
+      "patient_id": "100771411"
+    },
+    {
+      "case_id": "468",
+      "image_path": "dataset/Vinmec_2D/test/image/468.JPG",
+      "split": "test",
+      "patient_id": "100955889"
+    },
+    {
+      "case_id": "47",
+      "image_path": "dataset/Vinmec_2D/test/image/47.JPG",
+      "split": "test",
+      "patient_id": "100386831"
+    },
+    {
+      "case_id": "472",
+      "image_path": "dataset/Vinmec_2D/test/image/472.JPG",
+      "split": "test",
+      "patient_id": "100869325"
+    },
+    {
+      "case_id": "473",
+      "image_path": "dataset/Vinmec_2D/test/image/473.JPG",
+      "split": "test",
+      "patient_id": "100703787"
+    },
+    {
+      "case_id": "474",
+      "image_path": "dataset/Vinmec_2D/test/image/474.JPG",
+      "split": "test",
+      "patient_id": "100527290"
+    },
+    {
+      "case_id": "475",
+      "image_path": "dataset/Vinmec_2D/test/image/475.JPG",
+      "split": "test",
+      "patient_id": "100058104"
+    },
+    {
+      "case_id": "476",
+      "image_path": "dataset/Vinmec_2D/test/image/476.JPG",
+      "split": "test",
+      "patient_id": "100518019"
+    },
+    {
+      "case_id": "477",
+      "image_path": "dataset/Vinmec_2D/test/image/477.JPG",
+      "split": "test",
+      "patient_id": "100135300"
+    },
+    {
+      "case_id": "48",
+      "image_path": "dataset/Vinmec_2D/test/image/48.JPG",
+      "split": "test",
+      "patient_id": "100090403"
+    },
+    {
+      "case_id": "487",
+      "image_path": "dataset/Vinmec_2D/test/image/487.JPG",
+      "split": "test",
+      "patient_id": "100467951"
+    },
+    {
+      "case_id": "488",
+      "image_path": "dataset/Vinmec_2D/test/image/488.JPG",
+      "split": "test",
+      "patient_id": "100378427"
+    },
+    {
+      "case_id": "493",
+      "image_path": "dataset/Vinmec_2D/test/image/493.JPG",
+      "split": "test",
+      "patient_id": "100417368"
+    },
+    {
+      "case_id": "494",
+      "image_path": "dataset/Vinmec_2D/test/image/494.JPG",
+      "split": "test",
+      "patient_id": "100379052"
+    },
+    {
+      "case_id": "495",
+      "image_path": "dataset/Vinmec_2D/test/image/495.JPG",
+      "split": "test",
+      "patient_id": "100182547"
+    },
+    {
+      "case_id": "496",
+      "image_path": "dataset/Vinmec_2D/test/image/496.JPG",
+      "split": "test",
+      "patient_id": "100829924"
+    },
+    {
+      "case_id": "5",
+      "image_path": "dataset/Vinmec_2D/test/image/5.JPG",
+      "split": "test",
+      "patient_id": "100417500"
+    },
+    {
+      "case_id": "501",
+      "image_path": "dataset/Vinmec_2D/test/image/501.JPG",
+      "split": "test",
+      "patient_id": "100134568"
+    },
+    {
+      "case_id": "504",
+      "image_path": "dataset/Vinmec_2D/test/image/504.JPG",
+      "split": "test",
+      "patient_id": "100033958"
+    },
+    {
+      "case_id": "506",
+      "image_path": "dataset/Vinmec_2D/test/image/506.JPG",
+      "split": "test",
+      "patient_id": "100456068"
+    },
+    {
+      "case_id": "511",
+      "image_path": "dataset/Vinmec_2D/test/image/511.JPG",
+      "split": "test",
+      "patient_id": "100174739"
+    },
+    {
+      "case_id": "512",
+      "image_path": "dataset/Vinmec_2D/test/image/512.JPG",
+      "split": "test",
+      "patient_id": "100676502"
+    },
+    {
+      "case_id": "517",
+      "image_path": "dataset/Vinmec_2D/test/image/517.JPG",
+      "split": "test",
+      "patient_id": "100210743"
+    },
+    {
+      "case_id": "524",
+      "image_path": "dataset/Vinmec_2D/test/image/524.JPG",
+      "split": "test",
+      "patient_id": "100468849"
+    },
+    {
+      "case_id": "532",
+      "image_path": "dataset/Vinmec_2D/test/image/532.JPG",
+      "split": "test",
+      "patient_id": "100871776"
+    },
+    {
+      "case_id": "534",
+      "image_path": "dataset/Vinmec_2D/test/image/534.JPG",
+      "split": "test",
+      "patient_id": "100892717"
+    },
+    {
+      "case_id": "535",
+      "image_path": "dataset/Vinmec_2D/test/image/535.JPG",
+      "split": "test",
+      "patient_id": "100753789"
+    },
+    {
+      "case_id": "536",
+      "image_path": "dataset/Vinmec_2D/test/image/536.JPG",
+      "split": "test",
+      "patient_id": "100594799"
+    },
+    {
+      "case_id": "539",
+      "image_path": "dataset/Vinmec_2D/test/image/539.JPG",
+      "split": "test",
+      "patient_id": "100335112"
+    },
+    {
+      "case_id": "546",
+      "image_path": "dataset/Vinmec_2D/test/image/546.JPG",
+      "split": "test",
+      "patient_id": "100744031"
+    },
+    {
+      "case_id": "548",
+      "image_path": "dataset/Vinmec_2D/test/image/548.JPG",
+      "split": "test",
+      "patient_id": "100181043"
+    },
+    {
+      "case_id": "553",
+      "image_path": "dataset/Vinmec_2D/test/image/553.JPG",
+      "split": "test",
+      "patient_id": "100894253"
+    },
+    {
+      "case_id": "554",
+      "image_path": "dataset/Vinmec_2D/test/image/554.JPG",
+      "split": "test",
+      "patient_id": "100676502"
+    },
+    {
+      "case_id": "560",
+      "image_path": "dataset/Vinmec_2D/test/image/560.JPG",
+      "split": "test",
+      "patient_id": "100670532"
+    },
+    {
+      "case_id": "580",
+      "image_path": "dataset/Vinmec_2D/test/image/580.JPG",
+      "split": "test",
+      "patient_id": "100466732"
+    },
+    {
+      "case_id": "581",
+      "image_path": "dataset/Vinmec_2D/test/image/581.JPG",
+      "split": "test",
+      "patient_id": "100165156"
+    },
+    {
+      "case_id": "582",
+      "image_path": "dataset/Vinmec_2D/test/image/582.JPG",
+      "split": "test",
+      "patient_id": "100734233"
+    },
+    {
+      "case_id": "585",
+      "image_path": "dataset/Vinmec_2D/test/image/585.JPG",
+      "split": "test",
+      "patient_id": "100849884"
+    },
+    {
+      "case_id": "594",
+      "image_path": "dataset/Vinmec_2D/test/image/594.JPG",
+      "split": "test",
+      "patient_id": "100142321"
+    },
+    {
+      "case_id": "595",
+      "image_path": "dataset/Vinmec_2D/test/image/595.JPG",
+      "split": "test",
+      "patient_id": "100287892"
+    },
+    {
+      "case_id": "600",
+      "image_path": "dataset/Vinmec_2D/test/image/600.JPG",
+      "split": "test",
+      "patient_id": "100165156"
+    },
+    {
+      "case_id": "606",
+      "image_path": "dataset/Vinmec_2D/test/image/606.JPG",
+      "split": "test",
+      "patient_id": "100169834"
+    },
+    {
+      "case_id": "609",
+      "image_path": "dataset/Vinmec_2D/test/image/609.JPG",
+      "split": "test",
+      "patient_id": "100467951"
+    },
+    {
+      "case_id": "610",
+      "image_path": "dataset/Vinmec_2D/test/image/610.JPG",
+      "split": "test",
+      "patient_id": "100738237"
+    },
+    {
+      "case_id": "614",
+      "image_path": "dataset/Vinmec_2D/test/image/614.JPG",
+      "split": "test",
+      "patient_id": "100842700"
+    },
+    {
+      "case_id": "623",
+      "image_path": "dataset/Vinmec_2D/test/image/623.JPG",
+      "split": "test",
+      "patient_id": "100934629"
+    },
+    {
+      "case_id": "626",
+      "image_path": "dataset/Vinmec_2D/test/image/626.JPG",
+      "split": "test",
+      "patient_id": "100501916"
+    },
+    {
+      "case_id": "627",
+      "image_path": "dataset/Vinmec_2D/test/image/627.JPG",
+      "split": "test",
+      "patient_id": "100384774"
+    },
+    {
+      "case_id": "63",
+      "image_path": "dataset/Vinmec_2D/test/image/63.JPG",
+      "split": "test",
+      "patient_id": "100816332"
+    },
+    {
+      "case_id": "636",
+      "image_path": "dataset/Vinmec_2D/test/image/636.JPG",
+      "split": "test",
+      "patient_id": "100805077"
+    },
+    {
+      "case_id": "638",
+      "image_path": "dataset/Vinmec_2D/test/image/638.JPG",
+      "split": "test",
+      "patient_id": "100819264"
+    },
+    {
+      "case_id": "639",
+      "image_path": "dataset/Vinmec_2D/test/image/639.JPG",
+      "split": "test",
+      "patient_id": "100060144"
+    },
+    {
+      "case_id": "64",
+      "image_path": "dataset/Vinmec_2D/test/image/64.JPG",
+      "split": "test",
+      "patient_id": "100060144"
+    },
+    {
+      "case_id": "640",
+      "image_path": "dataset/Vinmec_2D/test/image/640.JPG",
+      "split": "test",
+      "patient_id": "100634487"
+    },
+    {
+      "case_id": "644",
+      "image_path": "dataset/Vinmec_2D/test/image/644.JPG",
+      "split": "test",
+      "patient_id": "100588956"
+    },
+    {
+      "case_id": "653",
+      "image_path": "dataset/Vinmec_2D/test/image/653.JPG",
+      "split": "test",
+      "patient_id": "100149715"
+    },
+    {
+      "case_id": "656",
+      "image_path": "dataset/Vinmec_2D/test/image/656.JPG",
+      "split": "test",
+      "patient_id": "100078686"
+    },
+    {
+      "case_id": "679",
+      "image_path": "dataset/Vinmec_2D/test/image/679.JPG",
+      "split": "test",
+      "patient_id": "100181043"
+    },
+    {
+      "case_id": "682",
+      "image_path": "dataset/Vinmec_2D/test/image/682.JPG",
+      "split": "test",
+      "patient_id": "100471778"
+    },
+    {
+      "case_id": "693",
+      "image_path": "dataset/Vinmec_2D/test/image/693.JPG",
+      "split": "test",
+      "patient_id": "100318897"
+    },
+    {
+      "case_id": "694",
+      "image_path": "dataset/Vinmec_2D/test/image/694.JPG",
+      "split": "test",
+      "patient_id": "100274492"
+    },
+    {
+      "case_id": "699",
+      "image_path": "dataset/Vinmec_2D/test/image/699.JPG",
+      "split": "test",
+      "patient_id": "100746385"
+    },
+    {
+      "case_id": "70",
+      "image_path": "dataset/Vinmec_2D/test/image/70.JPG",
+      "split": "test",
+      "patient_id": "100361249"
+    },
+    {
+      "case_id": "700",
+      "image_path": "dataset/Vinmec_2D/test/image/700.JPG",
+      "split": "test",
+      "patient_id": "100474001"
+    },
+    {
+      "case_id": "701",
+      "image_path": "dataset/Vinmec_2D/test/image/701.JPG",
+      "split": "test",
+      "patient_id": "100542491"
+    },
+    {
+      "case_id": "703",
+      "image_path": "dataset/Vinmec_2D/test/image/703.JPG",
+      "split": "test",
+      "patient_id": "100080620"
+    },
+    {
+      "case_id": "707",
+      "image_path": "dataset/Vinmec_2D/test/image/707.JPG",
+      "split": "test",
+      "patient_id": "100429322"
+    },
+    {
+      "case_id": "71",
+      "image_path": "dataset/Vinmec_2D/test/image/71.JPG",
+      "split": "test",
+      "patient_id": "100136074"
+    },
+    {
+      "case_id": "714",
+      "image_path": "dataset/Vinmec_2D/test/image/714.JPG",
+      "split": "test",
+      "patient_id": "100871776"
+    },
+    {
+      "case_id": "718",
+      "image_path": "dataset/Vinmec_2D/test/image/718.JPG",
+      "split": "test",
+      "patient_id": "100224993"
+    },
+    {
+      "case_id": "73",
+      "image_path": "dataset/Vinmec_2D/test/image/73.JPG",
+      "split": "test",
+      "patient_id": "100616338"
+    },
+    {
+      "case_id": "732",
+      "image_path": "dataset/Vinmec_2D/test/image/732.JPG",
+      "split": "test",
+      "patient_id": "100555178"
+    },
+    {
+      "case_id": "735",
+      "image_path": "dataset/Vinmec_2D/test/image/735.JPG",
+      "split": "test",
+      "patient_id": "100727691"
+    },
+    {
+      "case_id": "740",
+      "image_path": "dataset/Vinmec_2D/test/image/740.JPG",
+      "split": "test",
+      "patient_id": "100378427"
+    },
+    {
+      "case_id": "741",
+      "image_path": "dataset/Vinmec_2D/test/image/741.JPG",
+      "split": "test",
+      "patient_id": "100324314"
+    },
+    {
+      "case_id": "743",
+      "image_path": "dataset/Vinmec_2D/test/image/743.JPG",
+      "split": "test",
+      "patient_id": "100578443"
+    },
+    {
+      "case_id": "747",
+      "image_path": "dataset/Vinmec_2D/test/image/747.JPG",
+      "split": "test",
+      "patient_id": "100551231"
+    },
+    {
+      "case_id": "748",
+      "image_path": "dataset/Vinmec_2D/test/image/748.JPG",
+      "split": "test",
+      "patient_id": "100182547"
+    },
+    {
+      "case_id": "751",
+      "image_path": "dataset/Vinmec_2D/test/image/751.JPG",
+      "split": "test",
+      "patient_id": "100379052"
+    },
+    {
+      "case_id": "752",
+      "image_path": "dataset/Vinmec_2D/test/image/752.JPG",
+      "split": "test",
+      "patient_id": "100942333"
+    },
+    {
+      "case_id": "762",
+      "image_path": "dataset/Vinmec_2D/test/image/762.JPG",
+      "split": "test",
+      "patient_id": "100077767"
+    },
+    {
+      "case_id": "770",
+      "image_path": "dataset/Vinmec_2D/test/image/770.JPG",
+      "split": "test",
+      "patient_id": "100401451"
+    },
+    {
+      "case_id": "773",
+      "image_path": "dataset/Vinmec_2D/test/image/773.JPG",
+      "split": "test",
+      "patient_id": "100543269"
+    },
+    {
+      "case_id": "776",
+      "image_path": "dataset/Vinmec_2D/test/image/776.JPG",
+      "split": "test",
+      "patient_id": "100078686"
+    },
+    {
+      "case_id": "778",
+      "image_path": "dataset/Vinmec_2D/test/image/778.JPG",
+      "split": "test",
+      "patient_id": "100744007"
+    },
+    {
+      "case_id": "779",
+      "image_path": "dataset/Vinmec_2D/test/image/779.JPG",
+      "split": "test",
+      "patient_id": "100588956"
+    },
+    {
+      "case_id": "784",
+      "image_path": "dataset/Vinmec_2D/test/image/784.JPG",
+      "split": "test",
+      "patient_id": "100329657"
+    },
+    {
+      "case_id": "791",
+      "image_path": "dataset/Vinmec_2D/test/image/791.JPG",
+      "split": "test",
+      "patient_id": "100543269"
+    },
+    {
+      "case_id": "792",
+      "image_path": "dataset/Vinmec_2D/test/image/792.JPG",
+      "split": "test",
+      "patient_id": "100960997"
+    },
+    {
+      "case_id": "793",
+      "image_path": "dataset/Vinmec_2D/test/image/793.JPG",
+      "split": "test",
+      "patient_id": "100889894"
+    },
+    {
+      "case_id": "8",
+      "image_path": "dataset/Vinmec_2D/test/image/8.JPG",
+      "split": "test",
+      "patient_id": "100542895"
+    },
+    {
+      "case_id": "800",
+      "image_path": "dataset/Vinmec_2D/test/image/800.JPG",
+      "split": "test",
+      "patient_id": "100369685"
+    },
+    {
+      "case_id": "802",
+      "image_path": "dataset/Vinmec_2D/test/image/802.JPG",
+      "split": "test",
+      "patient_id": "100738237"
+    },
+    {
+      "case_id": "804",
+      "image_path": "dataset/Vinmec_2D/test/image/804.JPG",
+      "split": "test",
+      "patient_id": "100332427"
+    },
+    {
+      "case_id": "810",
+      "image_path": "dataset/Vinmec_2D/test/image/810.JPG",
+      "split": "test",
+      "patient_id": "100734233"
+    },
+    {
+      "case_id": "816",
+      "image_path": "dataset/Vinmec_2D/test/image/816.JPG",
+      "split": "test",
+      "patient_id": "100044412"
+    },
+    {
+      "case_id": "817",
+      "image_path": "dataset/Vinmec_2D/test/image/817.JPG",
+      "split": "test",
+      "patient_id": "100910385"
+    },
+    {
+      "case_id": "821",
+      "image_path": "dataset/Vinmec_2D/test/image/821.JPG",
+      "split": "test",
+      "patient_id": "100578083"
+    },
+    {
+      "case_id": "825",
+      "image_path": "dataset/Vinmec_2D/test/image/825.JPG",
+      "split": "test",
+      "patient_id": "100578443"
+    },
+    {
+      "case_id": "826",
+      "image_path": "dataset/Vinmec_2D/test/image/826.JPG",
+      "split": "test",
+      "patient_id": "100405785"
+    },
+    {
+      "case_id": "83",
+      "image_path": "dataset/Vinmec_2D/test/image/83.JPG",
+      "split": "test",
+      "patient_id": "100806527"
+    },
+    {
+      "case_id": "837",
+      "image_path": "dataset/Vinmec_2D/test/image/837.JPG",
+      "split": "test",
+      "patient_id": "100488461"
+    },
+    {
+      "case_id": "84",
+      "image_path": "dataset/Vinmec_2D/test/image/84.JPG",
+      "split": "test",
+      "patient_id": "100568507"
+    },
+    {
+      "case_id": "842",
+      "image_path": "dataset/Vinmec_2D/test/image/842.JPG",
+      "split": "test",
+      "patient_id": "100829924"
+    },
+    {
+      "case_id": "844",
+      "image_path": "dataset/Vinmec_2D/test/image/844.JPG",
+      "split": "test",
+      "patient_id": "100812609"
+    },
+    {
+      "case_id": "847",
+      "image_path": "dataset/Vinmec_2D/test/image/847.JPG",
+      "split": "test",
+      "patient_id": "100600076"
+    },
+    {
+      "case_id": "854",
+      "image_path": "dataset/Vinmec_2D/test/image/854.JPG",
+      "split": "test",
+      "patient_id": "100272933"
+    },
+    {
+      "case_id": "856",
+      "image_path": "dataset/Vinmec_2D/test/image/856.JPG",
+      "split": "test",
+      "patient_id": "100715054"
+    },
+    {
+      "case_id": "862",
+      "image_path": "dataset/Vinmec_2D/test/image/862.JPG",
+      "split": "test",
+      "patient_id": "100700280"
+    },
+    {
+      "case_id": "863",
+      "image_path": "dataset/Vinmec_2D/test/image/863.JPG",
+      "split": "test",
+      "patient_id": "100999072"
+    },
+    {
+      "case_id": "864",
+      "image_path": "dataset/Vinmec_2D/test/image/864.JPG",
+      "split": "test",
+      "patient_id": "100068093"
+    },
+    {
+      "case_id": "868",
+      "image_path": "dataset/Vinmec_2D/test/image/868.JPG",
+      "split": "test",
+      "patient_id": "100453633"
+    },
+    {
+      "case_id": "870",
+      "image_path": "dataset/Vinmec_2D/test/image/870.JPG",
+      "split": "test",
+      "patient_id": "100287892"
+    },
+    {
+      "case_id": "872",
+      "image_path": "dataset/Vinmec_2D/test/image/872.JPG",
+      "split": "test",
+      "patient_id": "100077333"
+    },
+    {
+      "case_id": "877",
+      "image_path": "dataset/Vinmec_2D/test/image/877.JPG",
+      "split": "test",
+      "patient_id": "100670532"
+    },
+    {
+      "case_id": "878",
+      "image_path": "dataset/Vinmec_2D/test/image/878.JPG",
+      "split": "test",
+      "patient_id": "100800152"
+    },
+    {
+      "case_id": "882",
+      "image_path": "dataset/Vinmec_2D/test/image/882.JPG",
+      "split": "test",
+      "patient_id": "100135300"
+    },
+    {
+      "case_id": "883",
+      "image_path": "dataset/Vinmec_2D/test/image/883.JPG",
+      "split": "test",
+      "patient_id": "100195085"
+    },
+    {
+      "case_id": "89",
+      "image_path": "dataset/Vinmec_2D/test/image/89.JPG",
+      "split": "test",
+      "patient_id": "100746385"
+    },
+    {
+      "case_id": "894",
+      "image_path": "dataset/Vinmec_2D/test/image/894.JPG",
+      "split": "test",
+      "patient_id": "100318897"
+    },
+    {
+      "case_id": "896",
+      "image_path": "dataset/Vinmec_2D/test/image/896.JPG",
+      "split": "test",
+      "patient_id": "100077649"
+    },
+    {
+      "case_id": "897",
+      "image_path": "dataset/Vinmec_2D/test/image/897.JPG",
+      "split": "test",
+      "patient_id": "100762120"
+    },
+    {
+      "case_id": "90",
+      "image_path": "dataset/Vinmec_2D/test/image/90.JPG",
+      "split": "test",
+      "patient_id": "100542895"
+    },
+    {
+      "case_id": "904",
+      "image_path": "dataset/Vinmec_2D/test/image/904.JPG",
+      "split": "test",
+      "patient_id": "100195085"
+    },
+    {
+      "case_id": "906",
+      "image_path": "dataset/Vinmec_2D/test/image/906.JPG",
+      "split": "test",
+      "patient_id": "100384774"
+    },
+    {
+      "case_id": "911",
+      "image_path": "dataset/Vinmec_2D/test/image/911.JPG",
+      "split": "test",
+      "patient_id": "100712048"
+    },
+    {
+      "case_id": "912",
+      "image_path": "dataset/Vinmec_2D/test/image/912.JPG",
+      "split": "test",
+      "patient_id": "100471832"
+    },
+    {
+      "case_id": "916",
+      "image_path": "dataset/Vinmec_2D/test/image/916.JPG",
+      "split": "test",
+      "patient_id": "100518019"
+    },
+    {
+      "case_id": "917",
+      "image_path": "dataset/Vinmec_2D/test/image/917.JPG",
+      "split": "test",
+      "patient_id": "100144383"
+    },
+    {
+      "case_id": "919",
+      "image_path": "dataset/Vinmec_2D/test/image/919.JPG",
+      "split": "test",
+      "patient_id": "100995588"
+    },
+    {
+      "case_id": "921",
+      "image_path": "dataset/Vinmec_2D/test/image/921.JPG",
+      "split": "test",
+      "patient_id": "100453633"
+    },
+    {
+      "case_id": "925",
+      "image_path": "dataset/Vinmec_2D/test/image/925.JPG",
+      "split": "test",
+      "patient_id": "100641599"
+    },
+    {
+      "case_id": "934",
+      "image_path": "dataset/Vinmec_2D/test/image/934.JPG",
+      "split": "test",
+      "patient_id": "100459457"
+    },
+    {
+      "case_id": "936",
+      "image_path": "dataset/Vinmec_2D/test/image/936.JPG",
+      "split": "test",
+      "patient_id": "100601800"
+    },
+    {
+      "case_id": "937",
+      "image_path": "dataset/Vinmec_2D/test/image/937.JPG",
+      "split": "test",
+      "patient_id": "100149715"
+    },
+    {
+      "case_id": "94",
+      "image_path": "dataset/Vinmec_2D/test/image/94.JPG",
+      "split": "test",
+      "patient_id": "100369685"
+    },
+    {
+      "case_id": "944",
+      "image_path": "dataset/Vinmec_2D/test/image/944.JPG",
+      "split": "test",
+      "patient_id": "100673540"
+    },
+    {
+      "case_id": "945",
+      "image_path": "dataset/Vinmec_2D/test/image/945.JPG",
+      "split": "test",
+      "patient_id": "100160891"
+    },
+    {
+      "case_id": "947",
+      "image_path": "dataset/Vinmec_2D/test/image/947.JPG",
+      "split": "test",
+      "patient_id": "100668676"
+    },
+    {
+      "case_id": "948",
+      "image_path": "dataset/Vinmec_2D/test/image/948.JPG",
+      "split": "test",
+      "patient_id": "100601800"
+    },
+    {
+      "case_id": "952",
+      "image_path": "dataset/Vinmec_2D/test/image/952.JPG",
+      "split": "test",
+      "patient_id": "100361249"
+    },
+    {
+      "case_id": "953",
+      "image_path": "dataset/Vinmec_2D/test/image/953.JPG",
+      "split": "test",
+      "patient_id": "100118959"
+    },
+    {
+      "case_id": "966",
+      "image_path": "dataset/Vinmec_2D/test/image/966.JPG",
+      "split": "test",
+      "patient_id": "100160891"
+    },
+    {
+      "case_id": "970",
+      "image_path": "dataset/Vinmec_2D/test/image/970.JPG",
+      "split": "test",
+      "patient_id": "100430749"
+    },
+    {
+      "case_id": "971",
+      "image_path": "dataset/Vinmec_2D/test/image/971.JPG",
+      "split": "test",
+      "patient_id": "100995588"
+    },
+    {
+      "case_id": "973",
+      "image_path": "dataset/Vinmec_2D/test/image/973.JPG",
+      "split": "test",
+      "patient_id": "100934629"
+    },
+    {
+      "case_id": "979",
+      "image_path": "dataset/Vinmec_2D/test/image/979.JPG",
+      "split": "test",
+      "patient_id": "100130192"
+    },
+    {
+      "case_id": "98",
+      "image_path": "dataset/Vinmec_2D/test/image/98.JPG",
+      "split": "test",
+      "patient_id": "100471832"
+    },
+    {
+      "case_id": "985",
+      "image_path": "dataset/Vinmec_2D/test/image/985.JPG",
+      "split": "test",
+      "patient_id": "100555178"
+    },
+    {
+      "case_id": "991",
+      "image_path": "dataset/Vinmec_2D/test/image/991.JPG",
+      "split": "test",
+      "patient_id": "100501916"
+    },
+    {
+      "case_id": "993",
+      "image_path": "dataset/Vinmec_2D/test/image/993.JPG",
+      "split": "test",
+      "patient_id": "100972370"
+    },
+    {
+      "case_id": "998",
+      "image_path": "dataset/Vinmec_2D/test/image/998.JPG",
+      "split": "test",
+      "patient_id": "100459457"
+    }
+  ]
+}

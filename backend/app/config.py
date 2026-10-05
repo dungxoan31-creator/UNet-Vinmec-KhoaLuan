@@ -2,7 +2,10 @@
 Application configuration, storage directory paths, baseline statistics, and shared service instances.
 """
 
+import hashlib
+import json
 import os
+from pathlib import Path
 
 from backend.services.model_service import ModelRegistry
 from backend.services.preprocessor import UltrasoundPreprocessor
@@ -20,7 +23,27 @@ FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
 # Model Checkpoints (Standard U-Net Baseline & Attention U-Net Comparative Variant)
 BASELINE_CHECKPOINT_PATH = os.path.join(PROJECT_ROOT, "checkpoints", "baseline_unet_best.pth")
 ATTENTION_CHECKPOINT_PATH = os.path.join(PROJECT_ROOT, "checkpoints", "best_attention_unet.pth")
-CHECKPOINT_PATH = BASELINE_CHECKPOINT_PATH if os.path.exists(BASELINE_CHECKPOINT_PATH) else ATTENTION_CHECKPOINT_PATH
+
+
+def selected_checkpoint_path(manifest_path: str | Path) -> str | None:
+    """Use a selected checkpoint only when the file matches its recorded SHA-256."""
+    manifest_path = Path(manifest_path)
+    try:
+        selection = json.loads(manifest_path.read_text(encoding="utf-8"))
+        declared = Path(selection["checkpoint"])
+        candidate = declared if declared.is_absolute() else Path(PROJECT_ROOT) / declared
+        if not candidate.is_file() and not declared.is_absolute():
+            candidate = manifest_path.parent / declared
+        digest = hashlib.sha256()
+        with candidate.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return str(candidate) if digest.hexdigest() == selection["checkpoint_sha256"] else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+CHECKPOINT_PATH = selected_checkpoint_path(Path(PROJECT_ROOT) / "evaluation" / "selected_model.json")
 
 # Ensure required runtime directories exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -50,5 +73,5 @@ BASELINE_ACCEPTED_RAW = 253   # ~82.4% direct acceptance rate
 
 # Shared Service Instances
 preprocessor = UltrasoundPreprocessor(target_size=(512, 512))
-model_registry = ModelRegistry(checkpoint_path=CHECKPOINT_PATH if os.path.exists(CHECKPOINT_PATH) else None)
+model_registry = ModelRegistry(checkpoint_path=CHECKPOINT_PATH)
 report_generator = MedicalReportGenerator()

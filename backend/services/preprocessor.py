@@ -399,8 +399,8 @@ class UltrasoundPreprocessor:
         roi_mask = self.compute_roi_mask(padded_gray, transform_params)
         transform_params["roi_mask"] = roi_mask
 
-        # 4. Contrast enhancement
-        enhanced = self.enhance_contrast_and_denoise(padded_gray)
+        # 4. Match the training loader: CLAHE without an additional median filter.
+        enhanced = self.clahe.apply(padded_gray)
 
         # 5. Normalize to [0, 1] float tensor
         norm_float = enhanced.astype(np.float32) / 255.0

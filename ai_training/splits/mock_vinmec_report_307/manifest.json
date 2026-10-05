@@ -1,0 +1,38 @@
+{
+  "title": "Synthetic Patient-Level Split matching Milestone 1 report counts",
+  "report_reference": "docs/reports/BaoCaoTienDoMoc1_NguyenHuuDung_11235559(1).docx",
+  "synthetic_demo_only": true,
+  "usable_for_training": false,
+  "seed": 42,
+  "total_images": 307,
+  "total_patients": 185,
+  "total_empty_masks": 35,
+  "split_level": "synthetic patient groups; no real patient metadata used",
+  "patient_overlap_between_splits": 0,
+  "split_summary": {
+    "train": {
+      "images": 215,
+      "patients": 130,
+      "empty_masks": 25,
+      "image_percentage": 70.03,
+      "empty_mask_percentage": 11.63
+    },
+    "val": {
+      "images": 46,
+      "patients": 27,
+      "empty_masks": 5,
+      "image_percentage": 14.98,
+      "empty_mask_percentage": 10.87
+    },
+    "test": {
+      "images": 46,
+      "patients": 28,
+      "empty_masks": 5,
+      "image_percentage": 14.98,
+      "empty_mask_percentage": 10.87
+    }
+  },
+  "sample_assignment": "Synthetic sample IDs and patient IDs; group sizes are artificial and do not encode real patient relationships.",
+  "label_assignment": "Empty-mask flags are synthetic and assigned to match reported counts; no annotation files were read or altered.",
+  "warning": "This metadata is only for teaching/demo of split logic. It is not Vinmec data, not verified Patient-Level Split evidence, and must not be used to train, evaluate, or support clinical claims."
+}

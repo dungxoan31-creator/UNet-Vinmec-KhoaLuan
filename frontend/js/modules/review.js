@@ -623,3 +623,147 @@ function printCurrentReport() {
         window.print();
     }, 200);
 }
+
+function dualMaskToRle(mask) {
+    const pixels = mask.getContext('2d').getImageData(0, 0, 512, 512).data;
+    const first = pixels[3] > 0 ? 1 : 0;
+    const counts = [];
+    let current = first;
+    let length = 0;
+    let positive = false;
+    for (let index = 3; index < pixels.length; index += 4) {
+        const value = pixels[index] > 0 ? 1 : 0;
+        if (value) positive = true;
+        if (value === current) length++;
+        else { counts.push(length); length = 1; current = value; }
+    }
+    counts.push(length);
+    return { rle: { shape: [512, 512], counts, first_val: first, encoding: 'standard_rle' }, positive };
+}
+
+function sameDualRle(left, right) {
+    return left.first_val === right.first_val && left.counts.length === right.counts.length
+        && left.counts.every((count, index) => count === right.counts[index]);
+}
+
+function updateDualApprovalStatus() {
+    const complete = ['R', 'L'].every(side => dualCase.sides[side].approved && !dualCase.sides[side].saving);
+    const label = document.getElementById('dualOverallStatus');
+    label.textContent = complete ? 'ĐÃ LƯU RÀ SOÁT · R + L' : 'Chờ rà soát đủ R và L';
+    label.classList.toggle('is-complete', complete);
+    document.getElementById('dualOpenReport').disabled = !complete;
+    document.getElementById('dualPrintBtn').disabled = !complete;
+}
+
+function invalidateDualApproval(side) {
+    const item = dualCase.sides[side];
+    if (!item.prediction) return;
+    item.approved = false;
+    item.reviewId = null;
+    document.getElementById(`dualStatus${side}`).textContent = 'Đã chỉnh sửa · cần lưu lại';
+    const button = document.getElementById(`dualApprove${side}`);
+    button.textContent = `Xác nhận & lưu ${side}`;
+    button.classList.remove('is-approved');
+    updateDualApprovalStatus();
+}
+
+async function approveDualSide(side) {
+    const item = dualCase.sides[side];
+    if (!item.prediction || !item.mask || item.saving) return;
+    const { rle, positive } = dualMaskToRle(item.mask);
+    const action = sameDualRle(rle, item.prediction.rle_mask) ? 'ACCEPTED_RAW'
+        : positive ? 'MODIFIED' : 'REJECTED_ALL';
+    item.saving = true;
+    const button = document.getElementById(`dualApprove${side}`);
+    const notes = document.getElementById(`dualNotes${side}`);
+    notes.disabled = true;
+    button.disabled = true;
+    updateDualApprovalStatus();
+    button.textContent = 'Đang lưu kết quả…';
+    try {
+        const response = await fetch(`${API_BASE}/api/review`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image_id: item.imageId,
+                study_id: dualCase.studyId,
+                prediction_id: item.prediction.prediction_id,
+                doctor_id: currentUser?.username || 'UNVERIFIED_REVIEWER',
+                doctor_action: action,
+                verified_mask_rle: rle,
+                lesion_type: 'UNSPECIFIED',
+                clinical_notes: document.getElementById(`dualNotes${side}`).value.trim(),
+                time_spent_seconds: Math.max(1, Math.round((performance.now() - (item.reviewStartedAt || performance.now())) / 1000))
+            })
+        });
+        if (!response.ok) {
+            const detail = (await response.json().catch(() => ({}))).detail;
+            throw new Error(detail || `Không thể lưu rà soát bên ${side}.`);
+        }
+        const review = await response.json();
+        item.approved = true;
+        item.reviewId = review.review_id;
+        document.getElementById(`dualStatus${side}`).textContent = 'Đã lưu rà soát';
+        button.classList.add('is-approved');
+        button.textContent = `Đã lưu ${side} · lưu lại`;
+        updateDualApprovalStatus();
+        showToast(`Đã lưu mask đã rà soát bên ${side}.`);
+    } catch (error) {
+        item.approved = false;
+        item.reviewId = null;
+        document.getElementById(`dualStatus${side}`).textContent = 'Chưa lưu được rà soát';
+        button.classList.remove('is-approved');
+        button.textContent = `Xác nhận & lưu ${side}`;
+        showToast(error.message, false);
+    } finally {
+        item.saving = false;
+        notes.disabled = false;
+        button.disabled = false;
+        updateDualApprovalStatus();
+    }
+}
+
+async function openDualReport() {
+    if (!dualCase.sides.R.approved || !dualCase.sides.L.approved || dualCase.sides.R.saving || dualCase.sides.L.saving || !dualCase.studyId) {
+        showToast('Cần đủ hai ảnh và hai kết quả rà soát đã lưu.', false);
+        return false;
+    }
+    try {
+        const response = await fetch(`${API_BASE}/api/cases/${dualCase.studyId}`);
+        if (!response.ok) throw new Error('Không thể kiểm tra trạng thái ca trên máy chủ.');
+        const study = await response.json();
+        const sides = Object.fromEntries(study.images.filter(image => image.laterality).map(image => [image.laterality, image]));
+        if (!sides.R?.review || !sides.L?.review || study.status !== 'REVIEWED') {
+            throw new Error('Máy chủ chưa ghi nhận đủ ảnh và xác nhận của hai bên R/L.');
+        }
+        renderDualReport(study);
+        navigateTo('dual_report');
+        return true;
+    } catch (error) {
+        showToast(error.message, false);
+        return false;
+    }
+}
+
+function renderDualReport(study) {
+    document.getElementById('dualReportDate').textContent = study.study_date || '—';
+    document.getElementById('dualReportPatient').textContent = `Mã hồ sơ: ${study.patient_id || '—'}`;
+    document.getElementById('dualReportStudy').textContent = `Mã ca: ${study.study_code || '—'}`;
+    for (const side of ['R', 'L']) {
+        const item = dualCase.sides[side];
+        const metrics = item.prediction?.measurements || {};
+        document.getElementById(`dualReportOriginal${side}`).src = item.prediction.original_image_base64;
+        document.getElementById(`dualReportMask${side}`).src = item.mask.toDataURL('image/png');
+        document.getElementById(`dualReportMeasures${side}`).textContent = metrics.calibrated && Number.isFinite(metrics.max_diameter_mm) && Number.isFinite(metrics.ortho_diameter_mm)
+            ? `D₁ ${metrics.max_diameter_mm.toFixed(1)} mm · D₂ ${metrics.ortho_diameter_mm.toFixed(1)} mm · D₃ chưa đo`
+            : 'Chưa hiệu chuẩn kích thước vật lý';
+        document.getElementById(`dualReportNotes${side}`).textContent = document.getElementById(`dualNotes${side}`).value.trim() || 'Không có nhận xét bổ sung.';
+        document.getElementById(`dualReportApproval${side}`).textContent = `Đã lưu rà soát · ${item.reviewId}`;
+    }
+}
+
+async function printDualReport() {
+    if (!(await openDualReport())) return;
+    document.body.classList.add('pacs-print-ready');
+    window.addEventListener('afterprint', () => document.body.classList.remove('pacs-print-ready'), { once: true });
+    window.print();
+}

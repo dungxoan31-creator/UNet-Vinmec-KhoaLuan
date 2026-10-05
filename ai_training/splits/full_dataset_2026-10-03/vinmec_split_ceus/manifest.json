@@ -1,0 +1,20 @@
+{
+  "group": "Vinmec_CEUS",
+  "source_mapping_tables": [
+    "vinmec_ceus_mapping.csv"
+  ],
+  "source_pairs": 170,
+  "train": 144,
+  "validation": 26,
+  "test": 0,
+  "split_level": "sample-level",
+  "patient_id_status": "Patient IDs unavailable; patient-level independence is not verified",
+  "source_test_included_in_pool": false,
+  "independent_test_available": false,
+  "seed": 42,
+  "validation_fraction": 0.15,
+  "csv_sha256": {
+    "train": "3f841e13e2766dcb87f3643945eab228430a3fdc1d24a6c22f7a279a306a8344",
+    "val": "d72704b8acefa6bed2fd9600e371d76c2b8abf0bc6efd3611979675804c8e397"
+  }
+}

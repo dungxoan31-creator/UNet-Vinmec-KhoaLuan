@@ -1,0 +1,87 @@
+{
+  "seed": 42,
+  "validation_fraction": 0.15,
+  "groups": {
+    "MMVinmec_2D": {
+      "group": "MMVinmec_2D",
+      "source_mapping_tables": [
+        "vinmec_2d_mapping.csv"
+      ],
+      "source_pairs": 1469,
+      "train": 1249,
+      "validation": 220,
+      "test": 0,
+      "split_level": "sample-level",
+      "patient_id_status": "Patient IDs unavailable; patient-level independence is not verified",
+      "source_test_included_in_pool": false,
+      "independent_test_available": false,
+      "seed": 42,
+      "validation_fraction": 0.15,
+      "csv_sha256": {
+        "train": "6c19aba26f4527380823b3ad8d8f8dc8becbd0016313198e8a050c35b75a895d",
+        "val": "db3ce467539b4d3106a199f249454734576a920ef624e07e135023b6f047a7bd"
+      }
+    },
+    "MMVinmec_CEUS": {
+      "group": "MMVinmec_CEUS",
+      "source_mapping_tables": [
+        "vinmec_ceus_mapping.csv"
+      ],
+      "source_pairs": 170,
+      "train": 144,
+      "validation": 26,
+      "test": 0,
+      "split_level": "sample-level",
+      "patient_id_status": "Patient IDs unavailable; patient-level independence is not verified",
+      "source_test_included_in_pool": false,
+      "independent_test_available": false,
+      "seed": 42,
+      "validation_fraction": 0.15,
+      "csv_sha256": {
+        "train": "361efb7a533e5543ef3d009846e96a6cb073d333b75db180603c39ac383f4e35",
+        "val": "2c45511de89bb5fbc281ba0b450d4100ee635e5467c26d8417839392d548c78c"
+      }
+    },
+    "Vinmec_2D": {
+      "group": "Vinmec_2D",
+      "source_mapping_tables": [
+        "vinmec_2d_train_mapping.csv",
+        "vinmec_2d_test_mapping.csv"
+      ],
+      "source_pairs": 1202,
+      "train": 1022,
+      "validation": 180,
+      "test": 0,
+      "split_level": "sample-level",
+      "patient_id_status": "Patient IDs unavailable; patient-level independence is not verified",
+      "source_test_included_in_pool": true,
+      "independent_test_available": false,
+      "seed": 42,
+      "validation_fraction": 0.15,
+      "csv_sha256": {
+        "train": "45333f1804dffdda0b279b1d74896722ec6c06af621e5e0852409870d0f5ac2f",
+        "val": "cd1f498baf03b3c4b244c9c9f3f476594eda7e28210581cfe3f5370414ce0189"
+      }
+    },
+    "Vinmec_CEUS": {
+      "group": "Vinmec_CEUS",
+      "source_mapping_tables": [
+        "vinmec_ceus_mapping.csv"
+      ],
+      "source_pairs": 170,
+      "train": 144,
+      "validation": 26,
+      "test": 0,
+      "split_level": "sample-level",
+      "patient_id_status": "Patient IDs unavailable; patient-level independence is not verified",
+      "source_test_included_in_pool": false,
+      "independent_test_available": false,
+      "seed": 42,
+      "validation_fraction": 0.15,
+      "csv_sha256": {
+        "train": "3f841e13e2766dcb87f3643945eab228430a3fdc1d24a6c22f7a279a306a8344",
+        "val": "d72704b8acefa6bed2fd9600e371d76c2b8abf0bc6efd3611979675804c8e397"
+      }
+    }
+  }
+}

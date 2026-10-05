@@ -1,0 +1,26 @@
+{
+  "reference": "Milestone 1, 307 records; not the 2026-10-03 retraining split",
+  "split_counts": {
+    "train": 215,
+    "val": 46,
+    "test": 46
+  },
+  "archive_membership_matches_current": true,
+  "archive_split_sha256": {
+    "train": "f008f1169e67bc82c3c41d43b4afa4443c3cdb334accd5827092083fecbd2c6d",
+    "val": "6596f673b9dfedffb87d9fa0374ff4aae637b04bff0426e82719e42759f120b8",
+    "test": "b3ddebc86023344c1727cd3b7011dcbb762ed61e53ca37aa0932c38858591c90"
+  },
+  "recorded_pid_labels": 185,
+  "recorded_pid_labels_disjoint": true,
+  "source_patient_identity_verified": false,
+  "declared_empty_mask_records": 35,
+  "missing_empty_mask_files": 0,
+  "derived_empty_mask_files": 35,
+  "missing_nonempty_mask_files": 0,
+  "missing_image_files": 0,
+  "unreadable_image_mask_pairs": 0,
+  "native_positive_masks_for_empty_records": 35,
+  "native_masks_missing_for_empty_records": 0,
+  "note": "Declared empty controls are derived zero masks for pipeline compatibility, not verified clinical negatives. Native labels of those same images contain positive pixels."
+}

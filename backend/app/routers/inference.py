@@ -31,15 +31,36 @@ from backend.schemas.schemas import ImageValidationResult, PredictionResponse
 router = APIRouter(tags=["Image & Inference"])
 
 
-def extract_dicom_calibration_spacing(file_path: str) -> float:
+def decode_ultrasound_image(file_path: str, grayscale: bool = False):
+    """Decode raster or DICOM pixels for upload, IQA and inference."""
+    image = cv2_imread_unicode(file_path, cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR)
+    if image is not None or not file_path.lower().endswith(".dcm"):
+        return image
+    try:
+        import pydicom
+
+        dicom = pydicom.dcmread(file_path)
+        image = dicom.pixel_array
+        if image.ndim == 4 or (image.ndim == 3 and int(getattr(dicom, "SamplesPerPixel", 1)) == 1):
+            image = image[0]
+        if image.dtype != "uint8":
+            image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        if grayscale and image.ndim == 3:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        return image
+    except Exception:
+        return None
+
+
+def extract_dicom_calibration_spacing(file_path: str) -> float | None:
     """
     Extracts true physical millimeter spacing per pixel from DICOM tags:
     1. Tag (0018, 6011) Sequence of Ultrasound Regions -> PhysicalDeltaX / PhysicalDeltaY
     2. Tag (0028, 0030) Pixel Spacing -> [Row Spacing, Column Spacing]
-    Defaults to 0.1 mm/px if not present or for standard raster images.
+    Returns None when no physical calibration is available.
     """
     if not file_path.lower().endswith(".dcm"):
-        return 0.1
+        return None
     try:
         import pydicom
 
@@ -63,20 +84,34 @@ def extract_dicom_calibration_spacing(file_path: str) -> float:
             return round(float(pixel_spacing[0]), 4)
     except Exception as e:
         print(f"[DICOM Calibration] Tag read notice: {e}")
-    return 0.1
+    return None
 
 
 @router.post("/api/upload")
 async def upload_image(
     file: UploadFile = File(...),
     study_id: str | None = Form(None),
-    anonymized_pid: str = Form("ANON-VINMEC-185"),
-    patient_age: str = Form("32"),
+    laterality: str | None = Form(None),
+    anonymized_pid: str | None = Form(None),
+    patient_age: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     """
     Upload an ultrasound image, validate format & size, store securely, and attach to a study.
     """
+    if laterality is not None and laterality not in {"R", "L"}:
+        raise HTTPException(status_code=422, detail="Bên khảo sát phải là R hoặc L.")
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first() if study_id else None
+    if study_id and study is None:
+        raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại.")
+    if laterality and study and study.ovary_side != "BOTH":
+        raise HTTPException(status_code=422, detail="Ảnh R/L chỉ được gắn vào ca khảo sát hai bên.")
+    if study_id and laterality:
+        existing = db.query(ImageModel).filter(
+            ImageModel.study_id == study_id, ImageModel.laterality == laterality
+        ).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Ca khám đã có ảnh cho bên khảo sát này.")
     safe_filename = os.path.basename(file.filename or "uploaded_image.png")
     ext = os.path.splitext(safe_filename)[1].lower()
     if ext not in [".png", ".jpg", ".jpeg", ".dcm"]:
@@ -104,18 +139,7 @@ async def upload_image(
     calibrated_spacing = extract_dicom_calibration_spacing(file_path)
 
     # Read image with OpenCV to get dimensions and verify validity
-    img_np = cv2_imread_unicode(file_path)
-    if img_np is None and ext == ".dcm":
-        try:
-            import pydicom
-
-            dcm_data = pydicom.dcmread(file_path)
-            img_np = dcm_data.pixel_array
-            # Normalize to 8-bit uint8 if 16-bit
-            if img_np.dtype != "uint8":
-                img_np = cv2.normalize(img_np, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        except Exception:
-            img_np = None
+    img_np = decode_ultrasound_image(file_path)
 
     if img_np is None:
         if os.path.exists(file_path):
@@ -125,15 +149,12 @@ async def upload_image(
     h, w = img_np.shape[:2]
 
     # Link or Create Study & Patient
-    if study_id:
-        study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
-        if not study:
-            raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại.")
-    else:
+    if not study_id:
+        anonymized_pid = anonymized_pid or f"ANON-UPLOAD-{uuid.uuid4().hex[:12].upper()}"
         patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == anonymized_pid).first()
         if not patient:
             patient = PatientModel(
-                id=str(uuid.uuid4()), anonymized_pid=anonymized_pid, age_bucket=f"{patient_age} (Tuổi sinh đẻ)"
+                id=str(uuid.uuid4()), anonymized_pid=anonymized_pid, age_bucket=patient_age
             )
             db.add(patient)
             db.commit()
@@ -145,8 +166,8 @@ async def upload_image(
             study_code=f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}",
             study_date=datetime.now().strftime("%Y-%m-%d"),
             status="PENDING",
-            device_vendor="GE Voluson E10",
-            probe_type="TRANSVAGINAL_2D",
+            device_vendor=None,
+            probe_type=None,
         )
         db.add(study)
         db.commit()
@@ -155,6 +176,7 @@ async def upload_image(
         id=image_id,
         study_id=study.id,
         filename=safe_filename,
+        laterality=laterality,
         raw_path=file_path,
         width=w,
         height=h,
@@ -173,6 +195,7 @@ async def upload_image(
             "dimensions": [w, h],
             "size_kb": round(len(contents) / 1024, 1),
             "study_id": study.id,
+            "laterality": laterality,
         },
     )
     db.add(audit_log)
@@ -181,11 +204,30 @@ async def upload_image(
     return {
         "image_id": image_id,
         "study_id": study.id,
+        "laterality": laterality,
         "filename": safe_filename,
         "dimensions": [w, h],
         "size_kb": round(len(contents) / 1024, 1),
         "message": "Upload và kiểm tra file thành công.",
     }
+
+
+@router.get("/api/images/{image_id}/viewer-source")
+def get_viewer_source(image_id: str, db: Session = Depends(get_db)):
+    """Return the same preprocessed pixels used for inference when reopening a case."""
+    image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not image_record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh của ca khảo sát.")
+    if not os.path.isfile(image_record.raw_path):
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp ảnh gốc trên máy chủ.")
+    decoded = decode_ultrasound_image(image_record.raw_path, grayscale=True)
+    if decoded is None:
+        raise HTTPException(status_code=422, detail="Không thể giải mã ảnh của ca khảo sát.")
+    _, padded_gray, _, _ = preprocessor.preprocess_for_inference(decoded)
+    encoded, buffer = cv2.imencode(".png", padded_gray)
+    if not encoded:
+        raise HTTPException(status_code=500, detail="Không thể tạo ảnh cho viewer.")
+    return {"image_id": image_id, "original_image_base64": f"data:image/png;base64,{base64.b64encode(buffer).decode('ascii')}"}
 
 
 @router.post("/api/validate-image", response_model=ImageValidationResult)
@@ -202,7 +244,7 @@ def validate_image_quality(image_id: str, db: Session = Depends(get_db)):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File ảnh không tồn tại trên hệ thống lưu trữ.")
 
-    img_np = cv2_imread_unicode(file_path)
+    img_np = decode_ultrasound_image(file_path)
     if img_np is None:
         raise HTTPException(status_code=400, detail="File ảnh bị lỗi không thể giải mã.")
 
@@ -240,6 +282,8 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
     uncertainty estimation, and automated caliper measurement.
     Rejects unsuitable images with HTTP 422.
     """
+    if not model_registry.get_primary_adapter().is_loaded:
+        raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
     img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not img_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
@@ -251,7 +295,7 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="File ảnh không tồn tại trên ổ đĩa.")
 
     # Read image with unicode support
-    img_np = cv2_imread_unicode(file_path)
+    img_np = decode_ultrasound_image(file_path, grayscale=True)
     if img_np is None:
         raise HTTPException(status_code=400, detail="Không thể đọc dữ liệu ảnh y tế.")
 
@@ -269,7 +313,7 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
     tensor, padded_gray, transform_params, iqa_report = preprocessor.preprocess_for_inference(img_np)
 
     # 2. Run Pure Neural Network Inference via ModelRegistry
-    pixel_spacing = getattr(img_record, "pixel_spacing_mm", 0.1) or 0.1
+    pixel_spacing = img_record.pixel_spacing_mm
     roi_mask = transform_params.get("roi_mask")
     inference_result = model_registry.predict(
         tensor, padded_gray, pixel_spacing_mm=pixel_spacing, roi_mask=roi_mask
@@ -281,10 +325,12 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
     _, orig_buffer = cv2.imencode(".png", padded_gray)
     orig_b64 = f"data:image/png;base64,{base64.b64encode(orig_buffer).decode('utf-8')}"
 
+    prediction_id = None
     # If real DB record, save prediction and update study status
     if not image_id.startswith("sample_"):
+        prediction_id = str(uuid.uuid4())
         pred_record = PredictionModel(
-            id=str(uuid.uuid4()),
+            id=prediction_id,
             image_id=image_id,
             model_version=inference_result.get("provenance", {}).get("model_version", "AttentionUNet-v1.2"),
             inference_time_ms=inference_duration_ms,
@@ -323,6 +369,7 @@ def run_ai_prediction(image_id: str, db: Session = Depends(get_db)):
 
     return {
         "image_id": image_id,
+        "prediction_id": prediction_id,
         "study_id": study_id,
         "filename": filename,
         "confidence_score": inference_result["confidence_score"],

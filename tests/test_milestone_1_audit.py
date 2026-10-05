@@ -21,19 +21,19 @@ Formally verifies all 16 mandatory milestone requirements:
 
 import os
 import sys
+
 import numpy as np
 import pandas as pd
-import pytest
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from ai_training.dataset_loader import OvarianUltrasoundDataset, get_dataloaders
+from ai_training.metrics_clinical import compute_sample_clinical_metrics
 from backend.models.unet import StandardUNet
 from backend.services.preprocessor import UltrasoundPreprocessor
-from ai_training.dataset_loader import OvarianUltrasoundDataset, get_dataloaders
-from ai_training.metrics_clinical import compute_sample_clinical_metrics, compute_dataset_clinical_summary
 
 
 # =========================================================================

@@ -1,0 +1,21 @@
+{
+  "seed": 42,
+  "epochs": 12,
+  "batch_size": 1,
+  "learning_rate": 0.001,
+  "patience": 8,
+  "gradient_clip": 1.0,
+  "initialization": "random",
+  "model": "Standard U-Net",
+  "base_filters": 32,
+  "preprocessing": "grayscale, letterbox 512x512, CLAHE, divide by 255",
+  "loss": "0.5 BCE + 0.5 Dice",
+  "splits_dir": "ai_training/splits/full_dataset_2026-10-03/vinmec_ceus",
+  "split_sha256": {
+    "train": "3f841e13e2766dcb87f3643945eab228430a3fdc1d24a6c22f7a279a306a8344",
+    "val": "d72704b8acefa6bed2fd9600e371d76c2b8abf0bc6efd3611979675804c8e397",
+    "test": "775988bead877d7a76010f69179e9a50d0b36bc2ae63fade4ea44c660601a9fd"
+  },
+  "validation_metric": "mean per-image Dice at 512x512, threshold 0.5",
+  "patient_split_status": "image-level only; verified patient IDs unavailable"
+}
