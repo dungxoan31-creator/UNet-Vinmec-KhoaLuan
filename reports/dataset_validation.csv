@@ -1,0 +1,7 @@
+﻿dataset,exists,file_count,image_files_in_adapted_dirs,annotation_files_in_adapted_dirs,label_files_in_adapted_dirs,mask_files_in_adapted_dirs,candidate_pairs,complete_image_target_pairs,missing_targets,orphan_targets,duplicate_image_ids,duplicate_target_ids,unreadable_files,shape_mismatches,invalid_or_empty_targets,unresolved_mapping_count,patient_id_status
+Vinmec,True,4926,1639,3278,0,0,1639,1639,0,0,0,1639,0,0,0,0,No verified source patient IDs found; M1 synthetic IDs are structural only
+Vinmec_2D,True,2404,1202,0,1202,0,1202,1202,0,0,0,0,0,0,0,0,No verified source patient IDs found; M1 synthetic IDs are structural only
+Vinmec_CEUS,True,340,170,0,170,0,170,170,0,0,0,0,0,0,0,0,No verified source patient IDs found; M1 synthetic IDs are structural only
+vinmec_m1_307,True,614,307,0,0,307,307,272,0,0,0,0,0,35,35,0,No verified source patient IDs found; M1 synthetic IDs are structural only
+vinmec_ovarian,True,2779,1372,0,1372,35,1372,1372,0,0,0,0,0,0,0,0,No verified source patient IDs found; M1 synthetic IDs are structural only
+vinmec_splits,True,614,307,0,0,307,307,272,0,0,0,0,0,35,35,0,No verified source patient IDs found; M1 synthetic IDs are structural only

@@ -1,0 +1,914 @@
+{
+  "status": "BLOCKED_BEFORE_TRAINING",
+  "project_root": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan",
+  "framework": "PyTorch",
+  "training_entrypoints": {
+    "baseline": "ai_training/train_baseline_unet.py (uses train/val split; default split path must be overridden explicitly)",
+    "full_data": "ai_training/train_full_unet.py (currently includes the source test folder in its training pair groups and has no validation loader; unsafe for requested run)"
+  },
+  "datasets": {
+    "Vinmec": {
+      "exists": true,
+      "file_count": 4926,
+      "extension_counts": {
+        ".jpg": 1639,
+        ".png": 3278,
+        ".txt": 9
+      },
+      "directories": [
+        "Vinmec_2d",
+        "Vinmec_2d/annotations",
+        "Vinmec_2d/images",
+        "Vinmec_3d",
+        "Vinmec_3d/annotations",
+        "Vinmec_3d/images"
+      ],
+      "image_files_in_adapted_dirs": 1639,
+      "annotation_files_in_adapted_dirs": 3278,
+      "label_files_in_adapted_dirs": 0,
+      "mask_files_in_adapted_dirs": 0,
+      "adapter_groups": [
+        "Vinmec_2D",
+        "Vinmec_3D_source"
+      ],
+      "sample_records": 1639,
+      "candidate_pairs": 1639,
+      "complete_image_target_pairs": 1639,
+      "missing_targets": 0,
+      "orphan_targets": 0,
+      "duplicate_image_ids": 0,
+      "duplicate_target_ids": 1639,
+      "unreadable_files": 0,
+      "shape_mismatches": 0,
+      "invalid_or_empty_targets": 0,
+      "unresolved_mapping_count": 0,
+      "patient_id_status": "No verified source patient IDs found; M1 synthetic IDs are structural only",
+      "image_channel_distribution": {
+        "Vinmec_2D": {
+          "3": 1469
+        },
+        "Vinmec_3D_source": {
+          "3": 170
+        }
+      },
+      "target_channel_distribution": {
+        "Vinmec_2D": {
+          "1": 1469
+        },
+        "Vinmec_3D_source": {
+          "1": 170
+        }
+      }
+    },
+    "Vinmec_2D": {
+      "exists": true,
+      "file_count": 2404,
+      "extension_counts": {
+        ".jpg": 1202,
+        ".png": 1202
+      },
+      "directories": [
+        "test",
+        "test/image",
+        "test/label",
+        "test/label/black_write",
+        "train",
+        "train/train_image",
+        "train/train_label",
+        "train/train_label/label"
+      ],
+      "image_files_in_adapted_dirs": 1202,
+      "annotation_files_in_adapted_dirs": 0,
+      "label_files_in_adapted_dirs": 1202,
+      "mask_files_in_adapted_dirs": 0,
+      "adapter_groups": [
+        "Vinmec_2D_source_train",
+        "Vinmec_2D_source_test"
+      ],
+      "sample_records": 1202,
+      "candidate_pairs": 1202,
+      "complete_image_target_pairs": 1202,
+      "missing_targets": 0,
+      "orphan_targets": 0,
+      "duplicate_image_ids": 0,
+      "duplicate_target_ids": 0,
+      "unreadable_files": 0,
+      "shape_mismatches": 0,
+      "invalid_or_empty_targets": 0,
+      "unresolved_mapping_count": 0,
+      "patient_id_status": "No verified source patient IDs found; M1 synthetic IDs are structural only",
+      "image_channel_distribution": {
+        "Vinmec_2D_source_train": {
+          "3": 820
+        },
+        "Vinmec_2D_source_test": {
+          "3": 382
+        }
+      },
+      "target_channel_distribution": {
+        "Vinmec_2D_source_train": {
+          "1": 820
+        },
+        "Vinmec_2D_source_test": {
+          "1": 382
+        }
+      }
+    },
+    "Vinmec_CEUS": {
+      "exists": true,
+      "file_count": 340,
+      "extension_counts": {
+        ".jpg": 170,
+        ".png": 170
+      },
+      "directories": [
+        "image",
+        "label"
+      ],
+      "image_files_in_adapted_dirs": 170,
+      "annotation_files_in_adapted_dirs": 0,
+      "label_files_in_adapted_dirs": 170,
+      "mask_files_in_adapted_dirs": 0,
+      "adapter_groups": [
+        "Vinmec_CEUS_subset"
+      ],
+      "sample_records": 170,
+      "candidate_pairs": 170,
+      "complete_image_target_pairs": 170,
+      "missing_targets": 0,
+      "orphan_targets": 0,
+      "duplicate_image_ids": 0,
+      "duplicate_target_ids": 0,
+      "unreadable_files": 0,
+      "shape_mismatches": 0,
+      "invalid_or_empty_targets": 0,
+      "unresolved_mapping_count": 0,
+      "patient_id_status": "No verified source patient IDs found; M1 synthetic IDs are structural only",
+      "image_channel_distribution": {
+        "Vinmec_CEUS_subset": {
+          "3": 170
+        }
+      },
+      "target_channel_distribution": {
+        "Vinmec_CEUS_subset": {
+          "1": 170
+        }
+      }
+    },
+    "vinmec_m1_307": {
+      "exists": true,
+      "file_count": 614,
+      "extension_counts": {
+        ".jpg": 307,
+        ".png": 307
+      },
+      "directories": [
+        "images",
+        "masks"
+      ],
+      "image_files_in_adapted_dirs": 307,
+      "annotation_files_in_adapted_dirs": 0,
+      "label_files_in_adapted_dirs": 0,
+      "mask_files_in_adapted_dirs": 307,
+      "adapter_groups": [
+        "M1_307"
+      ],
+      "sample_records": 307,
+      "candidate_pairs": 307,
+      "complete_image_target_pairs": 272,
+      "missing_targets": 0,
+      "orphan_targets": 0,
+      "duplicate_image_ids": 0,
+      "duplicate_target_ids": 0,
+      "unreadable_files": 0,
+      "shape_mismatches": 35,
+      "invalid_or_empty_targets": 35,
+      "unresolved_mapping_count": 0,
+      "patient_id_status": "No verified source patient IDs found; M1 synthetic IDs are structural only",
+      "image_channel_distribution": {
+        "M1_307": {
+          "3": 307
+        }
+      },
+      "target_channel_distribution": {
+        "M1_307": {
+          "1": 307
+        }
+      }
+    },
+    "vinmec_ovarian": {
+      "exists": true,
+      "file_count": 2779,
+      "extension_counts": {
+        ".jpg": 1372,
+        ".png": 1407
+      },
+      "directories": [
+        "OTU_2D",
+        "OTU_2D/test",
+        "OTU_2D/test/image",
+        "OTU_2D/test/label",
+        "OTU_2D/test/label/black_write",
+        "OTU_2D/train",
+        "OTU_2D/train/train_image",
+        "OTU_2D/train/train_label",
+        "OTU_2D/train/train_label/label",
+        "OTU_CEUS",
+        "OTU_CEUS/image",
+        "OTU_CEUS/label",
+        "empty_masks"
+      ],
+      "image_files_in_adapted_dirs": 1372,
+      "annotation_files_in_adapted_dirs": 0,
+      "label_files_in_adapted_dirs": 1372,
+      "mask_files_in_adapted_dirs": 35,
+      "adapter_groups": [
+        "Ovarian_2D_train",
+        "Ovarian_2D_test",
+        "Ovarian_CEUS"
+      ],
+      "sample_records": 1372,
+      "candidate_pairs": 1372,
+      "complete_image_target_pairs": 1372,
+      "missing_targets": 0,
+      "orphan_targets": 0,
+      "duplicate_image_ids": 0,
+      "duplicate_target_ids": 0,
+      "unreadable_files": 0,
+      "shape_mismatches": 0,
+      "invalid_or_empty_targets": 0,
+      "unresolved_mapping_count": 0,
+      "patient_id_status": "No verified source patient IDs found; M1 synthetic IDs are structural only",
+      "image_channel_distribution": {
+        "Ovarian_2D_train": {
+          "3": 820
+        },
+        "Ovarian_2D_test": {
+          "3": 382
+        },
+        "Ovarian_CEUS": {
+          "3": 170
+        }
+      },
+      "target_channel_distribution": {
+        "Ovarian_2D_train": {
+          "1": 820
+        },
+        "Ovarian_2D_test": {
+          "1": 382
+        },
+        "Ovarian_CEUS": {
+          "1": 170
+        }
+      }
+    },
+    "vinmec_splits": {
+      "exists": true,
+      "file_count": 614,
+      "extension_counts": {
+        ".jpg": 307,
+        ".png": 307
+      },
+      "directories": [
+        "test",
+        "test/images",
+        "test/masks",
+        "train",
+        "train/images",
+        "train/masks",
+        "val",
+        "val/images",
+        "val/masks"
+      ],
+      "image_files_in_adapted_dirs": 307,
+      "annotation_files_in_adapted_dirs": 0,
+      "label_files_in_adapted_dirs": 0,
+      "mask_files_in_adapted_dirs": 307,
+      "adapter_groups": [
+        "M1_train",
+        "M1_val",
+        "M1_test"
+      ],
+      "sample_records": 307,
+      "candidate_pairs": 307,
+      "complete_image_target_pairs": 272,
+      "missing_targets": 0,
+      "orphan_targets": 0,
+      "duplicate_image_ids": 0,
+      "duplicate_target_ids": 0,
+      "unreadable_files": 0,
+      "shape_mismatches": 35,
+      "invalid_or_empty_targets": 35,
+      "unresolved_mapping_count": 0,
+      "patient_id_status": "No verified source patient IDs found; M1 synthetic IDs are structural only",
+      "image_channel_distribution": {
+        "M1_train": {
+          "3": 215
+        },
+        "M1_val": {
+          "3": 46
+        },
+        "M1_test": {
+          "3": 46
+        }
+      },
+      "target_channel_distribution": {
+        "M1_train": {
+          "1": 215
+        },
+        "M1_val": {
+          "1": 46
+        },
+        "M1_test": {
+          "1": 46
+        }
+      }
+    }
+  },
+  "dataset_table_before_training": [
+    {
+      "dataset": "Vinmec",
+      "candidate_records_before_cross_root_dedup": 1639,
+      "valid_image_target_pairs": 1639,
+      "train_evidence_records": 1602,
+      "validation_evidence_records": 948,
+      "test_evidence_records": 415,
+      "conflicting_split_records": 936,
+      "count_note": "Per-root candidate counts overlap across roots; do not sum as independent samples."
+    },
+    {
+      "dataset": "Vinmec_2D",
+      "candidate_records_before_cross_root_dedup": 1202,
+      "valid_image_target_pairs": 1202,
+      "train_evidence_records": 1197,
+      "validation_evidence_records": 730,
+      "test_evidence_records": 410,
+      "conflicting_split_records": 747,
+      "count_note": "Per-root candidate counts overlap across roots; do not sum as independent samples."
+    },
+    {
+      "dataset": "Vinmec_CEUS",
+      "candidate_records_before_cross_root_dedup": 170,
+      "valid_image_target_pairs": 170,
+      "train_evidence_records": 155,
+      "validation_evidence_records": 113,
+      "test_evidence_records": 5,
+      "conflicting_split_records": 101,
+      "count_note": "Per-root candidate counts overlap across roots; do not sum as independent samples."
+    },
+    {
+      "dataset": "vinmec_m1_307",
+      "candidate_records_before_cross_root_dedup": 307,
+      "valid_image_target_pairs": 272,
+      "train_evidence_records": 303,
+      "validation_evidence_records": 196,
+      "test_evidence_records": 117,
+      "conflicting_split_records": 212,
+      "count_note": "Per-root candidate counts overlap across roots; do not sum as independent samples."
+    },
+    {
+      "dataset": "vinmec_ovarian",
+      "candidate_records_before_cross_root_dedup": 1407,
+      "valid_image_target_pairs": 1372,
+      "train_evidence_records": 1352,
+      "validation_evidence_records": 843,
+      "test_evidence_records": 415,
+      "conflicting_split_records": 848,
+      "count_note": "Per-root candidate counts overlap across roots; do not sum as independent samples."
+    },
+    {
+      "dataset": "vinmec_splits",
+      "candidate_records_before_cross_root_dedup": 307,
+      "valid_image_target_pairs": 272,
+      "train_evidence_records": 303,
+      "validation_evidence_records": 196,
+      "test_evidence_records": 117,
+      "conflicting_split_records": 212,
+      "count_note": "Per-root candidate counts overlap across roots; do not sum as independent samples."
+    }
+  ],
+  "groups": {
+    "Vinmec_2D": {
+      "dataset": "Vinmec",
+      "image_directory": "dataset/Vinmec/Vinmec_2d/images",
+      "target_directory": "dataset/Vinmec/Vinmec_2d/annotations",
+      "target_role": "annotation",
+      "source_split_label": "source_lists",
+      "pair_audit": {
+        "images": 1469,
+        "annotations": 2938,
+        "matched": 1469,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 1469,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 1469
+        },
+        "target_channels": {
+          "1": 1469
+        },
+        "image_formats": {
+          ".jpg": 1469
+        },
+        "target_formats": {
+          ".png": 1469
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 1469
+    },
+    "Vinmec_3D_source": {
+      "dataset": "Vinmec",
+      "image_directory": "dataset/Vinmec/Vinmec_3d/images",
+      "target_directory": "dataset/Vinmec/Vinmec_3d/annotations",
+      "target_role": "annotation",
+      "source_split_label": "source_lists",
+      "pair_audit": {
+        "images": 170,
+        "annotations": 340,
+        "matched": 170,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 170,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 170
+        },
+        "target_channels": {
+          "1": 170
+        },
+        "image_formats": {
+          ".jpg": 170
+        },
+        "target_formats": {
+          ".png": 170
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 170
+    },
+    "Vinmec_2D_source_train": {
+      "dataset": "Vinmec_2D",
+      "image_directory": "dataset/Vinmec_2D/train/train_image",
+      "target_directory": "dataset/Vinmec_2D/train/train_label/label",
+      "target_role": "label",
+      "source_split_label": "source_train_pool",
+      "pair_audit": {
+        "images": 820,
+        "annotations": 820,
+        "matched": 820,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 820
+        },
+        "target_channels": {
+          "1": 820
+        },
+        "image_formats": {
+          ".jpg": 820
+        },
+        "target_formats": {
+          ".png": 820
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 820
+    },
+    "Vinmec_2D_source_test": {
+      "dataset": "Vinmec_2D",
+      "image_directory": "dataset/Vinmec_2D/test/image",
+      "target_directory": "dataset/Vinmec_2D/test/label/black_write",
+      "target_role": "label",
+      "source_split_label": "source_test",
+      "pair_audit": {
+        "images": 382,
+        "annotations": 382,
+        "matched": 382,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 382
+        },
+        "target_channels": {
+          "1": 382
+        },
+        "image_formats": {
+          ".jpg": 382
+        },
+        "target_formats": {
+          ".png": 382
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 382
+    },
+    "Vinmec_CEUS_subset": {
+      "dataset": "Vinmec_CEUS",
+      "image_directory": "dataset/Vinmec_CEUS/image",
+      "target_directory": "dataset/Vinmec_CEUS/label",
+      "target_role": "label",
+      "source_split_label": "unpartitioned",
+      "pair_audit": {
+        "images": 170,
+        "annotations": 170,
+        "matched": 170,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 170
+        },
+        "target_channels": {
+          "1": 170
+        },
+        "image_formats": {
+          ".jpg": 170
+        },
+        "target_formats": {
+          ".png": 170
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 170
+    },
+    "M1_307": {
+      "dataset": "vinmec_m1_307",
+      "image_directory": "dataset/vinmec_m1_307/images",
+      "target_directory": "dataset/vinmec_m1_307/masks",
+      "target_role": "mask",
+      "source_split_label": "M1_snapshot",
+      "pair_audit": {
+        "images": 307,
+        "annotations": 307,
+        "matched": 272,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 35,
+        "shape_mismatch": 35,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 307
+        },
+        "target_channels": {
+          "1": 307
+        },
+        "image_formats": {
+          ".jpg": 307
+        },
+        "target_formats": {
+          ".png": 307
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 307
+    },
+    "Ovarian_2D_train": {
+      "dataset": "vinmec_ovarian",
+      "image_directory": "dataset/vinmec_ovarian/OTU_2D/train/train_image",
+      "target_directory": "dataset/vinmec_ovarian/OTU_2D/train/train_label/label",
+      "target_role": "label",
+      "source_split_label": "source_train_pool",
+      "pair_audit": {
+        "images": 820,
+        "annotations": 820,
+        "matched": 820,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 820
+        },
+        "target_channels": {
+          "1": 820
+        },
+        "image_formats": {
+          ".jpg": 820
+        },
+        "target_formats": {
+          ".png": 820
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 820
+    },
+    "Ovarian_2D_test": {
+      "dataset": "vinmec_ovarian",
+      "image_directory": "dataset/vinmec_ovarian/OTU_2D/test/image",
+      "target_directory": "dataset/vinmec_ovarian/OTU_2D/test/label/black_write",
+      "target_role": "label",
+      "source_split_label": "source_test",
+      "pair_audit": {
+        "images": 382,
+        "annotations": 382,
+        "matched": 382,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 382
+        },
+        "target_channels": {
+          "1": 382
+        },
+        "image_formats": {
+          ".jpg": 382
+        },
+        "target_formats": {
+          ".png": 382
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 382
+    },
+    "Ovarian_CEUS": {
+      "dataset": "vinmec_ovarian",
+      "image_directory": "dataset/vinmec_ovarian/OTU_CEUS/image",
+      "target_directory": "dataset/vinmec_ovarian/OTU_CEUS/label",
+      "target_role": "label",
+      "source_split_label": "unpartitioned",
+      "pair_audit": {
+        "images": 170,
+        "annotations": 170,
+        "matched": 170,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 0,
+        "shape_mismatch": 0,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 170
+        },
+        "target_channels": {
+          "1": 170
+        },
+        "image_formats": {
+          ".jpg": 170
+        },
+        "target_formats": {
+          ".png": 170
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 170
+    },
+    "M1_train": {
+      "dataset": "vinmec_splits",
+      "image_directory": "dataset/vinmec_splits/train/images",
+      "target_directory": "dataset/vinmec_splits/train/masks",
+      "target_role": "mask",
+      "source_split_label": "train",
+      "pair_audit": {
+        "images": 215,
+        "annotations": 215,
+        "matched": 190,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 25,
+        "shape_mismatch": 25,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 215
+        },
+        "target_channels": {
+          "1": 215
+        },
+        "image_formats": {
+          ".jpg": 215
+        },
+        "target_formats": {
+          ".png": 215
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 215
+    },
+    "M1_val": {
+      "dataset": "vinmec_splits",
+      "image_directory": "dataset/vinmec_splits/val/images",
+      "target_directory": "dataset/vinmec_splits/val/masks",
+      "target_role": "mask",
+      "source_split_label": "val",
+      "pair_audit": {
+        "images": 46,
+        "annotations": 46,
+        "matched": 41,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 5,
+        "shape_mismatch": 5,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 46
+        },
+        "target_channels": {
+          "1": 46
+        },
+        "image_formats": {
+          ".jpg": 46
+        },
+        "target_formats": {
+          ".png": 46
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 46
+    },
+    "M1_test": {
+      "dataset": "vinmec_splits",
+      "image_directory": "dataset/vinmec_splits/test/images",
+      "target_directory": "dataset/vinmec_splits/test/masks",
+      "target_role": "mask",
+      "source_split_label": "test",
+      "pair_audit": {
+        "images": 46,
+        "annotations": 46,
+        "matched": 41,
+        "missing_annotation": 0,
+        "orphan_annotation": 0,
+        "duplicate_image_id": 0,
+        "duplicate_annotation_id": 0,
+        "corrupt_files": 0,
+        "empty_annotations": 5,
+        "shape_mismatch": 5,
+        "invalid_masks": 0,
+        "uncertain_mappings": 0
+      },
+      "format_channels": {
+        "image_channels": {
+          "3": 46
+        },
+        "target_channels": {
+          "1": 46
+        },
+        "image_formats": {
+          ".jpg": 46
+        },
+        "target_formats": {
+          ".png": 46
+        }
+      },
+      "full_four_path_mapping_count": 0,
+      "sample_records": 46
+    }
+  },
+  "cross_root_exact_image_duplicates": {
+    "duplicate_sha256_count": 1372,
+    "extra_copied_paths": 3358,
+    "details_csv": "reports/dataset_validation_duplicates.csv"
+  },
+  "existing_split_conflicts": {
+    "conflicting_image_hash_count": 936,
+    "details_csv": "reports/dataset_validation_split_conflicts.csv",
+    "interpretation": "The same exact image appears in incompatible train/validation/test assignments across available source manifests; no assignment was selected."
+  },
+  "four_path_mapping": {
+    "required_fields": [
+      "image_path",
+      "annotation_path",
+      "label_path",
+      "mask_path"
+    ],
+    "status": "NOT_ESTABLISHED",
+    "reason": "Observed source schemas provide one annotation/label/mask target per image, not three distinct target files. No aliases were fabricated.",
+    "canonical_index_written": false
+  },
+  "split_and_leakage": {
+    "source_patient_ids_verified": false,
+    "m1_patient_codes_are_synthetic": true,
+    "full_dataset_2026_10_03_manifest_includes_source_test_in_pool_for_vinmec_2d": true,
+    "existing_full_dataset_split_level": "sample-level",
+    "vinmec_2d_source_test_count": 382,
+    "vinmec_2d_current_train_val_test_counts": {
+      "train": 697,
+      "val": 123,
+      "test": 382
+    },
+    "m1_counts": {
+      "train": 215,
+      "val": 46,
+      "test": 46
+    },
+    "source_splits_or_duplicate_hash_conflicts_require_review": true
+  },
+  "m1_empty_masks": {
+    "count": 35,
+    "provenance_exists": false,
+    "fallback_masks_present": 35,
+    "fallback_masks_readable": 35,
+    "fallback_masks_empty": 35,
+    "fallback_mask_shapes": {
+      "512x512": 35
+    },
+    "native_source_labels_found": 35,
+    "native_source_labels_positive": 35,
+    "native_source_shape_matches": 35,
+    "audit_note": "Each fallback is linked through its archived M1 CSV to an image and the separate native source label path. These records remain unresolved because the fallback target is empty while the associated native target is positive; neither is silently substituted."
+  },
+  "tracked_split_evidence": {
+    "ai_training/splits/vinmec_2d/manifest.json": {
+      "exists": true,
+      "sha256": "02779aa61a1a4e4a20aff879c80ff70cee1c468423f429d36271bf3d149877f6"
+    },
+    "ai_training/splits/archive_milestone_1/README.md": {
+      "exists": true,
+      "sha256": "ef073aa5d11bb981a879e9877c2fba1e86ad2f208c90dc6dafdbca65ed8cfebf"
+    },
+    "ai_training/splits/full_dataset_2026-10-03/manifest.json": {
+      "exists": true,
+      "sha256": "37a23d54b7c1f45311fc37f1ec34dbdb464c66bee26c5fa24e8045b5e569b345"
+    }
+  },
+  "blocking_conditions": [
+    "No verified source Patient ID mapping across the six roots; patient-level leakage cannot be ruled out.",
+    "Exact image content is duplicated across the named roots; the six folders are overlapping copies/derivations, not six independent datasets.",
+    "The requested distinct annotation/label/mask paths are not present in the observed schemas; one target file per image is available.",
+    "Thirty-five M1 fallback masks conflict with positive native labels and the referenced provenance file is absent.",
+    "The full-data training entrypoint currently includes the source Test folder in training and does not use a validation set."
+  ],
+  "issues_csv": "reports/dataset_validation_issues.csv",
+  "samples_csv": "reports/dataset_validation_samples.csv",
+  "no_source_files_modified": true,
+  "training_started": false
+}
