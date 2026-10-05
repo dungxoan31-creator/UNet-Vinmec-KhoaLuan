@@ -7,48 +7,56 @@
 
 Kính gửi Thầy,
 
-Em xin báo cáo ngắn tiến độ Mốc 2. Trọng tâm giai đoạn này là khóa cấu hình U-Net tích hợp, hoàn thiện luồng Web Prototype và chức năng chuyên viên rà soát/chỉnh sửa mask. Bộ dữ liệu Mốc 1 được giữ nguyên làm tham chiếu; Mốc 2 không chia lại bộ 307 ảnh và không thực hiện đánh giá mới trên Test Mốc 1.
+Em xin báo cáo ngắn tiến độ Mốc 2. Bộ dữ liệu, cách chia tập, pipeline và kết quả mô hình cơ sở được kế thừa từ Mốc 1; trong Mốc 2 không chia lại dữ liệu, không huấn luyện lại trên bộ 307 ảnh và không thực hiện phép đánh giá mới trên Test Mốc 1.
 
 ## 1. Công việc hoàn thành
 
-| Nhiệm vụ | Kết quả |
+| Nhiệm vụ | Kết quả và minh chứng |
 | --- | --- |
-| Đánh giá và lựa chọn U-Net | Chọn checkpoint Standard U-Net `5e14be…` (SHA-256 đầy đủ trong `evaluation/selected_model.json`) làm mô hình tích hợp. Checkpoint được chọn theo Validation của split huấn luyện riêng; không tinh chỉnh trên bộ 307 ảnh Mốc 1. |
-| Khảo sát kiến trúc cải tiến | Chưa triển khai kiến trúc thứ hai trong Mốc 2; ưu tiên hoàn thiện và kiểm tra luồng lõi với Standard U-Net. Có thể xem xét ở Mốc 3 nếu dữ liệu và thời gian cho phép. |
-| Web Prototype | Hoàn thiện luồng `Upload → Segmentation → Original/Mask/Overlay → Review/Edit → Confirm/Save`; backend FastAPI/PyTorch, giao diện HTML/Canvas. |
-| Human-in-the-Loop | Có Brush, Eraser, chỉnh kích thước nét, Undo/Redo và lưu mask sau rà soát. Thao tác Confirm ghi nhận review trong prototype, không tự xác nhận mask thành Ground Truth chuyên môn. |
+| Đánh giá U-Net cơ sở | Giữ nguyên Standard U-Net của Mốc 1 và kết quả tham chiếu: Validation Dice 0,5830; Test Foreground Dice 0,5719, IoU 0,4405. Đây là Segmentation Metrics, không phải Diagnostic Accuracy. |
+| Khảo sát kiến trúc cải tiến | Chưa triển khai kiến trúc thứ hai trong Mốc 2; ưu tiên hoàn thiện luồng lõi với mô hình hiện có. |
+| Web Prototype | Hoàn thiện luồng `Upload → Segmentation → Original/Mask/Overlay → Review/Edit → Confirm/Save` bằng FastAPI/PyTorch và giao diện HTML/Canvas. |
+| Human-in-the-Loop | Có Brush, Eraser, điều chỉnh kích thước nét, Undo/Redo và lưu mask sau rà soát. Confirm ghi nhận thao tác review, không tự biến mask thành Ground Truth được chuyên môn xác nhận. |
 
-## 2. Dataset, pipeline và kết quả
+## 2. Dữ liệu và kết quả mô hình kế thừa từ Mốc 1
 
-Bộ tham chiếu Mốc 1 gồm **307 ảnh: 215 Train / 46 Validation / 46 Test** (`ai_training/splits/archive_milestone_1/`). Mốc 2 không huấn luyện lại trên bộ này; tập Test 46 ảnh tiếp tục được giữ nguyên và không dùng để chọn checkpoint hoặc ngưỡng.
+Mốc 1 chốt **307 ảnh**, gồm **215 Train / 46 Validation / 46 Test**; báo cáo Mốc 1 ghi nhận 185 mã nhóm ẩn danh và split không trùng mã. Kiểm toán dữ liệu hiện có xác nhận mã nguồn bệnh nhân chưa được đối chiếu với định danh gốc của bệnh viện; vì vậy kết quả được hiểu trong phạm vi phân tầng dữ liệu đã lưu, không khẳng định độc lập theo PID bệnh viện.
 
-Checkpoint tích hợp được huấn luyện 30 epoch trên split riêng **697 Train / 123 Validation / 382 Test**, với Standard U-Net, Combo Loss (0,5 BCE + 0,5 Dice), ảnh grayscale, CLAHE và Letterbox 512×512. Ngưỡng 0,5; checkpoint tốt nhất tại epoch 27. Kết quả theo Validation của lượt huấn luyện này: **Dice 0,8233** (`evaluation/selected_model.json`).
+Cấu hình được kế thừa nguyên trạng: Standard U-Net 2D (7.762.465 tham số), đầu vào grayscale 512×512 theo Letterbox, Combo Loss (0,5 BCE + 0,5 Soft Dice), AdamW và Cosine Annealing; huấn luyện 12 epoch, chọn checkpoint theo Validation Dice tốt nhất tại epoch 12. Các kết quả sau đây là số liệu Mốc 1, không phải thực nghiệm mới của Mốc 2.
 
-| Phép đo trên Test 382 ảnh của split riêng | Kết quả |
+| Tập / chỉ số | Kết quả Mốc 1 |
 | --- | ---: |
-| Dice trung bình từng ảnh | 0,8094 |
-| IoU trung bình từng ảnh | 0,7160 |
-| Precision trung bình từng ảnh | 0,8111 |
-| Recall trung bình từng ảnh | 0,8665 |
-| Specificity của pixel nền | 0,9716 |
+| Validation Dice | 0,5830 |
+| Test Foreground Dice | 0,5719 ± 0,2482 |
+| Test IoU | 0,4405 ± 0,2341 |
+| Test Recall | 0,6362 |
+| Test Precision | 0,5864 |
+| Test Specificity — 5 bản ghi mask rỗng theo định nghĩa của Mốc 1 | 0,8235 |
 
-Nguồn: `evaluation/retrain_2d_2026-10-03/test_summary.json`. Đây là **Segmentation Metrics**, không phải Diagnostic Accuracy. Các số liệu này thuộc split huấn luyện riêng, không phải kết quả của bộ Mốc 1. Báo cáo đánh giá ghi nhận danh tính bệnh nhân nguồn chưa được xác minh và Test của lượt huấn luyện này từng được truy cập trong đánh giá checkpoint trước đó; vì vậy không diễn giải là đánh giá mù hoặc độc lập cấp bệnh nhân.
+Nguồn: `evaluation/baseline_test_metrics.json`, `checkpoints/archive_milestone_1/README.md` và Báo cáo Mốc 1. Các chỉ số là **Segmentation Metrics** đo độ chồng lấp/phân loại pixel, không đại diện cho độ chính xác chẩn đoán lâm sàng. Các mask rỗng dẫn xuất chưa được xác nhận là nhãn âm tính lâm sàng.
 
-Kiểm tra suy luận trên 46 ảnh Validation Mốc 1 nạp checkpoint thành công với `strict=True`, không thiếu/thừa key (`evaluation/m1_validation_sanity_check.json`). Median forward pass là **30,26 ms**; median tiền xử lý cộng forward là **46,04 ms**. Phép đo API trên Validation Mốc 1 có **5 quan sát**, median **176,69 ms**, p95 **185,76 ms** (`evaluation/milestone_2_m1_scope/api_latency_validation_2026-10-04.json`). Cỡ mẫu nhỏ nên chỉ mang tính mô tả, chưa đại diện cho tải thực tế.
+![Đồ thị huấn luyện Standard U-Net 12 epoch trong Mốc 1](assets/m1_training_history.png)
 
-## 3. Minh chứng và rủi ro
+**Hình 1.** Đồ thị Loss và Dice được giữ nguyên từ Báo cáo Mốc 1; không phải kết quả huấn luyện mới ở Mốc 2.
 
-- Automated tests: **61 passed, 0 failed**. Ruff: **All checks passed**. API khởi động, trả trạng thái healthy và nạp đúng checkpoint SHA `5e14be…494e`.
-- Browser smoke log ngày 04/10 ghi PASS cho kịch bản một ảnh Validation, gồm suy luận, các chế độ xem, Brush/Eraser, Undo, lưu và mở lại ca (`evaluation/milestone_2_m1_scope/browser_smoke_2026-10-04.json`). Trong lượt rà soát hiện tại chưa chạy lại browser test vì môi trường thiếu Playwright.
-- Mốc 1 có 185 mã nhóm ẩn danh rời nhau trong các split; chưa có mapping xác thực tới PID bệnh viện, nên chưa thể kết luận patient-level independence. Có 35 mask rỗng dẫn xuất; không xem là nhãn âm tính lâm sàng và không dùng để tính metric y tế. File provenance được dẫn trong tài liệu cũ hiện không có tại đường dẫn đã ghi, cần khôi phục hoặc xác minh trước khi sử dụng.
-- Chưa hoàn tất so sánh kiến trúc thứ hai hoặc đánh giá usability với chuyên viên y tế.
+![Các ví dụ phân đoạn trong Báo cáo Mốc 1](assets/m1_prediction_examples.png)
 
-## 4. Kế hoạch tiếp theo — Mốc 3 (06/10–18/10/2026)
+**Hình 2.** Các ví dụ ảnh gốc, mask tham chiếu và prediction được giữ nguyên từ Báo cáo Mốc 1; chỉ minh họa kết quả baseline đã báo cáo, không dùng để suy luận bệnh học.
 
-1. Xác minh nguồn Ground Truth và provenance mask trước khi tính metric bổ sung; giữ nguyên lịch sử sử dụng Test và không gọi lần đánh giá tiếp theo là “mù” nếu dữ liệu đã được truy cập.
-2. Kiểm tra lại E2E trên browser khi có Playwright; lưu ảnh prediction/overlay và log thao tác HITL.
-3. Phân tích các ca phân đoạn tốt và lỗi lớn bằng ảnh gốc, mask tham chiếu và mask dự đoán; chỉ mô tả “vùng nghi ngờ tổn thương được phân đoạn”, không tự gán nhãn bệnh học.
-4. Nếu tiếp cận được chuyên viên, ghi nhận thời gian thao tác và phản hồi về tính hữu dụng của Brush/Eraser và quy trình Confirm/Save.
+## 3. Prototype, kiểm thử và giới hạn
+
+Prototype hỗ trợ năm bước khép kín: tải ảnh; chạy phân đoạn; xem Original/Mask/Overlay; rà soát/chỉnh sửa bằng Brush hoặc Eraser; xác nhận và lưu kết quả. Nhật ký Browser Smoke Test ngày 04/10 ghi PASS cho kịch bản một ảnh Validation (`evaluation/milestone_2_m1_scope/browser_smoke_2026-10-04.json`). Bộ kiểm thử tự động ghi nhận **61 passed, 0 failed** (`evaluation/milestone_2_m1_scope/pytest_2026-10-04.txt`).
+
+Phép đo suy diễn kỹ thuật trên 46 ảnh Validation Mốc 1 ghi nhận median forward pass **30,26 ms** và median tiền xử lý cộng forward **46,04 ms** (`evaluation/m1_validation_sanity_check.json`). Đây là đo kiểm tương thích/vận hành; log ghi checkpoint SHA `5e14be…`, khác checkpoint Mốc 1 SHA `44b862…` được lưu tại `checkpoints/archive_milestone_1/`. Do đó phép đo này không chứng minh hiệu năng phân đoạn của checkpoint Mốc 1 và không thay thế các metric trong Mục 2. Browser smoke test cũng là kiểm tra chức năng, không phải đánh giá hiệu năng lâm sàng hoặc usability trên nhiều người dùng.
+
+Rủi ro còn lại: chưa có mapping xác thực từ mã ẩn danh tới PID bệnh viện; nguồn provenance của 35 mask rỗng dẫn xuất cần được xác minh trước khi dùng chúng làm nhãn đánh giá; chưa có so sánh kiến trúc thứ hai hoặc phản hồi usability từ chuyên viên y tế. Mốc 2 không dùng Test Mốc 1 để chọn checkpoint/ngưỡng và không thực hiện đánh giá Test mới.
+
+## 4. Kế hoạch tiếp theo
+
+1. Thống nhất checkpoint tích hợp với checkpoint Mốc 1 trước khi công bố prototype là đang chạy chính mô hình baseline Mốc 1; sau khi thay đổi cần lưu SHA và chạy lại kiểm tra nạp/suy diễn.
+2. Giữ nguyên split 215/46/46 và chỉ đánh giá Test theo kế hoạch được Thầy duyệt, với Ground Truth và lịch sử truy cập dữ liệu được xác minh.
+3. Lưu ảnh prediction/overlay và log thao tác HITL có nguồn gốc rõ ràng; phân tích ca tốt/lỗi mà không gán nhãn bệnh học ngoài metadata.
+4. Nếu tiếp cận được chuyên viên, ghi nhận thời gian thao tác và phản hồi về Brush/Eraser, Undo/Redo, Confirm/Save.
 
 Kính báo cáo Thầy.
 
