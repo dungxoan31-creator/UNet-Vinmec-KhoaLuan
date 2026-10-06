@@ -67,6 +67,7 @@ Metric theo source membership có trong `evaluation/unified_vinmec_2026-10-06/te
 - Best/last checkpoint và cấu hình: `checkpoints/unified_vinmec_2026-10-06/`.
 - Training history: `checkpoints/unified_vinmec_2026-10-06/vinmec_unet_best_history.json`.
 - Test summary, per-image metrics, top ca tốt/lỗi, và 402 prediction masks: `evaluation/unified_vinmec_2026-10-06/`.
+- Contact sheet Original/Ground Truth/Prediction/Overlay cho 5 ca Dice cao và 5 ca có FP/FN lớn: `evaluation/unified_vinmec_2026-10-06/test_error_analysis_contact_sheet.png`; tái tạo bằng `scripts/render_unified_vinmec_error_analysis.py`.
 - Test summary liên kết checkpoint SHA-256 `509b050f633f765b03419d1615397557889c9c647dd24d500446fa3495d8198b`.
 - Unit tests: **68 passed** (4 dependency/runtime warnings); Ruff trên các file thay đổi: **pass**.
 
