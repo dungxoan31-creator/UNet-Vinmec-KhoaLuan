@@ -1,0 +1,52 @@
+{
+  "started_at": "2026-10-06T15:23:10.129562+00:00",
+  "command": "python scripts/verify_milestone3_validation.py validation --output evaluation/milestone_3_audit_2026-10-06/validation_lock",
+  "seed": 42,
+  "environment": {
+    "python": "3.12.10 (main, May 30 2025, 05:39:07) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "torch": "2.6.0+cu124",
+    "cuda": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "packages": {
+      "numpy": "2.5.2",
+      "opencv-python": "5.0.0.93",
+      "fastapi": "0.141.1",
+      "httpx": "0.28.1",
+      "segmentation-models-pytorch": "0.5.0"
+    }
+  },
+  "test_inference_performed": false,
+  "finished_at": "2026-10-06T15:23:41.890030+00:00",
+  "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "strict_load": true,
+  "validation_csv": "ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv",
+  "validation_csv_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+  "count": 541,
+  "metrics": {
+    "dice": 0.8170359435075095,
+    "iou": 0.7322870028247069,
+    "recall": 0.8345088656367037,
+    "precision": 0.854471916520913,
+    "specificity": 0.9851231816295335,
+    "loss": 0.15395248178633655
+  },
+  "historical_metrics": {
+    "loss": 0.15395248178633655,
+    "dice": 0.8170359435075095,
+    "iou": 0.7322870028247069,
+    "recall": 0.8345088656367037,
+    "precision": 0.854471916520913,
+    "specificity": 0.9851231816295335
+  },
+  "difference_from_history": {
+    "dice": 0.0,
+    "iou": 0.0,
+    "recall": 0.0,
+    "precision": 0.0,
+    "specificity": 0.0,
+    "loss": 0.0
+  },
+  "interpretation": "computational segmentation agreement with supplied labels; not clinically validated metrics or diagnostic accuracy",
+  "empty_reference_count": 0
+}

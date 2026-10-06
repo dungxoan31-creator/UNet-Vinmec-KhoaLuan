@@ -1,0 +1,32 @@
+[
+  {
+    "path": "docs/reports/BaoCaoTienDoMoc1_NguyenHuuDung_11235559(1).docx",
+    "sha256": "d11f3c177e8dd2255117ab0dc66b43770b43d86bbf78e5169f163b9141ce05fb",
+    "modified_at": "2026-10-03T04:41:40.552591+00:00",
+    "core_modified": "2026-09-18 05:08:00+00:00",
+    "paragraphs": 53,
+    "tables": 7,
+    "text_sha256": "8a07d516ca02d83a28d2ef476602f862ddcf501a21752bf9035af9ae94a4c81a",
+    "text_excerpt": "ĐẠI HỌC KINH TẾ QUỐC DÂN\nTrường Công Nghệ - Khoa Hệ Thống Thông Tin Quản Lý\n***\n\nBÁO CÁO TIẾN ĐỘ THỰC HIỆN KHÓA LUẬN TỐT NGHIỆP\nMỐC 1 (06/09/2026-20/09/2026)\nChuyên ngành: Hệ Thống Thông Tin Quản Lý (MIS), Khóa 65\n\n\n\n\nI. CÁC HẠNG MỤC CÔNG VIỆC ĐÃ HOÀN THÀNH\nTrong Cột mốc 1, toàn bộ sáu nhiệm vụ kỹ thuật đã được triển khai tuần tự theo kế hoạch và hoàn tất việc kiểm tra thực nghiệm trên hệ thống:\nBảng 1. Danh mục các nhiệm vụ kỹ thuật đã hoàn thành trong Cột mốc 1\nII. DỮ LIỆU NGHIÊN CỨU VÀ QUY TRÌNH TIỀN XỬ LÝ CHUẨN Y KHOA\nTrong bài toán chẩn đoán hình ảnh y tế, việc phân chia dữ liệu ngẫu nhiên theo từng ảnh chụp rất dễ dẫn đến hiện tượng rò "
+  },
+  {
+    "path": "docs/reports/BaoCaoTienDoMoc2_NguyenHuuDung_11235559_final.docx",
+    "sha256": "7d01feb22622ae502af1190f436d3e20cb11b0c16f11d4e3e1694baec8344ffc",
+    "modified_at": "2026-10-05T16:39:30.615578+00:00",
+    "core_modified": "2013-12-23 23:15:00+00:00",
+    "paragraphs": 23,
+    "tables": 2,
+    "text_sha256": "669a88c3be042584aa3574d350df87cf021ca1747c434525a99af30196d8913f",
+    "text_excerpt": "BÁO CÁO TIẾN ĐỘ KHÓA LUẬN TỐT NGHIỆP — MỐC 2\nGiai đoạn: 21/09/2026 – 05/10/2026\nĐề tài: Xây dựng hệ thống hỗ trợ phân đoạn tổn thương trên ảnh siêu âm buồng trứng ứng dụng Deep Learning theo mô hình Human-in-the-Loop\nSinh viên: Nguyễn Hữu Dũng — MSV: 11235559\nGiảng viên hướng dẫn: ThS. Trần Thanh Hải\nKính gửi Thầy,\nEm xin báo cáo ngắn tiến độ Mốc 2. Bộ dữ liệu, cách chia tập, pipeline và kết quả mô hình cơ sở được kế thừa từ Mốc 1; trong Mốc 2 không chia lại dữ liệu, không huấn luyện lại trên bộ 307 ảnh và không thực hiện phép đánh giá mới trên Test Mốc 1.\n1. Công việc hoàn thành\n2. Dữ liệu và kết quả mô hình kế thừa từ Mốc 1\nMốc 1 chốt 307 ả"
+  },
+  {
+    "path": "docs/reports/Bao_Cao_Tien_Do_Moc_2_NguyenHuuDung_Final.docx",
+    "sha256": "4e3d77d94847cd84ec11a6ced30a30e5c8b8088536c2515d5688c6e6d34f2a07",
+    "modified_at": "2026-10-05T16:34:34.500347+00:00",
+    "core_modified": "2013-12-23 23:15:00+00:00",
+    "paragraphs": 48,
+    "tables": 4,
+    "text_sha256": "514cfe695efc523b7c75ef23fd4d0887fc8f406d2633a72eefeec0edaab7fb57",
+    "text_excerpt": "BÁO CÁO TIẾN ĐỘ THỰC HIỆN KHÓA LUẬN TỐT NGHIỆP — MỐC 2\nTrường Đại học Kinh tế Quốc dân — Trường Công nghệ — Khoa Hệ thống Thông tin Quản lý\n*\nGiai đoạn triển khai: 21/09/2026 – 05/10/2026\nChuyên ngành: Hệ Thống Thông Tin Quản Lý (MIS), Khóa 65\nĐề tài: Xây dựng hệ thống hỗ trợ phân đoạn tổn thương trên ảnh siêu âm buồng trứng ứng dụng Deep Learning theo mô hình Human-in-the-Loop\nGiảng viên hướng dẫn: ThS. Trần Thanh Hải\nSinh viên thực hiện: Nguyễn Hữu Dũng — MSV: 11235559\nLớp: Hệ thống thông tin quản lý 65A\nĐơn vị thực tập:** VinSmart Future  \nLỜI MỞ ĐẦU VÀ MỤC TIÊU CỘT MỐC 2\nKính gửi Thầy Trần Thanh Hải,\nSau khi hoàn tất và nghiệm thu Cột mốc"
+  }
+]

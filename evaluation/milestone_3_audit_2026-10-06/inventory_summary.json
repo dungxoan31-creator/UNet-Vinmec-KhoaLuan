@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-10-06T15:16:37.176660+00:00",
+  "command": "python scripts/audit_milestone3_evidence.py --output evaluation/milestone_3_audit_2026-10-06",
+  "head": "383def17be49c62f172017cb96af308438c7eaad",
+  "initial_git_status": "?? docs/superpowers/plans/2026-10-06-milestone3-evidence-closure.md\n?? evaluation/milestone_3_audit_2026-10-06/\n?? scripts/audit_milestone3_evidence.py",
+  "history": "383def17be49c62f172017cb96af308438c7eaad 2026-10-06T21:56:38+07:00 chore: cleanup redundant evaluation duplicates, align reports, and update project artifacts\naf5f407cacb12903f726041e704da16066fa35e0 2026-10-06T12:55:29+07:00 chore: track fine-tuning history outputs\n829c2db5060f8095ccb2fd190b188a1926c2a72d 2026-10-06T12:54:29+07:00 feat: fine-tune unified Vinmec U-Net on validation\n51bc290e7cfc02b4a259567c7bee506d15246b6b 2026-10-06T11:49:22+07:00 docs: add unified Vinmec test error analysis sheet\nb1fa06da95c8fcf227cacd13fae7878bb1421b0c 2026-10-06T08:49:12+07:00 feat: train unified Vinmec U-Net and publish test metrics\n4ce85b486e9e8cc0f8fbc6fb5b2f8a1f4ece486e 2026-10-06T00:36:45+07:00 audit: validate Vinmec dataset mappings before training\nc9c1c72be6c569989859634c7d6cdcb8680c1b30 2026-10-05T23:39:54+07:00 docs(milestone-2): ground milestone 2 report strictly on milestone 1 data and verified prototype metrics\nc2db698110a95f52b46c52e55148e5616a875f6a 2026-10-05T23:23:35+07:00 docs(report): update milestone 2 final report docx\n9e3227db029657c3408e74f41e1a083d03eee3be 2026-10-05T23:20:13+07:00 feat(milestone-1-2): standardize patient-level dataset splits, HITL CDSS engine, and verification pipeline\ne6dce949309b948a45a6c16bcbb6254553189e62 2026-10-03T13:02:53+07:00 fix(viewer): support both base64 and RLE prediction masks and map benchmark bundle\n4d549239f7778411fc460ebf3b7779c6f09816a4 2026-10-03T12:59:09+07:00 fix(admin): normalize evaluation metrics and failure category parsing\nbff367465998fdb0b0a91fc6f289441efd5e8956 2026-10-03T12:44:59+07:00 feat(report): format A4 print sheet with explicit two-ovary findings",
+  "remote": "origin\thttps://github.com/dungxoan31-creator/UNet-Vinmec-KhoaLuan (fetch)\norigin\thttps://github.com/dungxoan31-creator/UNet-Vinmec-KhoaLuan (push)",
+  "artifact_count": 3463,
+  "deleted_in_latest_commit": 469,
+  "deleted_with_identical_copy": 461,
+  "references_to_deleted_files": [
+    "evaluation/retrain_2d_2026-10-03/comparison.json -> evaluation/retrain_2d_2026-10-03/previous_validation/summary.json"
+  ]
+}

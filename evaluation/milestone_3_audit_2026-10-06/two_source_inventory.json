@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-10-06T15:33:17.017840+00:00",
+  "command": "python scripts/index_two_vinmec_sources.py",
+  "owner_requested_scope": [
+    "dataset/Vinmec/Vinmec_2d",
+    "dataset/Vinmec/Vinmec_3d"
+  ],
+  "counts": {
+    "Vinmec_2d": {
+      "train": 607,
+      "val": 434,
+      "test": 397,
+      "excluded": 31
+    },
+    "Vinmec_3d": {
+      "val": 107,
+      "train": 54,
+      "test": 5,
+      "excluded": 4
+    }
+  },
+  "physical_images": 1639,
+  "valid_frozen_samples": 1604,
+  "excluded": 35,
+  "errors": [],
+  "index": "evaluation/milestone_3_audit_2026-10-06/active_two_source_index.csv",
+  "index_sha256": "009d6307f8500bc622b6fffae10d957d1c9901b34e7710b12a0069a07db16521",
+  "split_changed": false,
+  "patient_level_independence": "not_verified",
+  "clinical_mask_approval": "not_verified"
+}

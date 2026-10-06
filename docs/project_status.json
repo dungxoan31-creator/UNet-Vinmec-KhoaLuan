@@ -1,6 +1,6 @@
 {
-  "as_of": "2026-10-06",
-  "current_state": "milestone_3_technical_evaluation_complete_clinician_review_pending",
+  "as_of": "2026-10-06T15:28:10.188294+00:00",
+  "current_state": "milestone_3_not_fully_ready_evidence_and_missing_data_blockers",
   "milestone_2": {
     "period": "2026-09-21/2026-10-05",
     "status": "completed_historical_record",
@@ -11,7 +11,7 @@
     "prototype_validation_split": "ai_training/splits/val.csv",
     "verified_readable_image_mask_pairs": 307,
     "identity_level_note": "Source Patient/Case identity is not verified; historical anonymous group identifiers must not be described as hospital-confirmed patient IDs.",
-    "automated_test_suite_at_milestone_2": "20 passed, 0 failed",
+    "automated_test_suite_at_milestone_2": "61 passed; historical log evaluation/milestone_2_m1_scope/pytest_2026-10-04.txt; original command not recorded in log",
     "api_latency_median_ms": 176.69,
     "inference_pipeline_median_ms": 46.04,
     "forward_pass_median_ms": 30.26,
@@ -24,12 +24,14 @@
       "caliper_dmax_dorth",
       "orads_iota_reasoning"
     ],
-    "report_md": "docs/reports/Bao_Cao_Tien_Do_Moc_2_NguyenHuuDung_2026-10-03.md",
-    "report_docx": "docs/reports/BaoCaoTienDoMoc2_NguyenHuuDung_11235559_final.docx"
+    "report_md": null,
+    "report_docx": "docs/reports/BaoCaoTienDoMoc2_NguyenHuuDung_11235559_final.docx",
+    "readable_pairs_status": "307 was historical; current 307 paths unavailable",
+    "report_current_status": "official_DOCX_present_in_docs_reports"
   },
   "milestone_3": {
     "period": "2026-10-06/2026-10-18",
-    "status": "technical_evaluation_complete_clinician_review_pending",
+    "status": "partially_ready; software_regression_and_source_evidence_blockers",
     "dataset_manifest": "ai_training/splits/unified_vinmec_clean_2026-10-06/manifest.json",
     "sample_counts": {
       "excluded_fallback_associated": 35,
@@ -85,9 +87,83 @@
       "validation_specificity": 0.9738785461445172,
       "run_config": "checkpoints/standard_unet_gray_imagenet_norm_2026-10-06/run_config.json"
     },
-    "automated_tests": "75 passed, 0 failed",
+    "automated_tests": "67 passed, 8 failed",
     "error_analysis": "docs/reports/Phan_Tich_Loi_Moc_3_2026-10-06.md",
     "clinician_evaluation_form": "docs/reports/Bieu_Mau_Danh_Gia_HITL_Moc_3.md",
-    "clinician_evaluation_status": "pending_real_participant"
+    "clinician_evaluation_status": "pending_real_participant",
+    "latest_test_run": {
+      "started_at": "2026-10-06T15:26:08.220063+00:00",
+      "command": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\.venv\\Scripts\\python.exe -m pytest -q",
+      "seed": null,
+      "environment": {
+        "python": "3.12.10 (main, May 30 2025, 05:39:07) [MSC v.1943 64 bit (AMD64)]",
+        "platform": "Windows-11-10.0.26300-SP0",
+        "torch": "2.6.0+cu124",
+        "cuda": "12.4",
+        "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+        "packages": {
+          "numpy": "2.5.2",
+          "opencv-python": "5.0.0.93",
+          "fastapi": "0.141.1",
+          "httpx": "0.28.1",
+          "segmentation-models-pytorch": "0.5.0"
+        }
+      },
+      "test_inference_performed": false,
+      "finished_at": "2026-10-06T15:26:37.652376+00:00",
+      "exit_code": 1,
+      "counts": {
+        "passed": 67,
+        "failed": 8,
+        "errors": 0,
+        "skipped": 0,
+        "warnings": 3
+      },
+      "log": "evaluation/milestone_3_audit_2026-10-06/validation_lock/pytest_latest.txt",
+      "scope": "entire existing software suite; not clinician evaluation or selected-model Test evaluation",
+      "seed_note": "No suite-wide seed supplied; individual tests may set fixture-local seeds."
+    },
+    "previous_test_count_claim": "75 passed in previous project_status; 74/74 in previous M3 report; no timestamped raw log for either found in initial inventory",
+    "frozen_research_model": {
+      "manifest": "evaluation/milestone_3_audit_2026-10-06/validation_lock/model_lock.json",
+      "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+      "test_evaluation": null,
+      "validation_verification": "evaluation/milestone_3_audit_2026-10-06/validation_lock/validation_summary.json",
+      "error_analysis": "evaluation/milestone_3_audit_2026-10-06/validation_lock/error_analysis_summary.json",
+      "browser_smoke": "evaluation/milestone_3_audit_2026-10-06/validation_lock/browser_smoke_run.json",
+      "latency": "evaluation/milestone_3_audit_2026-10-06/validation_lock/api_latency_summary.json"
+    },
+    "default_deployed_checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+    "test_interpretation": "evaluation on previously used Test set; historical Standard U-Net only; not a blind independent patient-level evaluation",
+    "readiness_blockers": [
+      "source Patient/Case mapping unavailable",
+      "expert reference-label approval unavailable",
+      "no new verified independent cohort",
+      "missing M1 dataset paths causing 8 test failures",
+      "dataset/index.csv and official M2 documents deleted during audit by an unidentified external action"
+    ],
+    "clinical_hitl": "not_performed_or_not_verified; no real participant results found; optional if access unavailable, disclose limitation",
+    "audit_report": "docs/reports/Kiem_Toan_Moc_3_2026-10-06.md",
+    "owner_requested_active_sources": [
+      "dataset/Vinmec/Vinmec_2d",
+      "dataset/Vinmec/Vinmec_3d"
+    ],
+    "active_two_source_index": "evaluation/milestone_3_audit_2026-10-06/active_two_source_index.csv",
+    "active_two_source_index_sha256": "009d6307f8500bc622b6fffae10d957d1c9901b34e7710b12a0069a07db16521",
+    "active_two_source_counts": {
+      "Vinmec_2d": {
+        "train": 607,
+        "val": 434,
+        "test": 397,
+        "excluded": 31
+      },
+      "Vinmec_3d": {
+        "val": 107,
+        "train": 54,
+        "test": 5,
+        "excluded": 4
+      }
+    },
+    "scope_change_note": "Owner confirmed continuation with two Vinmec source folders; all frozen canonical samples already reside there. Historical duplicate folders and M2 files remain absent; no raw data or split was recreated."
   }
 }

@@ -1,0 +1,68 @@
+{
+  "started_at": "2026-10-06T15:24:17.267921+00:00",
+  "command": "python scripts/verify_milestone3_validation.py benchmark --output evaluation/milestone_3_audit_2026-10-06/validation_lock",
+  "seed": 42,
+  "environment": {
+    "python": "3.12.10 (main, May 30 2025, 05:39:07) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "torch": "2.6.0+cu124",
+    "cuda": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "packages": {
+      "numpy": "2.5.2",
+      "opencv-python": "5.0.0.93",
+      "fastapi": "0.141.1",
+      "httpx": "0.28.1",
+      "segmentation-models-pytorch": "0.5.0"
+    }
+  },
+  "test_inference_performed": false,
+  "finished_at": "2026-10-06T15:24:59.909750+00:00",
+  "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "validation_csv_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+  "protocol": "24 evenly spaced Validation rows, 1 warm-up per image, 3 sequential measured requests; localhost HTTP; isolated DB",
+  "attempted_images": 24,
+  "successful_images": 24,
+  "measured_requests": 72,
+  "failed_images": [],
+  "server_pipeline": {
+    "n": 72,
+    "p50_ms": 109.0,
+    "p95_ms": 122.0
+  },
+  "http_total": {
+    "n": 72,
+    "p50_ms": 146.46674998220988,
+    "p95_ms": 170.53577498882078
+  },
+  "components": {
+    "preprocessing_ms": {
+      "n": 72,
+      "p50_ms": 20.532599999569356,
+      "p95_ms": 25.12855998647865
+    },
+    "input_transfer_normalization_ms": {
+      "n": 72,
+      "p50_ms": 0.7383500342257321,
+      "p95_ms": 0.997225005994551
+    },
+    "forward_ms": {
+      "n": 72,
+      "p50_ms": 56.58789997687563,
+      "p95_ms": 64.50195997895207
+    },
+    "postprocessing_ms": {
+      "n": 72,
+      "p50_ms": 31.089700001757592,
+      "p95_ms": 39.427015010733165
+    },
+    "api_overhead_ms": {
+      "n": 72,
+      "p50_ms": 32.646300009218976,
+      "p95_ms": 40.34994501853362
+    }
+  },
+  "timing_boundary": "server field includes preprocessing and engine, excludes decoding, DB commit and response serialization; HTTP total includes those",
+  "instrumentation": "isolated method wrappers, perf_counter and CUDA synchronization; postprocessing = engine total minus transfer/normalization and forward; adds synchronization overhead",
+  "limitation": "engineering benchmark on one device; no concurrency, network or clinical SLA claims"
+}

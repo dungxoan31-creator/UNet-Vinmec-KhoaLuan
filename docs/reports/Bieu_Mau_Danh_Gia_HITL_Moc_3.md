@@ -12,6 +12,10 @@ Biểu mẫu này dành cho người đánh giá chuyên môn thực tế. Khôn
 - Đã giải thích mục đích và được người tham gia đồng ý: Có / Không
 - Mã phiên bản prototype: ____________________
 - SHA-256 checkpoint: ____________________
+- CSV/manifest và SHA-256 của tập ca được phép dùng: ____________________
+- Tổng số ca được thực hiện / chưa hoàn tất: ____________________
+
+Với mỗi ca, ghi rõ **Accept nguyên trạng / Chỉnh sửa rồi Accept / Reject**, lý do, thời điểm bắt đầu–kết thúc, số thao tác Brush/Eraser/Undo/Redo và có cần trợ giúp hay không. Ghi riêng thời gian xem kết quả và thời gian chỉnh sửa. Chỉ tổng hợp sau khi có phiếu thực tế; mẫu trống không phải kết quả đánh giá.
 
 ## Kịch bản thao tác
 

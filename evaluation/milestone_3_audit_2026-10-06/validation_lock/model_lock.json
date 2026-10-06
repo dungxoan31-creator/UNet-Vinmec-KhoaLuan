@@ -1,0 +1,58 @@
+{
+  "model": "U-Net++ + ResNet34 ImageNet encoder",
+  "model_version": "milestone_3_validation_candidate_2026-10-06",
+  "architecture": "unetplusplus_resnet34",
+  "checkpoint": "checkpoints/unetplusplus_resnet34_2026-10-06/unetplusplus_resnet34_best.pth",
+  "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "threshold": 0.5,
+  "input_normalization": {
+    "mean": 0.449,
+    "std": 0.226
+  },
+  "inference_protocol": {
+    "decode": "OpenCV IMREAD_GRAYSCALE",
+    "input_channels": 1,
+    "letterbox_size": [
+      512,
+      512
+    ],
+    "clahe_clip_limit": 2.0,
+    "clahe_grid_size": [
+      8,
+      8
+    ],
+    "normalize_divisor": 255.0,
+    "postprocessing": "sigmoid >= threshold; no morphology"
+  },
+  "selection_split": "ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv",
+  "selection_count": 541,
+  "selection_dice_mean": 0.8170359435075095,
+  "selection_evidence": "checkpoints/unetplusplus_resnet34_2026-10-06/run_config.json",
+  "training_evidence": "checkpoints/unetplusplus_resnet34_2026-10-06/run_config.json",
+  "source_patient_identity_verified": false,
+  "candidate_only": false,
+  "test_evaluation": null,
+  "locked_at": "2026-10-06T15:22:31.432739+00:00",
+  "status": "validation_selected_research_model_locked",
+  "best_epoch": 30,
+  "seed": 42,
+  "selection_protocol": "evaluation\\milestone_3_audit_2026-10-06\\validation_lock\\selection_protocol.json",
+  "split_hashes": {
+    "train.csv": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+    "val.csv": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+    "test.csv": "fbc1f55df5f09c784b2f2ce30705b2202b74d02ec83bdf3d2a5ced5c17f4af6f",
+    "manifest.json": "272a3a51079b2da053529e086c27d08bb45ba1484bc6f502a863314358be32d6"
+  },
+  "validation_metrics_historical": {
+    "loss": 0.15395248178633655,
+    "dice": 0.8170359435075095,
+    "iou": 0.7322870028247069,
+    "recall": 0.8345088656367037,
+    "precision": 0.854471916520913,
+    "specificity": 0.9851231816295335
+  },
+  "train_validation_dice_gap": 0.12002293419396848,
+  "deployment_scope": "isolated_research_prototype; default_manifest_remains_historical_standard_unet",
+  "patient_level_independence": "not_verified",
+  "clinical_ground_truth_approval": "not_verified"
+}

@@ -1,0 +1,232 @@
+.............................FFF..F...FF...............................F [ 96%]
+F..                                                                      [100%]
+================================== FAILURES ===================================
+___________ test_milestone_2_audit_preserves_milestone_1_membership ___________
+
+    def test_milestone_2_audit_preserves_milestone_1_membership():
+        root = Path(__file__).resolve().parents[1]
+        summary = audit_m1_scope(root)
+    
+        assert summary["split_counts"] == {"train": 215, "val": 46, "test": 46}
+        assert summary["archive_membership_matches_current"] is True
+        assert summary["recorded_pid_labels"] == 185
+        assert summary["source_patient_identity_verified"] is False
+>       assert summary["missing_empty_mask_files"] == 0
+E       assert 35 == 0
+
+tests\test_milestone2_scope.py:21: AssertionError
+_____________ test_latency_probe_uses_milestone_1_validation_only _____________
+
+    def test_latency_probe_uses_milestone_1_validation_only():
+        root = Path(__file__).resolve().parents[1]
+>       case = milestone_1_validation_case(root)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_milestone2_scope.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+root = WindowsPath('C:/Users/Dung/Documents/UNet-Vinmec-KhoaLuan')
+
+    def milestone_1_validation_case(root: Path) -> dict[str, str]:
+        split = root / "ai_training/splits/val.csv"
+        with split.open(newline="", encoding="utf-8-sig") as split_file:
+            for row in csv.DictReader(split_file):
+                if (
+                    row["split"] == "VAL"
+                    and row["is_empty_mask"] == "False"
+                    and ("Vinmec_2D" in row["image_path"] or "vinmec_m1_307" in row["image_path"])
+                    and (root / row["image_path"]).is_file()
+                ):
+                    return row
+>       raise ValueError(f"No usable Milestone 1 Validation image in {split}")
+E       ValueError: No usable Milestone 1 Validation image in C:\Users\Dung\Documents\UNet-Vinmec-KhoaLuan\ai_training\splits\val.csv
+
+evaluation\benchmark_api.py:33: ValueError
+_______ test_sanity_check_uses_all_and_only_milestone_1_validation_rows _______
+
+    def test_sanity_check_uses_all_and_only_milestone_1_validation_rows():
+        root = Path(__file__).resolve().parents[1]
+        rows = validation_rows(root)
+    
+        assert len(rows) == 46
+        assert all(row["split"] == "VAL" for row in rows)
+        assert len({row["case_id"] for row in rows}) == 46
+>       assert all((root / row["image_path"]).is_file() for row in rows)
+E       assert False
+E        +  where False = all(<generator object test_sanity_check_uses_all_and_only_milestone_1_validation_rows.<locals>.<genexpr> at 0x000001DC592B7BC0>)
+
+tests\test_milestone2_scope.py:44: AssertionError
+__________________________ test_image_mask_matching ___________________________
+
+    def test_image_mask_matching():
+        """Verify that each image path maps to an existing file and corresponding mask file."""
+        for split in ["train.csv", "val.csv", "test.csv"]:
+            df = pd.read_csv(f"ai_training/splits/{split}")
+            for idx in range(min(10, len(df))):
+                row = df.iloc[idx]
+                img_p = row["image_path"].replace("\\", "/")
+                mask_p = row["mask_path"].replace("\\", "/")
+>               assert os.path.exists(img_p), f"Image missing on disk: {img_p}"
+E               AssertionError: Image missing on disk: dataset/vinmec_m1_307/images/001_618.JPG
+E               assert False
+E                +  where False = <built-in function _path_exists>('dataset/vinmec_m1_307/images/001_618.JPG')
+E                +    where <built-in function _path_exists> = <module 'ntpath' (frozen)>.exists
+E                +      where <module 'ntpath' (frozen)> = os.path
+
+tests\test_milestone_1_audit.py:64: AssertionError
+___________________ test_post_preprocessing_image_mask_pair ___________________
+
+    def test_post_preprocessing_image_mask_pair():
+        """Verify image-mask correspondence and spatial alignment after preprocessing."""
+        dataset = OvarianUltrasoundDataset("ai_training/splits/train.csv", target_size=(512, 512), is_train=False)
+>       sample = dataset[0]
+                 ^^^^^^^^^^
+
+tests\test_milestone_1_audit.py:128: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ai_training.dataset_loader.OvarianUltrasoundDataset object at 0x000001DC592FF920>
+idx = 0
+
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        img_path = self._resolve_path(str(row["image_path"]).replace("\\", "/"))
+        mask_path = self._resolve_path(str(row["mask_path"]).replace("\\", "/"))
+        case_id = str(row["case_id"])
+        patient_id = str(row.get("patient_id", "UNKNOWN"))
+    
+        # 1. Read Raw Files
+        raw_img = cv2_imread_unicode(img_path, cv2.IMREAD_GRAYSCALE)
+        raw_mask = cv2_imread_unicode(mask_path, cv2.IMREAD_GRAYSCALE)
+    
+        if raw_img is None:
+>           raise FileNotFoundError(f"Image not found: {img_path}")
+E           FileNotFoundError: Image not found: C:\dataset/vinmec_m1_307/images/001_618.JPG
+
+ai_training\dataset_loader.py:74: FileNotFoundError
+____________________________ test_dataloader_batch ____________________________
+
+    def test_dataloader_batch():
+        """Verify batching mechanism with DataLoader."""
+        train_loader, val_loader, test_loader = get_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0)
+>       batch = next(iter(train_loader))
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_milestone_1_audit.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\torch\utils\data\dataloader.py:708: in __next__
+    data = self._next_data()
+           ^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\torch\utils\data\dataloader.py:764: in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\torch\utils\data\_utils\fetch.py:52: in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+            ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ai_training.dataset_loader.OvarianUltrasoundDataset object at 0x000001DC592DF8C0>
+idx = 211
+
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        img_path = self._resolve_path(str(row["image_path"]).replace("\\", "/"))
+        mask_path = self._resolve_path(str(row["mask_path"]).replace("\\", "/"))
+        case_id = str(row["case_id"])
+        patient_id = str(row.get("patient_id", "UNKNOWN"))
+    
+        # 1. Read Raw Files
+        raw_img = cv2_imread_unicode(img_path, cv2.IMREAD_GRAYSCALE)
+        raw_mask = cv2_imread_unicode(mask_path, cv2.IMREAD_GRAYSCALE)
+    
+        if raw_img is None:
+>           raise FileNotFoundError(f"Image not found: {img_path}")
+E           FileNotFoundError: Image not found: C:\dataset/vinmec_m1_307/images/212_211.JPG
+
+ai_training\dataset_loader.py:74: FileNotFoundError
+________________ test_upload_predict_edit_confirm_and_retrieve ________________
+
+tmp_path = WindowsPath('C:/Users/Dung/AppData/Local/Temp/pytest-of-Dung/pytest-98/test_upload_predict_edit_confi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DC592A8170>
+
+    def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch):
+        from backend.app.config import model_registry
+        from backend.app.main import app
+        from backend.app.routers import inference
+    
+>       image_path = milestone_1_validation_image()
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_vinmec_api_smoke.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def milestone_1_validation_image():
+        with Path("ai_training/splits/val.csv").open(newline="", encoding="utf-8") as split_file:
+            for row in csv.DictReader(split_file):
+                image = Path(row["image_path"])
+                if row["subset"] == "OTU_2D_train" and row["is_empty_mask"] == "False" and image.is_file():
+                    return image
+>       raise FileNotFoundError("No readable B-mode Milestone 1 Validation image")
+E       FileNotFoundError: No readable B-mode Milestone 1 Validation image
+
+tests\test_vinmec_api_smoke.py:22: FileNotFoundError
+_____________ test_upload_with_unknown_study_does_not_leave_file ______________
+
+tmp_path = WindowsPath('C:/Users/Dung/AppData/Local/Temp/pytest-of-Dung/pytest-98/test_upload_with_unknown_study0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001DC592AA930>
+
+    def test_upload_with_unknown_study_does_not_leave_file(tmp_path, monkeypatch):
+        from backend.app.main import app
+        from backend.app.routers import inference
+    
+        db_engine = create_engine(
+            f"sqlite:///{tmp_path / 'unknown_study.db'}", connect_args={"check_same_thread": False}
+        )
+        Base.metadata.create_all(db_engine)
+        upload_dir = tmp_path / "uploads"
+        upload_dir.mkdir()
+        monkeypatch.setattr(inference, "UPLOAD_DIR", str(upload_dir))
+    
+        def temporary_db():
+            with Session(db_engine) as db:
+                yield db
+    
+        app.dependency_overrides[get_db] = temporary_db
+        try:
+>           image_path = milestone_1_validation_image()
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_vinmec_api_smoke.py:157: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def milestone_1_validation_image():
+        with Path("ai_training/splits/val.csv").open(newline="", encoding="utf-8") as split_file:
+            for row in csv.DictReader(split_file):
+                image = Path(row["image_path"])
+                if row["subset"] == "OTU_2D_train" and row["is_empty_mask"] == "False" and image.is_file():
+                    return image
+>       raise FileNotFoundError("No readable B-mode Milestone 1 Validation image")
+E       FileNotFoundError: No readable B-mode Milestone 1 Validation image
+
+tests\test_vinmec_api_smoke.py:22: FileNotFoundError
+============================== warnings summary ===============================
+tests/test_milestone_1_audit.py::test_dataloader_batch
+tests/test_retraining.py::test_training_augmentation_is_reproducible
+  C:\Users\Dung\Documents\UNet-Vinmec-KhoaLuan\.venv\Lib\site-packages\albumentations\core\validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+    original_init(self, **validated_kwargs)
+
+tests/test_retraining.py::test_amp_gradient_overflow_skips_update_instead_of_crashing
+  C:\Users\Dung\Documents\UNet-Vinmec-KhoaLuan\.venv\Lib\site-packages\torch\optim\lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_milestone2_scope.py::test_milestone_2_audit_preserves_milestone_1_membership
+FAILED tests/test_milestone2_scope.py::test_latency_probe_uses_milestone_1_validation_only
+FAILED tests/test_milestone2_scope.py::test_sanity_check_uses_all_and_only_milestone_1_validation_rows
+FAILED tests/test_milestone_1_audit.py::test_image_mask_matching - AssertionE...
+FAILED tests/test_milestone_1_audit.py::test_post_preprocessing_image_mask_pair
+FAILED tests/test_milestone_1_audit.py::test_dataloader_batch - FileNotFoundE...
+FAILED tests/test_vinmec_api_smoke.py::test_upload_predict_edit_confirm_and_retrieve
+FAILED tests/test_vinmec_api_smoke.py::test_upload_with_unknown_study_does_not_leave_file
+8 failed, 67 passed, 3 warnings in 26.41s

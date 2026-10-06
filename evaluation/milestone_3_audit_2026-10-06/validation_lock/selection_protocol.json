@@ -1,0 +1,142 @@
+{
+  "started_at": "2026-10-06T15:22:30.993384+00:00",
+  "command": "python scripts/verify_milestone3_validation.py freeze",
+  "seed": 42,
+  "environment": {
+    "python": "3.12.10 (main, May 30 2025, 05:39:07) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "torch": "2.6.0+cu124",
+    "cuda": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "packages": {
+      "numpy": "2.5.2",
+      "opencv-python": "5.0.0.93",
+      "fastapi": "0.141.1",
+      "httpx": "0.28.1",
+      "segmentation-models-pytorch": "0.5.0"
+    }
+  },
+  "test_inference_performed": false,
+  "selection_scope": "retrospective_selection_among_existing_single_seed_runs",
+  "primary_criterion": "highest mean per-image Validation Dice at fixed threshold 0.5",
+  "secondary_checks": [
+    "Validation IoU / Recall / Precision",
+    "train_validation_gap",
+    "strict_checkpoint_load",
+    "prototype_smoke"
+  ],
+  "normalization_control": "matched grayscale ImageNet mean/std; initialization differs",
+  "additional_seed_training": "not_performed_in_this_audit; stability remains unverified",
+  "candidate_configs": [
+    {
+      "architecture": "Standard U-Net (base_filters=32), trained from random initialization",
+      "seed": 42,
+      "device": "cuda",
+      "gpu_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+      "batch_size": 2,
+      "epochs_requested": 30,
+      "epochs_completed": 30,
+      "patience": 6,
+      "learning_rate": 0.0001,
+      "optimizer": "AdamW(weight_decay=1e-4)",
+      "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
+      "loss": "0.5 BCEWithLogits + 0.5 SoftDice",
+      "input": "Grayscale CLAHE Letterbox 512x512, scaled to [0,1], then grayscale ImageNet normalization",
+      "gray_normalization": {
+        "mean": 0.449,
+        "std": 0.226
+      },
+      "augmentation": "Existing synchronized image-mask train transforms from OvarianUltrasoundDataset",
+      "threshold": 0.5,
+      "selection_metric": "mean per-image Validation Dice",
+      "split_dir": "ai_training\\splits\\unified_vinmec_clean_2026-10-06",
+      "train_count": 661,
+      "validation_count": 541,
+      "test_split_accessed": false,
+      "train_csv_sha256": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+      "validation_csv_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+      "manifest_sha256": "272a3a51079b2da053529e086c27d08bb45ba1484bc6f502a863314358be32d6",
+      "best_epoch": 28,
+      "train_metrics_at_best_epoch": {
+        "loss": 0.16204493648390908,
+        "dice": 0.8071452656791809,
+        "iou": 0.7090841487737629,
+        "recall": 0.8766250697425292,
+        "precision": 0.8002284497315693,
+        "specificity": 0.9818592296065072
+      },
+      "best_validation": {
+        "loss": 0.21961614190705822,
+        "dice": 0.7382963800324255,
+        "iou": 0.6264159313408234,
+        "recall": 0.8159412157372357,
+        "precision": 0.7444243564351346,
+        "specificity": 0.9738785461445172
+      },
+      "duration_seconds": 1800.52,
+      "best_checkpoint": "checkpoints\\standard_unet_gray_imagenet_norm_2026-10-06\\standard_unet_best.pth",
+      "best_checkpoint_sha256": "1269a7d3a251df25ae25a4d6c146f667201c8063c90a9c26e59e3a9eefa71879",
+      "last_checkpoint": "checkpoints\\standard_unet_gray_imagenet_norm_2026-10-06\\standard_unet_last.pth",
+      "last_checkpoint_sha256": "e32456c2bc5d622c1598bbd2e83eabb0deda4205c76226b3966f117caa3ae665",
+      "comparison_caveat": "Normalization, optimizer, loss, augmentation, split, threshold, and training budget match the U-Net++ run. Encoder initialization differs: Standard U-Net starts randomly; U-Net++ uses ImageNet-pretrained ResNet34."
+    },
+    {
+      "architecture": "U-Net++ (Segmentation Models PyTorch) + ResNet34 ImageNet encoder",
+      "seed": 42,
+      "device": "cuda",
+      "gpu_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+      "batch_size": 2,
+      "epochs_requested": 30,
+      "epochs_completed": 30,
+      "patience": 6,
+      "learning_rate": 0.0001,
+      "optimizer": "AdamW(weight_decay=1e-4)",
+      "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
+      "loss": "0.5 BCEWithLogits + 0.5 SoftDice",
+      "input": "Grayscale CLAHE Letterbox 512x512, scaled to [0,1], then grayscale ImageNet normalization",
+      "gray_normalization": {
+        "mean": 0.449,
+        "std": 0.226
+      },
+      "threshold": 0.5,
+      "selection_metric": "mean per-image Validation Dice",
+      "split_dir": "ai_training\\splits\\unified_vinmec_clean_2026-10-06",
+      "train_count": 661,
+      "validation_count": 541,
+      "test_split_accessed": false,
+      "train_csv_sha256": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+      "validation_csv_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+      "manifest_sha256": "272a3a51079b2da053529e086c27d08bb45ba1484bc6f502a863314358be32d6",
+      "baseline_standard_unet_validation_dice": 0.6724380325257447,
+      "best_epoch": 30,
+      "best_validation": {
+        "loss": 0.15395248178633655,
+        "dice": 0.8170359435075095,
+        "iou": 0.7322870028247069,
+        "recall": 0.8345088656367037,
+        "precision": 0.854471916520913,
+        "specificity": 0.9851231816295335
+      },
+      "duration_seconds": 3014.39,
+      "best_checkpoint": "checkpoints\\unetplusplus_resnet34_2026-10-06\\unetplusplus_resnet34_best.pth",
+      "best_checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+      "last_checkpoint": "checkpoints\\unetplusplus_resnet34_2026-10-06\\unetplusplus_resnet34_last.pth",
+      "last_checkpoint_sha256": "0a84eddcc5eb13a6693f9920e3215cbd3077369cae65dc499e6d19c1b0b4d227",
+      "segmentation_models_pytorch_version": "0.5.0",
+      "encoder": {
+        "name": "resnet34",
+        "weights": "imagenet"
+      },
+      "augmentation": "Existing synchronized image-mask train transforms from OvarianUltrasoundDataset",
+      "train_metrics_at_best_epoch": {
+        "loss": 0.04528543231346604,
+        "dice": 0.937058877701478,
+        "iou": 0.8875325259255209,
+        "recall": 0.9418231414774723,
+        "precision": 0.9401447719326539,
+        "specificity": 0.9945293843475665
+      }
+    }
+  ],
+  "test_used_for_selection": false
+}

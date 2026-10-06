@@ -19,13 +19,17 @@ Versions below were read from the repository `.venv` on 2026-10-05. `requirement
 
 - **Frontend:** HTML, CSS and browser JavaScript with Canvas editing in `frontend/`.
 - **Backend:** FastAPI routers in `backend/app/routers/`; inference and preprocessing services in `backend/services/`.
-- **Model:** Standard U-Net at `backend/models/unet.py`; selected checkpoint configured through `evaluation/selected_model.json` and loaded by `backend/app/config.py` with SHA-256 verification.
+- **Model:** Standard U-Net at `backend/models/unet.py` is the default configured in `evaluation/selected_model.json`. Validation-selected U-Net++ uses Segmentation Models PyTorch 0.5.0 / ResNet34 and a separate model lock in `evaluation/milestone_3_audit_2026-10-06/validation_lock/model_lock.json`. `backend/app/config.py` verifies checkpoint SHA-256.
 - **Persistence:** SQLAlchemy models with local SQLite database for prototype case and review records.
 - **Training:** PyTorch training utilities under `ai_training/`; split CSVs and snapshots under `ai_training/splits/`.
 
 ## Inference contract
 
 The selected model configuration uses one-channel grayscale input, CLAHE, 512×512 Letterbox, normalization by 255, threshold 0.5 and no morphology postprocessing. The training split and checkpoint evidence are recorded alongside the model artifacts. Do not compare the 382-image Test metrics for the 2026-10-03 retraining split with historical Mốc 1 metrics as if they came from one evaluation protocol.
+
+The U-Net++ lock additionally applies grayscale mean 0.449 / std 0.226 after division by 255. The controlled Standard U-Net comparator uses that same normalization. Current runtime versions and benchmark commands are preserved in the model lock directory; the table above is a historical environment snapshot.
+
+Latest full-suite verification on 2026-10-06: 67 passed / 8 failed because M1 data paths are absent. The isolated U-Net++ browser smoke passed. These observations do not constitute clinician usability or patient-level independence evidence.
 
 Dice, IoU, Precision, Recall and Specificity describe pixel segmentation. They do not represent clinical diagnostic accuracy. No clinical category is inferred from the segmented region.
 

@@ -1,0 +1,32 @@
+{
+  "status": "COMPLETED",
+  "clean_dataset_folder": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\dataset\\Vinmec_clean",
+  "source_folders_scanned": [
+    "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\dataset\\Vinmec",
+    "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\dataset\\Vinmec_2D",
+    "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\dataset\\Vinmec_CEUS"
+  ],
+  "total_initial_images": 3011,
+  "total_initial_masks_paired": 3011,
+  "total_duplicate_images_detected": 1372,
+  "total_images_retained_in_clean": 1639,
+  "total_masks_retained_in_clean": 1639,
+  "total_valid_pairs_in_clean": 1639,
+  "number_of_images_equals_number_of_masks": true,
+  "duplicate_pairs_removed": 1372,
+  "unmatched_files_count": 0,
+  "size_mismatch_count": 0,
+  "possible_duplicates_candidate_pairs": 47,
+  "possible_duplicates_unique_images": 84,
+  "clean_breakdown": {
+    "2d_images": 1469,
+    "2d_masks": 1469,
+    "3d_images": 170,
+    "3d_masks": 170
+  },
+  "reports": {
+    "full_mapping_csv": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\reports\\dataset_deduplication_report.csv",
+    "possible_duplicates_csv": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\reports\\possible_duplicates_report.csv",
+    "clean_mapping_csv": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\dataset\\Vinmec_clean\\deduplication_mapping.csv"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-10-06T15:19:00.394134+00:00",
+  "counts": {
+    "train": 661,
+    "val": 541,
+    "test": 402
+  },
+  "canonical_samples": 1604,
+  "verified_readable_pairs": 1604,
+  "errors": [],
+  "missing_source_path_references": 1881,
+  "samples_with_missing_source_references": 1337,
+  "image_content_overlap": {
+    "train/val": 0,
+    "train/test": 0,
+    "val/test": 0
+  },
+  "identity_classification": "C: image/file identifiers; historical anonymous groups B",
+  "patient_level_independence": "not_verified",
+  "missing_evidence": "provider-confirmed image-to-patient/case mapping and expert label approval",
+  "original_fallback_provenance_exists": false,
+  "fallback_count": 35,
+  "fallback_splits": {
+    "train": 25,
+    "val": 5,
+    "test": 5
+  },
+  "fallback_in_unified_index": 0,
+  "empty_reference_masks_in_unified": 0,
+  "protected_hashes": {
+    "ai_training/splits/unified_vinmec_clean_2026-10-06/all_samples.csv": "1ddb7b394b11e2a2bd0155006e3fefdd7d84c9bbc26b6cda14563e0e604eb893",
+    "ai_training/splits/unified_vinmec_clean_2026-10-06/manifest.json": "272a3a51079b2da053529e086c27d08bb45ba1484bc6f502a863314358be32d6",
+    "ai_training/splits/unified_vinmec_clean_2026-10-06/test.csv": "fbc1f55df5f09c784b2f2ce30705b2202b74d02ec83bdf3d2a5ced5c17f4af6f",
+    "ai_training/splits/unified_vinmec_clean_2026-10-06/train.csv": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+    "ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b"
+  }
+}

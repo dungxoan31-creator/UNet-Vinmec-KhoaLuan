@@ -7,14 +7,18 @@
 
 ## 1. Tóm tắt tiến độ
 
-Các hạng mục kỹ thuật của Mốc 3 đã hoàn thành: huấn luyện và chọn checkpoint bằng Validation, đánh giá một lần trên Test theo cấu hình đã khóa, phân tích ca tốt và ca lỗi, kiểm thử phần mềm và chạy Browser Smoke Test cho phiên bản prototype hiện hành. Việc đánh giá với bác sĩ/chuyên viên y tế chưa thực hiện; cần người đánh giá chuyên môn tham gia và ghi nhận bằng biểu mẫu riêng.
+Mốc 3 chưa đủ cơ sở kết luận hoàn tất. Đã có kết quả huấn luyện, Test lịch sử, prototype và phân tích lỗi; kiểm toán mới xác nhận mô hình nghiên cứu U-Net++ bằng Validation và kiểm thử prototype tách biệt. Lượt pytest mới nhất đạt 67 passed / 8 failed do dữ liệu Mốc 1 bị thiếu. Patient-level independence và nguồn phê duyệt nhãn chuyên môn chưa xác minh được; đánh giá HITL với chuyên viên chưa có kết quả thực tế.
+
+Chủ dự án đã chốt phạm vi tiếp tục là `dataset/Vinmec/Vinmec_2d` và `dataset/Vinmec/Vinmec_3d`. Cả 1.604 cặp chính của split đã khóa nằm trong hai thư mục này: 1.438 mẫu 2d và 166 mẫu 3d. Tên thư mục `3d` không chứng minh đây là volume 3D; pipeline hiện suy diễn trên từng ảnh 2D. Không chia lại split hoặc thay nhãn để phù hợp kết luận.
+
+Báo cáo kiểm toán đầy đủ, có inventory/hash, provenance và checklist nghiệm thu: [Kiểm toán Mốc 3](Kiem_Toan_Moc_3_2026-10-06.md). Các đoạn Test bên dưới là kết quả lịch sử riêng của Standard U-Net `417828fa…`; không phải Test metric của U-Net++.
 
 | Hạng mục | Kết quả | Minh chứng |
 |---|---|---|
 | Hoàn thiện U-Net trên tập dữ liệu hợp nhất | Chọn checkpoint theo Validation; không dùng Test để huấn luyện hoặc chọn mô hình/ngưỡng | [`run_config.json`](../../checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/run_config.json) |
 | Đánh giá định lượng Test | 402 ảnh; threshold 0,5; các chỉ số phân đoạn được lưu theo từng ảnh và tổng hợp | [`test_summary.json`](../../evaluation/milestone_3_2026-10-06/test_summary.json), [`test_per_image.csv`](../../evaluation/milestone_3_2026-10-06/test_per_image.csv) |
 | Phân tích lỗi | Rà soát 5 ca Dice cao và 5 ca có tổng FP+FN lớn | [Báo cáo phân tích lỗi](Phan_Tich_Loi_Moc_3_2026-10-06.md), [panel ảnh](../../evaluation/milestone_3_2026-10-06/error_analysis/) |
-| Kiểm thử phần mềm | 74/74 automated tests đạt; Browser Smoke Test PASS trên checkpoint tích hợp Mốc 3 | [`browser_smoke_2026-10-06.json`](../../evaluation/milestone_3_2026-10-06/browser_smoke_2026-10-06.json) |
+| Kiểm thử phần mềm | Lượt mới nhất: 67 passed / 8 failed; lỗi do đường dẫn dữ liệu Mốc 1 bị thiếu. Browser Smoke Test U-Net++ PASS ở cấu hình tách biệt | [`pytest_latest.json`](../../evaluation/milestone_3_audit_2026-10-06/validation_lock/pytest_latest.json), [`browser_smoke_run.json`](../../evaluation/milestone_3_audit_2026-10-06/validation_lock/browser_smoke_run.json) |
 | Đánh giá HITL với chuyên viên y tế | Chưa thực hiện; cần thu thập trực tiếp, không thay bằng kiểm thử tự động | [Biểu mẫu đánh giá HITL](Bieu_Mau_Danh_Gia_HITL_Moc_3.md) |
 
 ## 2. Dữ liệu, huấn luyện và kiểm soát đánh giá
@@ -75,9 +79,19 @@ Kiểm thử tự động xác nhận hành vi phần mềm theo kịch bản đ
 | Chưa có đánh giá HITL bởi chuyên viên y tế | Mời người đánh giá phù hợp, ghi thời gian thao tác, số lần chỉnh sửa, mức độ hữu dụng và nhận xét bằng biểu mẫu; không suy diễn kết quả khi chưa thu thập |
 | Test split đã từng được dùng với baseline | Báo cáo đầy đủ lịch sử sử dụng; không tiếp tục dùng Test để chọn mô hình/ngưỡng; nếu cần đánh giá xác nhận mới, thiết lập cohort độc lập với nhãn được xác thực |
 
-**Kết luận:** Gói đánh giá và kiểm thử kỹ thuật Mốc 3 đã có đủ mã nguồn, checkpoint, metrics, dự đoán và ảnh phân tích lỗi. Mốc 3 chỉ có thể được xác nhận hoàn tất toàn bộ sau khi phần đánh giá HITL có người dùng chuyên môn thực hiện; hiện phần này đang chờ tổ chức.
+**Kết luận:** Project is not fully ready for Milestone 3. Cần xử lý 8 lỗi kiểm thử liên quan dữ liệu Mốc 1 bị thiếu, thống nhất lưu trữ/index và báo cáo sau thay đổi phạm vi. Patient/Case ID, phê duyệt nhãn chuyên gia và cohort độc lập là các bằng chứng còn thiếu. Nếu chưa tiếp cận được chuyên viên, báo cáo HITL chuyên môn là chưa thực hiện theo điều kiện trong kế hoạch của Thầy; không thay bằng kết quả kiểm thử trình duyệt.
 
-## Bổ sung: so sánh cấu hình Standard U-Net và U-Net++ trên Validation
+## Cập nhật kiểm chứng trong đợt audit ngày 06/10/2026
+
+U-Net++ được khóa cho nghiên cứu bằng tiêu chí Validation Dice, threshold 0,5, seed 42; model lock ở [`model_lock.json`](../../evaluation/milestone_3_audit_2026-10-06/validation_lock/model_lock.json). Quyết định chọn giữa các lượt đã có là retrospective; chưa có stability giữa nhiều seed. Cả U-Net++ và Standard U-Net comparator được nạp `strict=True`, chạy lại trên đủ 541 ảnh Validation; toàn bộ metric khớp số liệu lịch sử của từng lượt. Nguồn nhãn ở mức file/mapping đã kiểm tra; chưa có tài liệu chuyên gia xác nhận nhãn để diễn giải hiệu quả lâm sàng.
+
+Phân tích U-Net++ có 15 panel Validation: 5 Dice cao nhất, 5 FP lớn nhất và 5 FN lớn nhất; bảng ghi ảnh, reference mask, prediction, overlay, threshold và SHA. Minh chứng tại [`error_analysis_summary.json`](../../evaluation/milestone_3_audit_2026-10-06/validation_lock/error_analysis_summary.json). Các nhận xét chỉ mô tả vùng dự đoán thiếu/thừa.
+
+Benchmark mới dùng 24 ảnh Validation × 3 request sau một warm-up mỗi ảnh, 72 request thành công trên RTX 3050 Laptop. Client HTTP p50 **146,47 ms**, p95 **170,54 ms**; server preprocessing + engine p50 **109 ms**, p95 **122 ms**. Có instrumentation và đồng bộ CUDA nên không so sánh trực tiếp với phép đo nhỏ lịch sử; không tuyên bố SLA. Các thành phần đo, môi trường và command ở [`api_latency_summary.json`](../../evaluation/milestone_3_audit_2026-10-06/validation_lock/api_latency_summary.json).
+
+Browser smoke mới chạy ảnh Validation `1098.JPG`, SHA `ce758032…`, đạt PASS trong DB kiểm thử riêng. Đây là technical UI test, không có người tham gia chuyên môn. Toàn bộ Test result cũ vẫn gắn riêng với Standard U-Net. Các mô tả candidate chưa khóa ở phần lịch sử bên dưới được thay thế bởi model lock mới; manifest mặc định vẫn giữ Standard U-Net.
+
+## Bổ sung lịch sử: so sánh cấu hình Standard U-Net và U-Net++ trên Validation
 
 Để giảm khác biệt về tiền xử lý giữa hai ứng viên, Standard U-Net được huấn luyện lại trên cùng 661 ảnh Train và 541 ảnh Validation với grayscale ImageNet normalization (mean=0,449; std=0,226), cùng augmentation, Combo Loss, AdamW, learning rate 1×10⁻⁴, batch size 2, seed 42, tối đa 30 epochs, patience 6 và threshold 0,5 như lượt U-Net++. Tập Test không được mở hoặc sử dụng.
 

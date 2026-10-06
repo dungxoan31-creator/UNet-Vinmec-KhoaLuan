@@ -1,0 +1,15 @@
+{
+  "checked_at": "2026-10-06T15:41:03.985970+00:00",
+  "command": "python scripts/finalize_milestone3_audit.py verify",
+  "protected_artifact_count": 170,
+  "protected_artifact_changes": [],
+  "source_image_target_pairs_checked": 1639,
+  "source_pair_changes": [],
+  "frozen_split_changes": [],
+  "git_diff_check_exit": 0,
+  "full_suite_pass": false,
+  "latest_test_result": "67 passed / 8 failed; legacy M1 data missing",
+  "historical_source_path_limitations": "reported separately; not restored or hidden",
+  "no_selected_model_test_inference_during_audit": true,
+  "readiness": "not_fully_ready"
+}

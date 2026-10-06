@@ -1,0 +1,31 @@
+{
+  "started_at": "2026-10-06T15:26:08.220063+00:00",
+  "command": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\.venv\\Scripts\\python.exe -m pytest -q",
+  "seed": 42,
+  "environment": {
+    "python": "3.12.10 (main, May 30 2025, 05:39:07) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "torch": "2.6.0+cu124",
+    "cuda": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "packages": {
+      "numpy": "2.5.2",
+      "opencv-python": "5.0.0.93",
+      "fastapi": "0.141.1",
+      "httpx": "0.28.1",
+      "segmentation-models-pytorch": "0.5.0"
+    }
+  },
+  "test_inference_performed": false,
+  "finished_at": "2026-10-06T15:26:37.652376+00:00",
+  "exit_code": 1,
+  "counts": {
+    "passed": 67,
+    "failed": 8,
+    "errors": 0,
+    "skipped": 0,
+    "warnings": 3
+  },
+  "log": "evaluation/milestone_3_audit_2026-10-06/validation_lock/pytest_latest.txt",
+  "scope": "entire existing software suite; not clinician evaluation or selected-model Test evaluation"
+}
