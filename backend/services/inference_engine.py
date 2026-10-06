@@ -15,6 +15,7 @@ import os
 
 import cv2
 import numpy as np
+import segmentation_models_pytorch as smp
 import torch
 
 from backend.models.attention_unet import AttentionUNet
@@ -39,6 +40,7 @@ class InferenceEngine:
         default_pixel_spacing_mm=0.1,
         uncertainty_entropy_threshold=0.75,
         architecture="auto",
+        input_normalization=None,
     ):
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         self.threshold = float(threshold)
@@ -48,23 +50,41 @@ class InferenceEngine:
         self.model_checksum = None
         self.is_model_ready = False
         self.architecture_name = architecture
+        input_normalization = input_normalization or {}
+        self.input_mean = float(input_normalization.get("mean", 0.0))
+        self.input_std = float(input_normalization.get("std", 1.0))
+        if self.input_std <= 0:
+            raise ValueError("input_normalization.std must be greater than zero")
         self.morph_extractor = MorphologicalFeatureExtractor(default_pixel_spacing_mm=self.default_pixel_spacing_mm)
 
         # Auto-detect architecture from path if not explicitly standard_unet or attention_unet
         is_standard = False
+        is_unetplusplus = architecture == "unetplusplus_resnet34"
         if architecture == "standard_unet":
             is_standard = True
-        elif architecture == "attention_unet":
+        elif architecture in {"attention_unet", "unetplusplus_resnet34"}:
             is_standard = False
         elif model_weights_path and ("baseline" in os.path.basename(model_weights_path).lower() or "unet_best" in os.path.basename(model_weights_path).lower()):
             is_standard = True
 
-        if is_standard:
+        if is_unetplusplus:
+            self.model = smp.UnetPlusPlus(
+                encoder_name="resnet34",
+                encoder_weights=None,
+                in_channels=1,
+                classes=1,
+                activation=None,
+            ).to(self.device)
+            self.architecture_name = "U-Net++ (ResNet34 ImageNet)"
+            self.model_name = "U-Net++ + ResNet34 ImageNet encoder"
+        elif is_standard:
             self.model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device)
             self.architecture_name = "Standard U-Net (Baseline)"
+            self.model_name = "Standard U-Net (Baseline)"
         else:
             self.model = AttentionUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device)
             self.architecture_name = "Attention U-Net (Comparative Variant)"
+            self.model_name = self.MODEL_NAME
         self.model.eval()
 
         if model_weights_path and os.path.exists(model_weights_path):
@@ -75,10 +95,12 @@ class InferenceEngine:
                         hasher.update(chunk)
                 self.model_checksum = hasher.hexdigest()
 
-                state_dict = torch.load(model_weights_path, map_location=self.device)
+                state_dict = torch.load(model_weights_path, map_location=self.device, weights_only=True)
                 try:
-                    self.model.load_state_dict(state_dict)
+                    self.model.load_state_dict(state_dict, strict=True)
                 except Exception:
+                    if is_unetplusplus:
+                        raise
                     # Fallback to alternate model if weights format corresponds to other architecture
                     alt_model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device) if not is_standard else AttentionUNet(in_channels=1, num_classes=1, base_filters=32).to(self.device)
                     alt_model.load_state_dict(state_dict)
@@ -138,6 +160,15 @@ class InferenceEngine:
     def post_process_mask(self, prob_map_np: np.ndarray, min_area_px: int = 100) -> np.ndarray:
         """Apply the selected model's locked threshold without extra morphology."""
         return (prob_map_np >= self.threshold).astype(np.uint8)
+
+    def prepare_model_input(self, tensor_512: torch.Tensor) -> torch.Tensor:
+        """Apply the normalization recorded for the selected checkpoint."""
+        tensor_gpu = tensor_512.to(self.device)
+        input_mean = getattr(self, "input_mean", 0.0)
+        input_std = getattr(self, "input_std", 1.0)
+        if input_mean == 0.0 and input_std == 1.0:
+            return tensor_gpu
+        return (tensor_gpu - input_mean) / input_std
 
     def calculate_uncertainty(self, prob_map_np: np.ndarray, clean_mask: np.ndarray) -> dict:
         """
@@ -348,7 +379,7 @@ class InferenceEngine:
         Executes full medical inference pipeline:
         Tensor -> one model forward pass -> sigmoid -> locked threshold -> RLE.
         """
-        tensor_gpu = tensor_512.to(self.device)
+        tensor_gpu = self.prepare_model_input(tensor_512)
 
         with torch.no_grad():
             probs = torch.sigmoid(self.model(tensor_gpu)).squeeze().cpu().numpy()
@@ -410,7 +441,7 @@ class InferenceEngine:
 
         # Provenance metadata
         provenance = {
-            "model_name": self.MODEL_NAME,
+            "model_name": getattr(self, "model_name", self.MODEL_NAME),
             "model_version": self.MODEL_VERSION,
             "model_checksum": self.model_checksum,
             "preprocessor_version": self.PREPROCESSOR_VERSION,

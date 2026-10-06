@@ -52,7 +52,13 @@ class AttentionUNetAdapter(BaseModelAdapter):
     Trained specifically on clinical ovarian ultrasound lesions.
     """
 
-    def __init__(self, weights_path: str | None = None, device: str | None = None):
+    def __init__(
+        self,
+        weights_path: str | None = None,
+        device: str | None = None,
+        architecture: str = "auto",
+        input_normalization: dict | None = None,
+    ):
         super().__init__(
             name="Attention U-Net Ovarian Engine",
             version="1.2.0",
@@ -60,15 +66,32 @@ class AttentionUNetAdapter(BaseModelAdapter):
         )
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         self.weights_path = weights_path
-        self.engine = InferenceEngine(model_weights_path=weights_path, device=self.device, default_pixel_spacing_mm=0.1)
+        self.model_architecture = architecture
+        self.input_normalization = input_normalization
+        self.engine = InferenceEngine(
+            model_weights_path=weights_path,
+            device=self.device,
+            default_pixel_spacing_mm=0.1,
+            architecture=architecture,
+            input_normalization=input_normalization,
+        )
+        self.name = self.engine.model_name
+        self.architecture = self.engine.architecture_name
         self.is_loaded = self.engine.is_model_ready
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
         self.weights_path = weights_path
         self.device = device
-        self.engine = InferenceEngine(model_weights_path=weights_path, device=device)
-        self.is_loaded = True
-        return True
+        self.engine = InferenceEngine(
+            model_weights_path=weights_path,
+            device=device,
+            architecture=self.model_architecture,
+            input_normalization=self.input_normalization,
+        )
+        self.name = self.engine.model_name
+        self.architecture = self.engine.architecture_name
+        self.is_loaded = self.engine.is_model_ready
+        return self.is_loaded
 
     def predict(
         self,
@@ -299,14 +322,19 @@ class ModelRegistry:
     Central Registry managing hot-swappable AI segmentation model adapters.
     """
 
-    def __init__(self, checkpoint_path: str | None = None):
+    def __init__(self, checkpoint_path: str | None = None, model_selection: dict | None = None):
         self.adapters: dict[str, BaseModelAdapter] = {}
         self.primary_model_key = "attention_unet"
         self.fallback_model_key = "attention_unet"
         self.ensemble_enabled = False
 
         # Register all supported model architectures
-        primary_adapter = AttentionUNetAdapter(weights_path=checkpoint_path)
+        model_selection = model_selection or {}
+        primary_adapter = AttentionUNetAdapter(
+            weights_path=checkpoint_path,
+            architecture=model_selection.get("architecture", "auto"),
+            input_normalization=model_selection.get("input_normalization"),
+        )
         primary_engine = primary_adapter.engine
 
         self.register_adapter("attention_unet", primary_adapter)

@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "split": "val",
+  "sourceSplitCsv": "ai_training/splits/val.csv",
+  "caseId": "217_41.JPG",
+  "checkpointSha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+  "emptyUpload": true,
+  "uploadError": true,
+  "loading": true,
+  "inferenceRetry": true,
+  "views": true,
+  "responsive": true,
+  "brush": true,
+  "eraser": true,
+  "pan": true,
+  "opacity": true,
+  "resetUndo": true,
+  "reviewErrorRetry": true,
+  "savedMask": true,
+  "reopenedCase": true,
+  "unexpectedConsoleErrors": 0
+}

@@ -1,0 +1,57 @@
+{
+  "architecture": "U-Net++ (Segmentation Models PyTorch) + ResNet34 ImageNet encoder",
+  "seed": 42,
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "batch_size": 2,
+  "epochs_requested": 30,
+  "epochs_completed": 30,
+  "patience": 6,
+  "learning_rate": 0.0001,
+  "optimizer": "AdamW(weight_decay=1e-4)",
+  "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
+  "loss": "0.5 BCEWithLogits + 0.5 SoftDice",
+  "input": "Grayscale CLAHE Letterbox 512x512, scaled to [0,1], then grayscale ImageNet normalization",
+  "gray_normalization": {
+    "mean": 0.449,
+    "std": 0.226
+  },
+  "threshold": 0.5,
+  "selection_metric": "mean per-image Validation Dice",
+  "split_dir": "ai_training\\splits\\unified_vinmec_clean_2026-10-06",
+  "train_count": 661,
+  "validation_count": 541,
+  "test_split_accessed": false,
+  "train_csv_sha256": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+  "validation_csv_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+  "manifest_sha256": "272a3a51079b2da053529e086c27d08bb45ba1484bc6f502a863314358be32d6",
+  "baseline_standard_unet_validation_dice": 0.6724380325257447,
+  "best_epoch": 30,
+  "best_validation": {
+    "loss": 0.15395248178633655,
+    "dice": 0.8170359435075095,
+    "iou": 0.7322870028247069,
+    "recall": 0.8345088656367037,
+    "precision": 0.854471916520913,
+    "specificity": 0.9851231816295335
+  },
+  "duration_seconds": 3014.39,
+  "best_checkpoint": "checkpoints\\unetplusplus_resnet34_2026-10-06\\unetplusplus_resnet34_best.pth",
+  "best_checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "last_checkpoint": "checkpoints\\unetplusplus_resnet34_2026-10-06\\unetplusplus_resnet34_last.pth",
+  "last_checkpoint_sha256": "0a84eddcc5eb13a6693f9920e3215cbd3077369cae65dc499e6d19c1b0b4d227",
+  "segmentation_models_pytorch_version": "0.5.0",
+  "encoder": {
+    "name": "resnet34",
+    "weights": "imagenet"
+  },
+  "augmentation": "Existing synchronized image-mask train transforms from OvarianUltrasoundDataset",
+  "train_metrics_at_best_epoch": {
+    "loss": 0.04528543231346604,
+    "dice": 0.937058877701478,
+    "iou": 0.8875325259255209,
+    "recall": 0.9418231414774723,
+    "precision": 0.9401447719326539,
+    "specificity": 0.9945293843475665
+  }
+}

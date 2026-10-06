@@ -1,0 +1,34 @@
+{
+  "status": "measured",
+  "split": "validation",
+  "validation_csv": "ai_training\\splits\\unified_vinmec_clean_2026-10-06\\val.csv",
+  "image": "dataset\\Vinmec\\Vinmec_2d\\images\\1098.JPG",
+  "selection_manifest": "evaluation\\selected_model_unetplusplus_candidate.json",
+  "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "threshold": 0.5,
+  "input_normalization": {
+    "mean": 0.449,
+    "std": 0.226
+  },
+  "warmup_requests": 1,
+  "measured_requests": 5,
+  "sampling_scope": "Repeated API requests for one Validation image; descriptive latency sample only.",
+  "api_reported_ms": [
+    88.0,
+    77.0,
+    78.0,
+    78.0,
+    80.0
+  ],
+  "api_reported_median_ms": 78.0,
+  "api_reported_p95_ms": 86.4,
+  "client_end_to_end_ms": [
+    111.768,
+    100.049,
+    98.987,
+    101.351,
+    101.955
+  ],
+  "client_end_to_end_median_ms": 101.351,
+  "client_end_to_end_p95_ms": 109.805
+}

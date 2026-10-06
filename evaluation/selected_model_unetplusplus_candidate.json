@@ -1,0 +1,29 @@
+{
+  "model": "U-Net++ + ResNet34 ImageNet encoder",
+  "model_version": "milestone_3_validation_candidate_2026-10-06",
+  "architecture": "unetplusplus_resnet34",
+  "checkpoint": "checkpoints/unetplusplus_resnet34_2026-10-06/unetplusplus_resnet34_best.pth",
+  "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "threshold": 0.5,
+  "input_normalization": {
+    "mean": 0.449,
+    "std": 0.226
+  },
+  "inference_protocol": {
+    "decode": "OpenCV IMREAD_GRAYSCALE",
+    "input_channels": 1,
+    "letterbox_size": [512, 512],
+    "clahe_clip_limit": 2.0,
+    "clahe_grid_size": [8, 8],
+    "normalize_divisor": 255.0,
+    "postprocessing": "sigmoid >= threshold; no morphology"
+  },
+  "selection_split": "ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv",
+  "selection_count": 541,
+  "selection_dice_mean": 0.8170359435075095,
+  "selection_evidence": "checkpoints/unetplusplus_resnet34_2026-10-06/run_config.json",
+  "training_evidence": "checkpoints/unetplusplus_resnet34_2026-10-06/run_config.json",
+  "source_patient_identity_verified": false,
+  "candidate_only": true,
+  "test_evaluation": null
+}

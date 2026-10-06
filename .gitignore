@@ -50,3 +50,6 @@ env/
 ~$*.pptx
 
 .aider*
+
+# Cleanup review staging
+REVIEW_BEFORE_DELETE/

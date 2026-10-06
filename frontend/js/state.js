@@ -87,6 +87,7 @@ let currentCase = {
 
 // Global predictions, view mode, and tool states
 let currentPrediction = null;
+let reviewStartedAt = null;
 let currentActiveUser = null;
 let currentUser = {
     full_name: "BS.CKII. Trương Thị Phượng",

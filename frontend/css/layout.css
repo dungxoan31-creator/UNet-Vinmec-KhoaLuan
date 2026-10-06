@@ -522,3 +522,21 @@ footer.vinmec-footer {
         text-align: center;
     }
 }
+
+@media (max-width: 480px) {
+    .brand-titles {
+        display: none;
+    }
+
+    .btn-create-case-nav,
+    .btn-switch-role-header,
+    #headerUserName,
+    #headerRoleBadge {
+        display: none;
+    }
+
+    .canvas-toolbar-bar > .tool-btn-group {
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+}

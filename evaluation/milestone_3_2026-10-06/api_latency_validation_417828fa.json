@@ -1,0 +1,18 @@
+{
+  "split": "val",
+  "case_id": "OTU_CEUS_113",
+  "source_split_csv": "ai_training/splits/val.csv",
+  "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+  "device": "cuda",
+  "measurement": "TestClient POST /api/predict end-to-end, one warm-up excluded",
+  "sample_count": 5,
+  "durations_ms": [
+    79.72,
+    76.55,
+    76.9,
+    81.82,
+    78.23
+  ],
+  "median_ms": 78.23,
+  "p95_ms": 81.4
+}

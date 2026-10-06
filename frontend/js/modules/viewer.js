@@ -8,6 +8,7 @@ const MIN_ZOOM = 0.2;
 const ZOOM_STEP = 0.25;
 
 function initResultsWorkspace(data) {
+    reviewStartedAt = performance.now();
     const modelNameElement = document.getElementById('workstationModelName');
     if (modelNameElement) modelNameElement.textContent = data.provenance?.model_name || 'U-Net';
 
@@ -1054,7 +1055,7 @@ function resetMaskToAI() {
                 document.getElementById('resDmax').innerText = meas.calibrated ? `${meas.max_diameter_mm} mm` : 'Chưa hiệu chuẩn';
                 document.getElementById('resDorth').innerText = meas.calibrated ? `${meas.ortho_diameter_mm} mm` : 'Chưa hiệu chuẩn';
                 document.getElementById('resArea').innerText = meas.calibrated ? `${meas.total_area_cm2} cm²` : 'Chưa hiệu chuẩn';
-                renderMask(currentPrediction);
+                if (!currentPrediction.rle_mask) renderMask(currentPrediction);
                 saveLocalDraft();
                 showToast("🔄 Đã phục hồi mask AI ban đầu");
             }

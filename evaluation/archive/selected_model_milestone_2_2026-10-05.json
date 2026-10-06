@@ -1,0 +1,39 @@
+{
+  "model": "Standard U-Net",
+  "checkpoint": "checkpoints/baseline_unet_best.pth",
+  "checkpoint_origin": "checkpoints/retrain_2d_2026-10-03_stable/vinmec_unet_best.pth",
+  "checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
+  "threshold": 0.5,
+  "inference_protocol": {
+    "decode": "OpenCV IMREAD_GRAYSCALE",
+    "input_channels": 1,
+    "letterbox_size": [
+      512,
+      512
+    ],
+    "clahe_clip_limit": 2.0,
+    "clahe_grid_size": [
+      8,
+      8
+    ],
+    "normalize_divisor": 255.0,
+    "standard_unet_postprocessing": "sigmoid >= threshold; no morphology",
+    "metric_mask_resolution": "original image dimensions after inverse letterbox, nearest-neighbor"
+  },
+  "selection_split": "val",
+  "selection_count": 123,
+  "selection_dice_mean": 0.8233030566107864,
+  "selection_evidence": "evaluation/retrain_2d_2026-10-03/validation/summary.json",
+  "training_evidence": "checkpoints/retrain_2d_2026-10-03_stable/vinmec_unet_best_history.json",
+  "best_epoch": 27,
+  "patient_split_status": "source patient IDs unavailable; synthetic PID mapping for E2E only",
+  "e2e_patient_mapping": "ai_training/splits/patient_mapping.json",
+  "source_patient_identity_verified": false,
+  "test_evaluation": {
+    "summary": "evaluation/retrain_2d_2026-10-03/test_summary.json",
+    "checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
+    "threshold": 0.5,
+    "count": 382,
+    "patient_level_independence_verified": false
+  }
+}

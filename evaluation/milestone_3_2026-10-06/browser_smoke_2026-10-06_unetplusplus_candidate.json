@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "split": "val",
+  "sourceSplitCsv": "ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv",
+  "selectionManifest": "evaluation/selected_model_unetplusplus_candidate.json",
+  "caseId": "1098.JPG",
+  "checkpointSha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "emptyUpload": true,
+  "uploadError": true,
+  "loading": true,
+  "inferenceRetry": true,
+  "views": true,
+  "responsive": true,
+  "brush": true,
+  "eraser": true,
+  "pan": true,
+  "opacity": true,
+  "resetUndo": true,
+  "reviewErrorRetry": true,
+  "savedMask": true,
+  "reopenedCase": true,
+  "unexpectedConsoleErrors": 0
+}

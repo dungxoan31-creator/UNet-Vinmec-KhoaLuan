@@ -25,16 +25,21 @@ def test_selected_checkpoint_requires_matching_checksum(tmp_path):
     assert selected_checkpoint_path(manifest) is None
 
 
-def test_prototype_uses_audited_checkpoint_alias():
+def test_prototype_uses_validation_selected_checkpoint_with_matching_sha():
     root = Path(__file__).resolve().parents[1]
     manifest = root / "evaluation/selected_model.json"
     selection = json.loads(manifest.read_text(encoding="utf-8"))
-    checkpoint = root / "checkpoints/baseline_unet_best.pth"
-
-    assert selection["checkpoint"] == "checkpoints/baseline_unet_best.pth"
-    assert selection["checkpoint_origin"] == (
-        "checkpoints/retrain_2d_2026-10-03_stable/vinmec_unet_best.pth"
+    checkpoint = root / selection["checkpoint"]
+    test_summary = json.loads(
+        (root / selection["test_evaluation"]["summary"]).read_text(encoding="utf-8")
     )
+
+    assert selection["selection_split"] == "val"
+    assert selection["selection_count"] == 541
+    assert selection["threshold"] == 0.5
     assert checkpoint.is_file()
     assert hashlib.sha256(checkpoint.read_bytes()).hexdigest() == selection["checkpoint_sha256"]
     assert selected_checkpoint_path(manifest) == str(checkpoint)
+    assert test_summary["checkpoint_sha256"] == selection["checkpoint_sha256"]
+    assert test_summary["threshold"] == selection["threshold"]
+    assert Path(root / selection["previous_selection_archive"]).is_file()

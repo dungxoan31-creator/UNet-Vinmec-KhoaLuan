@@ -1,0 +1,75 @@
+{
+  "status": "validation_only_model_configuration_comparison",
+  "test_evaluation_performed": false,
+  "test_split_accessed": false,
+  "split_counts": {
+    "train": 661,
+    "validation": 541,
+    "test_held_out": 402
+  },
+  "threshold": 0.5,
+  "train_split_sha256": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+  "validation_split_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+  "comparison_controls": [
+    "same Train/Validation CSVs",
+    "same grayscale CLAHE and Letterbox 512x512 preprocessing",
+    "same grayscale ImageNet mean/std normalization (mean=0.449, std=0.226)",
+    "same synchronized augmentations",
+    "same Combo Loss, AdamW, learning rate, scheduler, batch size, seed, epochs, patience, and threshold"
+  ],
+  "models": [
+    {
+      "name": "Standard U-Net, previous unified run",
+      "checkpoint": "checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/baseline_unet_best.pth",
+      "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+      "validation_dice_mean": 0.6724380325257447,
+      "normalization": "[0,1]",
+      "role": "historical reference; hyperparameters differ from the controlled runs"
+    },
+    {
+      "name": "Standard U-Net, matched normalization",
+      "checkpoint": "checkpoints/standard_unet_gray_imagenet_norm_2026-10-06/standard_unet_best.pth",
+      "checkpoint_sha256": "1269a7d3a251df25ae25a4d6c146f667201c8063c90a9c26e59e3a9eefa71879",
+      "best_epoch": 28,
+      "validation_metrics": {
+        "loss": 0.21961614190705822,
+        "dice": 0.7382963800324255,
+        "iou": 0.6264159313408234,
+        "recall": 0.8159412157372357,
+        "precision": 0.7444243564351346,
+        "specificity": 0.9738785461445172
+      },
+      "train_dice_at_best_epoch": 0.8071452656791809,
+      "strict_checkpoint_reload_verified": true
+    },
+    {
+      "name": "U-Net++ (Segmentation Models PyTorch) + ResNet34 ImageNet encoder",
+      "checkpoint": "checkpoints/unetplusplus_resnet34_2026-10-06/unetplusplus_resnet34_best.pth",
+      "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+      "best_epoch": 30,
+      "validation_metrics": {
+        "loss": 0.15395248178633655,
+        "dice": 0.8170359435075095,
+        "iou": 0.7322870028247069,
+        "recall": 0.8345088656367037,
+        "precision": 0.854471916520913,
+        "specificity": 0.9851231816295335
+      },
+      "train_dice_at_best_epoch": 0.937058877701478,
+      "strict_checkpoint_reload_verified": true
+    }
+  ],
+  "unetplusplus_vs_matched_standard_dice_gain": 0.078739563475084,
+  "selection_rule": "Compare mean per-image Validation Dice at fixed threshold 0.5; no Test data accessed.",
+  "matched_standard_train_to_validation_dice_gap": 0.0688488856467554,
+  "unetplusplus_train_to_validation_dice_gap": 0.12002293419396848,
+  "interpretation": "U-Net++ has the higher Validation Dice in these runs. This is a comparison of model configurations, not an architecture-only ablation, because U-Net++ uses an ImageNet-pretrained ResNet34 encoder while Standard U-Net starts from random initialization.",
+  "isolated_prototype_integration": {
+    "verified": true,
+    "manifest": "evaluation/selected_model_unetplusplus_candidate.json",
+    "browser_smoke": "evaluation/milestone_3_2026-10-06/browser_smoke_2026-10-06_unetplusplus_candidate.json",
+    "api_latency": "evaluation/milestone_3_2026-10-06/api_latency_validation_unetplusplus_candidate.json",
+    "active_default_selection_changed": false
+  },
+  "candidate_deployed": false
+}

@@ -50,5 +50,5 @@
     "scheduler": "CosineAnnealingLR(eta_min=1e-6)"
   },
   "identity_level": "image-level; source Patient/Case IDs unavailable",
-  "test_policy": "Test split was not iterated, used for selection, or reevaluated."
+  "test_policy": "During refinement, the Test split was not iterated or used for model selection. After refinement was locked from Validation, it was evaluated once in Mốc 3; see evaluation/milestone_3_2026-10-06/test_summary.json. The Test result was not used to tune the checkpoint or threshold."
 }

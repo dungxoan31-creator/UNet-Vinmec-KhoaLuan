@@ -43,7 +43,15 @@ def selected_checkpoint_path(manifest_path: str | Path) -> str | None:
         return None
 
 
-CHECKPOINT_PATH = selected_checkpoint_path(Path(PROJECT_ROOT) / "evaluation" / "selected_model.json")
+_default_selection_path = Path(PROJECT_ROOT) / "evaluation" / "selected_model.json"
+SELECTION_MANIFEST_PATH = Path(os.environ.get("MODEL_SELECTION_MANIFEST", _default_selection_path))
+if not SELECTION_MANIFEST_PATH.is_absolute():
+    SELECTION_MANIFEST_PATH = Path(PROJECT_ROOT) / SELECTION_MANIFEST_PATH
+CHECKPOINT_PATH = selected_checkpoint_path(SELECTION_MANIFEST_PATH)
+try:
+    MODEL_SELECTION = json.loads(SELECTION_MANIFEST_PATH.read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    MODEL_SELECTION = {}
 
 # Ensure required runtime directories exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -73,5 +81,5 @@ BASELINE_ACCEPTED_RAW = 253   # ~82.4% direct acceptance rate
 
 # Shared Service Instances
 preprocessor = UltrasoundPreprocessor(target_size=(512, 512))
-model_registry = ModelRegistry(checkpoint_path=CHECKPOINT_PATH)
+model_registry = ModelRegistry(checkpoint_path=CHECKPOINT_PATH, model_selection=MODEL_SELECTION)
 report_generator = MedicalReportGenerator()

@@ -42,8 +42,64 @@ def _write_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
         writer.writerows(rows)
 
 
-def evaluate(root: Path, split_dir: Path, checkpoint: Path, output_dir: Path, batch_size: int = 2) -> dict:
+def _write_error_panel(root: Path, output_path: Path, record: dict) -> None:
+    def read(path_key: str) -> np.ndarray:
+        path = Path(record[path_key])
+        if not path.is_absolute():
+            path = root / path
+        image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            raise FileNotFoundError(f"Could not read {path_key}: {path}")
+        return image
+
+    truth = read("ground_truth_path") > 0
+    prediction = read("prediction_path") > 0
+    original = read("image_path")
+    size = (truth.shape[1], truth.shape[0])
+    if prediction.shape != truth.shape:
+        prediction = cv2.resize(prediction.astype(np.uint8), size, interpolation=cv2.INTER_NEAREST) > 0
+    if original.shape != truth.shape:
+        original = cv2.resize(original, size, interpolation=cv2.INTER_AREA)
+
+    truth_view = cv2.cvtColor(truth.astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+    truth_view[:, :, 1] = np.maximum(truth_view[:, :, 1], truth_view[:, :, 0])
+    prediction_view = cv2.cvtColor(prediction.astype(np.uint8) * 255, cv2.COLOR_GRAY2BGR)
+    prediction_view[:, :, 1] = np.maximum(prediction_view[:, :, 1], prediction_view[:, :, 0])
+    errors = cv2.cvtColor(original, cv2.COLOR_GRAY2BGR)
+    errors[prediction & ~truth] = (0, 0, 255)  # False positive: red
+    errors[truth & ~prediction] = (255, 160, 0)  # False negative: blue/orange in BGR
+
+    panels = [cv2.cvtColor(original, cv2.COLOR_GRAY2BGR), truth_view, prediction_view, errors]
+    labels = ["Original", "Ground truth", "Prediction", "FP red / FN blue"]
+    for panel, label in zip(panels, labels):
+        cv2.putText(panel, label, (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if not cv2.imwrite(str(output_path), np.hstack(panels)):
+        raise OSError(f"Could not write error-analysis panel: {output_path}")
+
+
+def _write_error_analysis(root: Path, output_dir: Path, best: list[dict], errors: list[dict]) -> None:
+    for label, rows in (("best", best), ("fp_fn_errors", errors)):
+        for index, record in enumerate(rows, start=1):
+            filename = f"{label}_{index:02d}_dice_{record['dice']:.3f}.png"
+            _write_error_panel(root, output_dir / "error_analysis" / filename, record)
+
+
+def evaluate(
+    root: Path,
+    split_dir: Path,
+    checkpoint: Path,
+    output_dir: Path,
+    batch_size: int = 2,
+    threshold: float = 0.5,
+) -> dict:
     root, split_dir, checkpoint, output_dir = (p.resolve() for p in (root, split_dir, checkpoint, output_dir))
+    try:
+        output_rel = output_dir.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("output_dir must be located inside root to keep artifacts traceable") from exc
+    if output_dir.exists() and any(output_dir.iterdir()):
+        raise FileExistsError(f"Refusing to overwrite existing evaluation artifacts: {output_dir}")
     test_csv = split_dir / "test.csv"
     with (split_dir / "all_samples.csv").open(newline="", encoding="utf-8-sig") as stream:
         index_rows = list(csv.DictReader(stream))
@@ -72,10 +128,10 @@ def evaluate(root: Path, split_dir: Path, checkpoint: Path, output_dir: Path, ba
             ground_truth = masks.cpu().numpy()
             for offset, case_id in enumerate(batch["case_id"]):
                 record = index_by_case[case_id]
-                predicted = (probabilities[offset, 0] > 0.5).astype(np.uint8)
+                predicted = (probabilities[offset, 0] > threshold).astype(np.uint8)
                 truth = (ground_truth[offset, 0] > 0.5).astype(np.uint8)
                 metrics = compute_sample_clinical_metrics(predicted, truth)
-                prediction_rel = (Path("evaluation/unified_vinmec_2026-10-06/predictions") / f"{case_id}.png").as_posix()
+                prediction_rel = (output_rel / "predictions" / f"{case_id}.png").as_posix()
                 prediction_path = root / prediction_rel
                 cv2.imwrite(str(prediction_path), predicted * 255)
                 per_image.append({
@@ -101,42 +157,39 @@ def evaluate(root: Path, split_dir: Path, checkpoint: Path, output_dir: Path, ba
 
     ranked = sorted(per_image, key=lambda row: row["dice"], reverse=True)
     worst = sorted(per_image, key=lambda row: row["fp"] + row["fn"], reverse=True)
-    config = json.loads((root / "checkpoints/unified_vinmec_2026-10-06/run_config.json").read_text(encoding="utf-8"))
+    config_path = checkpoint.parent / "run_config.json"
+    if not config_path.is_file():
+        raise FileNotFoundError(f"Run configuration not found beside checkpoint: {config_path}")
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    best_cases = ranked[:5]
+    error_cases = worst[:5]
     summary = {
-        "status": "evaluated_once",
+        "status": "evaluated_once_for_locked_checkpoint",
         "test_samples": count,
         "checkpoint": checkpoint.relative_to(root).as_posix(),
         "checkpoint_sha256": _sha256(checkpoint),
         "strict_state_dict_load": True,
         "best_epoch_selected_on_validation": config["best_epoch"],
-        "threshold": 0.5,
+        "validation_dice_selected_checkpoint": config.get("best_validation_dice"),
+        "threshold": threshold,
         "test_loss": loss_sum / count,
         "segmentation_metrics_only": metrics,
         "metrics_by_source_membership": by_source,
         "source_membership_note": "Source groups overlap because folders contain duplicate image content; per-source subsets are not independent.",
         "identity_level": "image-level; source Patient/Case IDs unavailable",
-        "test_policy": "Evaluated after checkpoint selection; not used for training or model selection.",
+        "test_policy": "Checkpoint and threshold were locked using Validation; Test metrics were not used for training, threshold selection, or model selection.",
+        "test_history_note": "The previous baseline checkpoint was evaluated on this same Test split before refinement. This result is retained separately; it was not used to select the current checkpoint.",
         "preprocessing": "Grayscale, Letterbox 512x512, CLAHE; same loader as training.",
-        "top_5_best_cases": ranked[:5],
-        "top_5_error_cases_fp_fn": worst[:5],
+        "top_5_best_cases": best_cases,
+        "top_5_error_cases_fp_fn": error_cases,
+        "error_analysis_directory": (output_rel / "error_analysis").as_posix(),
     }
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    _write_error_analysis(root, output_dir, best_cases, error_cases)
     (output_dir / "test_summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     _write_csv(output_dir / "test_per_image.csv", per_image, list(per_image[0]))
     _write_csv(output_dir / "test_metrics_by_source.csv", by_source, list(by_source[0]))
-    for row in index_rows:
-        row["ground_truth_path"] = row["mask_path"]
-        row["prediction_path"] = ""
-        row["prediction_split"] = ""
-    per_image_by_id = {row["sample_id"]: row for row in per_image}
-    for row in index_rows:
-        if row["sample_id"] in per_image_by_id:
-            row["prediction_path"] = per_image_by_id[row["sample_id"]]["prediction_path"]
-            row["prediction_split"] = "test"
-    fields = list(index_rows[0])
-    _write_csv(root / "dataset/index.csv", index_rows, fields)
-    _write_csv(split_dir / "all_samples.csv", index_rows, fields)
     print(json.dumps(summary, indent=2))
     return summary
 
@@ -145,14 +198,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--split-dir", type=Path, default=Path("ai_training/splits/unified_vinmec_clean_2026-10-06"))
-    parser.add_argument("--checkpoint", type=Path, default=Path("checkpoints/unified_vinmec_2026-10-06/baseline_unet_best.pth"))
-    parser.add_argument("--output-dir", type=Path, default=Path("evaluation/unified_vinmec_2026-10-06"))
+    parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--threshold", type=float, default=0.5)
     args = parser.parse_args()
     root = args.root.resolve()
     def resolve(path: Path) -> Path:
         return path if path.is_absolute() else root / path
 
-    evaluate(root, resolve(args.split_dir), resolve(args.checkpoint), resolve(args.output_dir))
+    evaluate(root, resolve(args.split_dir), resolve(args.checkpoint), resolve(args.output_dir), threshold=args.threshold)
 
 
 if __name__ == "__main__":
