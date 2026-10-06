@@ -71,6 +71,22 @@ def compute_batch_metrics(logits, targets):
     }
 
 
+def _file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def load_initial_checkpoint(model, checkpoint_path, device):
+    """Load a compatible model state for fine-tuning and return its SHA-256."""
+    checkpoint_path = Path(checkpoint_path)
+    state_dict = torch.load(checkpoint_path, map_location=device, weights_only=True)
+    model.load_state_dict(state_dict, strict=True)
+    return _file_sha256(checkpoint_path)
+
+
 def train_baseline(
     epochs=12,
     batch_size=4,
@@ -79,6 +95,7 @@ def train_baseline(
     splits_dir="ai_training/splits",
     seed=42,
     patience=8,
+    initial_checkpoint_path=None,
 ):
     print("=" * 70, flush=True)
     print("   BƯỚC 5: HUẤN LUYỆN MÔ HÌNH STANDARD U-NET BASELINE", flush=True)
@@ -102,6 +119,9 @@ def train_baseline(
 
     # 2. Model & Loss & Optimizer
     model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(device)
+    initial_checkpoint_sha256 = None
+    if initial_checkpoint_path is not None:
+        initial_checkpoint_sha256 = load_initial_checkpoint(model, initial_checkpoint_path, device)
     criterion = ComboLoss(bce_weight=0.5, dice_weight=0.5)
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
@@ -243,6 +263,10 @@ def train_baseline(
             },
             "checkpoint_best": best_checkpoint_path,
             "checkpoint_last": last_checkpoint_path,
+            "checkpoint_best_sha256": _file_sha256(best_checkpoint_path),
+            "checkpoint_last_sha256": _file_sha256(last_checkpoint_path),
+            "initial_checkpoint": str(initial_checkpoint_path) if initial_checkpoint_path is not None else None,
+            "initial_checkpoint_sha256": initial_checkpoint_sha256,
         }, stream, indent=2)
 
     return best_checkpoint_path

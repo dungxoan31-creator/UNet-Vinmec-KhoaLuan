@@ -45,9 +45,23 @@ Số record theo provenance trong từng split (các hàng nguồn chồng lặp
 - Thiết bị: NVIDIA GeForce RTX 3050 Laptop GPU, CUDA; thời gian 763,95 giây.
 - Best checkpoint: epoch 10, Validation Dice **0,6366**. Test không tham gia huấn luyện hoặc chọn checkpoint.
 
+## Fine-tune U-Net trên Validation
+
+Hai lượt fine-tune được khởi tạo riêng từ checkpoint baseline `509b050f...`, dùng cùng split và preprocessing; chỉ learning rate thay đổi. Lựa chọn dựa trên mean per-image Validation Dice ở ngưỡng 0,5.
+
+| Cấu hình | Best epoch | Validation Dice | Thời gian |
+|---|---:|---:|---:|
+| Baseline, LR `1e-3` | 10 | 0,6366 | 763,95 giây |
+| Fine-tune, LR `1e-4` | 10 | 0,6563 | 936,17 giây |
+| Fine-tune, LR `3e-4` | 20 | **0,6724** | 1.189,53 giây |
+
+Checkpoint được chọn theo Validation: `checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/baseline_unet_best.pth` (SHA-256 `417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d`). Dice tăng 0,0358 điểm tuyệt đối so với baseline trên Validation. Split SHA không đổi. Không chạy lại Test và không dùng Test để tinh chỉnh hay chọn cấu hình; do đó chưa có Test metric cho checkpoint fine-tuned.
+
+Nguồn chưa có Patient/Case ID đã xác thực; kết quả chọn mô hình vẫn chỉ dựa trên phân chia độc lập ở mức ảnh/hash.
+
 ## Đánh giá Test
 
-Checkpoint tốt nhất được nạp với `strict=True`, ngưỡng 0,5; Test 402 ảnh được chạy một lần sau khi khóa checkpoint.
+Các chỉ số dưới đây thuộc checkpoint baseline `509b050f...` và lần đánh giá Test đã thực hiện trước lượt fine-tune. Chúng không phải Test metrics của checkpoint fine-tuned.
 
 | Metric phân đoạn điểm ảnh | Test |
 |---|---:|

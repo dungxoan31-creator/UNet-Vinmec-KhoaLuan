@@ -1,0 +1,54 @@
+{
+  "selection_metric": "mean per-image Validation Dice at threshold 0.5",
+  "validation_only_selection": true,
+  "test_used_for_selection": false,
+  "improved_over_incumbent": true,
+  "candidates": [
+    {
+      "name": "current_baseline",
+      "checkpoint": "checkpoints/unified_vinmec_2026-10-06\\baseline_unet_best.pth",
+      "checkpoint_sha256": "509b050f633f765b03419d1615397557889c9c647dd24d500446fa3495d8198b",
+      "validation_dice": 0.6366226998417743
+    },
+    {
+      "name": "lr_1e-04",
+      "checkpoint": "checkpoints/unified_vinmec_refine_2026-10-06/lr_1e-04/baseline_unet_best.pth",
+      "checkpoint_sha256": "902d8f7bdbede4fa0cfa756929c1c0c44791a35bdb94214c8415eaec26d69801",
+      "validation_dice": 0.6562989554652005
+    },
+    {
+      "name": "lr_3e-04",
+      "checkpoint": "checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/baseline_unet_best.pth",
+      "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+      "validation_dice": 0.6724380325257447
+    }
+  ],
+  "selected": {
+    "name": "lr_3e-04",
+    "checkpoint": "checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/baseline_unet_best.pth",
+    "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+    "validation_dice": 0.6724380325257447
+  },
+  "status": "completed",
+  "split_sha256": {
+    "train": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+    "val": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+    "test": "fbc1f55df5f09c784b2f2ce30705b2202b74d02ec83bdf3d2a5ced5c17f4af6f"
+  },
+  "starting_checkpoint": "checkpoints/unified_vinmec_2026-10-06\\baseline_unet_best.pth",
+  "starting_checkpoint_sha256": "509b050f633f765b03419d1615397557889c9c647dd24d500446fa3495d8198b",
+  "hyperparameters": {
+    "learning_rates": [
+      0.0001,
+      0.0003
+    ],
+    "epochs": 20,
+    "patience": 6,
+    "batch_size": 2,
+    "seed": 42,
+    "loss": "0.5 BCE + 0.5 Dice",
+    "scheduler": "CosineAnnealingLR(eta_min=1e-6)"
+  },
+  "identity_level": "image-level; source Patient/Case IDs unavailable",
+  "test_policy": "Test split was not iterated, used for selection, or reevaluated."
+}

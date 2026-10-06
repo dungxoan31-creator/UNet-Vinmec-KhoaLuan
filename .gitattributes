@@ -1,1 +1,2 @@
 checkpoints/unified_vinmec_2026-10-06/*.pth filter=lfs diff=lfs merge=lfs -text
+checkpoints/unified_vinmec_refine_2026-10-06/*/baseline_unet_best.pth filter=lfs diff=lfs merge=lfs -text

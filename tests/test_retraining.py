@@ -5,7 +5,12 @@ import torch
 from torch.utils.data import DataLoader
 
 from ai_training.dataset_loader import get_dataloaders
-from ai_training.train_baseline_unet import compute_batch_dice, compute_batch_metrics, train_baseline
+from ai_training.train_baseline_unet import (
+    compute_batch_dice,
+    compute_batch_metrics,
+    load_initial_checkpoint,
+    train_baseline,
+)
 from scripts.prepare_vinmec import prepare_splits
 from tests.test_vinmec_pipeline import _pair
 
@@ -21,6 +26,26 @@ def test_empty_ground_truth_recall_matches_evaluator_convention():
     assert metrics["dice"].item() == 0.0
     assert metrics["iou"].item() == 0.0
     assert metrics["recall"].item() == 1.0
+
+
+def test_initial_checkpoint_loads_all_weights_strictly(tmp_path):
+    source = torch.nn.Conv2d(1, 1, 1)
+    checkpoint = tmp_path / "initial.pth"
+    torch.save(source.state_dict(), checkpoint)
+    target = torch.nn.Conv2d(1, 1, 1)
+
+    digest = load_initial_checkpoint(target, checkpoint, torch.device("cpu"))
+
+    assert len(digest) == 64
+    assert all(torch.equal(source.state_dict()[key], target.state_dict()[key]) for key in source.state_dict())
+
+
+def test_initial_checkpoint_rejects_architecture_mismatch(tmp_path):
+    checkpoint = tmp_path / "initial.pth"
+    torch.save(torch.nn.Conv2d(1, 1, 1).state_dict(), checkpoint)
+
+    with pytest.raises(RuntimeError):
+        load_initial_checkpoint(torch.nn.Conv2d(2, 1, 1), checkpoint, torch.device("cpu"))
 
 
 def test_training_augmentation_is_reproducible(tmp_path):
