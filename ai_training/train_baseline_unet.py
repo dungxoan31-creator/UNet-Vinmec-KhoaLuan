@@ -4,6 +4,7 @@ Optimized for NVIDIA RTX GPU with CUDA Mixed Precision (AMP).
 Patient-Level Stratified Validation and Best Model Checkpointing.
 """
 
+import hashlib
 import json
 import os
 import random
@@ -88,12 +89,15 @@ def train_baseline(
 
     os.makedirs(checkpoint_dir, exist_ok=True)
     best_checkpoint_path = os.path.join(checkpoint_dir, "baseline_unet_best.pth")
+    last_checkpoint_path = os.path.join(checkpoint_dir, "baseline_unet_last.pth")
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    if device.type == "cuda":
+        torch.cuda.manual_seed_all(seed)
 
     # 1. Dataloaders
-    train_loader, val_loader, _ = get_dataloaders(splits_dir=splits_dir, batch_size=batch_size, num_workers=0, seed=seed)
+    train_loader, val_loader, test_loader = get_dataloaders(splits_dir=splits_dir, batch_size=batch_size, num_workers=0, seed=seed)
     print(f"[DỮ LIỆU] Số batch Train: {len(train_loader)} | Số batch Val: {len(val_loader)} (Batch size: {batch_size})", flush=True)
 
     # 2. Model & Loss & Optimizer
@@ -195,6 +199,7 @@ def train_baseline(
             "amp_skipped_steps": amp_skipped_steps,
         }
         history.append(epoch_stat)
+        torch.save(model.state_dict(), last_checkpoint_path)
 
         star = " ★ [BEST SAVED]" if is_best else ""
         print(f"Epoch [{epoch:02d}/{epochs:02d}] - Train Loss: {train_loss:.4f} | Train Dice: {train_dice:.4f} || Val Loss: {val_loss:.4f} | Val Dice: {val_dice:.4f}{star}", flush=True)
@@ -219,7 +224,25 @@ def train_baseline(
             "patience": patience,
             "learning_rate": lr,
             "loss": "0.5 BCE + 0.5 Dice",
+            "optimizer": "AdamW(weight_decay=1e-4)",
+            "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
+            "architecture": "StandardUNet(base_filters=32)",
+            "augmentation": "HorizontalFlip, RandomBrightnessContrast, ShiftScaleRotate; train only",
             "validation_metric": "mean per-image Dice at 512x512, threshold 0.5",
+            "device": str(device),
+            "gpu_name": torch.cuda.get_device_name(0) if device.type == "cuda" else None,
+            "train_samples": len(train_loader.dataset),
+            "validation_samples": len(val_loader.dataset),
+            "test_samples_held_out": len(test_loader.dataset),
+            "best_epoch": next((row["epoch"] for row in reversed(history) if row["is_best"]), None),
+            "best_validation_dice": best_val_dice,
+            "duration_seconds": round(total_duration, 3),
+            "split_sha256": {
+                split: hashlib.sha256((Path(splits_dir) / f"{split}.csv").read_bytes()).hexdigest()
+                for split in ("train", "val", "test")
+            },
+            "checkpoint_best": best_checkpoint_path,
+            "checkpoint_last": last_checkpoint_path,
         }, stream, indent=2)
 
     return best_checkpoint_path

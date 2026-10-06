@@ -55,6 +55,7 @@ def test_training_persists_metrics_and_configuration_each_epoch(tmp_path, monkey
     monkeypatch.setattr("ai_training.train_baseline_unet.StandardUNet", tiny_model)
     checkpoint = train_baseline(epochs=2, batch_size=2, checkpoint_dir=str(tmp_path), seed=17, patience=8)
     assert torch.load(checkpoint, map_location="cpu", weights_only=True)
+    assert torch.load(tmp_path / "baseline_unet_last.pth", map_location="cpu", weights_only=True)
     history = json.loads((tmp_path / "vinmec_unet_best_history.json").read_text())
     assert len(history) == 2
     assert all({"val_dice", "val_iou", "val_recall", "elapsed_seconds"} <= row.keys() for row in history)
@@ -62,6 +63,10 @@ def test_training_persists_metrics_and_configuration_each_epoch(tmp_path, monkey
     config = json.loads((tmp_path / "run_config.json").read_text())
     assert config["seed"] == 17
     assert config["batch_size"] == 2
+    assert config["device"] in {"cpu", "cuda"}
+    assert config["train_samples"] == len(samples)
+    assert config["optimizer"] == "AdamW(weight_decay=1e-4)"
+    assert config["scheduler"] == "CosineAnnealingLR(eta_min=1e-6)"
     assert config["validation_metric"] == "mean per-image Dice at 512x512, threshold 0.5"
 
 

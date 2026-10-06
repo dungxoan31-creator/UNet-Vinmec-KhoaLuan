@@ -1,55 +1,75 @@
-# Vinmec Unified Dataset Audit — Gate Report
+# Báo cáo huấn luyện hợp nhất Vinmec — 06/10/2026
 
-**Status: BLOCKED BEFORE TRAINING**
-**Scope:** Read-only validation of the six requested dataset roots. No source data, split manifest, checkpoint, or model weights were changed. No training or evaluation was started.
+**Trạng thái: TRAINING COMPLETED; TEST EVALUATED ONCE**
 
-## Dataset inventory
+## Dataset và mapping
 
-Counts below are per-root audit records and overlap across directories; they must not be summed as independent samples.
+Sáu thư mục có tổng cộng **4.997 file ảnh vật lý**. Khử trùng lặp bằng SHA-256 còn **1.639 ảnh nội dung duy nhất**; các nguồn là các bản sao/tập con chồng lặp, không phải sáu tập độc lập. 35 ảnh được liên kết với mask fallback rỗng Mốc 1 đã bị loại khỏi index huấn luyện vì bất đồng với nhãn nguồn. Còn **1.604 ảnh** với một target nhị phân đã xác thực cho mỗi ảnh. Trong các bản sao còn lại, không phát hiện sai khác mask sau khi nhị phân hóa.
 
-| Dataset root | Audit records* | Readable image–target pairs | Split evidence (Train / Val / Test) | Pair issues |
-|---|---:|---:|---:|---|
-| `Vinmec` | 1,639 | 1,639 | 1,602 / 948 / 415 | Two annotation files per image; exact copies overlap other roots |
-| `Vinmec_2D` | 1,202 | 1,202 | 1,197 / 730 / 410 | Includes source Test; split evidence conflicts with other snapshots |
-| `Vinmec_CEUS` | 170 | 170 | 155 / 113 / 5 | Overlaps CEUS sources and split snapshots |
-| `vinmec_m1_307` | 307 | 272 | 303 / 196 / 117 | 35 derived masks are empty and have image-shape mismatch |
-| `vinmec_ovarian` | 1,407 | 1,372 | 1,352 / 843 / 415 | 35 fallback masks unresolved; native source labels are separate |
-| `vinmec_splits` | 307 | 272 | 303 / 196 / 117 | 35 derived masks are empty and have image-shape mismatch |
+| Nguồn | File ảnh vật lý |
+|---|---:|
+| `Vinmec` | 1.639 |
+| `Vinmec_2D` | 1.202 |
+| `Vinmec_CEUS` | 170 |
+| `vinmec_m1_307` | 307 |
+| `vinmec_ovarian` | 1.372 |
+| `vinmec_splits` | 307 |
 
-*The `vinmec_ovarian` audit-record count includes 35 fallback-mask references associated through M1 CSVs; it has 1,372 physical image files. Split-evidence counts include records appearing in multiple manifests and may be conflicted; they are not a proposed split. The authoritative report lists exact source paths and hashes.
+Index giữ provenance của cả sáu nguồn tại `dataset/index.csv`; split dành cho dataloader ở `ai_training/splits/unified_vinmec_clean_2026-10-06/`.
 
-## Mapping and data integrity
+## Split và giới hạn định danh
 
-- The observed schemas provide an image and one target role (`annotation`, `label`, or `mask`). They do not provide four distinct files (`image + annotation + label + mask`) for each sample. No aliases were invented, and `dataset/index.csv` was not created.
-- The `Vinmec` annotation folder has 3,278 annotation files for 1,639 images (two variants per numeric ID). Where the existing auditor verified both variants to have equivalent binary masks, it recorded the selected binary path; this does not create additional label/mask artifacts.
-- Exact image hashing found 1,372 repeated SHA-256 values and 3,358 additional copied file paths across the adapters. The six roots therefore overlap and cannot be treated as six independent datasets.
-- The M1 manifests list 35 empty fallback masks: all 35 files exist, decode, are all-zero 512×512 images. Their archived CSV rows identify the associated image and native label path. All 35 native labels are readable, positive, and match their source image dimensions. The fallback and native target disagree; `dataset/vinmec_ovarian/empty_masks/PROVENANCE.json` is absent. These records remain unresolved and are excluded from a training-ready mapping.
-- No verified source patient/case IDs were found. M1 `ANON-VINMEC-PID-*` values are synthetic partition metadata and do not establish patient-level independence.
+| Train | Validation | Test | Tổng |
+|---:|---:|---:|---:|
+| 661 | 541 | 402 | 1.604 |
 
-## Split and training gate
+Split giải quyết chứng cứ mâu thuẫn theo thứ tự `Test > Validation > Train`; do đó một ảnh từng có bằng chứng Test không được đưa vào Train. Không có SHA ảnh giao nhau giữa ba split. Dataset nguồn không có Patient/Case ID đã xác thực, nên chỉ xác nhận được độc lập ở mức ảnh/hash; chưa chứng minh độc lập ở mức bệnh nhân.
 
-- 936 exact image hashes have incompatible Train/Validation/Test assignments across source lists and existing manifests. Exact examples and all evidence are in `dataset_validation_split_conflicts.csv`.
-- The `full_dataset_2026-10-03` split is sample-level, includes source Test images in its input pool, and cannot establish patient-level isolation.
-- `ai_training/train_full_unet.py` currently includes the source Test directory in its training pair groups and has no Validation loader; it is not safe for this run.
-- Because target mapping, patient/case separation, and split provenance are unresolved, no canonical index, training run, checkpoint, or new metrics were produced. Test images were read only for file, mapping, and split-integrity audit; none were used for training, model selection, or evaluation.
+Số record theo provenance trong từng split (các hàng nguồn chồng lặp, không cộng thành tổng):
 
-## Evidence files
+| Nguồn provenance | Train | Validation | Test |
+|---|---:|---:|---:|
+| `Vinmec` | 661 | 541 | 402 |
+| `Vinmec_2D` | 445 | 329 | 397 |
+| `Vinmec_CEUS` | 54 | 107 | 5 |
+| `vinmec_m1_307` | 81 | 87 | 104 |
+| `vinmec_ovarian` | 499 | 436 | 402 |
+| `vinmec_splits` | 81 | 87 | 104 |
 
-- `reports/dataset_validation.json` — complete machine-readable audit and blocking conditions.
-- `reports/dataset_validation.csv` — per-root counts.
-- `reports/dataset_validation_samples.csv` — per-record paths, IDs, split evidence, hashes, and status.
-- `reports/dataset_validation_issues.csv` — exact problematic paths and reasons.
-- `reports/dataset_validation_duplicates.csv` — duplicate image hashes and paths.
-- `reports/dataset_validation_split_conflicts.csv` — conflicting assignments and source evidence.
-- `scripts/validate_vinmec_datasets.py` — repeatable read-only validator.
+## Huấn luyện
 
-## Software verification
+- Framework/mô hình: PyTorch Standard U-Net, base filters 32.
+- Tiền xử lý: grayscale, Letterbox 512×512, CLAHE; augmentation chỉ áp dụng đồng bộ trên Train.
+- Loss: 0,5 BCE + 0,5 Soft Dice; optimizer AdamW, learning rate 0,001, weight decay 1e-4.
+- Scheduler: CosineAnnealingLR; tối đa 12 epoch, patience 8; seed 42; batch size 2.
+- Thiết bị: NVIDIA GeForce RTX 3050 Laptop GPU, CUDA; thời gian 763,95 giây.
+- Best checkpoint: epoch 10, Validation Dice **0,6366**. Test không tham gia huấn luyện hoặc chọn checkpoint.
 
-- `PYTHONPATH=. .venv\Scripts\pytest.exe -q`: **61 passed**, 4 upstream/deprecation warnings.
-- `ruff check scripts/validate_vinmec_datasets.py`: **passed**.
-- `ruff check .`: **failed on 5 pre-existing lint findings** in unrelated working-tree scripts: `scripts/audit_cleanup.py`, `scripts/detailed_inspection.py`, and `scripts/execute_safe_cleanup.py`. These files were not changed in this audit.
-- Python compile check for the validator: **passed**.
+## Đánh giá Test
 
-## Required resolution before training
+Checkpoint tốt nhất được nạp với `strict=True`, ngưỡng 0,5; Test 402 ảnh được chạy một lần sau khi khóa checkpoint.
 
-Obtain source-authorized patient/case mapping and provenance for the 35 disputed labels; decide which dataset artifact is the canonical target for each sample; reconcile the 936 split conflicts into a patient/case-disjoint Train/Validation/Test manifest; then validate the exact loader input schema. Only after those gates pass should the existing U-Net be trained and metrics computed.
+| Metric phân đoạn điểm ảnh | Test |
+|---|---:|
+| Foreground Dice | 0,7016 ± 0,2128 |
+| Foreground IoU | 0,5772 ± 0,2280 |
+| Recall/Sensitivity | 0,7596 |
+| Precision | 0,7382 |
+| Specificity toàn pixel | 0,9715 |
+| Test loss | 0,2523 |
+
+402/402 target trong split này có foreground; không có Empty Mask case (`empty_mask_specificity` không áp dụng). Specificity là tỷ lệ pixel nền được nhận diện đúng. Các metric trên đo chất lượng phân đoạn pixel, **không phải Diagnostic Accuracy** và không xác nhận chẩn đoán lâm sàng. Các vùng mask chỉ là vùng được phân đoạn theo nhãn dữ liệu.
+
+Metric theo source membership có trong `evaluation/unified_vinmec_2026-10-06/test_metrics_by_source.csv`; các membership chồng lặp do ảnh trùng giữa nguồn nên không phải các nhóm độc lập.
+
+## Artifacts và xác minh
+
+- Best/last checkpoint và cấu hình: `checkpoints/unified_vinmec_2026-10-06/`.
+- Training history: `checkpoints/unified_vinmec_2026-10-06/vinmec_unet_best_history.json`.
+- Test summary, per-image metrics, top ca tốt/lỗi, và 402 prediction masks: `evaluation/unified_vinmec_2026-10-06/`.
+- Test summary liên kết checkpoint SHA-256 `509b050f633f765b03419d1615397557889c9c647dd24d500446fa3495d8198b`.
+- Unit tests: **68 passed** (4 dependency/runtime warnings); Ruff trên các file thay đổi: **pass**.
+
+## Hạn chế còn lại
+
+Không có Patient/Case ID nguồn; kết quả không chứng minh patient-level independence. 35 ảnh fallback đã loại khỏi nghiên cứu huấn luyện này và vẫn cần xác minh nguồn gốc nếu muốn sử dụng trong nghiên cứu khác. Test chỉ là đánh giá segmentation trên split ảnh đã tạo theo quy tắc nêu trên; chưa có đánh giá bác sĩ hoặc hiệu lực chẩn đoán.

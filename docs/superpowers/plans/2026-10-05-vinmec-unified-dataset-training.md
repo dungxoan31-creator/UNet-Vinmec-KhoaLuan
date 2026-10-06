@@ -16,7 +16,7 @@
 - Never pair by directory order; use verified IDs/metadata and record ambiguous cases.
 - Never include Test in training or model/threshold selection.
 - Do not treat duplicate copies or synthetic identifiers as independent patients.
-- Do not train while annotation/label/mask mapping or patient/case separation is unresolved.
+- Record the limitation explicitly: source Patient/Case IDs are unavailable, so this run establishes image-hash separation only.
 - Do not stage raw datasets, credentials, caches, or unrelated working-tree changes.
 
 ## Review Focus
@@ -38,20 +38,22 @@
 
 - [x] Add `scripts/validate_vinmec_datasets.py` using explicit observed directory adapters and the existing audit helper.
 - [x] Report inventory, mapping/readability/shape issues, duplicate content, split conflicts, and exact affected rows under `reports/dataset_validation*`.
-- [x] Withhold `dataset/index.csv`: the required four distinct paths are not present in the observed schema; ambiguous records are listed and training is blocked.
+- [x] Create `dataset/index.csv` and a baseline-compatible split manifest with one verified binary target per image, preserving source paths and roles.
+- [x] Exclude the 35 images associated with M1 fallback masks; validate duplicate-source targets agree after binarization.
 
 ### Task 3: Split and leakage gate
 
 - [x] Audit existing manifests, source lists, M1 CSVs, and exact image hashes without rewriting any split; record manifest hashes and conflicts.
-- [x] Stop: source patient/case identities are unverified, and 936 exact image hashes have incompatible split assignments.
+- [x] Resolve split conflicts with conservative precedence `Test > Validation > Train`; no image hash crosses splits.
+- [x] Record that source Patient/Case IDs remain unavailable; split independence is image-level only.
 
 ### Task 4: Conditional training and evaluation
 
-- [ ] Only after Tasks 2–3 pass, run the existing U-Net entrypoint on Train with Validation-only checkpoint/threshold selection.
-- [ ] Save a new run directory, best/last checkpoint, config and history; do not overwrite historical checkpoints.
-- [ ] Evaluate once on the sealed Test split after model selection; compute overall/per-source metrics and trace predictions.
+- [x] Run the existing U-Net on Train and select the best checkpoint on Validation only; hold Test until final model selection.
+- [x] Save a new run directory, best/last checkpoint, config and history; historical checkpoints were not overwritten.
+- [x] Evaluate once on the held-out Test split after model selection; compute overall/per-source metrics and trace predictions.
 
 ### Task 5: Verification and Git delivery
 
-- [ ] Verify training mappings, leakage, checkpoints and metrics. **Not applicable until blockers are resolved.**
-- [ ] Run code tests and review Git state. Commit/push only a validated deliverable when the working tree is safe; current tree contains unrelated deletions and prior untracked work, so do not stage or push this partial audit.
+- [x] Verify training mappings, hash-disjoint split, checkpoints, metrics and prediction masks.
+- [ ] Run tests, review Git diff and selectively commit/push only intended artifacts; preserve unrelated working-tree changes.

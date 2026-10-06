@@ -1,0 +1,21 @@
+{
+  "status": "ready_for_image_level_training",
+  "deduplication": "SHA-256 of raw image bytes; one canonical record per unique image",
+  "input_unique_images": 1639,
+  "fallback_associated_images_excluded": 35,
+  "samples_after_exclusion": 1604,
+  "split_counts": {
+    "train": 661,
+    "val": 541,
+    "test": 402
+  },
+  "split_policy": "Test evidence takes precedence over Validation, then Train; no image hash crosses splits.",
+  "identity_limit": "No verified source Patient/Case IDs; split guarantees image-content separation only.",
+  "target_policy": "One verified binary target per image; all duplicate-source target masks must agree after binarization.",
+  "target_disagreements": 0,
+  "canonical_index": "dataset/index.csv",
+  "split_manifest_directory": "ai_training/splits/unified_vinmec_clean_2026-10-06",
+  "training_test_policy": "Test CSV is held out; the baseline trainer uses only Train and Validation for optimization and checkpoint selection.",
+  "training_seed": 42,
+  "split_seed": null
+}
