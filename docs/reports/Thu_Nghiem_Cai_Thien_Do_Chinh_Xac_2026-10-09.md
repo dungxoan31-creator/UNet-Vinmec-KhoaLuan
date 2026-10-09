@@ -9,7 +9,7 @@
 ## Dữ liệu và phép thử
 
 - `[VERIFIED]` Split khóa: 661 Train / 541 Validation / 402 Test; `image_sha256` không giao giữa split. [Kiểm toán mới](../../evaluation/accuracy_2026-10-09/data_audit/dataset_audit.json) đọc và kiểm hash được cả **1.604/1.604** cặp ảnh–mask chuẩn, 0 lỗi chuẩn, 0 mask tham chiếu rỗng, 35 ảnh fallback lịch sử vẫn ngoài split.
-- `[VERIFIED]` Có **2.047 tham chiếu đường dẫn tới bản sao nhãn nguồn cũ** không còn tệp để đối chiếu, thuộc 1.337 mẫu; đây là thiếu bản sao truy vết, không phải 2.047 cặp chuẩn bị thiếu. [Danh sách đường dẫn thiếu](../../evaluation/accuracy_2026-10-09/data_audit/missing_source_paths.csv).
+- `[VERIFIED]` Có **2.047 tham chiếu đường dẫn tới bản sao nhãn nguồn cũ** chưa giải được tới tệp hiện có, thuộc 1.337 mẫu; đây là thiếu đường dẫn bản sao để truy vết, không phải 2.047 cặp chuẩn bị thiếu. [Danh sách đường dẫn thiếu](../../evaluation/accuracy_2026-10-09/data_audit/missing_source_paths.csv).
 - `[VERIFIED]` Chạy U-Net++ khóa với preprocessing ảnh xám, Letterbox 512×512, CLAHE, chuẩn hóa mean 0,449/std 0,226 và AMP như Validation replay. Thử 9 ngưỡng từ 0,30 đến 0,70, bước 0,05, cho dự đoán gốc và trung bình xác suất sau flip TTA. Không thay mask hay checkpoint.
 - Checkpoint SHA-256: `ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76`; Validation CSV SHA-256: `d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b`; code khi chạy: `40d552f367d5ac6b3bea7333f1928556ecbd7a98`. [Toàn bộ 18 cấu hình](../../evaluation/accuracy_2026-10-09/candidates/summary.json) · [điểm từng ảnh](../../evaluation/accuracy_2026-10-09/candidates/per_image.csv).
 
