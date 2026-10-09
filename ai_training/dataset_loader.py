@@ -4,6 +4,7 @@ Complies with Patient-Level Split and Medical Image Standardization (512x512 Let
 """
 
 import os
+from pathlib import Path
 
 import albumentations as A
 import cv2
@@ -12,6 +13,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from backend.core.dataset_paths import resolve_dataset_path
 from backend.services.preprocessor import UltrasoundPreprocessor
 
 
@@ -46,6 +48,9 @@ class OvarianUltrasoundDataset(Dataset):
     def _resolve_path(self, value):
         if os.path.isabs(value):
             return value
+        relocated = resolve_dataset_path(Path(__file__).resolve().parents[1], value)
+        if relocated.is_file():
+            return str(relocated)
         directory = self.csv_dir
         while True:
             candidate = os.path.join(directory, value)
