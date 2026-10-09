@@ -5,6 +5,7 @@ import csv
 import json
 import statistics
 import subprocess
+import sys
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,10 +14,13 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from ai_training.dataset_loader import OvarianUltrasoundDataset
-from ai_training.metrics_clinical import compute_sample_clinical_metrics
-from ai_training.train_unetplusplus_resnet34 import sha256_file
-from backend.services.inference_engine import InferenceEngine
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from ai_training.dataset_loader import OvarianUltrasoundDataset  # noqa: E402
+from ai_training.metrics_clinical import compute_sample_clinical_metrics  # noqa: E402
+from ai_training.train_unetplusplus_resnet34 import sha256_file  # noqa: E402
+from backend.services.inference_engine import InferenceEngine  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 THRESHOLDS = tuple(round(0.30 + 0.05 * step, 2) for step in range(9))
@@ -65,7 +69,12 @@ def aggregate_candidates(rows):
 
 def evaluate(root: Path, lock_path: Path, validation_csv: Path, audit_path: Path, output: Path) -> dict:
     audit = json.loads(audit_path.read_text(encoding="utf-8"))
-    if audit["errors"] or audit["verified_readable_pairs"] != audit["canonical_samples"] or audit.get("fallback_in_unified_index", 0):
+    if (
+        audit["errors"]
+        or audit["verified_readable_pairs"] != audit["canonical_samples"]
+        or audit.get("frozen_mask_sha_verified") != audit["canonical_samples"]
+        or audit.get("fallback_in_unified_index", 0)
+    ):
         raise ValueError("Data audit did not pass the canonical image-mask gate")
 
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
@@ -143,7 +152,7 @@ def main() -> None:
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--lock", type=Path, default=Path("evaluation/milestone_3_audit_2026-10-06/validation_lock/model_lock.json"))
     parser.add_argument("--validation-csv", type=Path, default=Path("ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv"))
-    parser.add_argument("--audit", type=Path, default=Path("evaluation/accuracy_2026-10-09/data_audit/dataset_audit.json"))
+    parser.add_argument("--audit", type=Path, default=Path("evaluation/accuracy_2026-10-09/data_audit_v2/dataset_audit.json"))
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     root = args.root.resolve()

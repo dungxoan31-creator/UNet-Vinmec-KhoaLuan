@@ -5,6 +5,7 @@ import csv
 import hashlib
 import json
 import subprocess
+import sys
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,7 +15,10 @@ import numpy as np
 from docx import Document
 from PIL import Image
 
-from backend.core.dataset_paths import resolve_dataset_path
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from backend.core.dataset_paths import resolve_dataset_path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SPLIT = ROOT / "ai_training/splits/unified_vinmec_clean_2026-10-06"
@@ -182,6 +186,15 @@ def inventory(output):
 
 def data_audit(output):
     canonical = rows(ROOT / "dataset/index.csv")
+    prior_masks = {
+        row["sample_id"]: row["mask_sha256"]
+        for row in rows(ROOT / "evaluation/milestone_3_audit_2026-10-06/verified_data/mask_provenance.csv")
+    }
+    ceus_copy_masks = {
+        row["image_hash"]: row["mask_hash"]
+        for row in rows(ROOT / "reports/dataset_deduplication_report.csv")
+        if row["source_dataset"] == "Vinmec_CEUS"
+    }
     split_rows = {s: rows(SPLIT / f"{s}.csv") for s in ("train", "val", "test")}
     hashes = {s: {r["image_sha256"] for r in data} for s, data in split_rows.items()}
     overlaps = {
@@ -199,6 +212,14 @@ def data_audit(output):
                 raise ValueError("Image / target spatial dimensions differ")
             if sha(image) != row["image_sha256"]:
                 raise ValueError("Image SHA differs from canonical index")
+            mask_hash = sha(mask)
+            expected_mask_hash = (
+                ceus_copy_masks.get(row["sample_id"])
+                if "Vinmec_3d" in row["mask_path"]
+                else prior_masks.get(row["sample_id"])
+            )
+            if not expected_mask_hash or mask_hash != expected_mask_hash:
+                raise ValueError("Frozen mask SHA missing or differs from current reference")
             binary = target > 0
             source_masks = row["source_target_paths"].split(";")
             missing = []
@@ -223,7 +244,7 @@ def data_audit(output):
                     "image_path": row["image_path"],
                     "mask_path": row["mask_path"],
                     "image_sha256": row["image_sha256"],
-                    "mask_sha256": sha(mask),
+                    "mask_sha256": mask_hash,
                     "source_target_paths": row["source_target_paths"],
                     "foreground_pixels": int(binary.sum()),
                     "mapping_status": "canonical_and_existing_duplicate_targets_verified",
@@ -267,6 +288,7 @@ def data_audit(output):
             "counts": {s: len(r) for s, r in split_rows.items()},
             "canonical_samples": len(canonical),
             "verified_readable_pairs": len(masks),
+            "frozen_mask_sha_verified": len(masks),
             "errors": errors,
             "missing_source_path_references": len(missing_sources),
             "samples_with_missing_source_references": len({r["sample_id"] for r in missing_sources}),

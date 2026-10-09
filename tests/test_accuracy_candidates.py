@@ -101,3 +101,15 @@ def test_evaluate_rejects_failed_data_audit_before_creating_output(tmp_path):
     with pytest.raises(ValueError, match="audit"):
         evaluate(tmp_path, tmp_path / "lock.json", tmp_path / "val.csv", audit, output)
     assert not output.exists()
+
+
+def test_evaluate_rejects_audit_without_frozen_mask_sha_verification(tmp_path):
+    audit = tmp_path / "dataset_audit.json"
+    audit.write_text(json.dumps({
+        "errors": [],
+        "verified_readable_pairs": 1,
+        "canonical_samples": 1,
+        "fallback_in_unified_index": 0,
+    }), encoding="utf-8")
+    with pytest.raises(ValueError, match="audit"):
+        evaluate(tmp_path, tmp_path / "lock.json", tmp_path / "val.csv", audit, tmp_path / "candidates")
