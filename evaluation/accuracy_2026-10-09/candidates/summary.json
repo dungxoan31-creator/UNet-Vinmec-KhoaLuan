@@ -1,0 +1,212 @@
+{
+  "generated_at": "2026-10-09T04:23:10.526595+00:00",
+  "code_commit": "40d552f367d5ac6b3bea7333f1928556ecbd7a98",
+  "scope": "Validation-only, image-level exploratory segmentation agreement with supplied masks",
+  "test_inference_performed": false,
+  "patient_level_independence_verified": false,
+  "expert_mask_approval_verified": false,
+  "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
+  "validation_csv_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+  "lock_sha256": "22734db36bd0779919960b3174f8789f9d1e89f64d9b55a1af25303c629e6701",
+  "data_audit_sha256": "dda52540a910f64ec922d810b104d07a053b10123ce93d3ac73aefb75e1879f3",
+  "data_audit_missing_source_references": 2047,
+  "validation_count": 541,
+  "thresholds": [
+    0.3,
+    0.35,
+    0.4,
+    0.45,
+    0.5,
+    0.55,
+    0.6,
+    0.65,
+    0.7
+  ],
+  "preprocessing": "OvarianUltrasoundDataset: grayscale, letterbox 512x512, CLAHE; engine normalization mean 0.449/std 0.226",
+  "tta": "horizontal flip probabilities unflipped and averaged with native probabilities",
+  "metric_resolution": "512x512 letterboxed; AMP matches historical Validation replay",
+  "historical_native_0_5_dice": 0.8170359435075095,
+  "replayed_native_0_5_dice": 0.8170359444945866,
+  "candidates": [
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.3,
+      "count": 541,
+      "dice": 0.8181050701668859,
+      "iou": 0.7320791195987443,
+      "recall": 0.864343233793005,
+      "precision": 0.8218618935139914,
+      "dice_below_0_5": 47
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.35,
+      "count": 541,
+      "dice": 0.8184121546189222,
+      "iou": 0.7330164283308119,
+      "recall": 0.8592658865287064,
+      "precision": 0.827369412208399,
+      "dice_below_0_5": 49
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.4,
+      "count": 541,
+      "dice": 0.8185119683838533,
+      "iou": 0.7337837890879394,
+      "recall": 0.8533403392647684,
+      "precision": 0.8334794918145697,
+      "dice_below_0_5": 50
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.45,
+      "count": 541,
+      "dice": 0.8183003296399126,
+      "iou": 0.7344948850422844,
+      "recall": 0.8454463700644498,
+      "precision": 0.8412777429265682,
+      "dice_below_0_5": 48
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.5,
+      "count": 541,
+      "dice": 0.8163340811652853,
+      "iou": 0.7345549468020002,
+      "recall": 0.8296021768281517,
+      "precision": 0.8509644686638127,
+      "dice_below_0_5": 52
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.55,
+      "count": 541,
+      "dice": 0.8115461208671703,
+      "iou": 0.7299290951732482,
+      "recall": 0.814033647842733,
+      "precision": 0.8564068587817614,
+      "dice_below_0_5": 55
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.6,
+      "count": 541,
+      "dice": 0.8088757991732681,
+      "iou": 0.7269108504667093,
+      "recall": 0.8062011394008557,
+      "precision": 0.8604568243125614,
+      "dice_below_0_5": 55
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.65,
+      "count": 541,
+      "dice": 0.806734683472247,
+      "iou": 0.7244520574816244,
+      "recall": 0.7998681839831264,
+      "precision": 0.8638191155082207,
+      "dice_below_0_5": 56
+    },
+    {
+      "candidate": "flip_tta",
+      "threshold": 0.7,
+      "count": 541,
+      "dice": 0.8046092907113787,
+      "iou": 0.7220185238005535,
+      "recall": 0.793765036906195,
+      "precision": 0.866899360939841,
+      "dice_below_0_5": 56
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.3,
+      "count": 541,
+      "dice": 0.8182210150269362,
+      "iou": 0.7331063792445195,
+      "recall": 0.847886248145865,
+      "precision": 0.8341183308603971,
+      "dice_below_0_5": 42
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.35,
+      "count": 541,
+      "dice": 0.8180273376185829,
+      "iou": 0.7330479824912808,
+      "recall": 0.844300519860947,
+      "precision": 0.8372229825479931,
+      "dice_below_0_5": 42
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.4,
+      "count": 541,
+      "dice": 0.8177511980092358,
+      "iou": 0.7328701053603455,
+      "recall": 0.8409711276388038,
+      "precision": 0.8400087290317833,
+      "dice_below_0_5": 43
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.45,
+      "count": 541,
+      "dice": 0.8174332958728775,
+      "iou": 0.7326251270719428,
+      "recall": 0.837759685281543,
+      "precision": 0.8426666540969798,
+      "dice_below_0_5": 43
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.5,
+      "count": 541,
+      "dice": 0.8170359444945866,
+      "iou": 0.7322870030940946,
+      "recall": 0.8345088659271074,
+      "precision": 0.8452297722216668,
+      "dice_below_0_5": 45
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.55,
+      "count": 541,
+      "dice": 0.816482965146147,
+      "iou": 0.7317217051766629,
+      "recall": 0.8311367804550184,
+      "precision": 0.8476448764379736,
+      "dice_below_0_5": 46
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.6,
+      "count": 541,
+      "dice": 0.8158657075108153,
+      "iou": 0.7310888967122836,
+      "recall": 0.8276070762295722,
+      "precision": 0.8502324448612679,
+      "dice_below_0_5": 48
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.65,
+      "count": 541,
+      "dice": 0.815082685035479,
+      "iou": 0.7302380669760358,
+      "recall": 0.8237028647337337,
+      "precision": 0.8530446237962374,
+      "dice_below_0_5": 49
+    },
+    {
+      "candidate": "native",
+      "threshold": 0.7,
+      "count": 541,
+      "dice": 0.8140540625905722,
+      "iou": 0.7290857136998027,
+      "recall": 0.8192871002196719,
+      "precision": 0.8560687723255239,
+      "dice_below_0_5": 49
+    }
+  ]
+}
