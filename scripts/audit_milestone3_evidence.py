@@ -14,6 +14,8 @@ import numpy as np
 from docx import Document
 from PIL import Image
 
+from backend.core.dataset_paths import resolve_dataset_path
+
 ROOT = Path(__file__).resolve().parents[1]
 SPLIT = ROOT / "ai_training/splits/unified_vinmec_clean_2026-10-06"
 
@@ -187,7 +189,8 @@ def data_audit(output):
     }
     masks, errors, missing_sources = [], [], []
     for row in canonical:
-        image, mask = ROOT / row["image_path"], ROOT / row["mask_path"]
+        image = resolve_dataset_path(ROOT, row["image_path"])
+        mask = resolve_dataset_path(ROOT, row["mask_path"])
         try:
             img, target = readable(image), readable(mask)
             if img is None or target is None:
@@ -200,7 +203,7 @@ def data_audit(output):
             source_masks = row["source_target_paths"].split(";")
             missing = []
             for source in source_masks:
-                copy = readable(ROOT / source)
+                copy = readable(resolve_dataset_path(ROOT, source))
                 if copy is None:
                     missing.append(source)
                     missing_sources.append(
