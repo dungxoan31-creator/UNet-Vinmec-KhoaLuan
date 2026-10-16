@@ -10,12 +10,15 @@ import uuid
 from typing import Any
 
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.config import model_registry, preprocessor
 from backend.app.routers.inference import decode_ultrasound_image, get_image_calibration
 from backend.db.database import (
     AuditLogModel,
+    HITLEventModel,
+    HITLSessionModel,
     ImageModel,
     PredictionModel,
     ReviewBatchModel,
@@ -83,6 +86,17 @@ def persist_review_batch(
             status_code=409,
             detail=f"Xung đột phiên bản rà soát: máy chủ đang ở bản {study.review_revision}, yêu cầu gửi {request.expected_revision}.",
         )
+
+    # 3b. Optional HITL Session Validation
+    hitl_sess = None
+    if request.hitl_session_id:
+        hitl_sess = db.query(HITLSessionModel).filter(HITLSessionModel.id == request.hitl_session_id).first()
+        if not hitl_sess:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên HITL.")
+        if hitl_sess.study_id != request.study_id:
+            raise HTTPException(status_code=422, detail="Phiên HITL không thuộc ca khảo sát.")
+        if hitl_sess.actor_id != user.username and user.role != "ADMIN":
+            raise HTTPException(status_code=403, detail="Chỉ người tạo phiên HITL mới có quyền liên kết rà soát.")
 
     # 4. Review Set & Image Membership Validation
     if not request.reviews:
@@ -216,6 +230,45 @@ def persist_review_batch(
             created_at=now_utc,
         )
         db.add(batch_record)
+
+        if hitl_sess:
+            hitl_sess.review_batch_id = batch_record.id
+            if hitl_sess.status != "COMPLETED":
+                hitl_sess.status = "INCOMPLETE"
+
+            session_tasks = (
+                db.query(HITLEventModel.task_id, HITLEventModel.image_id, func.max(HITLEventModel.seq))
+                .filter(HITLEventModel.session_id == hitl_sess.id)
+                .group_by(HITLEventModel.task_id, HITLEventModel.image_id)
+                .all()
+            )
+            for t_id, img_id, _ in session_tasks:
+                ev = HITLEventModel(
+                    id=str(uuid.uuid4()),
+                    event_id=str(uuid.uuid4()),
+                    session_id=hitl_sess.id,
+                    task_id=t_id,
+                    image_id=img_id,
+                    seq=0,
+                    event_type="CONFIRM_SUCCEEDED",
+                    client_utc=now_utc.isoformat(),
+                    elapsed_ms=0.0,
+                    session_elapsed_ms=0.0,
+                    payload_hash=hashlib.sha256(
+                        json.dumps({
+                            "batch_request_id": req_id_str,
+                            "review_revision": new_revision,
+                        }, sort_keys=True).encode("utf-8")
+                    ).hexdigest(),
+                    payload={
+                        "batch_request_id": req_id_str,
+                        "review_revision": new_revision,
+                    },
+                    actor_id=user.username,
+                    received_at=now_utc,
+                )
+                db.add(ev)
+
         db.commit()
         return response_data
     except Exception:

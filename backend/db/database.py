@@ -168,6 +168,50 @@ class ReviewBatchModel(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
+class HITLSessionModel(Base):
+    __tablename__ = "hitl_sessions"
+
+    id = Column(String(36), primary_key=True)
+    study_id = Column(String(36), ForeignKey("studies.id"), nullable=False, index=True)
+    actor_id = Column(String(64), nullable=False)
+    participant_code = Column(String(64), nullable=False)
+    participant_role = Column(String(30), nullable=False)  # clinician, technical_tester
+    data_origin = Column(String(30), nullable=False)  # live, technical_fixture, demo
+    status = Column(String(30), default="IN_PROGRESS")  # IN_PROGRESS, COMPLETED, ABORTED, INCOMPLETE
+    review_batch_id = Column(String(36), ForeignKey("review_batches.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    completed_at = Column(DateTime, nullable=True)
+
+    study = relationship("StudyModel")
+    events = relationship("HITLEventModel", back_populates="session", cascade="all, delete-orphan")
+
+
+class HITLEventModel(Base):
+    __tablename__ = "hitl_events"
+
+    id = Column(String(36), primary_key=True)
+    event_id = Column(String(36), unique=True, nullable=False, index=True)
+    session_id = Column(String(36), ForeignKey("hitl_sessions.id"), nullable=False, index=True)
+    task_id = Column(String(36), nullable=False, index=True)
+    image_id = Column(String(36), nullable=False)
+    prediction_id = Column(String(36), nullable=True)
+    seq = Column(Integer, nullable=False)
+    event_type = Column(String(50), nullable=False)
+    client_utc = Column(String(50), nullable=False)
+    elapsed_ms = Column(Float, nullable=False)
+    session_elapsed_ms = Column(Float, nullable=False)
+    payload_hash = Column(String(64), nullable=False)
+    payload = Column(JSON, nullable=True)
+    actor_id = Column(String(64), nullable=False)
+    received_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+    session = relationship("HITLSessionModel", back_populates="events")
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "task_id", "seq", name="uq_session_task_seq"),
+    )
+
+
 def init_db():
     try:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)

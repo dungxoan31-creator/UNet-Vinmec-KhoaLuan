@@ -2,6 +2,7 @@
 Pydantic API Schemas for Validation and Data Transfer in Ovarian Ultrasound AI System.
 """
 
+import math
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
@@ -147,6 +148,81 @@ class BatchReviewResponse(BaseModel):
 class ResearchExportRequest(BaseModel):
     review_ids: list[str]
     expected_revision: int
+
+
+CLIENT_HITL_EVENT_TYPES = {
+    "SESSION_START",
+    "INFERENCE_START",
+    "INFERENCE_END",
+    "INFERENCE_FAILED",
+    "PREDICTION_VIEWED",
+    "CORRECTION_START",
+    "EDIT_COMMITTED",
+    "UNDO",
+    "REDO",
+    "RESET_AI",
+    "CLEAR_MASK",
+    "PAUSE",
+    "RESUME",
+    "CONFIRM_ATTEMPT",
+    "CONFIRM_ACK",
+    "SAVE_FAILED",
+    "EXPORT_SUCCEEDED",
+    "EXPORT_FAILED",
+    "SESSION_ABORTED",
+}
+
+
+class HITLSessionRequest(BaseModel):
+    study_id: str
+    participant_code: str = Field(min_length=1, max_length=64)
+    participant_role: Literal["clinician", "technical_tester"] = "technical_tester"
+    data_origin: Literal["live", "technical_fixture", "demo"] = "live"
+
+
+class HITLEventItem(BaseModel):
+    event_id: str
+    task_id: str
+    image_id: str
+    prediction_id: str | None = None
+    seq: StrictInt = Field(ge=1)
+    event_type: str
+    client_utc: str
+    elapsed_ms: float = Field(ge=0)
+    session_elapsed_ms: float = Field(ge=0)
+    payload: dict[str, Any] | None = None
+
+    @field_validator("event_type")
+    @classmethod
+    def validate_client_event_type(cls, value: str) -> str:
+        if value not in CLIENT_HITL_EVENT_TYPES:
+            raise ValueError(f"Sự kiện client không hợp lệ hoặc bị cấm: {value}")
+        return value
+
+    @field_validator("elapsed_ms", "session_elapsed_ms")
+    @classmethod
+    def validate_finite_duration(cls, value: float) -> float:
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("Thời lượng phải là số hữu hạn không âm")
+        return value
+
+
+class HITLEventBatch(BaseModel):
+    events: list[HITLEventItem] = Field(min_length=1, max_length=100)
+
+
+class HITLSessionResponse(BaseModel):
+    id: str
+    study_id: str
+    actor_id: str
+    participant_code: str
+    participant_role: str
+    data_origin: str
+    status: str
+    created_at: str
+    completed_at: str | None = None
+    review_batch_id: str | None = None
+
 
 
 

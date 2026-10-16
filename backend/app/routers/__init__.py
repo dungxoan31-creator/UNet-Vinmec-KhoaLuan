@@ -7,6 +7,7 @@ from backend.app.routers.auth import router as auth_router
 from backend.app.routers.cases import router as cases_router
 from backend.app.routers.evaluation import router as evaluation_router
 from backend.app.routers.health import router as health_router
+from backend.app.routers.hitl import router as hitl_router
 from backend.app.routers.inference import router as inference_router
 from backend.app.routers.reviews import router as reviews_router
 from backend.app.routers.v1_endpoints import router as v1_router
@@ -17,7 +18,9 @@ __all__ = [
     "cases_router",
     "evaluation_router",
     "health_router",
+    "hitl_router",
     "inference_router",
     "reviews_router",
     "v1_router",
 ]
+
