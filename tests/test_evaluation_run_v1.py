@@ -91,7 +91,7 @@ def _setup_three_case_fixture(tmp_path):
     proto_data = {
         "schema_version": 1,
         "protocol_id": "test_proto",
-        "run_kinds": ["validation_dry_run"],
+        "run_kinds": ["validation_dry_run", "retrospective_test_replay", "independent_test"],
         "model": {
             "architecture": "standard_unet",
             "checkpoint_path": "dummy.pth",
@@ -194,3 +194,54 @@ def test_partial_run_never_published(tmp_path):
     # Check status is PARTIAL or FAILED, not COMPLETE
     manifest_data = json.loads((output_dir / "run_manifest.json").read_text(encoding="utf-8"))
     assert manifest_data["status"] in {"PARTIAL", "FAILED"}
+
+
+def test_changed_protocol_or_manifest_rejected_by_lock(tmp_path):
+    from evaluation.run_evaluation import freeze_protocol
+    root_dir, protocol_json, manifest_csv = _setup_three_case_fixture(tmp_path)
+    lock_dir = tmp_path / "lock_dir"
+    freeze_protocol(protocol_json, manifest_csv, lock_dir, prior_test_access=False)
+
+    lock_file = lock_dir / "protocol_lock.json"
+    assert lock_file.exists()
+
+    # Tamper with protocol
+    tampered_proto = json.loads(protocol_json.read_text(encoding="utf-8"))
+    tampered_proto["inference"]["threshold"] = 0.4
+    protocol_json.write_text(json.dumps(tampered_proto), encoding="utf-8")
+
+    engine = FakeParityEngine()
+    output_dir = tmp_path / "output_tampered"
+    with pytest.raises(ValueError, match="lock mismatch"):
+        evaluate_run(
+            root=root_dir,
+            protocol_path=protocol_json,
+            manifest_path=manifest_csv,
+            output=output_dir,
+            run_kind="validation_dry_run",
+            engine=engine,
+            lock_path=lock_file
+        )
+
+
+def test_prior_test_access_prevents_independent_label(tmp_path):
+    from evaluation.run_evaluation import freeze_protocol
+    root_dir, protocol_json, manifest_csv = _setup_three_case_fixture(tmp_path)
+    lock_dir = tmp_path / "lock_dir_prior"
+    freeze_protocol(protocol_json, manifest_csv, lock_dir, prior_test_access=True)
+
+    lock_file = lock_dir / "protocol_lock.json"
+    output_dir = tmp_path / "output_prior"
+    engine = FakeParityEngine()
+
+    with pytest.raises(ValueError, match="Prior test access"):
+        evaluate_run(
+            root=root_dir,
+            protocol_path=protocol_json,
+            manifest_path=manifest_csv,
+            output=output_dir,
+            run_kind="independent_test",
+            engine=engine,
+            lock_path=lock_file
+        )
+

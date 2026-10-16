@@ -57,6 +57,33 @@ def _save_histogram_png(values: List[float], output_path: Path, title: str = "Di
     cv2.imwrite(str(output_path), img)
 
 
+def freeze_protocol(
+    protocol_path: Path,
+    manifest_path: Path,
+    output: Path,
+    prior_test_access: bool = False,
+    notes: str = ""
+) -> Dict[str, Any]:
+    """Freeze and lock protocol and manifest hashes prior to evaluation."""
+    output = output.resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    proto = load_protocol(protocol_path)
+    proto_sha = _compute_sha256(protocol_path)
+    manifest_sha = _compute_sha256(manifest_path)
+    lock_data = {
+        "schema_version": 1,
+        "locked_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "protocol_sha256": proto_sha,
+        "manifest_sha256": manifest_sha,
+        "checkpoint_sha256": proto["model"].get("checkpoint_sha256"),
+        "prior_test_access": bool(prior_test_access),
+        "notes": notes
+    }
+    lock_file = output / "protocol_lock.json"
+    lock_file.write_text(json.dumps(lock_data, indent=2), encoding="utf-8")
+    return lock_data
+
+
 def evaluate_run(
     root: Path,
     protocol_path: Path,
@@ -127,6 +154,17 @@ def evaluate_run(
     }
     (output / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
 
+    # Check lock if required
+    if lock_path:
+        log(f"Verifying protocol lock from {lock_path}")
+        lock_data = json.loads(Path(lock_path).read_text(encoding="utf-8"))
+        if lock_data.get("prior_test_access") is True and run_kind == "independent_test":
+            raise ValueError("Prior test access is True; cohort cannot be evaluated as independent_test")
+        if lock_data.get("protocol_sha256") != protocol_sha:
+            raise ValueError("Protocol lock mismatch: protocol file was modified")
+        if lock_data.get("manifest_sha256") != manifest_sha:
+            raise ValueError("Protocol lock mismatch: manifest file was modified")
+
     if audit["status"] != "READY":
         run_manifest["status"] = audit["status"]
         run_manifest["end_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -135,14 +173,22 @@ def evaluate_run(
         log_fp.close()
         raise SystemExit(2)
 
-    # Check lock if required
-    if lock_path:
-        log(f"Verifying protocol lock from {lock_path}")
-        lock_data = json.loads(Path(lock_path).read_text(encoding="utf-8"))
-        if lock_data.get("protocol_sha256") != protocol_sha:
-            raise ValueError("Protocol lock mismatch: protocol file was modified")
-        if lock_data.get("manifest_sha256") != manifest_sha:
-            raise ValueError("Protocol lock mismatch: manifest file was modified")
+    # Append to test access ledger
+    ledger_path = root / "docs" / "evaluation" / "test_access_ledger.csv"
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    ledger_exists = ledger_path.is_file()
+    with open(ledger_path, "a", encoding="utf-8", newline="") as lf:
+        lwriter = csv.writer(lf)
+        if not ledger_exists:
+            lwriter.writerow(["timestamp", "run_id", "run_kind", "manifest_path", "status", "operator"])
+        lwriter.writerow([
+            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            output.name,
+            run_kind,
+            str(manifest_path).replace("\\", "/"),
+            "STARTED",
+            "evaluator_agent"
+        ])
 
     # Initialize Engine & Preprocessor
     if engine is None:
@@ -295,6 +341,17 @@ def evaluate_run(
         run_manifest["end_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         (output / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
 
+        with open(ledger_path, "a", encoding="utf-8", newline="") as lf:
+            lwriter = csv.writer(lf)
+            lwriter.writerow([
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                output.name,
+                run_kind,
+                str(manifest_path).replace("\\", "/"),
+                "COMPLETED",
+                "evaluator_agent"
+            ])
+
         log("Evaluation run completed successfully.")
         log_fp.close()
         return summary
@@ -305,6 +362,16 @@ def evaluate_run(
         run_manifest["error"] = str(e)
         run_manifest["end_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         (output / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
+        with open(ledger_path, "a", encoding="utf-8", newline="") as lf:
+            lwriter = csv.writer(lf)
+            lwriter.writerow([
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                output.name,
+                run_kind,
+                str(manifest_path).replace("\\", "/"),
+                "FAILED",
+                "evaluator_agent"
+            ])
         log_fp.close()
         raise
 
@@ -314,11 +381,27 @@ def main():
     parser.add_argument("--root", type=Path, default=Path("."), help="Repo root directory")
     parser.add_argument("--protocol", type=Path, required=True, help="Path to protocol JSON")
     parser.add_argument("--manifest", type=Path, required=True, help="Path to manifest CSV")
-    parser.add_argument("--run-kind", type=str, required=True, choices=["validation_dry_run", "retrospective_test_replay", "independent_test"])
-    parser.add_argument("--output", type=Path, required=True, help="Output directory for immutable run artifacts")
+    parser.add_argument("--output", type=Path, required=True, help="Output directory for immutable run artifacts or lock")
+    parser.add_argument("--freeze", action="store_true", help="Freeze protocol and write protocol_lock.json to output directory")
+    parser.add_argument("--prior-test-access", action="store_true", help="Whether the frozen cohort has prior test access")
+    parser.add_argument("--run-kind", type=str, default=None, choices=["validation_dry_run", "retrospective_test_replay", "independent_test"])
     parser.add_argument("--lock", type=Path, default=None, help="Optional lock file for freeze verification")
 
     args = parser.parse_args()
+
+    if args.freeze:
+        freeze_protocol(
+            protocol_path=args.protocol,
+            manifest_path=args.manifest,
+            output=args.output,
+            prior_test_access=args.prior_test_access
+        )
+        print(f"Protocol frozen. Lock written to {args.output / 'protocol_lock.json'}")
+        return
+
+    if not args.run_kind:
+        parser.error("--run-kind is required when not using --freeze")
+
     summary = evaluate_run(
         root=args.root,
         protocol_path=args.protocol,

@@ -1,0 +1,2 @@
+timestamp,run_id,run_kind,manifest_path,status,operator
+2026-10-16T15:48:50.255250+00:00,legacy_test_v1,retrospective_test_replay,C:/Users/Dung/Documents/UNet-Vinmec-KhoaLuan/evaluation/manifests/legacy_test_v1.csv,STARTED,evaluator_agent
