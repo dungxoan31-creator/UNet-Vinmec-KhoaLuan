@@ -142,7 +142,7 @@ Task 14: complete — commit afb49e2 "feat: analyze measured HITL sessions and p
 - Ran analysis CLI producing `per_session.csv`, `per_task.csv`, `summary.json` in `evaluation/milestone_3_final/hitl/analysis/`
 - All regression suites passing (28 pytest, 7 node)
 
-Task 15: complete — commit pending "docs: formalize clinician evaluation protocol and questionnaire"
+Task 15: complete — commit fce9344 "docs: formalize clinician evaluation protocol and questionnaire"
 - `docs/evaluation/clinician_protocol.md` formalizing protocol, ethics, instructions, dimensions, and fallback
 - `docs/evaluation/questionnaire.csv` defining 7 Likert items and 4 qualitative feedback prompts
 - `docs/evaluation/manual_acceptance.md` defining step-by-step technical acceptance checklist and recording PASS verdict for prototype readiness
@@ -150,4 +150,12 @@ Task 15: complete — commit pending "docs: formalize clinician evaluation proto
 - `tests/test_user_study_summary.py` covering Likert oracles, deduplication, N/A exclusion, role separation, HTML escaping, and status preservation (4/4 passing)
 - Generated `evaluation/milestone_3_final/user_study/` with `study_status.json` honestly recording `NOT_CONDUCTED` (clinician count 0, technical tester 1) without fabricated doctor ratings
 - All unit & regression tests passing (19 passing)
+
+Task 16: complete — commit pending "test: verify complete workspace v2 release flow"
+- `tests/workspace_v2_release_e2e.js` comprehensive live E2E test verifying: doctor auth, bilateral case creation, upload & prediction, deliberate brush stroke, undo/redo bitwise assertions, reset AI confirmation, atomic batch review save, research ZIP export (7 files in ZIP with metadata SHA256), unsupported clinical sign-off guard (501), reopen persistence across sessions, and Case 2 multi-case isolation
+- Parameterized `tests/workspace_v2_live.js` with `E2E_BASE_URL`, `CHROME_PATH`, `APP_DOCTOR_PASSWORD`, `APP_ADMIN_PASSWORD`
+- Configured `tests/serve_isolated_app.py` with `sys.path` and configurable port/host
+- Extended `scripts/verify_evaluation_release.ps1` to launch isolated server and execute `workspace_v2_release_e2e.js` when browser testing is enabled
+- All live browser tests passed with zero page errors
+
 

@@ -147,7 +147,40 @@ if (Test-Path $nodeAppendOut) {
     Remove-Item $nodeAppendOut -Force -ErrorAction SilentlyContinue
 }
 
-# 5. Pytest in isolated runtime
+# 5. Live Playwright browser E2E test (if not -SkipBrowser and not -BaselineOnly)
+if (-not $SkipBrowser -and -not $BaselineOnly) {
+    Write-Host "[verify] Starting isolated app server for release E2E tests..."
+    $serverLog = Join-Path $OutputDir "server.log"
+    $serverProc = Start-Process -FilePath $pyPath -ArgumentList @("tests/serve_isolated_app.py") -PassThru -NoNewWindow -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
+    try {
+        $healthy = $false
+        for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep -Milliseconds 800
+            try {
+                $h = Invoke-RestMethod -Uri "http://127.0.0.1:8027/api/health" -TimeoutSec 2 -ErrorAction Stop
+                if ($h.model_ready) {
+                    $healthy = $true
+                    break
+                }
+            } catch {}
+        }
+        if (-not $healthy) {
+            Write-Host "[verify] Error: Isolated server failed to report healthy on port 8027."
+            if ($Results.overall_exit_code -eq 0) { $Results.overall_exit_code = 1 }
+        } else {
+            Write-Host "[verify] Isolated server ready. Running workspace_v2_release_e2e.js..."
+            $e2eOut = Join-Path $OutputDir "release_e2e.txt"
+            Run-LoggedProcess -Name "workspace_v2_release_e2e" -FilePath "node" -ArgumentList @("tests/workspace_v2_release_e2e.js") -OutputFile $e2eOut
+        }
+    } finally {
+        if ($serverProc -and -not $serverProc.HasExited) {
+            Write-Host "[verify] Stopping isolated server process..."
+            Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# 6. Pytest in isolated runtime
 $pyTestArgs = @(
     "-c",
     "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests/test_release_evidence.py', '-q', '--tb=short']))`""

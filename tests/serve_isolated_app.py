@@ -1,9 +1,11 @@
 import os
 from pathlib import Path
+import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 RUNTIME = ROOT / "artifacts" / "review-e2e-runtime"
 RUNTIME.mkdir(parents=True, exist_ok=True)
 
@@ -33,4 +35,6 @@ database.init_db()
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8027, log_level="warning")
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8027"))
+    uvicorn.run(app, host=host, port=port, log_level="warning")
