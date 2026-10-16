@@ -21,6 +21,7 @@ import {
   download,
 } from "./ui.js";
 import { openSignoff, saveResearchReview } from "./review.js";
+import { tracker } from "./hitl-tracker.js";
 let active = null;
 export function currentViewer() {
   return active;
@@ -352,8 +353,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       image.history.push(encode(image.mask));
       if (image.history.length > 50) image.history.shift();
       image.redo = [];
+      tracker.startStroke(image.image_id);
     };
     const changed = () => {
+      tracker.commitEdit(image.image_id, { tool, changed_pixels: 0 });
       saveDraft();
       $("#draftStatus").textContent = state.online
         ? "Bản nháp đã lưu trên thiết bị"
@@ -388,6 +391,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       image = item;
       state.side = side;
       selecting = false;
+      tracker.track(image.image_id, "PREDICTION_VIEWED");
       sourceCtx.clearRect(0, 0, 512, 512);
       const dims = image.dimensions || [
         image.width || bitmap.width,
@@ -626,12 +630,14 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         if (previous) {
           image.redo.push(encode(image.mask));
           image.mask = decode(previous);
+          tracker.track(image.image_id, "UNDO");
         }
       } else if (action === "redo") {
         const next = image.redo.pop();
         if (next) {
           image.history.push(encode(image.mask));
           image.mask = decode(next);
+          tracker.track(image.image_id, "REDO");
         }
       } else if (["clear", "reset"].includes(action)) {
         if (
@@ -645,6 +651,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         beforeEdit();
         image.mask =
           action === "clear" ? new Uint8Array(262144) : image.aiMask.slice();
+        tracker.track(image.image_id, action === "clear" ? "CLEAR_MASK" : "RESET_AI");
       } else {
         beforeEdit();
         image.mask = cleanMask(image.mask, action);
@@ -1016,9 +1023,16 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       },
       events,
     );
+    const onVisibilityChange = () => {
+      if (!image) return;
+      if (document.hidden) tracker.recordPause(image.image_id);
+      else tracker.recordResume(image.image_id);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     active = { select, act, render: schedule };
     const release = () => {
       disposed = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (state.editing?.caseId === c.study_id) state.editing = null;
       lease?.release();
       abort.abort();

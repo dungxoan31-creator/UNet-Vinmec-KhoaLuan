@@ -12,6 +12,7 @@ Medical-Grade AI Inference Engine & Automated Caliper Measurement Service:
 import base64
 import hashlib
 import os
+import time
 
 import cv2
 import numpy as np
@@ -175,9 +176,16 @@ class InferenceEngine:
         if getattr(self, 'is_model_ready', None) is False:
             raise RuntimeError("Inference engine model is not ready or unloaded")
         tensor_gpu = self.prepare_model_input(tensor_512)
+        if torch.cuda.is_available() and getattr(self, "device", "") == "cuda":
+            torch.cuda.synchronize()
+        t0 = time.perf_counter()
         with torch.inference_mode():
             logits = self.model(tensor_gpu)
             probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+        if torch.cuda.is_available() and getattr(self, "device", "") == "cuda":
+            torch.cuda.synchronize()
+        t1 = time.perf_counter()
+        self.last_forward_ms = (t1 - t0) * 1000.0
         return probs
 
     def predict_binary(self, tensor_512: torch.Tensor) -> np.ndarray:
@@ -468,6 +476,9 @@ class InferenceEngine:
             "overlay_base64": overlay_base64,
             "binary_mask_np": clean_mask,
             "provenance": provenance,
+            "timings": {
+                "model_forward_ms": round(float(getattr(self, "last_forward_ms", 0.0)), 2),
+            },
         }
 
 

@@ -69,6 +69,7 @@ class PredictionResponse(BaseModel):
     quality_gate: dict[str, Any] | None = None
 
     provenance: dict[str, Any] | None = None
+    timings: dict[str, Any] | None = None
     acoustic_profile: dict[str, Any] | None = None
     cdss_classification: dict[str, Any] | None = None
     clinical_disclaimer: str = (
@@ -114,7 +115,7 @@ class DoctorReviewRequest(BaseModel):
         return value
     lesion_type: str = "UNSPECIFIED"
     clinical_notes: str = ""
-    time_spent_seconds: int = Field(default=15, ge=0)
+    time_spent_seconds: int | None = Field(default=None, ge=0)
     hitl_feedback: HITLFeedback | None = None
     expected_revision: int | None = None
     request_id: str | None = None

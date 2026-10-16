@@ -11,6 +11,7 @@ import base64
 import hashlib
 import math
 import os
+import time
 import uuid
 from datetime import datetime
 from io import BytesIO
@@ -493,6 +494,7 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
                 status_code=422, detail=f"Hình ảnh không phù hợp để phân tích: {validation['error_message']}"
             )
 
+    pipeline_start = time.perf_counter()
     start_time = datetime.now()
 
     # 1. Preprocess & IQA
@@ -587,6 +589,13 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
         db.add(audit_log)
         db.commit()
 
+    pipeline_duration_ms = (time.perf_counter() - pipeline_start) * 1000.0
+    forward_ms = inference_result.get("timings", {}).get("model_forward_ms")
+    timings = {
+        "model_forward_ms": round(float(forward_ms), 2) if forward_ms is not None else None,
+        "server_pipeline_ms": round(float(pipeline_duration_ms), 2),
+    }
+
     return {
         "image_id": image_id,
         "prediction_id": prediction_id,
@@ -604,6 +613,7 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
         "uncertainty": inference_result.get("uncertainty"),
         "quality_gate": inference_result.get("quality_gate"),
         "provenance": provenance_payload,
+        "timings": timings,
     }
 
 

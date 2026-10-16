@@ -125,3 +125,11 @@ Task 12: complete — commit pending "feat: record authenticated HITL sessions a
 - Review batch linking: `persist_review_batch` emits server-authoritative `CONFIRM_SUCCEEDED` with `seq=0` and flags session `INCOMPLETE` until matching `CONFIRM_ACK` is received
 - Comprehensive unit tests in `tests/test_hitl_events.py` (8 passing tests)
 - Full regression tests passing (33 tests)
+
+Task 13: complete — commit pending "feat: instrument live correction tasks and monotonic timing"
+- `frontend/app/hitl-tracker.js` pure telemetry tracker with monotonic `performance.now()`, event queuing, stroke/edit counting, pause/resume, and watermarked batch flushing
+- `tests/workspace_v2_telemetry.mjs` Node tests (7/7 passing) verifying exact timing arithmetic (roundtrip 100ms, active_edit 40ms, review_elapsed 630ms, correction_elapsed 500ms, task_total 750ms), session isolation, idempotency, retry deduplication, pause/resume, and non-zero edit after reset
+- Integration into `upload.js`, `intake.js`, `viewer.js`, `review.js`: participant metadata in intake, inference timing boundaries, decoded viewing markers, edit commit tracking, visibility change pause/resume, and watermarked confirm ACKs
+- Backend monotonic timers: `time.perf_counter()` and `torch.cuda.synchronize()` in `InferenceEngine.forward_probabilities` and `run_ai_prediction` returning `timings: {model_forward_ms, server_pipeline_ms}`
+- Schema update: `PredictionResponse.timings` and nullable `DoctorReviewRequest.time_spent_seconds` with `ReviewModel.time_spent_seconds` nullable in SQLite
+- Verified with `pytest tests/test_inference_parity_v1.py -v` (5/5 passing) and regression suite (32 passing)

@@ -3,6 +3,7 @@ import { request } from "./api.js";
 import { transition } from "./demo.js";
 import { encode } from "./coordinates.js";
 import { $, esc, modal, toast } from "./ui.js";
+import { tracker } from "./hitl-tracker.js";
 export async function saveResearchReview() {
   const c = state.case,
     identity = state.user?.id,
@@ -31,24 +32,28 @@ export async function saveResearchReview() {
       "Chưa đồng bộ. Bản rà soát sẽ gửi lại khi có mạng trong phiên này.",
     );
   }
-  const snapshots = c.images.map((i) => ({
-    image: i,
-    body: {
-      study_id: c.study_id,
-      image_id: i.image_id,
-      prediction_id: i.prediction?.prediction_id,
-      doctor_id: username,
-      doctor_action: i.mask.every((v, n) => v === i.aiMask[n])
-        ? "ACCEPTED_RAW"
-        : i.mask.some(Boolean)
-          ? "MODIFIED"
-          : "REJECTED_ALL",
-      verified_mask_rle: encode(i.mask),
-      clinical_notes: i.notes || "",
-      lesion_type: i.morphology || "Chưa đánh giá",
-      time_spent_seconds: 0,
-    },
-  }));
+  const snapshots = c.images.map((i) => {
+    const tm = tracker.getTaskMetrics(i.image_id);
+    const timeSpent = tm && tm.task_total_ms > 0 ? Math.round(tm.task_total_ms / 1000) : null;
+    return {
+      image: i,
+      body: {
+        study_id: c.study_id,
+        image_id: i.image_id,
+        prediction_id: i.prediction?.prediction_id,
+        doctor_id: username,
+        doctor_action: i.mask.every((v, n) => v === i.aiMask[n])
+          ? "ACCEPTED_RAW"
+          : i.mask.some(Boolean)
+            ? "MODIFIED"
+            : "REJECTED_ALL",
+        verified_mask_rle: encode(i.mask),
+        clinical_notes: i.notes || "",
+        lesion_type: i.morphology || "Chưa đánh giá",
+        time_spent_seconds: timeSpent,
+      },
+    };
+  });
   const sameSession = () =>
     state.user?.id === identity && state.demo === demo && state.case === c;
   const operation = Symbol("review");
@@ -88,11 +93,20 @@ export async function saveResearchReview() {
     if (!sameSession())
       throw Error("Phiên hoặc ca đã thay đổi. Bản nháp cũ được giữ.");
 
+    for (const { image } of snapshots) {
+      tracker.track(image.image_id, "CONFIRM_ATTEMPT");
+    }
+    await tracker.flush();
+
+    const hitlSessionId = tracker.getSessionId();
+    const watermarks = tracker.getWatermarks();
+
     const batchPayload = {
       study_id: c.study_id,
       expected_revision: expectedRevision,
       request_id: requestId,
       reviews: reviewBodies,
+      ...(hitlSessionId ? { hitl_session_id: hitlSessionId, telemetry_tasks: watermarks } : {}),
     };
 
     const result = demo
@@ -129,6 +143,11 @@ export async function saveResearchReview() {
     if (!sameSession())
       throw Error("Phiên đã thay đổi sau khi lưu. Mở lại ca để kiểm tra.");
 
+    for (const { image } of snapshots) {
+      tracker.confirmAck(image.image_id, requestId);
+    }
+    await tracker.flush();
+
     c.review_revision = result.review_revision;
     for (const { image, body } of snapshots) {
       const rev = result.reviews.find((r) => r.image_id === image.image_id);
@@ -150,6 +169,10 @@ export async function saveResearchReview() {
       toast("Đã lưu rà soát nghiên cứu của hai bên thành công.");
     }
   } catch (e) {
+    for (const { image } of snapshots || []) {
+      tracker.recordSaveFailure(image.image_id, { error: e.message });
+    }
+    await tracker.flush().catch(() => {});
     toast(e.message, true);
   } finally {
     if (state.operation === operation) state.busy = false;

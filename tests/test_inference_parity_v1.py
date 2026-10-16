@@ -86,3 +86,24 @@ def test_native_mask_and_service_parity():
     assert set(np.unique(native_mask).tolist()).issubset({0, 1})
     # Non-zero in valid region
     assert np.count_nonzero(native_mask) > 0
+
+
+def test_monotonic_timing_fields(monkeypatch):
+    import time
+    engine = InferenceEngine(architecture="standard_unet")
+    engine.model = DummyModel(logits_value=0.5)
+    engine.is_model_ready = True
+
+    dummy_tensor = torch.zeros((1, 1, 512, 512), dtype=torch.float32)
+    padded_gray = np.zeros((512, 512), dtype=np.uint8)
+
+    # Monotonic timing test with fake perf_counter:
+    # forward: 0.0 -> 0.100 (100 ms)
+    # pipeline: 0.0 -> 0.150 (150 ms)
+    time_seq = [0.0, 0.100]
+    monkeypatch.setattr(time, "perf_counter", lambda: time_seq.pop(0) if time_seq else 0.100)
+
+    res = engine.run_inference(dummy_tensor, padded_gray)
+    assert "timings" in res
+    assert res["timings"]["model_forward_ms"] == 100.0
+

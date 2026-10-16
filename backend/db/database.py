@@ -121,7 +121,7 @@ class ReviewModel(Base):
     total_area_cm2 = Column(Float().evaluates_none(), default=0.0)
     lesion_type = Column(String(100), default="UNSPECIFIED")
     clinical_notes = Column(Text, default="")
-    time_spent_seconds = Column(Integer, default=15)
+    time_spent_seconds = Column(Integer, nullable=True, default=None)
     hitl_feedback = Column(JSON, nullable=True)
     is_official_ground_truth = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
