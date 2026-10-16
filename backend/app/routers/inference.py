@@ -313,20 +313,42 @@ def get_viewer_source(image_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/api/images/{image_id}/mask.png")
-def export_source_mask(image_id: str, kind: Literal["ai", "reviewed"] = "reviewed", db: Session = Depends(get_db)):
+def export_source_mask(
+    image_id: str,
+    kind: Literal["ai", "reviewed"] = "reviewed",
+    review_id: str | None = None,
+    prediction_id: str | None = None,
+    db: Session = Depends(get_db),
+):
     """Export the selected binary mask in the decoded source image's pixel space."""
+    if kind == "ai" and review_id is not None:
+        raise HTTPException(status_code=422, detail="review_id không thể kết hợp với kind='ai'.")
+    if kind == "reviewed" and prediction_id is not None:
+        raise HTTPException(status_code=422, detail="prediction_id không thể kết hợp với kind='reviewed'.")
+
     image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not image_record or not os.path.isfile(image_record.raw_path):
         raise HTTPException(status_code=404, detail="Source image unavailable.")
+
     if kind == "reviewed":
-        result = db.query(ReviewModel).filter(ReviewModel.image_id == image_id).order_by(
-            ReviewModel.created_at.desc(), ReviewModel.id.desc()
-        ).first()
+        if review_id is not None:
+            result = db.query(ReviewModel).filter(ReviewModel.id == review_id).first()
+            if not result or result.image_id != image_id:
+                raise HTTPException(status_code=404, detail="Requested review mask unavailable.")
+        else:
+            result = db.query(ReviewModel).filter(ReviewModel.image_id == image_id).order_by(
+                ReviewModel.created_at.desc(), ReviewModel.id.desc()
+            ).first()
         rle = result.verified_mask_rle if result else None
     else:
-        result = db.query(PredictionModel).filter(PredictionModel.image_id == image_id).order_by(
-            PredictionModel.created_at.desc(), PredictionModel.id.desc()
-        ).first()
+        if prediction_id is not None:
+            result = db.query(PredictionModel).filter(PredictionModel.id == prediction_id).first()
+            if not result or result.image_id != image_id:
+                raise HTTPException(status_code=404, detail="Requested prediction mask unavailable.")
+        else:
+            result = db.query(PredictionModel).filter(PredictionModel.image_id == image_id).order_by(
+                PredictionModel.created_at.desc(), PredictionModel.id.desc()
+            ).first()
         rle = result.raw_mask_rle if result else None
     if rle is None:
         raise HTTPException(status_code=404, detail="Requested mask unavailable.")

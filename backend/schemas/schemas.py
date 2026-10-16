@@ -144,6 +144,12 @@ class BatchReviewResponse(BaseModel):
     message: str = "Đã lưu rà soát nghiên cứu thành công."
 
 
+class ResearchExportRequest(BaseModel):
+    review_ids: list[str]
+    expected_revision: int
+
+
+
 class MaskMeasurementsRequest(BaseModel):
     rle_mask: dict[str, Any]
 

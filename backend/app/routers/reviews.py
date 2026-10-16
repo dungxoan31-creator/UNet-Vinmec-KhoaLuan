@@ -12,6 +12,7 @@ from backend.schemas.schemas import (
     BatchReviewResponse,
     DoctorReviewRequest,
     DoctorReviewResponse,
+    ResearchExportRequest,
 )
 from backend.services.review_service import persist_review_batch
 
@@ -69,7 +70,37 @@ def submit_doctor_review(
     }
 
 
+@router.post("/api/cases/{study_id}/research-export")
+def export_case_research_bundle(
+    study_id: str,
+    export_req: ResearchExportRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    """
+    Build and export a traceable ZIP bundle pinning exact review and AI mask snapshots.
+    """
+    from fastapi.responses import Response
+    from backend.services.research_export import build_research_bundle
+
+    bundle_bytes = build_research_bundle(
+        db=db,
+        study_id=study_id,
+        review_ids=export_req.review_ids,
+        expected_revision=export_req.expected_revision,
+        actor=current_user,
+    )
+    return Response(
+        content=bundle_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=study_{study_id}_research_export.zip",
+        },
+    )
+
+
 @router.post("/api/generate-report")
 def generate_report_pdf(report_payload: dict):
     """Clinical PDF requires a verified reviewer workflow."""
     raise HTTPException(status_code=501, detail="Chưa hỗ trợ xuất báo cáo lâm sàng khi chưa có xác thực chuyên môn.")
+
