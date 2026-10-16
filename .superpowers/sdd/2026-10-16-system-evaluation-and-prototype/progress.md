@@ -179,7 +179,7 @@ Task 19: complete — commit 331ff40 "docs: assemble traceable evaluation result
 - Updated `MODEL_CARD.md` with frozen Milestone 3 Final Evaluation Protocol v1 results and evidence boundaries
 - Updated `docs/evaluation/requirement_traceability.csv` mapping all requirements to verified artifacts
 
-Task 20: complete — commit pending "chore: record prototype evaluation release evidence"
+Task 20: complete — commit 3e47589 "chore: record prototype evaluation release evidence"
 - Enhanced `scripts/verify_evaluation_release.ps1` with full multi-stage release verification: Git status & diff capture, Checkpoint SHA-256 verification, environment info snapshot, Node logic and telemetry tests, isolated FastAPI test server runner, Playwright live browser E2E test (`workspace_v2_release_e2e.js`), isolated Pytest regression suite, consolidated report generation via `scripts/build_evaluation_report.py`, and summary output
 - Implemented release evidence unit tests in `tests/test_release_evidence.py`: `test_release_rejects_missing_artifact_or_stale_hash`, `test_prototype_only_does_not_mark_evaluation_complete`, and `test_skipped_browser_is_not_live_verified` (6/6 passing)
 - Packaged complete release artifacts under `evaluation/milestone_3_final/report/`:
