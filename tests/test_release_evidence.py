@@ -1,5 +1,7 @@
 """Tests for evaluation baseline and release evidence verification."""
 
+import json
+import os
 from pathlib import Path
 import subprocess
 import pytest
@@ -83,4 +85,61 @@ def test_missing_independent_test_blocks_complete(tmp_path):
     assert report["prototype_ready"] is True
     assert report["evaluation_complete"] is False
     assert any("independent" in b.lower() for b in report["blockers"])
+
+
+def test_release_rejects_missing_artifact_or_stale_hash(tmp_path):
+    """Release package validation must fail if required report artifacts are missing or checkpoint SHA is stale."""
+    from scripts.build_evaluation_report import validate_release_package
+
+    report_dir = tmp_path / "incomplete_report"
+    report_dir.mkdir()
+    # Missing required files
+    valid, errors = validate_release_package(report_dir)
+    assert valid is False
+    assert any("missing" in err.lower() for err in errors)
+
+    # Now create files with mismatched hash
+    for fname in ["results.md", "limitations.md", "evidence_matrix.csv", "checksums.csv", "final_checks.json", "open_issues.csv", "demo_script.md"]:
+        (report_dir / fname).write_text("content", encoding="utf-8")
+    
+    (report_dir / "release_status.json").write_text(
+        json.dumps({
+            "checkpoint_sha256": "WRONG_STALE_HASH",
+            "prototype_ready": True,
+            "evaluation_complete": False,
+        }),
+        encoding="utf-8",
+    )
+    valid, errors = validate_release_package(report_dir, expected_checkpoint_sha="417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d")
+    assert valid is False
+    assert any("hash mismatch" in err.lower() or "checkpoint" in err.lower() for err in errors)
+
+
+def test_prototype_only_does_not_mark_evaluation_complete():
+    """Prototype-only readiness must decouple prototype_ready (True) from evaluation_complete (False)."""
+    report_file = ROOT / "evaluation" / "milestone_3_final" / "report" / "release_status.json"
+    assert report_file.exists(), f"{report_file} must exist"
+    import json
+    data = json.loads(report_file.read_text(encoding="utf-8"))
+    assert data["prototype_ready"] is True
+    assert data["evaluation_complete"] is False
+    assert len(data["blockers"]) > 0
+
+
+def test_skipped_browser_is_not_live_verified(tmp_path):
+    """Skipping browser tests cannot record live_browser_verified as True."""
+    from scripts.build_evaluation_report import generate_final_checks
+
+    checks = generate_final_checks(
+        results={
+            "skip_browser": True,
+            "overall_exit_code": 0,
+            "commands": [{"name": "pytest", "exit_code": 0}],
+        },
+        independent_gate_status="BLOCKED",
+        output_dir=tmp_path,
+    )
+    assert checks["live_browser_verified"] is False
+    assert checks["browser_skipped"] is True
+
 

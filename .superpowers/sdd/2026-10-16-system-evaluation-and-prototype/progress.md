@@ -169,7 +169,7 @@ Task 18: complete — commit d975eb1 "docs: package reproducible supervised prot
 - Updated `README.md` and `frontend/README.md` with standardized launcher instructions
 - `tests/test_runtime_configuration.py` expanded with 4 launcher unit tests (missing secrets, missing checkpoint, clean CheckOnly, no secret leaks) — all 7 tests passing
 
-Task 19: complete — commit pending "docs: assemble traceable evaluation results and limitations"
+Task 19: complete — commit 331ff40 "docs: assemble traceable evaluation results and limitations"
 - `scripts/build_evaluation_report.py` comprehensive evaluation report synthesizer from immutable run summaries, error analysis, HITL telemetry, user study status, and data gates
 - `tests/test_evaluation_report.py` unit and integration tests (6/6 passing) verifying artifact derivation, null score retention, hash mismatch visibility, retrospective replay tagging, clinician vs technical tester separation, and independent test gate blocking
 - Atomically created `evaluation/current_run.json` verified pointer to retrospective test replay (`legacy_test_v1`)
@@ -178,6 +178,19 @@ Task 19: complete — commit pending "docs: assemble traceable evaluation result
 - Updated `frontend/app/evaluation.js` to render the verified current run with null reasons, independent gate blocked alert, and distinct historical archive splits
 - Updated `MODEL_CARD.md` with frozen Milestone 3 Final Evaluation Protocol v1 results and evidence boundaries
 - Updated `docs/evaluation/requirement_traceability.csv` mapping all requirements to verified artifacts
+
+Task 20: complete — commit pending "chore: record prototype evaluation release evidence"
+- Enhanced `scripts/verify_evaluation_release.ps1` with full multi-stage release verification: Git status & diff capture, Checkpoint SHA-256 verification, environment info snapshot, Node logic and telemetry tests, isolated FastAPI test server runner, Playwright live browser E2E test (`workspace_v2_release_e2e.js`), isolated Pytest regression suite, consolidated report generation via `scripts/build_evaluation_report.py`, and summary output
+- Implemented release evidence unit tests in `tests/test_release_evidence.py`: `test_release_rejects_missing_artifact_or_stale_hash`, `test_prototype_only_does_not_mark_evaluation_complete`, and `test_skipped_browser_is_not_live_verified` (6/6 passing)
+- Packaged complete release artifacts under `evaluation/milestone_3_final/report/`:
+  - `release_status.json` (`prototype_ready=True`, `evaluation_complete=False`, `checkpoint_sha256="417828fa..."`)
+  - `final_checks.json` (`overall_exit_code=0`, `live_browser_verified=True`, `independent_gate_status="BLOCKED"`)
+  - `open_issues.csv` (recording 5 open issues and mitigations without suppressing limitations)
+  - `checksums.csv` (cryptographic SHA-256 hashes of all release artifacts)
+  - `demo_script.md` (5-7 minute operator rehearsal and defense demo script)
+- Updated `README.md` with release verification commands
+- Verified programmatic package integrity: `validate_release_package()` returns `VALID: True` with zero errors
+
 
 
 

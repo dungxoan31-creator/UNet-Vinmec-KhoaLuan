@@ -138,20 +138,18 @@ Remove-Item $envTempPy -Force -ErrorAction SilentlyContinue
 # 4. Node pure checks
 $nodeOut = Join-Path $OutputDir "node.txt"
 Run-LoggedProcess -Name "node_workspace_logic" -FilePath "node" -ArgumentList @("tests/workspace_v2_logic.mjs") -OutputFile $nodeOut
-$nodeAppendOut = Join-Path $OutputDir "node_review.txt"
-Run-LoggedProcess -Name "node_review_logic" -FilePath "node" -ArgumentList @("tests/frontend_review_logic.js") -OutputFile $nodeAppendOut
-if (Test-Path $nodeAppendOut) {
-    $existingNode = Get-Content $nodeOut -Raw -ErrorAction SilentlyContinue
-    $appendContent = Get-Content $nodeAppendOut -Raw -ErrorAction SilentlyContinue
-    Write-Utf8File -Path $nodeOut -Content "$existingNode`n$appendContent"
-    Remove-Item $nodeAppendOut -Force -ErrorAction SilentlyContinue
-}
+$nodeReviewOut = Join-Path $OutputDir "node_review.txt"
+Run-LoggedProcess -Name "node_review_logic" -FilePath "node" -ArgumentList @("tests/frontend_review_logic.js") -OutputFile $nodeReviewOut
+$nodeTelemOut = Join-Path $OutputDir "node_telemetry.txt"
+Run-LoggedProcess -Name "node_telemetry_logic" -FilePath "node" -ArgumentList @("tests/workspace_v2_telemetry.mjs") -OutputFile $nodeTelemOut
 
 # 5. Live Playwright browser E2E test (if not -SkipBrowser and not -BaselineOnly)
+$browserPassed = $false
 if (-not $SkipBrowser -and -not $BaselineOnly) {
     Write-Host "[verify] Starting isolated app server for release E2E tests..."
-    $serverLog = Join-Path $OutputDir "server.log"
-    $serverProc = Start-Process -FilePath $pyPath -ArgumentList @("tests/serve_isolated_app.py") -PassThru -NoNewWindow -RedirectStandardOutput $serverLog -RedirectStandardError $serverLog
+    $serverLogOut = Join-Path $OutputDir "server_stdout.log"
+    $serverLogErr = Join-Path $OutputDir "server_stderr.log"
+    $serverProc = Start-Process -FilePath $pyPath -ArgumentList @("tests/serve_isolated_app.py") -PassThru -NoNewWindow -RedirectStandardOutput $serverLogOut -RedirectStandardError $serverLogErr
     try {
         $healthy = $false
         for ($i = 0; $i -lt 30; $i++) {
@@ -170,7 +168,10 @@ if (-not $SkipBrowser -and -not $BaselineOnly) {
         } else {
             Write-Host "[verify] Isolated server ready. Running workspace_v2_release_e2e.js..."
             $e2eOut = Join-Path $OutputDir "release_e2e.txt"
-            Run-LoggedProcess -Name "workspace_v2_release_e2e" -FilePath "node" -ArgumentList @("tests/workspace_v2_release_e2e.js") -OutputFile $e2eOut
+            $e2eExit = Run-LoggedProcess -Name "workspace_v2_release_e2e" -FilePath "node" -ArgumentList @("tests/workspace_v2_release_e2e.js") -OutputFile $e2eOut
+            if ($e2eExit -eq 0) {
+                $browserPassed = $true
+            }
         }
     } finally {
         if ($serverProc -and -not $serverProc.HasExited) {
@@ -183,12 +184,57 @@ if (-not $SkipBrowser -and -not $BaselineOnly) {
 # 6. Pytest in isolated runtime
 $pyTestArgs = @(
     "-c",
-    "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests/test_release_evidence.py', '-q', '--tb=short']))`""
+    "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests/test_release_evidence.py', 'tests/test_evaluation_report.py', 'tests/test_runtime_configuration.py', 'tests/test_prototype_release_failures.py', '-q', '--tb=short']))`""
 )
 Run-LoggedProcess -Name "pytest_isolated" -FilePath $pyPath -ArgumentList $pyTestArgs -OutputFile (Join-Path $OutputDir "pytest.txt")
 
+# 7. Consolidate Evaluation Report and Artifacts (if not -BaselineOnly)
+if (-not $BaselineOnly) {
+    Write-Host "[verify] Building consolidated evaluation report artifacts..."
+    $reportArgs = @(
+        "scripts/build_evaluation_report.py",
+        "--root", ".",
+        "--runs", "evaluation/milestone_3_final/legacy_test_v1", "evaluation/milestone_3_final/validation_v1",
+        "--hitl", "evaluation/milestone_3_final/hitl/analysis",
+        "--user-study", "evaluation/milestone_3_final/user_study",
+        "--output", $OutputDir,
+        "--set-current", "evaluation/milestone_3_final/legacy_test_v1"
+    )
+    Run-LoggedProcess -Name "build_evaluation_report" -FilePath $pyPath -ArgumentList $reportArgs -OutputFile (Join-Path $OutputDir "build_report.txt")
+}
+
+# 8. Record Final Checks and Release Evidence
 $Results.end_time = (Get-Date -Format "yyyy-MM-ddTHH:mm:sszzz")
 Write-Utf8File -Path (Join-Path $OutputDir "baseline_results.json") -Content ($Results | ConvertTo-Json -Depth 5)
 
-Write-Host "[verify] Finished with overall exit code: $($Results.overall_exit_code)"
+$finalChecks = [ordered]@{
+    schema_version = 1
+    generated_at = $Results.end_time
+    overall_exit_code = $Results.overall_exit_code
+    prototype_ready = ($Results.overall_exit_code -eq 0)
+    evaluation_complete = $false
+    independent_gate_status = "BLOCKED"
+    browser_skipped = [bool]$SkipBrowser
+    live_browser_verified = $browserPassed
+    commands_executed = $Results.commands.Count
+}
+Write-Utf8File -Path (Join-Path $OutputDir "final_checks.json") -Content ($finalChecks | ConvertTo-Json -Depth 5)
+
+Write-Host "================================================================="
+Write-Host " RELEASE EVIDENCE SUMMARY"
+Write-Host "================================================================="
+Write-Host " Prototype Ready (Supervised Pilot): $(if ($finalChecks.prototype_ready) { 'PASS [READY]' } else { 'FAIL [NOT READY]' })"
+Write-Host " Scientific Evaluation Complete:      PARTIAL / BLOCKED"
+Write-Host " Independent Holdout Gate:            BLOCKED (Missing patient-level mapping)"
+Write-Host " Clinician User Study:                NOT_CONDUCTED (Technical Acceptance PASS)"
+Write-Host " Live Playwright Browser Verified:    $(if ($browserPassed) { 'YES' } else { 'NO / SKIPPED' })"
+Write-Host " Overall Exit Code:                   $($Results.overall_exit_code)"
+Write-Host " Output Directory:                    $OutputDir"
+Write-Host "================================================================="
+
+if ($PrototypeOnly -and $Results.overall_exit_code -eq 0) {
+    Write-Host "[verify] PrototypeOnly mode: Prototype release checks PASS. Exiting 0."
+    exit 0
+}
+
 exit $Results.overall_exit_code

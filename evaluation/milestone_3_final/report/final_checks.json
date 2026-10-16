@@ -1,0 +1,11 @@
+{
+    "schema_version":  1,
+    "generated_at":  "2026-10-17T01:07:48+07:00",
+    "overall_exit_code":  0,
+    "prototype_ready":  true,
+    "evaluation_complete":  false,
+    "independent_gate_status":  "BLOCKED",
+    "browser_skipped":  false,
+    "live_browser_verified":  true,
+    "commands_executed":  9
+}

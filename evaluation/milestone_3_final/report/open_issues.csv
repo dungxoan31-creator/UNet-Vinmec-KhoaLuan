@@ -1,0 +1,6 @@
+issue_id,severity,title,status,impact,mitigation
+ISS-01,HIGH,Tập kiểm thử độc lập thiếu Patient ID gốc (Independent Test Gate BLOCKED),OPEN,Không thể tuyên bố hoàn thành đánh giá độc lập (evaluation_complete = False),Chỉ công nhận Retrospective Test Replay; giữ cổng BLOCKED đến khi có dữ liệu kiểm định độc lập
+ISS-02,MEDIUM,Khảo sát người dùng lâm sàng chưa tiến hành (study_status = NOT_CONDUCTED),OPEN,Chưa có đánh giá định tính từ bác sĩ thực tế,Ghi nhận trạng thái trung thực NOT_CONDUCTED; dựa trên nghiệm thu kỹ thuật nội bộ
+ISS-03,MEDIUM,59 cặp ảnh có tương quan cao xuyên split (Cross-Split Near Duplicates),OPEN,Rò rỉ tiềm ẩn cấp bệnh nhân trong dữ liệu nguồn lịch sử,Công khai trong MODEL_CARD và limitations.md; cần tái phân tách khi có Patient ID
+ISS-04,LOW,Phép đo kích thước 2D chưa hiệu chuẩn mm trên ảnh JPG/PNG,OPEN,Không đo được kích thước thực tế cho ảnh không phải DICOM,"Khóa chế độ mm khi thiếu PixelSpacing, chỉ hiển thị đơn vị pixel"
+ISS-05,LOW,Hệ thống là prototype nghiên cứu một máy,OPEN,Chưa hỗ trợ triển khai đa viện hay concurrency cao,Tài liệu hóa giới hạn trong release runbook và limitations.md

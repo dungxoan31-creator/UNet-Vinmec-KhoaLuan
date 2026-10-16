@@ -275,6 +275,16 @@ Dự án tích hợp bộ kiểm thử toàn diện bảo đảm tính toàn v�
    node tests/browser_hitl_smoke.js
    ```
 
+4. **Xác minh Toàn diện Bàn giao & Đóng gói Bằng chứng Thực nghiệm (Release Verification Pipeline)**:
+   ```powershell
+   # Xác minh toàn bộ các cổng kỹ thuật (Git, Checkpoint SHA, Node, Playwright E2E, Pytest isolated, Report build):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_evaluation_release.ps1
+
+   # Hoặc kiểm tra riêng tính sẵn sàng của nguyên mẫu (bỏ qua cổng holdout độc lập đang chờ dữ liệu):
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_evaluation_release.ps1 -PrototypeOnly
+   ```
+   Toàn bộ bằng chứng bàn giao, ma trận truy vết và biên bản kiểm toán được lưu trữ tại `evaluation/milestone_3_final/report/`.
+
 ---
 
 ## 10. Danh mục API Chính (Key REST Endpoints)
