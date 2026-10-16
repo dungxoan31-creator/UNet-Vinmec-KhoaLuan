@@ -118,7 +118,7 @@ Task 11: complete — commit dae56d2 "feat: export pinned research masks and pro
 
 
 
-Task 12: complete — commit pending "feat: record authenticated HITL sessions and events"
+Task 12: complete — commit 5bf6be7 "feat: record authenticated HITL sessions and events"
 - `HITLSessionModel` and `HITLEventModel` in database schema with unique constraints
 - Schemas `HITLSessionRequest`, `HITLEventItem`, `HITLEventBatch`, `HITLSessionResponse` with finite duration validators and client event limits (max 100 per batch, max 10,000 per session)
 - `backend/app/routers/hitl.py` implementing `POST /api/hitl/sessions`, `POST /api/hitl/sessions/{id}/events`, `GET /api/hitl/sessions/{id}`
@@ -126,10 +126,18 @@ Task 12: complete — commit pending "feat: record authenticated HITL sessions a
 - Comprehensive unit tests in `tests/test_hitl_events.py` (8 passing tests)
 - Full regression tests passing (33 tests)
 
-Task 13: complete — commit pending "feat: instrument live correction tasks and monotonic timing"
+Task 13: complete — commit d3c219c "feat: instrument live correction tasks and monotonic timing"
 - `frontend/app/hitl-tracker.js` pure telemetry tracker with monotonic `performance.now()`, event queuing, stroke/edit counting, pause/resume, and watermarked batch flushing
 - `tests/workspace_v2_telemetry.mjs` Node tests (7/7 passing) verifying exact timing arithmetic (roundtrip 100ms, active_edit 40ms, review_elapsed 630ms, correction_elapsed 500ms, task_total 750ms), session isolation, idempotency, retry deduplication, pause/resume, and non-zero edit after reset
 - Integration into `upload.js`, `intake.js`, `viewer.js`, `review.js`: participant metadata in intake, inference timing boundaries, decoded viewing markers, edit commit tracking, visibility change pause/resume, and watermarked confirm ACKs
 - Backend monotonic timers: `time.perf_counter()` and `torch.cuda.synchronize()` in `InferenceEngine.forward_probabilities` and `run_ai_prediction` returning `timings: {model_forward_ms, server_pipeline_ms}`
 - Schema update: `PredictionResponse.timings` and nullable `DoctorReviewRequest.time_spent_seconds` with `ReviewModel.time_spent_seconds` nullable in SQLite
 - Verified with `pytest tests/test_inference_parity_v1.py -v` (5/5 passing) and regression suite (32 passing)
+
+Task 14: complete — commit pending "feat: analyze measured HITL sessions and paired mask quality"
+- `scripts/export_hitl_sessions.py` read-only SQLite URI export (`mode=ro`) to `sessions.csv`, `events.jsonl`, `sessions.json` without PHI
+- `evaluation/hitl_analysis.py` implementing `summarize_timeline`, `analyze_hitl`, and CLI
+- `tests/test_hitl_analysis.py` covering timing oracle, incomplete timelines, exact prediction pairing, reference independence, role/origin isolation, paired delta quality, and session wall time vs image sum (7/7 passing)
+- Exported sessions and events from database to `evaluation/milestone_3_final/hitl/raw/`
+- Ran analysis CLI producing `per_session.csv`, `per_task.csv`, `summary.json` in `evaluation/milestone_3_final/hitl/analysis/`
+- All regression suites passing (28 pytest, 7 node)

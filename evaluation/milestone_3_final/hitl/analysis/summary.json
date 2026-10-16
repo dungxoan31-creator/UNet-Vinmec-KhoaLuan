@@ -1,0 +1,10 @@
+{
+  "total_sessions": 32,
+  "clinician_sessions": 4,
+  "technical_sessions": 28,
+  "demo_sessions": 0,
+  "completed_sessions": 2,
+  "total_tasks": 15,
+  "clinician_median_review_ms": null,
+  "clinician_median_delta_dice": null
+}
