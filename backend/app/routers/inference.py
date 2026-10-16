@@ -518,6 +518,7 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
         "native_shape": [int(img_np.shape[0]), int(img_np.shape[1])],
         "transform": clean_transform,
         "model_version": inference_result.get("provenance", {}).get("model_version", "AttentionUNet-v1.2"),
+        "pixel_spacing_mm": inference_result.get("provenance", {}).get("pixel_spacing_mm"),
         "created_at": datetime.now(UTC).isoformat(),
     }
 

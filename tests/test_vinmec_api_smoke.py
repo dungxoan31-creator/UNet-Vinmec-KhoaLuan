@@ -6,20 +6,26 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
+import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from backend.db.database import Base, ImageModel, PatientModel, ReviewModel, StudyModel, get_db
+from backend.core.dataset_paths import resolve_dataset_path
+from backend.db.database import AuditLogModel, Base, ImageModel, PatientModel, ReviewModel, StudyModel, get_db
+
+pytestmark = pytest.mark.usefixtures("doctor_access")
 
 
-def milestone_1_validation_image():
-    with Path("ai_training/splits/val.csv").open(newline="", encoding="utf-8") as split_file:
+def current_validation_image():
+    root = Path(__file__).resolve().parents[1]
+    with (root / "ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv").open(newline="", encoding="utf-8") as split_file:
         for row in csv.DictReader(split_file):
-            image = Path(row["image_path"])
-            if row["subset"] == "OTU_2D_train" and row["is_empty_mask"] == "False" and image.is_file():
+            image = resolve_dataset_path(root, row["image_path"])
+            if "Vinmec_2d" in row["image_path"] and image.is_file():
                 return image
-    raise FileNotFoundError("No readable B-mode Milestone 1 Validation image")
+    raise FileNotFoundError("No readable B-mode current Validation image")
 
 
 def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch):
@@ -27,7 +33,7 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch):
     from backend.app.main import app
     from backend.app.routers import inference
 
-    image_path = milestone_1_validation_image()
+    image_path = current_validation_image()
     assert image_path.is_file()
     assert model_registry.get_primary_adapter().is_loaded
 
@@ -92,6 +98,8 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch):
                             "prediction_id": prediction["prediction_id"],
                             "doctor_action": action,
                             "verified_mask_rle": final_mask,
+                            "expected_revision": 0,
+                            "request_id": str(uuid.uuid4()),
                         },
                     )
                     assert invalid_review.status_code == 422, (endpoint, action, invalid_review.text)
@@ -108,6 +116,8 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch):
                     "doctor_action": "MODIFIED",
                     "verified_mask_rle": edited_rle,
                     "time_spent_seconds": 1,
+                    "expected_revision": 0,
+                    "request_id": str(uuid.uuid4()),
                 },
             )
             assert reviewed.status_code == 200, reviewed.text
@@ -126,11 +136,19 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch):
             study = db.get(StudyModel, study_id)
             patient = db.get(PatientModel, study.patient_id)
             review = db.get(ReviewModel, reviewed.json()["review_id"])
+            audit = db.query(AuditLogModel).filter(AuditLogModel.entity_id == review.id).one()
+            upload_audit = db.query(AuditLogModel).filter(
+                AuditLogModel.entity_id == image_id,
+                AuditLogModel.action_type == "UPLOAD_IMAGE",
+            ).one()
             assert image_record.pixel_spacing_mm is None
             assert study.device_vendor is None
             assert patient.age_bucket is None
             assert patient.anonymized_pid != "ANON-VINMEC-185"
             assert review.is_official_ground_truth is False
+            assert review.doctor_id == "doctor"
+            assert audit.actor_id == "doctor"
+            assert upload_audit.actor_id == "doctor"
     finally:
         app.dependency_overrides.pop(get_db, None)
         db_engine.dispose()
@@ -154,7 +172,7 @@ def test_upload_with_unknown_study_does_not_leave_file(tmp_path, monkeypatch):
 
     app.dependency_overrides[get_db] = temporary_db
     try:
-        image_path = milestone_1_validation_image()
+        image_path = current_validation_image()
         with TestClient(app) as client, image_path.open("rb") as image:
             response = client.post(
                 "/api/upload",

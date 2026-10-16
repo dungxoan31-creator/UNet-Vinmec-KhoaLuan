@@ -156,6 +156,18 @@ class UserModel(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
+class ReviewBatchModel(Base):
+    __tablename__ = "review_batches"
+
+    id = Column(String(36), primary_key=True)
+    request_id = Column(String(36), unique=True, nullable=False, index=True)
+    actor_id = Column(String(64), nullable=False)
+    study_id = Column(String(36), ForeignKey("studies.id"), nullable=False)
+    request_hash = Column(String(64), nullable=False)
+    response_json = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
 def init_db():
     try:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)

@@ -1,0 +1,232 @@
+import { state, role, clearDraft } from "./state.js";
+import { request } from "./api.js";
+import { transition } from "./demo.js";
+import { encode } from "./coordinates.js";
+import { $, esc, modal, toast } from "./ui.js";
+export async function saveResearchReview() {
+  const c = state.case,
+    identity = state.user?.id,
+    username = state.user?.username,
+    demo = state.demo;
+  if (
+    !c ||
+    role() !== "BS" ||
+    state.busy ||
+    state.editing?.caseId !== c.study_id ||
+    !state.editing.allowed ||
+    ["LOCKED", "APPROVED", "SIGNED_PRELIM"].includes(c.status)
+  )
+    return;
+  if (c.images.length !== 2 || !c.images.every((i) => i.seen))
+    return toast("Xem đủ hai bên trước khi lưu rà soát.", true);
+  const manual = c.images.some((i) => !i.prediction?.prediction_id);
+  if (manual && !demo && !state.capabilities.manual_review)
+    return toast(
+      "Mask vẽ tay được giữ thành bản nháp. API hiện tại yêu cầu prediction_id; cần API lưu rà soát thủ công để lưu lên máy chủ.",
+      true,
+    );
+  if (!navigator.onLine && !demo) {
+    state.pendingReview = { caseId: c.study_id, userId: identity };
+    return toast(
+      "Chưa đồng bộ. Bản rà soát sẽ gửi lại khi có mạng trong phiên này.",
+    );
+  }
+  const snapshots = c.images.map((i) => ({
+    image: i,
+    body: {
+      study_id: c.study_id,
+      image_id: i.image_id,
+      prediction_id: i.prediction?.prediction_id,
+      doctor_id: username,
+      doctor_action: i.mask.every((v, n) => v === i.aiMask[n])
+        ? "ACCEPTED_RAW"
+        : i.mask.some(Boolean)
+          ? "MODIFIED"
+          : "REJECTED_ALL",
+      verified_mask_rle: encode(i.mask),
+      clinical_notes: i.notes || "",
+      lesion_type: i.morphology || "Chưa đánh giá",
+      time_spent_seconds: 0,
+    },
+  }));
+  const sameSession = () =>
+    state.user?.id === identity && state.demo === demo && state.case === c;
+  const operation = Symbol("review");
+  state.operation = operation;
+  state.busy = true;
+  try {
+    let manualReviews = null;
+    if (manual && !demo) {
+      const result = await request(
+        "/api/workspace/cases/" +
+          encodeURIComponent(c.study_id) +
+          "/manual-review",
+        {
+          method: "POST",
+          body: { version: c.version, images: snapshots.map((s) => s.body) },
+        },
+      );
+      if (result.status !== "SUCCESS" || !Array.isArray(result.reviews))
+        throw Error("Máy chủ chưa xác nhận rà soát thủ công.");
+      manualReviews = result.reviews;
+    }
+    const expectedRevision = c.review_revision ?? 0;
+    const reviewBodies = snapshots.map((s) => s.body);
+    const payloadSnapshot = JSON.stringify({
+      study_id: c.study_id,
+      expected_revision: expectedRevision,
+      reviews: reviewBodies,
+    });
+
+    let requestId = state.currentReviewRequestId;
+    if (!requestId || state.lastReviewPayloadSnapshot !== payloadSnapshot) {
+      requestId = crypto.randomUUID();
+      state.currentReviewRequestId = requestId;
+      state.lastReviewPayloadSnapshot = payloadSnapshot;
+    }
+
+    if (!sameSession())
+      throw Error("Phiên hoặc ca đã thay đổi. Bản nháp cũ được giữ.");
+
+    const batchPayload = {
+      study_id: c.study_id,
+      expected_revision: expectedRevision,
+      request_id: requestId,
+      reviews: reviewBodies,
+    };
+
+    const result = demo
+      ? {
+          status: "SUCCESS",
+          study_id: c.study_id,
+          review_revision: expectedRevision + 1,
+          reviews: c.images.map((img) => ({
+            review_id: crypto.randomUUID(),
+            image_id: img.image_id,
+            prediction_id: img.prediction?.prediction_id,
+            doctor_action: "ACCEPTED_RAW",
+          })),
+        }
+      : manualReviews
+        ? {
+            status: "SUCCESS",
+            study_id: c.study_id,
+            review_revision: expectedRevision + 1,
+            reviews: manualReviews,
+          }
+        : await request("/api/reviews/batch", {
+            method: "POST",
+            body: batchPayload,
+          });
+
+    if (
+      result.status !== "SUCCESS" ||
+      !Array.isArray(result.reviews) ||
+      result.reviews.length !== c.images.length
+    )
+      throw Error("Máy chủ chưa xác nhận toàn bộ bản rà soát.");
+
+    if (!sameSession())
+      throw Error("Phiên đã thay đổi sau khi lưu. Mở lại ca để kiểm tra.");
+
+    c.review_revision = result.review_revision;
+    for (const { image, body } of snapshots) {
+      const rev = result.reviews.find((r) => r.image_id === image.image_id);
+      image.review = {
+        ...rev,
+        doctor_id: username,
+        verified_mask_rle: body.verified_mask_rle,
+        clinical_notes: body.clinical_notes,
+        lesion_type: body.lesion_type,
+      };
+    }
+
+    if (sameSession()) {
+      clearDraft();
+      state.pendingReview = null;
+      state.currentReviewRequestId = null;
+      state.lastReviewPayloadSnapshot = null;
+      c.status = "REVIEWED";
+      toast("Đã lưu rà soát nghiên cứu của hai bên thành công.");
+    }
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    if (state.operation === operation) state.busy = false;
+  }
+}
+export function openSignoff() {
+  const c = state.case,
+    identity = state.user?.id;
+  if (state.busy || !state.editing?.allowed) return;
+  if (
+    role() !== "BS" ||
+    !c ||
+    c.images.length !== 2 ||
+    !["L", "R"].every((s) => c.images.some((i) => i.laterality === s && i.seen))
+  )
+    return toast("Cần xem đủ cả hai ảnh trước khi ký.", true);
+  if (["SIGNED_PRELIM", "APPROVED", "LOCKED"].includes(c.status)) return;
+  const d = modal(
+    "Ký sơ bộ khảo sát hai bên",
+    `<p>Kiểm tra mask và ghi chú của cả hai ảnh trước khi chuyển chuyên gia duyệt.</p><div class="grid-2">${c.images.map((i) => `<section class="panel"><div class="panel-body"><h3>Buồng trứng ${i.laterality === "L" ? "trái" : "phải"}</h3><p>${i.mask?.some((v, n) => v !== i.aiMask?.[n]) ? "Mask đã chỉnh sửa" : "Mask AI chưa chỉnh sửa"}</p><p>${esc(i.notes || "Không có ghi chú")}</p><span class="badge">${i.measurements?.calibrated ? "Đã hiệu chuẩn" : "Chưa hiệu chuẩn – chỉ có px"}</span></div></section>`).join("")}</div><details style="margin-top:20px"><summary>Đánh giá nhanh AI (tùy chọn)</summary><label class="field">Mức hữu dụng<select name="rating"><option value="">Bỏ qua</option><option value="5">Hữu ích</option><option value="2">Cần cải thiện</option></select></label><label class="field">Lỗi quan sát<select name="issue"><option value="">Chưa đánh giá</option><option value="FALSE_NEGATIVE">Bỏ sót vùng</option><option value="FALSE_POSITIVE">Lan sang mô lân cận</option><option value="BOUNDARY_MISMATCH">Đường biên chưa khít</option></select></label></details><p class="form-error" id="signError" role="alert"></p><div class="actions"><button class="btn" value="cancel">Tiếp tục rà soát</button><button class="btn primary" type="submit">Ký sơ bộ và chuyển duyệt</button></div>`,
+    async (e, dialog) => {
+      const btn = e.submitter;
+      btn.disabled = true;
+      state.busy = true;
+      try {
+        const form = Object.fromEntries(new FormData(e.target));
+        if (state.demo) {
+          transition(c, "SIGN_PRELIM");
+          for (const i of c.images)
+            i.review = {
+              review_id: crypto.randomUUID(),
+              prediction_id: i.prediction?.prediction_id,
+              doctor_id: state.user.username,
+              verified_mask_rle: encode(i.mask),
+              reviewed_at: new Date().toISOString(),
+            };
+        } else {
+          const body = {
+            version: c.version,
+            images: c.images.map((i) => ({
+              image_id: i.image_id,
+              prediction_id: i.prediction?.prediction_id,
+              verified_mask_rle: encode(i.mask),
+              notes: i.notes,
+              morphology: i.morphology,
+            })),
+            feedback: form.rating
+              ? { rating: Number(form.rating), issue: form.issue || null }
+              : null,
+          };
+          const result = await request(
+            "/api/workspace/cases/" + c.study_id + "/sign-preliminary",
+            { method: "POST", body },
+          );
+          if (result.status !== "SIGNED_PRELIM")
+            throw Error("Máy chủ chưa xác nhận ký sơ bộ.");
+          c.status = result.status;
+        }
+        if (state.user?.id !== identity || state.case !== c)
+          throw Error(
+            "Phiên hoặc ca đã thay đổi. Mở lại ca để kiểm tra kết quả.",
+          );
+        clearDraft();
+        dialog.close();
+        toast(
+          state.demo
+            ? "Đã ký sơ bộ trong demo."
+            : "Đã ký sơ bộ và chuyển duyệt.",
+        );
+        location.hash = "#case/" + c.study_id;
+      } catch (err) {
+        $("#signError").textContent = err.message;
+      } finally {
+        btn.disabled = false;
+        state.busy = false;
+      }
+    },
+  );
+  return d;
+}

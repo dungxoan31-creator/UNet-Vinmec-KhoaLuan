@@ -1,8 +1,11 @@
 import pytest
+import uuid
 from pydantic import ValidationError
 
 from backend.schemas.schemas import CaseConfirmRequest, DoctorReviewRequest
 from backend.services.preprocessor import UltrasoundPreprocessor
+
+pytestmark = pytest.mark.usefixtures("doctor_access")
 
 
 def test_review_rejects_incomplete_mask():
@@ -196,11 +199,12 @@ def test_review_stores_final_mask_and_prediction_link():
     from sqlalchemy.orm import Session
 
     from backend.app.routers.reviews import submit_doctor_review
-    from backend.db.database import Base, ImageModel, PatientModel, PredictionModel, ReviewModel, StudyModel
+    from backend.db.database import Base, ImageModel, PatientModel, PredictionModel, ReviewModel, StudyModel, UserModel
 
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     mask = {"shape": [512, 512], "first_val": 0, "counts": [512 * 512]}
+    reviewer = UserModel(id="doctor-test", username="doctor", full_name="Test Doctor", role="DOCTOR")
     with Session(engine) as db:
         db.add(PatientModel(id="patient-1", anonymized_pid="test-patient"))
         db.add(StudyModel(id="study-1", patient_id="patient-1", study_date="2026-09-29"))
@@ -208,13 +212,21 @@ def test_review_stores_final_mask_and_prediction_link():
         db.add(PredictionModel(id="prediction-1", image_id="image-1", raw_mask_rle=mask, measurements={}))
         db.commit()
 
-        request = DoctorReviewRequest(image_id="image-1", prediction_id="prediction-1", verified_mask_rle=mask)
-        result = submit_doctor_review(request, db)
+        request = DoctorReviewRequest(
+            image_id="image-1",
+            prediction_id="prediction-1",
+            verified_mask_rle=mask,
+            expected_revision=0,
+            request_id=str(uuid.uuid4()),
+        )
+        result = submit_doctor_review(request, db, reviewer)
         saved = db.query(ReviewModel).filter(ReviewModel.id == result["review_id"]).one()
         assert saved.prediction_id == "prediction-1"
         assert saved.verified_mask_rle == mask
 
         request.prediction_id = "another-prediction"
+        request.request_id = str(uuid.uuid4())
+        request.expected_revision = 1
         with pytest.raises(Exception) as error:
-            submit_doctor_review(request, db)
+            submit_doctor_review(request, db, reviewer)
         assert error.value.status_code == 404

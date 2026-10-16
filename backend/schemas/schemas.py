@@ -4,7 +4,7 @@ Pydantic API Schemas for Validation and Data Transfer in Ovarian Ultrasound AI S
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
 
 
 class CaliperPoint(BaseModel):
@@ -77,6 +77,19 @@ class PredictionResponse(BaseModel):
 
 
 
+class HITLFeedback(BaseModel):
+    usability_rating: StrictInt | None = Field(default=None, ge=1, le=5)
+    issues: list[Literal["FALSE_NEGATIVE", "FALSE_POSITIVE", "BOUNDARY_MISMATCH", "NO_ERROR"]] = Field(default_factory=list, max_length=4)
+
+    @model_validator(mode="after")
+    def validate_issues(self):
+        if len(set(self.issues)) != len(self.issues):
+            raise ValueError("Survey issues must not contain duplicates")
+        if "NO_ERROR" in self.issues and len(self.issues) != 1:
+            raise ValueError("NO_ERROR cannot be combined with segmentation errors")
+        return self
+
+
 class DoctorReviewRequest(BaseModel):
     image_id: str
     study_id: str | None = None
@@ -91,7 +104,7 @@ class DoctorReviewRequest(BaseModel):
         shape = value.get("shape")
         counts = value.get("counts")
         first_val = value.get("first_val")
-        if shape != [512, 512] or first_val not in (0, 1):
+        if shape != [512, 512] or type(first_val) is not int or first_val not in (0, 1):
             raise ValueError("Mask must be binary RLE with shape 512 x 512")
         if not isinstance(counts, list) or not counts or any(type(n) is not int or n <= 0 for n in counts):
             raise ValueError("RLE counts must be positive integers")
@@ -100,7 +113,44 @@ class DoctorReviewRequest(BaseModel):
         return value
     lesion_type: str = "UNSPECIFIED"
     clinical_notes: str = ""
-    time_spent_seconds: int = 15
+    time_spent_seconds: int = Field(default=15, ge=0)
+    hitl_feedback: HITLFeedback | None = None
+    expected_revision: int | None = None
+    request_id: str | None = None
+
+
+class ReviewSummaryItem(BaseModel):
+    review_id: str
+    image_id: str
+    prediction_id: str
+    doctor_action: str
+    reviewed_at: str | None = None
+
+
+class BatchReviewRequest(BaseModel):
+    study_id: str
+    expected_revision: int
+    request_id: str
+    reviews: list[DoctorReviewRequest]
+    hitl_session_id: str | None = None
+    telemetry_tasks: list[dict[str, Any]] | None = None
+
+
+class BatchReviewResponse(BaseModel):
+    status: str = "SUCCESS"
+    study_id: str
+    review_revision: int
+    reviews: list[ReviewSummaryItem]
+    message: str = "Đã lưu rà soát nghiên cứu thành công."
+
+
+class MaskMeasurementsRequest(BaseModel):
+    rle_mask: dict[str, Any]
+
+    @field_validator("rle_mask")
+    @classmethod
+    def validate_mask_rle(cls, value):
+        return DoctorReviewRequest.validate_mask_rle(value)
 
 
 class DoctorReviewResponse(BaseModel):
@@ -109,6 +159,9 @@ class DoctorReviewResponse(BaseModel):
     status: str
     message: str
     is_ground_truth: bool
+    reviewed_at: str | None = None
+    reviewer_id: str | None = None
+
 
 
 class DashboardStatsResponse(BaseModel):
@@ -189,7 +242,7 @@ class CreateCaseRequest(BaseModel):
     patient_age: str | None = None
     clinical_notes: str | None = None
     probe_type: str | None = None
-    active_ovary_side: Literal["RIGHT", "LEFT", "BOTH"] = "RIGHT"
+    active_ovary_side: Literal["RIGHT", "LEFT", "BOTH", "UNKNOWN"] = "RIGHT"
     contralateral_status: Literal["NOT_VISUALIZED", "NORMAL", "SUSPECTED"] = "NOT_VISUALIZED"
 
 
