@@ -1,0 +1,12 @@
+item_id,category,prompt_vi,prompt_en,scale,required
+learnability,Usability,Dễ học cách sử dụng hệ thống,Easy to learn and operate the system,Likert 1-5,true
+usability_mask,Usability,Dễ thao tác chỉnh sửa mặt nạ phân vùng (brush/erase/undo/reset),Easy to edit segmentation masks using interactive tools,Likert 1-5,true
+workflow_efficiency,Efficiency,Giúp tôi hoàn thành việc rà soát ảnh siêu âm hiệu quả,Helps complete ultrasound review workflow efficiently,Likert 1-5,true
+clinical_utility,Usefulness,Có ích trong quy trình làm việc chuyên môn siêu âm,Useful in professional ultrasound clinical workflow,Likert 1-5,true
+decision_confidence,Trust,Đủ tự tin để quyết định ca nào cần can thiệp chỉnh sửa,Confident in deciding which cases require manual correction,Likert 1-5,true
+willingness_supervised,Adoption,Sẵn sàng sử dụng hệ thống trong chế độ thử nghiệm có giám sát,Willing to use the system in a supervised trial setting,Likert 1-5,true
+trust_calibration,Trust,Tôi nhận ra khi kết quả của mô hình AI cần được kiểm tra lại,I recognize when AI results need careful re-checking,Likert 1-5,true
+feedback_useful,Qualitative,Điều gì trên giao diện hoặc kết quả là hữu ích nhất?,What feature or output is most useful?,Free text,false
+feedback_friction,Qualitative,Thao tác hoặc bước nào gây khó khăn hoặc chậm nhất?,What step causes the most friction or delay?,Free text,false
+feedback_distrust,Qualitative,Có trường hợp nào gợi ý của AI khiến bạn không tin cậy và vì sao?,Were there cases where AI suggestions were untrustworthy and why?,Free text,false
+feedback_prerequisites,Qualitative,Điều kiện cần thiết nào để bạn sẵn sàng dùng thử có giám sát?,What prerequisites are required before a supervised trial?,Free text,false

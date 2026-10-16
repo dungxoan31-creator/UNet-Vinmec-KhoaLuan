@@ -134,10 +134,20 @@ Task 13: complete — commit d3c219c "feat: instrument live correction tasks and
 - Schema update: `PredictionResponse.timings` and nullable `DoctorReviewRequest.time_spent_seconds` with `ReviewModel.time_spent_seconds` nullable in SQLite
 - Verified with `pytest tests/test_inference_parity_v1.py -v` (5/5 passing) and regression suite (32 passing)
 
-Task 14: complete — commit pending "feat: analyze measured HITL sessions and paired mask quality"
+Task 14: complete — commit afb49e2 "feat: analyze measured HITL sessions and paired mask quality"
 - `scripts/export_hitl_sessions.py` read-only SQLite URI export (`mode=ro`) to `sessions.csv`, `events.jsonl`, `sessions.json` without PHI
 - `evaluation/hitl_analysis.py` implementing `summarize_timeline`, `analyze_hitl`, and CLI
 - `tests/test_hitl_analysis.py` covering timing oracle, incomplete timelines, exact prediction pairing, reference independence, role/origin isolation, paired delta quality, and session wall time vs image sum (7/7 passing)
 - Exported sessions and events from database to `evaluation/milestone_3_final/hitl/raw/`
 - Ran analysis CLI producing `per_session.csv`, `per_task.csv`, `summary.json` in `evaluation/milestone_3_final/hitl/analysis/`
 - All regression suites passing (28 pytest, 7 node)
+
+Task 15: complete — commit pending "docs: formalize clinician evaluation protocol and questionnaire"
+- `docs/evaluation/clinician_protocol.md` formalizing protocol, ethics, instructions, dimensions, and fallback
+- `docs/evaluation/questionnaire.csv` defining 7 Likert items and 4 qualitative feedback prompts
+- `docs/evaluation/manual_acceptance.md` defining step-by-step technical acceptance checklist and recording PASS verdict for prototype readiness
+- `evaluation/hitl_analysis.py` extended with `summarize_questionnaire` and CLI options `--questionnaire`, `--participants`, `--user-study-output`, `--study-status`
+- `tests/test_user_study_summary.py` covering Likert oracles, deduplication, N/A exclusion, role separation, HTML escaping, and status preservation (4/4 passing)
+- Generated `evaluation/milestone_3_final/user_study/` with `study_status.json` honestly recording `NOT_CONDUCTED` (clinician count 0, technical tester 1) without fabricated doctor ratings
+- All unit & regression tests passing (19 passing)
+

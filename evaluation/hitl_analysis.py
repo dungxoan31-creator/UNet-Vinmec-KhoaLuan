@@ -5,6 +5,7 @@ Evaluates clinical review timelines, monotonic timings, and before/after paired 
 
 import argparse
 import csv
+import html
 import json
 import os
 from typing import Any
@@ -12,6 +13,147 @@ from typing import Any
 import numpy as np
 
 from evaluation.segmentation_metrics import score_masks
+
+
+def summarize_questionnaire(
+    responses: list[dict[str, Any]],
+    participants: list[dict[str, Any]],
+    study_status: str | None = None,
+) -> dict[str, Any]:
+    """
+    Summarizes clinician and technical user study questionnaire responses.
+    Strictly distinguishes clinician vs technical testers.
+    Computes exact median and IQR on Likert scales.
+    Escapes all qualitative feedback against HTML/XSS injection.
+    """
+    unique_participants: dict[str, dict[str, Any]] = {}
+    for p in participants:
+        code = p.get("participant_code")
+        if code and code not in unique_participants:
+            unique_participants[code] = p
+
+    clinician_codes = {
+        code for code, p in unique_participants.items()
+        if str(p.get("role", "")).lower() == "clinician"
+    }
+    technical_codes = {
+        code for code, p in unique_participants.items()
+        if str(p.get("role", "")).lower() == "technical_tester"
+    }
+
+    clinician_count = len(clinician_codes)
+    technical_count = len(technical_codes)
+    total_unique = len(unique_participants)
+    other_count = total_unique - (clinician_count + technical_count)
+
+    if study_status is not None:
+        effective_status = study_status
+    elif clinician_count > 0 and len(responses) > 0:
+        effective_status = "CONDUCTED"
+    else:
+        effective_status = "NOT_CONDUCTED"
+
+    if effective_status == "NOT_CONDUCTED" or (clinician_count == 0 and len(responses) == 0):
+        return {
+            "study_status": effective_status,
+            "participant_counts": {
+                "total_unique": total_unique,
+                "clinicians": clinician_count,
+                "technical_testers": technical_count,
+                "other": other_count,
+            },
+            "participants": list(unique_participants.values()),
+            "items": {},
+            "overall_clinician_median": None,
+            "overall_clinician_iqr": None,
+            "feedback": [],
+        }
+
+    items_map: dict[str, list[int]] = {}
+    items_na: dict[str, int] = {}
+    all_clinician_ratings: list[int] = []
+    feedback_entries: list[dict[str, Any]] = []
+
+    for r in responses:
+        item_id = r.get("item_id")
+        p_code = r.get("participant_code")
+        rating_raw = r.get("rating")
+        fb = r.get("feedback")
+
+        if fb:
+            feedback_entries.append({
+                "participant_code": p_code,
+                "session_id": r.get("session_id"),
+                "item_id": item_id,
+                "feedback": html.escape(str(fb)),
+            })
+
+        if not item_id:
+            continue
+
+        if item_id not in items_map:
+            items_map[item_id] = []
+            items_na[item_id] = 0
+
+        if rating_raw is not None and str(rating_raw).strip() != "" and str(rating_raw).lower() != "nan":
+            try:
+                rating = int(rating_raw)
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid rating value {rating_raw} for item {item_id}")
+
+            if rating < 1 or rating > 5:
+                raise ValueError(f"Rating {rating} out of range [1, 5] for item {item_id}")
+
+            if p_code in clinician_codes:
+                items_map[item_id].append(rating)
+                all_clinician_ratings.append(rating)
+        else:
+            if p_code in clinician_codes:
+                items_na[item_id] += 1
+
+    items_summary: dict[str, Any] = {}
+    for item_id, ratings in items_map.items():
+        n_valid = len(ratings)
+        n_na = items_na.get(item_id, 0)
+        if n_valid > 0:
+            median_val = float(np.median(ratings))
+            iqr_val = float(np.percentile(ratings, 75) - np.percentile(ratings, 25))
+            mean_val = float(np.mean(ratings))
+        else:
+            median_val = None
+            iqr_val = None
+            mean_val = None
+
+        items_summary[item_id] = {
+            "n_valid": n_valid,
+            "n_na": n_na,
+            "median": median_val,
+            "iqr": iqr_val,
+            "mean": mean_val,
+        }
+
+    overall_median = float(np.median(all_clinician_ratings)) if all_clinician_ratings else None
+    overall_iqr = (
+        float(np.percentile(all_clinician_ratings, 75) - np.percentile(all_clinician_ratings, 25))
+        if all_clinician_ratings
+        else None
+    )
+
+    return {
+        "study_status": effective_status,
+        "participant_counts": {
+            "total_unique": total_unique,
+            "clinicians": clinician_count,
+            "technical_testers": technical_count,
+            "other": other_count,
+        },
+        "participants": list(unique_participants.values()),
+        "items": items_summary,
+        "overall_clinician_median": overall_median,
+        "overall_clinician_iqr": overall_iqr,
+        "feedback": feedback_entries,
+    }
+
 
 
 def summarize_timeline(events: list[dict[str, Any]]) -> dict[str, Any]:
@@ -244,60 +386,130 @@ def analyze_hitl(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze measured HITL sessions and paired mask quality.")
-    parser.add_argument("--input", required=True, help="Input directory containing raw exported HITL sessions")
+    parser = argparse.ArgumentParser(description="Analyze measured HITL sessions and questionnaire responses.")
+    parser.add_argument("--input", default=None, help="Input directory containing raw exported HITL sessions")
     parser.add_argument("--references", default=None, help="Optional validated reference ground truth manifest")
-    parser.add_argument("--output", required=True, help="Output directory for HITL analysis artifacts")
+    parser.add_argument("--output", default=None, help="Output directory for HITL analysis artifacts")
+    parser.add_argument("--questionnaire", default=None, help="Optional path to questionnaire responses CSV")
+    parser.add_argument("--participants", default=None, help="Optional path to participant metadata CSV")
+    parser.add_argument("--user-study-output", default=None, help="Optional directory for user study artifacts")
+    parser.add_argument("--study-status", default=None, help="Optional explicit study status (PLANNED, CONDUCTED, NOT_CONDUCTED)")
     parser.add_argument("--overwrite", action="store_true", help="Allow overwriting output directory")
     args = parser.parse_args()
 
-    if os.path.exists(args.output) and not args.overwrite:
-        raise FileExistsError(f"Output directory exists: {args.output}. Use --overwrite to replace.")
-    os.makedirs(args.output, exist_ok=True)
+    # 1. Process HITL sessions if --input is provided
+    if args.input:
+        if not args.output:
+            raise ValueError("--output is required when --input is provided")
 
-    sessions_file = os.path.join(args.input, "sessions.json")
-    if not os.path.isfile(sessions_file):
-        raise FileNotFoundError(f"Missing {sessions_file}")
+        if os.path.exists(args.output) and not args.overwrite:
+            raise FileExistsError(f"Output directory exists: {args.output}. Use --overwrite to replace.")
+        os.makedirs(args.output, exist_ok=True)
 
-    with open(sessions_file, "r", encoding="utf-8") as f:
-        sessions = json.load(f)
+        sessions_file = os.path.join(args.input, "sessions.json")
+        if not os.path.isfile(sessions_file):
+            raise FileNotFoundError(f"Missing {sessions_file}")
 
-    references = None
-    if args.references and os.path.isfile(args.references):
-        references = {}
-        # Support loading reference manifest if provided
-        with open(args.references, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                references[row.get("image_id", "")] = row
+        with open(sessions_file, "r", encoding="utf-8") as f:
+            sessions = json.load(f)
 
-    results = analyze_hitl(sessions, references=references)
+        references = None
+        if args.references and os.path.isfile(args.references):
+            references = {}
+            with open(args.references, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    references[row.get("image_id", "")] = row
 
-    # Save summary.json
-    summary_path = os.path.join(args.output, "summary.json")
-    with open(summary_path, "w", encoding="utf-8") as f:
-        json.dump(results["summary"], f, indent=2)
+        results = analyze_hitl(sessions, references=references)
 
-    # Save per_task.csv
-    per_task_path = os.path.join(args.output, "per_task.csv")
-    if results["per_task"]:
-        fieldnames = list(results["per_task"][0].keys())
-        with open(per_task_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(results["per_task"])
+        # Save summary.json
+        summary_path = os.path.join(args.output, "summary.json")
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(results["summary"], f, indent=2)
 
-    # Save per_session.csv
-    per_session_path = os.path.join(args.output, "per_session.csv")
-    if results["per_session"]:
-        fieldnames = list(results["per_session"][0].keys())
-        with open(per_session_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(results["per_session"])
+        # Save per_task.csv
+        per_task_path = os.path.join(args.output, "per_task.csv")
+        if results["per_task"]:
+            fieldnames = list(results["per_task"][0].keys())
+            with open(per_task_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(results["per_task"])
 
-    print(f"[HITL Analysis] Analysis complete. Output written to {args.output}")
+        # Save per_session.csv
+        per_session_path = os.path.join(args.output, "per_session.csv")
+        if results["per_session"]:
+            fieldnames = list(results["per_session"][0].keys())
+            with open(per_session_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(results["per_session"])
+
+        print(f"[HITL Analysis] Analysis complete. Output written to {args.output}")
+
+    # 2. Process Questionnaire / User Study if provided
+    if args.questionnaire or args.participants or args.user_study_output:
+        user_study_dir = args.user_study_output
+        if not user_study_dir and args.output:
+            user_study_dir = os.path.join(args.output, "user_study")
+        elif not user_study_dir:
+            user_study_dir = "evaluation/milestone_3_final/user_study"
+
+        if os.path.exists(user_study_dir) and not args.overwrite:
+            raise FileExistsError(f"User study directory exists: {user_study_dir}. Use --overwrite to replace.")
+        os.makedirs(user_study_dir, exist_ok=True)
+
+        responses: list[dict[str, Any]] = []
+        if args.questionnaire and os.path.isfile(args.questionnaire):
+            with open(args.questionnaire, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                responses = list(reader)
+
+        participants: list[dict[str, Any]] = []
+        if args.participants and os.path.isfile(args.participants):
+            with open(args.participants, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                participants = list(reader)
+
+        study_summary = summarize_questionnaire(
+            responses=responses,
+            participants=participants,
+            study_status=args.study_status,
+        )
+
+        # Save summary.json
+        with open(os.path.join(user_study_dir, "summary.json"), "w", encoding="utf-8") as f:
+            json.dump(study_summary, f, indent=2)
+
+        # Save study_status.json
+        status_payload = {
+            "study_status": study_summary["study_status"],
+            "clinician_count": study_summary["participant_counts"]["clinicians"],
+            "technical_count": study_summary["participant_counts"]["technical_testers"],
+            "total_participants": study_summary["participant_counts"]["total_unique"],
+            "has_clinician_validation": study_summary["study_status"] == "CONDUCTED" and study_summary["participant_counts"]["clinicians"] > 0,
+        }
+        with open(os.path.join(user_study_dir, "study_status.json"), "w", encoding="utf-8") as f:
+            json.dump(status_payload, f, indent=2)
+
+        # Save feedback.md
+        feedback_lines = ["# User Study Qualitative Feedback\n\n"]
+        if study_summary["feedback"]:
+            for fb_item in study_summary["feedback"]:
+                feedback_lines.append(
+                    f"### Participant: {fb_item.get('participant_code')} (Item: {fb_item.get('item_id')})\n"
+                    f"> {fb_item.get('feedback')}\n\n"
+                )
+        else:
+            feedback_lines.append("_No qualitative feedback recorded._\n")
+
+        with open(os.path.join(user_study_dir, "feedback.md"), "w", encoding="utf-8") as f:
+            f.writelines(feedback_lines)
+
+        print(f"[User Study] Summary complete. Status: {study_summary['study_status']}. Output written to {user_study_dir}")
 
 
 if __name__ == "__main__":
     main()
+

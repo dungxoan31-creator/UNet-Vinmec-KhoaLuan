@@ -1,0 +1,21 @@
+{
+  "study_status": "NOT_CONDUCTED",
+  "participant_counts": {
+    "total_unique": 1,
+    "clinicians": 0,
+    "technical_testers": 1,
+    "other": 0
+  },
+  "participants": [
+    {
+      "participant_code": "TECH-TESTER-01",
+      "role": "technical_tester",
+      "source": "qa_lab",
+      "consent_status": "EXEMPT"
+    }
+  ],
+  "items": {},
+  "overall_clinician_median": null,
+  "overall_clinician_iqr": null,
+  "feedback": []
+}
