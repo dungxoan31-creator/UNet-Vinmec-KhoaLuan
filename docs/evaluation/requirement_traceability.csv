@@ -1,0 +1,10 @@
+requirement_id,task_id,name,owner,evidence_artifact,status,next_action
+R1,T02-T06,Quantitative test on independent cohort without leakage,Lead Researcher,evaluation/milestone_3_final/data_audit/independent_gate.json,BLOCKED,Await verified patient-level independent cohort mapping
+R1-Legacy,T05-T06,Retrospective test replay,ML Engineer,evaluation/milestone_3_final/legacy_test_v1/summary.json,PLANNED,Execute T05 and T06 legacy replay
+R2,T03+T07,Error analysis and ranking (best/median/worst/FP/FN/under/over/boundary),ML Engineer,evaluation/milestone_3_final/error_analysis/analysis.json,PLANNED,Execute T03 and T07
+R3,T08-T14,Human-in-the-loop workflow persistence timing and before/after deltas,Fullstack Engineer,evaluation/milestone_3_final/hitl/analysis/summary.json,PLANNED,Execute T08 through T14
+R4,T15,Clinician evaluation or technical usability fallback,Clinical Lead,evaluation/milestone_3_final/user_study/study_status.json,PLANNED,Execute T15 protocol and study
+R5,T19-T20,Consolidated report limitations and release evidence,Lead Researcher,evaluation/milestone_3_final/report/release_status.json,PLANNED,Execute T19 and T20
+APP-P0,T08-T11,Live runnable prototype login cases upload edit save export,Fullstack Engineer,artifacts/review-e2e-runtime/technical_test.sqlite3,PLANNED,Execute T08 through T11
+APP-E2E,T16-T17,Live E2E restart persistence and negative boundary tests,QA / Test Engineer,evaluation/milestone_3_final/baseline/release_e2e.log,PLANNED,Execute T16 and T17
+APP-PKG,T18,Windows packaging clean launcher and runbook,DevOps / Engineer,scripts/run_prototype.ps1,PLANNED,Execute T18
