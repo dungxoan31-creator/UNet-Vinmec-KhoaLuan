@@ -151,11 +151,17 @@ Task 15: complete — commit fce9344 "docs: formalize clinician evaluation proto
 - Generated `evaluation/milestone_3_final/user_study/` with `study_status.json` honestly recording `NOT_CONDUCTED` (clinician count 0, technical tester 1) without fabricated doctor ratings
 - All unit & regression tests passing (19 passing)
 
-Task 16: complete — commit pending "test: verify complete workspace v2 release flow"
+Task 16: complete — commit b71f186 "test: cover live save export restart and case isolation"
 - `tests/workspace_v2_release_e2e.js` comprehensive live E2E test verifying: doctor auth, bilateral case creation, upload & prediction, deliberate brush stroke, undo/redo bitwise assertions, reset AI confirmation, atomic batch review save, research ZIP export (7 files in ZIP with metadata SHA256), unsupported clinical sign-off guard (501), reopen persistence across sessions, and Case 2 multi-case isolation
 - Parameterized `tests/workspace_v2_live.js` with `E2E_BASE_URL`, `CHROME_PATH`, `APP_DOCTOR_PASSWORD`, `APP_ADMIN_PASSWORD`
 - Configured `tests/serve_isolated_app.py` with `sys.path` and configurable port/host
 - Extended `scripts/verify_evaluation_release.ps1` to launch isolated server and execute `workspace_v2_release_e2e.js` when browser testing is enabled
 - All live browser tests passed with zero page errors
+
+Task 17: complete — commit pending "test: enforce prototype failure and access boundaries"
+- `tests/test_prototype_release_failures.py` verifying negative inputs & failure modes: empty files (0 bytes), invalid extensions (.exe), oversized files (>20 MiB returning HTTP 413), corrupt image bytes, unauthenticated calls (401), invalid laterality (422), non-existent image/study (404), non-doctor review rejection (403), and database state integrity on prediction failures (11/11 passing)
+- `backend/app/routers/inference.py` updated to return HTTP 413 for uploads exceeding 20MB and bounded decoded raster limit at 25 million pixels
+- Comprehensive regression pytest suite passing (70/70 passing) and all Node suites passing
+
 
 

@@ -159,7 +159,7 @@ async def upload_image(
     contents = await file.read()
     if len(contents) > 20 * 1024 * 1024:
         raise HTTPException(
-            status_code=400, detail="Dung lượng file quá lớn (> 20MB). Vui lòng nén hoặc chọn file nhỏ hơn."
+            status_code=413, detail="Dung lượng file quá lớn (> 20MB). Vui lòng nén hoặc chọn file nhỏ hơn."
         )
 
     if len(contents) < 64:
@@ -218,6 +218,10 @@ async def upload_image(
         raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế. File có thể bị hỏng.")
 
     h, w = img_np.shape[:2]
+    if h * w > 25_000_000:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=413, detail="Kích thước điểm ảnh giải mã quá lớn (> 25 triệu pixels).")
 
     # Link or Create Study & Patient
     if not study_id:
