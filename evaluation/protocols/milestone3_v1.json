@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "protocol_id": "milestone3_v1",
+  "name": "Milestone 3 Frozen Evaluation Protocol v1",
+  "created_at": "2026-10-16T22:00:00+07:00",
+  "run_kinds": [
+    "validation_dry_run",
+    "retrospective_test_replay",
+    "independent_test"
+  ],
+  "model": {
+    "architecture": "standard_unet",
+    "checkpoint_path": "checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/baseline_unet_best.pth",
+    "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+    "strict_load": true
+  },
+  "preprocess": {
+    "color_mode": "grayscale",
+    "target_size": [512, 512],
+    "clahe": {
+      "clip_limit": 2.0,
+      "tile_grid_size": [8, 8]
+    },
+    "normalization": "scale_255",
+    "data_type": "float32"
+  },
+  "inference": {
+    "device": "cpu",
+    "batch_size": 1,
+    "threshold": 0.5,
+    "operator": ">=",
+    "mode": "eval"
+  },
+  "postprocess": {
+    "morphology": null,
+    "remove_small_components": false
+  },
+  "evaluation": {
+    "coordinate_space": "native",
+    "interpolation": "nearest",
+    "bootstrap_seed": 42,
+    "bootstrap_iterations": 2000,
+    "metrics": [
+      "dice",
+      "iou",
+      "recall",
+      "precision",
+      "specificity",
+      "hd95_px",
+      "tp",
+      "fp",
+      "fn",
+      "tn",
+      "under_fraction",
+      "over_fraction"
+    ]
+  }
+}
