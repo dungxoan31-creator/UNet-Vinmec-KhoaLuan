@@ -3,6 +3,8 @@
 > Dự án Khóa luận Tốt nghiệp Hệ thống Thông tin Quản lý (MIS / ITBA / AI) – Trường Đại học Kinh tế Quốc dân (NEU).  
 > Dữ liệu nghiên cứu thực nghiệm: Bệnh viện Đa khoa Quốc tế Vinmec Times City.
 
+> **Trạng thái bằng chứng 07/10/2026:** Đây là bản mẫu nghiên cứu. Split hiện có 661 Train / 541 Validation / 402 Test; chỉ xác minh không trùng SHA-256 ảnh. [Kiểm toán ảnh gần trùng](docs/reports/Kiem_Toan_Anh_Gan_Trung_Giua_Split_2026-10-07.md) ghi 59 cặp ứng viên xuyên split ở ngưỡng mở rộng. Patient/Case ID nguồn và phê duyệt nhãn chuyên gia chưa được xác minh; Test 402 ảnh đã được dùng trong các lượt trước. [Hồ sơ Validation Mốc 3](docs/reports/Kiem_Toan_Tai_Lap_Validation_Moc_3_2026-10-07.md) · [Truy vết 307 bản ghi Mốc 1](docs/reports/Truy_Vet_Du_Lieu_Moc_1_307_2026-10-07.md).
+
 ---
 
 ## 1. Giới thiệu Tổng quan & Bài toán Giải quyết
@@ -11,7 +13,7 @@
 Chẩn đoán hình ảnh siêu âm buồng trứng (phát hiện nang, u nang, khối u đặc/hỗn hợp) là kỹ thuật phổ biến nhưng phụ thuộc lớn vào kinh nghiệm chủ quan của bác sĩ chuyên khoa. Các tổn thương buồng trứng thường có ranh giới phức tạp, độ tương phản mô mềm thấp, nhiễu âm (speckle noise) và biến dạng giải phẫu lớn giữa các bệnh nhân.
 
 ### 1.2. Giải pháp của Dự án
-Dự án xây dựng một hệ thống phần mềm hỗ trợ ra quyết định lâm sàng (**Clinical Decision Support System - CDSS**) hoàn chỉnh, kết hợp giữa mô hình học sâu phân đoạn ảnh y tế và giao diện máy trạm lâm sàng (Clinical Workstation):
+Dự án xây dựng bản mẫu phần mềm hỗ trợ ra quyết định lâm sàng (**Clinical Decision Support System - CDSS**), kết hợp mô hình học sâu phân đoạn ảnh y tế và giao diện máy trạm lâm sàng (Clinical Workstation):
 - **Phân đoạn tự động bằng Deep Learning (U-Net)**: Xác định đường viền và diện tích nghi ngờ tổn thương trên ảnh siêu âm 2D B-mode.
 - **Trích xuất thông số hình thái tự động (Morphometry)**: Đo lường đường kính tổn thương (Caliper $d_1, d_2$), chu vi, diện tích và thể tích phỏng định theo khuyến cáo ISUOG.
 - **Cơ chế Human-in-the-Loop (HITL)**: Thay vì áp dụng AI "hộp đen" hoàn toàn tự động, hệ thống thiết kế quy trình bác sĩ kiểm soát tuyệt đối. Bác sĩ trực tiếp rà soát kết quả phân đoạn của AI, sử dụng công cụ tương tác (Brush / Eraser) để tinh chỉnh đường viền nếu cần trước khi phê duyệt và xuất phiếu kết quả.
@@ -112,16 +114,16 @@ UNet-Vinmec-KhoaLuan/
 │   └── train_baseline_unet.py # Huấn luyện mô hình U-Net cơ sở
 ├── dataset/                 # Thư mục dữ liệu ảnh gốc (Chỉ đọc - Read Only)
 │   ├── 2d/                  # Ảnh siêu âm 2D B-mode (images/ và masks/)
-│   ├── 3d/                  # Ảnh siêu âm 3D bổ trợ (images/ và masks/)
+│   ├── 3d/                  # Thư mục nguồn tên 3d; pipeline hiện xử lý từng ảnh 2D
 │   └── index.csv            # Chỉ mục toàn bộ mẫu ảnh và nguồn gốc dữ liệu
-├── metadata/                # Metadata dữ liệu chuẩn hóa (Ground Truth 307 ca)
-│   ├── kltn_ground_truth_307.csv # Tập Ground Truth 307 ca được chuyên gia xác thực
-│   ├── train.csv, val.csv, test.csv # Phân chia tập mẫu chuẩn
+├── metadata/                # Metadata lịch sử của 307 bản ghi Mốc 1
+│   ├── kltn_ground_truth_307.csv # Nhãn tham chiếu lịch sử; phê duyệt chuyên gia chưa xác minh
+│   ├── train.csv, val.csv, test.csv # Phân chia lịch sử; Patient ID nguồn chưa xác minh
 │   └── thesis_exports/      # File CSV tiếng Việt phục vụ phụ lục khóa luận
 ├── checkpoints/             # Trọng số mô hình đã huấn luyện (.pth)
-│   ├── unified_vinmec_refine_2026-10-06/ # Trọng số Standard U-Net chính thức (Production)
+│   ├── unified_vinmec_refine_2026-10-06/ # Trọng số Standard U-Net mặc định của prototype
 │   └── unetplusplus_resnet34_2026-10-06/ # Checkpoint mô hình U-Net++
-├── evaluation/              # Bằng chứng đánh giá thực nghiệm lâm sàng & manifest mô hình
+├── evaluation/              # Minh chứng kiểm thử kỹ thuật và metric phân đoạn; chưa thẩm định lâm sàng
 │   ├── selected_model.json  # Manifest chỉ định mô hình phục vụ với mã băm SHA-256
 │   └── archive/             # Kho lưu trữ kết quả thực nghiệm các mốc trước
 ├── scripts/                 # Bộ công cụ xử lý dữ liệu, kiểm toán và xuất báo cáo
@@ -211,22 +213,31 @@ sequenceDiagram
 
 ---
 
-## 8. Hướng dẫn Khởi chạy Hệ thống
-
-### 8.1. Chạy Trực tiếp (Local Development)
-Khởi động máy chủ backend từ thư mục gốc dự án:
+### 8.1. Khởi chạy Chuẩn hóa bằng PowerShell Launcher (Khuyến nghị)
+Sử dụng script launcher chính thức `scripts/run_prototype.ps1` để tự động kiểm tra tính hợp lệ của trọng số checkpoint, Python virtualenv và cấu hình bảo mật trước khi khởi động:
 
 ```powershell
-uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+# 1. Thiết lập 3 biến môi trường bảo mật bắt buộc
+$env:APP_JWT_SECRET = '<chuoi-bi-mat-ngau-nhien-toi-thieu-32-ky-tu>'
+$env:APP_ADMIN_PASSWORD = '<mat-khau-admin-rieng>'
+$env:APP_DOCTOR_PASSWORD = '<mat-khau-bac-si-rieng>'
+
+# 2. Kiểm tra điều kiện tiên quyết (CheckOnly)
+powershell -ExecutionPolicy Bypass -File scripts/run_prototype.ps1 -CheckOnly
+
+# 3. Khởi chạy thử nghiệm có giám sát trên runtime độc lập
+powershell -ExecutionPolicy Bypass -File scripts/run_prototype.ps1 -RuntimeDir "artifacts/prototype-runtime" -Port 8000
 ```
+
+Xem hướng dẫn chi tiết về vận hành, sao lưu và phục hồi CSDL tại [docs/evaluation/release_runbook.md](docs/evaluation/release_runbook.md).
 
 * **Giao diện Web Workstation (Bác sĩ)**: Mở trình duyệt và truy cập: `http://127.0.0.1:8000/`
 * **Cổng Quản trị Hệ thống (Admin Portal)**: `http://127.0.0.1:8000/admin`
 * **Tài liệu API Tương tác (Swagger UI)**: `http://127.0.0.1:8000/docs`
 * **Tài liệu API Thay thế (ReDoc)**: `http://127.0.0.1:8000/redoc`
 
-### 8.2. Biến Môi trường Tùy chọn (Environment Variables)
-Hệ thống sử dụng các giá trị mặc định an toàn, bạn có thể thiết lập thêm biến môi trường nếu cần:
+### 8.2. Biến môi trường bổ sung
+Ba biến xác thực ở mục 8.1 là bắt buộc khi đăng nhập. Biến chọn mô hình sau đây là tùy chọn:
 - `MODEL_SELECTION_MANIFEST`: Đường dẫn đến file manifest lựa chọn mô hình (mặc định: `evaluation/selected_model.json`).
   * *Ví dụ muốn chuyển sang mô hình U-Net++*:
     ```powershell

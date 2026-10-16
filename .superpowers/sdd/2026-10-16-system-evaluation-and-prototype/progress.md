@@ -158,10 +158,17 @@ Task 16: complete — commit b71f186 "test: cover live save export restart and c
 - Extended `scripts/verify_evaluation_release.ps1` to launch isolated server and execute `workspace_v2_release_e2e.js` when browser testing is enabled
 - All live browser tests passed with zero page errors
 
-Task 17: complete — commit pending "test: enforce prototype failure and access boundaries"
+Task 17: complete — commit 4dd3cd1 "test: enforce prototype failure and access boundaries"
 - `tests/test_prototype_release_failures.py` verifying negative inputs & failure modes: empty files (0 bytes), invalid extensions (.exe), oversized files (>20 MiB returning HTTP 413), corrupt image bytes, unauthenticated calls (401), invalid laterality (422), non-existent image/study (404), non-doctor review rejection (403), and database state integrity on prediction failures (11/11 passing)
 - `backend/app/routers/inference.py` updated to return HTTP 413 for uploads exceeding 20MB and bounded decoded raster limit at 25 million pixels
 - Comprehensive regression pytest suite passing (70/70 passing) and all Node suites passing
+
+Task 18: complete — commit pending "docs: package reproducible supervised prototype run"
+- `scripts/run_prototype.ps1` native PowerShell launcher and pre-flight readiness runner validating Python virtualenv, external checkpoint SHA-256 hash (`417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d`), and required environment secrets (`APP_JWT_SECRET` >= 32 chars, `APP_DOCTOR_PASSWORD`, `APP_ADMIN_PASSWORD`), supporting `-CheckOnly` and isolated `-RuntimeDir` execution
+- `docs/evaluation/release_runbook.md` comprehensive operator runbook detailing system prerequisites, security secrets configuration, checkpoint verification, supervised launch commands, SQLite online backup/restore procedures, and clinical boundaries
+- Updated `README.md` and `frontend/README.md` with standardized launcher instructions
+- `tests/test_runtime_configuration.py` expanded with 4 launcher unit tests (missing secrets, missing checkpoint, clean CheckOnly, no secret leaks) — all 7 tests passing
+
 
 
 

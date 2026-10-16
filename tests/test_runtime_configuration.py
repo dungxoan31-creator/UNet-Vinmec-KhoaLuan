@@ -93,3 +93,83 @@ def test_health_does_not_claim_model_ready_when_unloaded(monkeypatch):
 
     assert data["model_ready"] is False
     assert data["checkpoint_sha256"] is None
+
+
+def test_missing_secret_fails_actionably(tmp_path):
+    """run_prototype.ps1 -CheckOnly fails with code 2 if required secrets are missing or too short."""
+    script_path = PROJECT_ROOT / "scripts" / "run_prototype.ps1"
+    env = dict(os.environ)
+    env["APP_JWT_SECRET"] = "short-secret"
+    env["APP_DOCTOR_PASSWORD"] = "doc-pass"
+    env["APP_ADMIN_PASSWORD"] = "admin-pass"
+
+    proc = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-CheckOnly", "-RuntimeDir", str(tmp_path)],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 2
+    assert "APP_JWT_SECRET" in proc.stdout or "APP_JWT_SECRET" in proc.stderr
+
+
+def test_check_only_fails_on_missing_checkpoint(tmp_path):
+    """run_prototype.ps1 -CheckOnly fails with code 2 if checkpoint path is missing."""
+    script_path = PROJECT_ROOT / "scripts" / "run_prototype.ps1"
+    env = dict(os.environ)
+    env["APP_JWT_SECRET"] = "a" * 32
+    env["APP_DOCTOR_PASSWORD"] = "doc-pass"
+    env["APP_ADMIN_PASSWORD"] = "admin-pass"
+    env["CHECKPOINT_PATH"] = str(tmp_path / "non_existent.pth")
+
+    proc = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-CheckOnly", "-RuntimeDir", str(tmp_path)],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 2
+    assert "checkpoint" in (proc.stdout + proc.stderr).lower()
+
+
+def test_launch_uses_configured_runtime(tmp_path):
+    """run_prototype.ps1 -CheckOnly succeeds with code 0 when all pre-flight conditions are met."""
+    script_path = PROJECT_ROOT / "scripts" / "run_prototype.ps1"
+    env = dict(os.environ)
+    env["APP_JWT_SECRET"] = "test-secret-at-least-32-characters-long-2026"
+    env["APP_DOCTOR_PASSWORD"] = "doctor-local-test-2026"
+    env["APP_ADMIN_PASSWORD"] = "admin-local-test-2026"
+
+    proc = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-CheckOnly", "-RuntimeDir", str(tmp_path)],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, f"CheckOnly failed: {proc.stdout}\n{proc.stderr}"
+    assert "readiness check passed" in proc.stdout.lower() or "ready" in proc.stdout.lower()
+
+
+def test_no_secrets_in_logs(tmp_path):
+    """Launcher output must never print actual secret strings."""
+    script_path = PROJECT_ROOT / "scripts" / "run_prototype.ps1"
+    secret_jwt = "super-secret-jwt-key-not-for-logs-12345"
+    doc_pass = "super-secret-doctor-password-xyz"
+    admin_pass = "super-secret-admin-password-xyz"
+
+    env = dict(os.environ)
+    env["APP_JWT_SECRET"] = secret_jwt
+    env["APP_DOCTOR_PASSWORD"] = doc_pass
+    env["APP_ADMIN_PASSWORD"] = admin_pass
+
+    proc = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-CheckOnly", "-RuntimeDir", str(tmp_path)],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    output = proc.stdout + proc.stderr
+    assert secret_jwt not in output, "JWT secret leaked in launcher output!"
+    assert doc_pass not in output, "Doctor password leaked in launcher output!"
+    assert admin_pass not in output, "Admin password leaked in launcher output!"
+
