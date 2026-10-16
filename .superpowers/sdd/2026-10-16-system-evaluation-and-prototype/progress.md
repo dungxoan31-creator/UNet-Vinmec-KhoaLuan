@@ -163,11 +163,22 @@ Task 17: complete — commit 4dd3cd1 "test: enforce prototype failure and access
 - `backend/app/routers/inference.py` updated to return HTTP 413 for uploads exceeding 20MB and bounded decoded raster limit at 25 million pixels
 - Comprehensive regression pytest suite passing (70/70 passing) and all Node suites passing
 
-Task 18: complete — commit pending "docs: package reproducible supervised prototype run"
+Task 18: complete — commit d975eb1 "docs: package reproducible supervised prototype run"
 - `scripts/run_prototype.ps1` native PowerShell launcher and pre-flight readiness runner validating Python virtualenv, external checkpoint SHA-256 hash (`417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d`), and required environment secrets (`APP_JWT_SECRET` >= 32 chars, `APP_DOCTOR_PASSWORD`, `APP_ADMIN_PASSWORD`), supporting `-CheckOnly` and isolated `-RuntimeDir` execution
 - `docs/evaluation/release_runbook.md` comprehensive operator runbook detailing system prerequisites, security secrets configuration, checkpoint verification, supervised launch commands, SQLite online backup/restore procedures, and clinical boundaries
 - Updated `README.md` and `frontend/README.md` with standardized launcher instructions
 - `tests/test_runtime_configuration.py` expanded with 4 launcher unit tests (missing secrets, missing checkpoint, clean CheckOnly, no secret leaks) — all 7 tests passing
+
+Task 19: complete — commit pending "docs: assemble traceable evaluation results and limitations"
+- `scripts/build_evaluation_report.py` comprehensive evaluation report synthesizer from immutable run summaries, error analysis, HITL telemetry, user study status, and data gates
+- `tests/test_evaluation_report.py` unit and integration tests (6/6 passing) verifying artifact derivation, null score retention, hash mismatch visibility, retrospective replay tagging, clinician vs technical tester separation, and independent test gate blocking
+- Atomically created `evaluation/current_run.json` verified pointer to retrospective test replay (`legacy_test_v1`)
+- Generated consolidated artifacts under `evaluation/milestone_3_final/report/`: `results.md`, `limitations.md`, `release_status.json` (`prototype_ready=True`, `evaluation_complete=False`), `evidence_matrix.csv`, and `tables/cohort_metrics.csv`
+- Updated `backend/app/routers/evaluation.py` to expose `current_run`, `historical_runs`, and `evidence_status` while preserving backwards compatible metrics
+- Updated `frontend/app/evaluation.js` to render the verified current run with null reasons, independent gate blocked alert, and distinct historical archive splits
+- Updated `MODEL_CARD.md` with frozen Milestone 3 Final Evaluation Protocol v1 results and evidence boundaries
+- Updated `docs/evaluation/requirement_traceability.csv` mapping all requirements to verified artifacts
+
 
 
 

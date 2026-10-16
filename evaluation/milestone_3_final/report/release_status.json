@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-16T23:59:59Z",
+  "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+  "prototype_ready": true,
+  "evaluation_complete": false,
+  "blockers": [
+    "Independent test cohort patient-level mapping unverified (independent_gate status: BLOCKED)",
+    "Clinician user study not conducted (study_status: NOT_CONDUCTED)"
+  ],
+  "runs": [
+    {
+      "run_id": "legacy_test_v1",
+      "run_kind": "retrospective_test_replay",
+      "kind_label": "Retrospective Test Replay (Historical Data)",
+      "status": "COMPLETE",
+      "is_historical_replay": true,
+      "protocol_sha256": "7ca6c3791b4c2266fd1717276aaf4d2072798010a688851abca5f51f490474bb",
+      "manifest_sha256": "95a585259be3a0340d98d328e8f8eede8472936905a23a850ed23dda56eb54b4",
+      "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+      "counts": {
+        "total_samples": 402,
+        "nonempty_gt_samples": 402,
+        "empty_gt_samples": 0
+      },
+      "primary": {
+        "dice": {
+          "n_valid": 402,
+          "n_null": 0,
+          "mean": 0.728941215724656,
+          "median": 0.8044951698334954,
+          "std": 0.23048107230262246,
+          "min": 0.0,
+          "max": 0.9785263540200663,
+          "p25": 0.6241318988684852,
+          "p75": 0.9019774496459569,
+          "p95": 0.9594693749093824
+        },
+        "iou": {
+          "n_valid": 402,
+          "n_null": 0,
+          "mean": 0.6175816170156693,
+          "median": 0.6729335627525812,
+          "std": 0.24738771582203495,
+          "min": 0.0,
+          "max": 0.9579555555555556,
+          "p25": 0.45363412282674365,
+          "p75": 0.8214583941554287,
+          "p95": 0.9220962999031136
+        },
+        "recall": {
+          "n_valid": 402,
+          "n_null": 0,
+          "mean": 0.7303666571587294,
+          "median": 0.8149657933259642,
+          "std": 0.2593502116166638,
+          "min": 0.0,
+          "max": 1.0,
+          "p25": 0.6034855516925923,
+          "p75": 0.9364235731452558,
+          "p95": 0.9967563684532961
+        },
+        "precision": {
+          "n_valid": 401,
+          "n_null": 1,
+          "mean": 0.8139912246658625,
+          "median": 0.9170707631562712,
+          "std": 0.2297802054056018,
+          "min": 0.0,
+          "max": 1.0,
+          "p25": 0.740864841986456,
+          "p75": 0.9722276654493631,
+          "p95": 0.9985585609522797
+        },
+        "specificity": {
+          "n_valid": 402,
+          "n_null": 0,
+          "mean": 0.977076352956153,
+          "median": 0.986737848559291,
+          "std": 0.027313697636150505,
+          "min": 0.8011407636861857,
+          "max": 1.0,
+          "p25": 0.9712858268493083,
+          "p75": 0.9950072058798569,
+          "p95": 0.9997812002283382
+        },
+        "hd95_px": {
+          "n_valid": 401,
+          "n_null": 1,
+          "mean": 90.18596890760425,
+          "median": 79.35202945670868,
+          "std": 64.2300502954883,
+          "min": 8.54400374531753,
+          "max": 392.164245754987,
+          "p25": 38.444756773969885,
+          "p75": 121.6552506059644,
+          "p95": 209.8494679304642
+        }
+      },
+      "secondary": {
+        "all_images_agreement_dice": {
+          "n_valid": 402,
+          "n_null": 0,
+          "mean": 0.728941215724656,
+          "median": 0.8044951698334954,
+          "std": 0.23048107230262246,
+          "min": 0.0,
+          "max": 0.9785263540200663,
+          "p25": 0.6241318988684852,
+          "p75": 0.9019774496459569,
+          "p95": 0.9594693749093824
+        },
+        "micro_dice": 0.7836865073624713,
+        "micro_iou": 0.6443129276343694,
+        "total_tp": 20180339,
+        "total_fp": 3101762,
+        "total_fn": 8038610,
+        "total_tn": 138358056
+      },
+      "patient_macro": {
+        "dice": {
+          "n_valid": 0,
+          "n_null": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "min": null,
+          "max": null,
+          "p25": null,
+          "p75": null,
+          "p95": null,
+          "ci_95": null,
+          "ci_reason": "no_patient_mapping"
+        }
+      },
+      "summary_path": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\evaluation\\milestone_3_final\\legacy_test_v1\\summary.json"
+    },
+    {
+      "run_id": "validation_v1",
+      "run_kind": "validation_dry_run",
+      "kind_label": "Validation Cohort",
+      "status": "COMPLETE",
+      "is_historical_replay": false,
+      "protocol_sha256": "7ca6c3791b4c2266fd1717276aaf4d2072798010a688851abca5f51f490474bb",
+      "manifest_sha256": "17c63c07cadb176012a82b6da3e33d58516c016d7a5c170a5bfe1ef62fbe1395",
+      "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+      "counts": {
+        "total_samples": 541,
+        "nonempty_gt_samples": 541,
+        "empty_gt_samples": 0
+      },
+      "primary": {
+        "dice": {
+          "n_valid": 541,
+          "n_null": 0,
+          "mean": 0.6717317512232297,
+          "median": 0.7587512042941689,
+          "std": 0.2540627119765007,
+          "min": 0.0,
+          "max": 0.9781436275901221,
+          "p25": 0.5273014572482004,
+          "p75": 0.8681955061385221,
+          "p95": 0.9455726324452953
+        },
+        "iou": {
+          "n_valid": 541,
+          "n_null": 0,
+          "mean": 0.5542385260407883,
+          "median": 0.6112805159764189,
+          "std": 0.25776434941421034,
+          "min": 0.0,
+          "max": 0.9572222222222222,
+          "p25": 0.3580511842314417,
+          "p75": 0.7670896438804748,
+          "p95": 0.8967641219690157
+        },
+        "recall": {
+          "n_valid": 541,
+          "n_null": 0,
+          "mean": 0.697852563998168,
+          "median": 0.791255234948323,
+          "std": 0.27903067520875474,
+          "min": 0.0,
+          "max": 1.0,
+          "p25": 0.537929807824463,
+          "p75": 0.9276290151979069,
+          "p95": 0.9944692618591789
+        },
+        "precision": {
+          "n_valid": 537,
+          "n_null": 4,
+          "mean": 0.7526974788884301,
+          "median": 0.8577120862201694,
+          "std": 0.27080946721591054,
+          "min": 0.0,
+          "max": 1.0,
+          "p25": 0.6308028165999615,
+          "p75": 0.9620772510993133,
+          "p95": 0.9995041493119715
+        },
+        "specificity": {
+          "n_valid": 541,
+          "n_null": 0,
+          "mean": 0.9726360093172208,
+          "median": 0.9837666729796272,
+          "std": 0.0327752202342342,
+          "min": 0.7854693235027187,
+          "max": 1.0,
+          "p25": 0.9659566913657479,
+          "p75": 0.995314205176641,
+          "p95": 0.9999866275299042
+        },
+        "hd95_px": {
+          "n_valid": 537,
+          "n_null": 4,
+          "mean": 102.43367377063535,
+          "median": 88.84878522281579,
+          "std": 70.98800319985389,
+          "min": 9.899494936611665,
+          "max": 447.94452758425746,
+          "p25": 47.673844873208765,
+          "p75": 134.8369385591352,
+          "p95": 248.4878273868144
+        }
+      },
+      "secondary": {
+        "all_images_agreement_dice": {
+          "n_valid": 541,
+          "n_null": 0,
+          "mean": 0.6717317512232297,
+          "median": 0.7587512042941689,
+          "std": 0.2540627119765007,
+          "min": 0.0,
+          "max": 0.9781436275901221,
+          "p25": 0.5273014572482004,
+          "p75": 0.8681955061385221,
+          "p95": 0.9455726324452953
+        },
+        "micro_dice": 0.7504099989155224,
+        "micro_iou": 0.6005249708018363,
+        "total_tp": 20852073,
+        "total_fp": 4588411,
+        "total_fn": 9282590,
+        "total_tn": 176513430
+      },
+      "patient_macro": {
+        "dice": {
+          "n_valid": 0,
+          "n_null": 0,
+          "mean": null,
+          "median": null,
+          "std": null,
+          "min": null,
+          "max": null,
+          "p25": null,
+          "p75": null,
+          "p95": null,
+          "ci_95": null,
+          "ci_reason": "no_patient_mapping"
+        }
+      },
+      "summary_path": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\evaluation\\milestone_3_final\\validation_v1\\summary.json"
+    }
+  ],
+  "hitl": {
+    "total_sessions": 32,
+    "clinician_sessions": 4,
+    "technical_sessions": 28,
+    "demo_sessions": 0,
+    "completed_sessions": 2,
+    "total_tasks": 15,
+    "clinician_median_review_ms": null,
+    "clinician_median_delta_dice": null
+  },
+  "user_study": {
+    "study_status": "NOT_CONDUCTED",
+    "clinician_count": 0,
+    "technical_count": 1,
+    "total_participants": 1,
+    "has_clinician_validation": false
+  },
+  "independent_gate_status": "BLOCKED"
+}

@@ -59,7 +59,28 @@ def test_verifier_preserves_exit_status(tmp_path):
     )
 
 
-def test_missing_independent_test_blocks_complete():
-    # Will be used in Task 19/20 as well: prototype PASS + independent gate BLOCKED
-    # -> prototype_ready=true, evaluation_complete=false
-    pass
+def test_missing_independent_test_blocks_complete(tmp_path):
+    from scripts.build_evaluation_report import build_report
+
+    gate_dir = tmp_path / "independent_gate"
+    gate_dir.mkdir()
+    gate_file = gate_dir / "audit.json"
+    gate_file.write_text(
+        '{"status": "BLOCKED", "counts": {"total": 402, "valid": 0, "failed": 402}}',
+        encoding="utf-8",
+    )
+
+    out_dir = tmp_path / "report_out"
+    report = build_report(
+        root=tmp_path,
+        run_dirs=[],
+        hitl_dir=None,
+        user_dir=None,
+        independent_gate_path=gate_file,
+        prototype_checks_passed=True,
+        output=out_dir,
+    )
+    assert report["prototype_ready"] is True
+    assert report["evaluation_complete"] is False
+    assert any("independent" in b.lower() for b in report["blockers"])
+

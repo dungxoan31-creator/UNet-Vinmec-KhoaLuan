@@ -1,0 +1,10 @@
+requirement_id,task_id,name,owner,evidence_artifact,status,next_action
+R1,T02-T06,Quantitative test on independent cohort without leakage,Lead Researcher,evaluation/milestone_3_final/data_audit/independent_gate/audit.json,BLOCKED,Independent patient-level mapping not confirmed; holdout remains guarded
+R1-Legacy,T05-T06,Retrospective test replay on previously used test set,ML Engineer,evaluation/milestone_3_final/legacy_test_v1/summary.json,VERIFIED,Replay completed with frozen protocol; Dice mean 0.7289
+R2,T03+T07,Error analysis and multi-group ranking,ML Engineer,evaluation/milestone_3_final/legacy_test_v1/error_analysis/analysis.json,VERIFIED,"8 rank groups, 5-column panels, HTML report generated"
+R3,T08-T14,"Human-in-the-loop workflow persistence, timing, and deltas",Fullstack Engineer,evaluation/milestone_3_final/hitl/analysis/summary.json,VERIFIED,"Monotonic timing, batch transactions, export ZIP, 32 sessions logged"
+R4,T15,Clinician evaluation or technical usability fallback,Clinical Lead,evaluation/milestone_3_final/user_study/study_status.json,NOT_CONDUCTED (Technical Acceptance PASS),"Clinicians unavailable; technical acceptance PASS, honest fallback recorded"
+R5,T19-T20,"Consolidated report, limitations, and release evidence",Lead Researcher,evaluation/milestone_3_final/report/release_status.json,VERIFIED,"Consolidated results.md, limitations.md, and release status generated"
+APP-P0,T08-T11,"Live runnable prototype login, cases, upload, edit, save, export",Fullstack Engineer,artifacts/review-e2e-runtime/technical_test.sqlite3,VERIFIED,Tested against live FastAPI and SQLite database
+APP-E2E,T16-T17,Live E2E restart persistence and negative boundary tests,QA / Test Engineer,tests/workspace_v2_release_e2e.js,VERIFIED,Live browser E2E test passes with bitwise mask verification
+APP-PKG,T18,Windows packaging clean launcher and runbook,DevOps / Engineer,scripts/run_prototype.ps1,VERIFIED,"Launcher preflight checks, secrets validation, and operator runbook"

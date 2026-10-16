@@ -1,6 +1,6 @@
 # Model Card: Ovarian Ultrasound Segmentation Prototype
 
-Cập nhật theo kiểm chứng ngày 06/10/2026. Mục tiêu: phân đoạn vùng nghi ngờ để người dùng rà soát qua HITL. Không suy luận loại bệnh từ hình học mask.
+Cập nhật bằng kiểm toán kỹ thuật ngày 07/10/2026. Mục tiêu: phân đoạn vùng nghi ngờ để người dùng rà soát qua HITL. Không suy luận loại bệnh từ hình học mask. [Kiểm toán ảnh gần trùng](docs/reports/Kiem_Toan_Anh_Gan_Trung_Giua_Split_2026-10-07.md) và [truy vết Mốc 1](docs/reports/Truy_Vet_Du_Lieu_Moc_1_307_2026-10-07.md) là giới hạn bổ sung cho các metric bên dưới.
 
 ## Phiên bản và phạm vi bằng chứng
 
@@ -38,15 +38,24 @@ Test đã dùng đánh giá baseline trước refinement: **evaluation on previo
 
 ## Dữ liệu và giới hạn
 
-1. Phạm vi hiện tại do chủ dự án chốt: `dataset/Vinmec/Vinmec_2d` và `Vinmec_3d`. Có 1.604 cặp chính đọc được (1.438 / 166); SHA nội dung ảnh rời nhau giữa split. Hash không loại trừ các ảnh khác nhau của cùng bệnh nhân.
+1. Hai nguồn từng ghi trong split là `dataset/Vinmec/Vinmec_2d` và `Vinmec_3d`; file hiện ở `dataset/2d` và `dataset/3d`. Có 1.604 cặp trong split hiện tại (1.438 / 166); SHA ảnh rời nhau giữa split nhưng quét mở rộng phát hiện 59 cặp ứng viên gần trùng xuyên split, 22 cặp có tương quan ảnh ≥ 0,95. Chưa xác minh độc lập cấp bệnh nhân. Tên thư mục `3d` không chứng minh dữ liệu là volume 3D.
 2. 1.881 tham chiếu bản sao nhãn lịch sử bị thiếu. Các target chính và bản sao còn tồn tại khớp nhị phân. Thiếu nguồn xác nhận Patient/Case ID và phê duyệt nhãn pixel bởi chuyên gia.
-3. 35 bản ghi fallback đã loại khỏi split hợp nhất. File fallback và hồ sơ provenance ban đầu không có ở đường dẫn khai báo. Không gọi chúng là Ground Truth hoặc ca âm tính.
-4. `dataset/index.csv` và báo cáo Mốc 2 bị xóa khỏi working tree trong lúc audit. Snapshot Git được giữ trong audit backup. Index hai nguồn được xuất riêng, không ghi đè việc xóa.
+3. 35 bản ghi fallback đã loại khỏi split hợp nhất. Truy vết hiện tại tìm được mask nguồn chứa pixel dương cho cả 35 ảnh; zero mask lịch sử là nhãn dẫn xuất, không phải bằng chứng ca âm tính lâm sàng.
+4. `dataset/index.csv` hiện có trong workspace. 307 file ảnh/mask đúng đường dẫn Mốc 1 vẫn thiếu; 272 ảnh có thể đối chiếu SHA qua index, nhưng không có bằng chứng byte/pixel gốc của mask Mốc 1 để tái lập chính xác metric lịch sử.
 5. HITL hiện được kiểm chứng kỹ thuật; chưa có kết quả chuyên viên thực tế. Confirm ghi nhận thao tác, không tự tạo Ground Truth được duyệt.
 6. Chỉ đo mm/thể tích khi có pixel spacing được hiệu chuẩn. Chưa có xác nhận chẩn đoán, triển khai lâm sàng hoặc SLA.
 
-## Hiệu năng và tái lập
+## Đánh giá Tổng hợp Mốc 3 Final (Protocol v1 - 16/10/2026)
 
-Benchmark U-Net++: RTX 3050 Laptop, PyTorch 2.6.0+cu124; 24 ảnh Validation, 1 warm-up/ảnh, 3 request/ảnh, tổng 72 request. Client HTTP p50 146,47 ms; p95 170,54 ms; instrumentation dùng perf_counter và đồng bộ CUDA. Phép đo nhỏ lịch sử được giữ riêng.
+Thực hiện theo quy chuẩn đóng gói và kiểm toán độc lập `evaluation/protocols/milestone3_v1.json` (SHA-256: `7ca6c3791b4c2266fd1717276aaf4d2072798010a688851abca5f51f490474bb`):
+- **Checkpoint phục vụ**: Standard U-Net `417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d`
+- **Quy chuẩn suy luận**: Letterbox 512×512, ngưỡng nhị phân $\ge 0.5$, không morphology, inverse letterbox bảo toàn kích thước gốc.
 
-SHA split, checkpoint, config, thời gian chạy, command và môi trường ở model lock directory. Error analysis có 15 panel Validation và bảng FP/FN. Báo cáo kiểm toán: `docs/reports/Kiem_Toan_Moc_3_2026-10-06.md`.
+| Tập dữ liệu / Vai trò | Số lượng | Dice Mean (Median) | IoU Mean (Median) | Recall | Precision | Specificity | HD95 (px) |
+|---|---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Validation Cohort v1** | 541 | 0,6717 (0,7588) | 0,5542 (0,6113) | 0,6979 | 0,7527 | 0,9726 | 102,43 |
+| **Retrospective Test Replay v1** | 402 | 0,7289 (0,8045) | 0,6176 (0,6729) | 0,7304 | 0,8140 | 0,9771 | 90,19 |
+
+- **Cổng đánh giá độc lập (Independent Test Gate)**: `BLOCKED` (`evaluation/milestone_3_final/data_audit/independent_gate/audit.json`). Tập 402 ảnh chỉ được ghi nhận là Retrospective Test Replay trên tập dữ liệu đã có trong lịch sử; không thể tự động công nhận là kiểm thử độc lập khi thiếu ánh xạ định danh bệnh nhân gốc.
+- **Tương tác HITL và Khảo sát lâm sàng**: 32 phiên telemetry được ghi nhận (`evaluation/milestone_3_final/hitl/analysis/summary.json`). Khảo sát người dùng lâm sàng ghi nhận trạng thái trung thực `NOT_CONDUCTED` (0 bác sĩ, 1 kiểm thử viên kỹ thuật); nghiệm thu kỹ thuật (Technical Acceptance) đạt PASS.
+
