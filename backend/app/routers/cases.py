@@ -165,11 +165,16 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
 
     images_data = []
     for img in study.images:
-        last_r = max(img.reviews, key=lambda review: review.created_at) if img.reviews else None
+        last_r = max(img.reviews, key=lambda review: (review.created_at, review.id)) if img.reviews else None
         pred_data = None
         if img.predictions:
             last_p = next((prediction for prediction in img.predictions if last_r and prediction.id == last_r.prediction_id), None)
-            last_p = last_p or max(img.predictions, key=lambda prediction: prediction.created_at)
+            last_p = last_p or max(img.predictions, key=lambda prediction: (prediction.created_at, prediction.id))
+            prov = (
+                last_p.provenance_json
+                if getattr(last_p, "provenance_json", None) is not None
+                else {"model_version": last_p.model_version, "checkpoint_sha256": None, "status": "UNKNOWN"}
+            )
             pred_data = {
                 "prediction_id": last_p.id,
                 "confidence_score": last_p.confidence_score,
@@ -177,7 +182,7 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
                 "iqa_score": last_p.iqa_score,
                 "measurements": last_p.measurements,
                 "rle_mask": last_p.raw_mask_rle,
-                "provenance": {"model_version": last_p.model_version},
+                "provenance": prov,
                 "model_version": last_p.model_version,
             }
 
@@ -221,6 +226,7 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
         "patient_age": study.patient.age_bucket,
         "study_date": study.study_date,
         "status": study.status,
+        "review_revision": getattr(study, "review_revision", 0),
         "ovary_side": getattr(study, "ovary_side", "RIGHT") or "RIGHT",
         "contralateral_status": getattr(study, "contralateral_status", "NOT_VISUALIZED") or "NOT_VISUALIZED",
         "probe_type": study.probe_type,

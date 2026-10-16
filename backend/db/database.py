@@ -61,6 +61,7 @@ class StudyModel(Base):
     ovary_side = Column(String(10), default="RIGHT")
     contralateral_status = Column(String(30), default="NOT_VISUALIZED")
     clinical_indication = Column(Text, nullable=True)
+    review_revision = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     patient = relationship("PatientModel", back_populates="studies")
@@ -100,6 +101,7 @@ class PredictionModel(Base):
     iqa_score = Column(Float, default=0.90)
     raw_mask_rle = Column(JSON, nullable=False)
     measurements = Column(JSON, nullable=False)
+    provenance_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     image = relationship("ImageModel", back_populates="predictions")
@@ -176,6 +178,8 @@ def init_db():
                 cursor.execute("ALTER TABLE studies ADD COLUMN ovary_side VARCHAR(10) DEFAULT 'RIGHT';")
             if "contralateral_status" not in columns:
                 cursor.execute("ALTER TABLE studies ADD COLUMN contralateral_status VARCHAR(30) DEFAULT 'NOT_VISUALIZED';")
+            if "review_revision" not in columns:
+                cursor.execute("ALTER TABLE studies ADD COLUMN review_revision INTEGER DEFAULT 0;")
             cursor.execute("PRAGMA table_info(images);")
             image_columns = [col[1] for col in cursor.fetchall()]
             if "laterality" not in image_columns:
@@ -210,6 +214,10 @@ def init_db():
             review_columns = [col[1] for col in cursor.fetchall()]
             if "hitl_feedback" not in review_columns:
                 cursor.execute("ALTER TABLE reviews ADD COLUMN hitl_feedback JSON;")
+            cursor.execute("PRAGMA table_info(predictions);")
+            pred_columns = [col[1] for col in cursor.fetchall()]
+            if "provenance_json" not in pred_columns:
+                cursor.execute("ALTER TABLE predictions ADD COLUMN provenance_json JSON;")
             conn.commit()
         finally:
             conn.close()
