@@ -170,6 +170,21 @@ class InferenceEngine:
             return tensor_gpu
         return (tensor_gpu - input_mean) / input_std
 
+    def forward_probabilities(self, tensor_512: torch.Tensor) -> np.ndarray:
+        """Run a single forward pass and return probabilities (512, 512)."""
+        if getattr(self, 'is_model_ready', None) is False:
+            raise RuntimeError("Inference engine model is not ready or unloaded")
+        tensor_gpu = self.prepare_model_input(tensor_512)
+        with torch.inference_mode():
+            logits = self.model(tensor_gpu)
+            probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+        return probs
+
+    def predict_binary(self, tensor_512: torch.Tensor) -> np.ndarray:
+        """Shared binary mask inference helper for evaluation and serving."""
+        probs = self.forward_probabilities(tensor_512)
+        return (probs >= self.threshold).astype(np.uint8)
+
     def calculate_uncertainty(self, prob_map_np: np.ndarray, clean_mask: np.ndarray) -> dict:
         """
         Quantifies model prediction uncertainty using Shannon Binary Entropy:
@@ -240,8 +255,8 @@ class InferenceEngine:
                 "lesions": [],
                 "max_diameter_mm": 0.0,
                 "ortho_diameter_mm": 0.0,
-                "d3_mm": 0.0,
-                "total_volume_cm3": 0.0,
+                "d3_mm": None,
+                "total_volume_cm3": None,
                 "total_area_cm2": 0.0,
             }
 
@@ -287,10 +302,6 @@ class InferenceEngine:
             # Convert contour points to simple polygon list of ints
             polygon = [[int(pt[0]), int(pt[1])] for pt in cnt.reshape(-1, 2)]
 
-            # Clinical 3D Volume estimation (Prolate Ellipsoid Formula: 0.523 * D1 * D2 * D3)
-            d3_mm = round(float((d_max_mm + d_orth_mm) / 2.0), 2)
-            volume_cm3 = round(float(0.523 * (d_max_mm * d_orth_mm * d3_mm) / 1000.0), 2)
-
             lesions.append(
                 {
                     "lesion_id": int(idx + 1),
@@ -300,8 +311,8 @@ class InferenceEngine:
                     "max_diameter_px": round(d_max_px, 2),
                     "ortho_diameter_px": round(d_orth_px, 2),
                     "area_px": round(area_px, 2),
-                    "d3_mm": d3_mm,
-                    "volume_cm3": volume_cm3,
+                    "d3_mm": None,
+                    "volume_cm3": None,
                     "area_cm2": round(float(area_cm2), 3),
                     "perimeter_mm": round(float(perimeter_px * pixel_spacing_mm), 2),
                     "caliper_dmax_points": caliper_dmax,
@@ -312,8 +323,6 @@ class InferenceEngine:
 
         max_d_overall = float(max([lesion["max_diameter_mm"] for lesion in lesions], default=0.0))
         ortho_d_overall = float(max([lesion["ortho_diameter_mm"] for lesion in lesions], default=0.0))
-        d3_overall = round(float((max_d_overall + ortho_d_overall) / 2.0), 2) if max_d_overall > 0 else 0.0
-        total_volume_cm3 = float(sum([lesion["volume_cm3"] for lesion in lesions]))
         total_area_cm2 = float(sum([lesion["area_cm2"] for lesion in lesions]))
 
         return {
@@ -322,8 +331,8 @@ class InferenceEngine:
             "lesions": lesions,
             "max_diameter_mm": round(max_d_overall, 2),
             "ortho_diameter_mm": round(ortho_d_overall, 2),
-            "d3_mm": round(d3_overall, 2),
-            "total_volume_cm3": round(total_volume_cm3, 2),
+            "d3_mm": None,
+            "total_volume_cm3": None,
             "total_area_cm2": round(total_area_cm2, 3),
         }
 
@@ -379,10 +388,7 @@ class InferenceEngine:
         Executes full medical inference pipeline:
         Tensor -> one model forward pass -> sigmoid -> locked threshold -> RLE.
         """
-        tensor_gpu = self.prepare_model_input(tensor_512)
-
-        with torch.no_grad():
-            probs = torch.sigmoid(self.model(tensor_gpu)).squeeze().cpu().numpy()
+        probs = self.forward_probabilities(tensor_512)
 
         # Clean binary mask via morphological filtering
         clean_mask = self.post_process_mask(probs)
@@ -396,7 +402,7 @@ class InferenceEngine:
         # Calculate Uncertainty & OOD Metric
         uncertainty = self.calculate_uncertainty(probs, clean_mask)
 
-        # Clinical Quality Gate Evaluation (Min confidence 70%, no high uncertainty)
+        # Uncalibrated heuristic; never treat this as a clinical safety gate.
         is_quality_valid = bool(
             confidence >= 0.70
             and not uncertainty.get("is_uncertain", False)
@@ -405,21 +411,22 @@ class InferenceEngine:
 
         quality_gate = {
             "passed": is_quality_valid,
+            "validated": False,
+            "score_type": "mean_mask_pixel_probability_uncalibrated",
             "min_confidence_required": 0.70,
             "actual_confidence": round(float(confidence), 3),
             "uncertainty_level": uncertainty.get("uncertainty_level", "LOW"),
-            "status": "APPROVED_BY_QUALITY_GATE" if is_quality_valid else "REJECTED_QUALITY_GATE",
+            "status": "HEURISTIC_PASS" if is_quality_valid else "HEURISTIC_REVIEW_FLAG",
             "alert": (
-                "Chất lượng phân đoạn AI đạt chuẩn tin cậy cao."
+                "Điểm pixel vượt ngưỡng heuristic; vẫn cần người rà soát mask."
                 if is_quality_valid
-                else "Chất lượng phân đoạn AI không đạt ngưỡng an toàn (< 70% hoặc độ bất định cao). "
-                "Hệ thống đề xuất Bác sĩ đối chiếu kỹ ảnh gốc B-Mode và điều chỉnh thủ công."
+                else "Điểm pixel hoặc độ bất định kích hoạt cảnh báo heuristic chưa kiểm định. "
+                "Cần đối chiếu ảnh gốc và chỉnh mask khi cần."
             ),
         }
 
         # Extract clinical measurements and calipers
         measurements = self.extract_calipers_and_measurements(clean_mask, pixel_spacing_mm=pixel_spacing_mm)
-        measurements["is_valid_caliper"] = is_quality_valid
         if not is_quality_valid:
             measurements["quality_alert"] = quality_gate["alert"]
         calibrated = pixel_spacing_mm is not None and pixel_spacing_mm > 0
@@ -463,3 +470,5 @@ class InferenceEngine:
             "provenance": provenance,
         }
 
+
+    predict = run_inference
