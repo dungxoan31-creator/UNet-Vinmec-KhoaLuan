@@ -16,7 +16,11 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.abspath(os.path.join(APP_DIR, ".."))
 PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
 
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+_env_data_dir = os.environ.get("APP_DATA_DIR")
+if _env_data_dir:
+    DATA_DIR = os.path.abspath(_env_data_dir) if os.path.isabs(_env_data_dir) else os.path.abspath(os.path.join(PROJECT_ROOT, _env_data_dir))
+else:
+    DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
 FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
@@ -70,14 +74,6 @@ DISCLAIMER = (
     "Hệ thống hỗ trợ phân đoạn đường viền và đo lường kích thước tổn thương buồng trứng (Caliper/Area), "
     "không thay thế chẩn đoán chuyên môn của bác sĩ và không phải phần mềm thương mại triển khai chính thức của Vinmec."
 )
-
-# Vinmec Times City Thesis Dataset Statistics (1,387 total images, 417 with initial masks)
-TOTAL_COLLECTED_IMAGES = 1387
-TOTAL_UNANNOTATED_IMAGES = 970
-BASELINE_RECEIVED = 417       # Total images with initial masks
-BASELINE_APPROVED = 307       # Officially verified Ground Truth images (from 185 unique patients)
-BASELINE_PENDING = 110        # Pending expert doctor review (417 - 307)
-BASELINE_ACCEPTED_RAW = 253   # ~82.4% direct acceptance rate
 
 # Shared Service Instances
 preprocessor = UltrasoundPreprocessor(target_size=(512, 512))

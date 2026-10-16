@@ -2,16 +2,20 @@
 Clinical Cases CRUD and Sample Cases endpoints.
 """
 
-import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import desc, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
-from backend.db.database import PatientModel, StudyModel, get_db
+from backend.app.config import UPLOAD_DIR
+from backend.app.routers.auth import require_admin
+from backend.db.database import ImageModel, PatientModel, StudyModel, get_db
 from backend.schemas.schemas import CreateCaseRequest
+from backend.services.demo_samples import demo_catalog
 
 router = APIRouter(tags=["Clinical Cases"])
 
@@ -21,35 +25,38 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
     """
     Create a new clinical study case.
     """
-    patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == req.patient_id.strip()).first()
-    if not patient:
-        patient = PatientModel(
-            id=str(uuid.uuid4()), anonymized_pid=req.patient_id.strip(), age_bucket=req.patient_age or None
+    try:
+        patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == req.patient_id.strip()).first()
+        if not patient:
+            patient = PatientModel(
+                id=str(uuid.uuid4()), anonymized_pid=req.patient_id.strip(), age_bucket=req.patient_age or None
+            )
+            db.add(patient)
+
+        study_id = str(uuid.uuid4())
+        study_code = (
+            req.study_code.strip()
+            if req.study_code
+            else f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
         )
-        db.add(patient)
+        study_date = req.study_date or datetime.now().strftime("%Y-%m-%d")
+
+        study = StudyModel(
+            id=study_id,
+            patient_id=patient.id,
+            study_code=study_code,
+            study_date=study_date,
+            status="PENDING",
+            probe_type=req.probe_type or None,
+            ovary_side=getattr(req, "active_ovary_side", "RIGHT") or "RIGHT",
+            contralateral_status=getattr(req, "contralateral_status", "NOT_VISUALIZED") or "NOT_VISUALIZED",
+            clinical_indication=req.clinical_notes or None,
+        )
+        db.add(study)
         db.commit()
-
-    study_id = str(uuid.uuid4())
-    study_code = (
-        req.study_code.strip()
-        if req.study_code
-        else f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
-    )
-    study_date = req.study_date or datetime.now().strftime("%Y-%m-%d")
-
-    study = StudyModel(
-        id=study_id,
-        patient_id=patient.id,
-        study_code=study_code,
-        study_date=study_date,
-        status="PENDING",
-        probe_type=req.probe_type or None,
-        ovary_side=getattr(req, "active_ovary_side", "RIGHT") or "RIGHT",
-        contralateral_status=getattr(req, "contralateral_status", "NOT_VISUALIZED") or "NOT_VISUALIZED",
-        clinical_indication=req.clinical_notes or None,
-    )
-    db.add(study)
-    db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return {
         "study_id": study.id,
@@ -70,7 +77,11 @@ def list_cases(
     """
     List all cases with search and filtering for Dashboard & History.
     """
-    query = db.query(StudyModel).join(PatientModel)
+    query = db.query(StudyModel).join(PatientModel).options(
+        joinedload(StudyModel.patient),
+        selectinload(StudyModel.images).selectinload(ImageModel.predictions),
+        selectinload(StudyModel.images).selectinload(ImageModel.reviews),
+    )
 
     if status and status.upper() != "ALL":
         query = query.filter(StudyModel.status == status.upper())
@@ -99,6 +110,7 @@ def list_cases(
         cases_list.append(
             {
                 "id": s.id,
+                "study_id": s.id,
                 "study_code": s.study_code or s.id[:8],
                 "patient_id": s.patient.anonymized_pid,
                 "patient_age": s.patient.age_bucket,
@@ -106,6 +118,14 @@ def list_cases(
                 "status": s.status,
                 "ovary_side": getattr(s, "ovary_side", "RIGHT") or "RIGHT",
                 "contralateral_status": getattr(s, "contralateral_status", "NOT_VISUALIZED") or "NOT_VISUALIZED",
+                "images": [
+                    {
+                        "id": img.id,
+                        "filename": img.filename,
+                        "laterality": getattr(img, "laterality", None),
+                    }
+                    for img in s.images
+                ],
                 "image_id": first_img.id if first_img else None,
                 "image_filename": first_img.filename if first_img else None,
                 "lesion_type": last_review.lesion_type
@@ -137,6 +157,8 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
     """
     Retrieve full case details for viewing/reopening.
     """
+    from backend.app.routers.inference import get_image_calibration
+
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin ca khám.")
@@ -155,6 +177,8 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
                 "iqa_score": last_p.iqa_score,
                 "measurements": last_p.measurements,
                 "rle_mask": last_p.raw_mask_rle,
+                "provenance": {"model_version": last_p.model_version},
+                "model_version": last_p.model_version,
             }
 
         review_data = None
@@ -167,6 +191,9 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
                 "time_spent_seconds": last_r.time_spent_seconds,
                 "lesion_type": last_r.lesion_type,
                 "clinical_notes": last_r.clinical_notes,
+                "hitl_feedback": last_r.hitl_feedback,
+                "reviewed_at": last_r.created_at.replace(tzinfo=UTC).isoformat(),
+                "reviewer_id": last_r.doctor_id,
                 "max_diameter_mm": last_r.max_diameter_mm,
                 "ortho_diameter_mm": last_r.ortho_diameter_mm,
                 "total_area_cm2": last_r.total_area_cm2,
@@ -181,6 +208,7 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
                 "filename": img.filename,
                 "width": img.width,
                 "height": img.height,
+                **get_image_calibration(img),
                 "prediction": pred_data,
                 "review": review_data,
             }
@@ -204,66 +232,19 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
 
 @router.get("/api/samples")
 def get_sample_cases(db: Session = Depends(get_db)):
-    """
-    Returns curated clinical sample cases across major pathology categories for demo and testing.
-    """
-    return [
-        {
-            "id": "SAMPLE-01",
-            "patient_id": "BN-VINMEC-8899",
-            "study_code": "STD-SAMPLE-SEROUS",
-            "study_date": "2026-08-25",
-            "patient_age": "28 (Tuổi sinh sản)",
-            "pathology": "Serous Cystadenoma (U nang thanh dịch)",
-            "clinical_notes": "Siêu âm tầm soát u buồng trứng phải. Vùng echo trống, vỏ mỏng đều.",
-            "status": "APPROVED",
-            "max_diameter_mm": 42.5,
-            "ortho_diameter_mm": 35.2,
-            "image_filename": "sample_serous.png",
-        },
-        {
-            "id": "SAMPLE-02",
-            "patient_id": "BN-VINMEC-4421",
-            "study_code": "STD-SAMPLE-DERMOID",
-            "study_date": "2026-08-26",
-            "patient_age": "34 (Tuổi sinh sản)",
-            "pathology": "Dermoid Cyst (U quái bì buồng trứng)",
-            "clinical_notes": "Phát hiện khối hỗn hợp âm, nút Rokitansky tăng âm kèm bóng lưng.",
-            "status": "APPROVED",
-            "max_diameter_mm": 51.0,
-            "ortho_diameter_mm": 38.6,
-            "image_filename": "sample_dermoid.png",
-        },
-        {
-            "id": "SAMPLE-03",
-            "patient_id": "BN-VINMEC-7712",
-            "study_code": "STD-SAMPLE-ENDOMETRIOMA",
-            "study_date": "2026-08-27",
-            "patient_age": "31 (Tuổi sinh sản)",
-            "pathology": "Endometrioma (U lạc nội mạc / Nang sô cô la)",
-            "clinical_notes": "Đau bụng kinh mạn tính. Nang phản âm kém dạng kính mờ (Ground glass).",
-            "status": "PENDING",
-            "max_diameter_mm": 38.2,
-            "ortho_diameter_mm": 30.1,
-            "image_filename": "sample_endometrioma.png",
-        },
-        {
-            "id": "SAMPLE-04",
-            "patient_id": "BN-VINMEC-1205",
-            "study_code": "STD-SAMPLE-NORMAL",
-            "study_date": "2026-08-28",
-            "patient_age": "26 (Tuổi sinh sản)",
-            "pathology": "Normal / Follicular Cyst (Nang noãn buồng trứng)",
-            "clinical_notes": "Khám sức khỏe tiền hôn nhân. Buồng trứng hai bên kích thước bình thường.",
-            "status": "APPROVED",
-            "max_diameter_mm": 18.0,
-            "ortho_diameter_mm": 14.5,
-            "image_filename": "sample_normal.png",
-        },
-    ]
+    """Return real retained 2D demo images without unverified clinical labels."""
+    return [metadata for metadata, _ in demo_catalog()]
 
 
-@router.delete("/api/cases/{study_id}")
+@router.get("/api/samples/{sample_id}/image")
+def get_sample_image(sample_id: str):
+    for metadata, path in demo_catalog():
+        if metadata["id"] == sample_id:
+            return FileResponse(path, filename=metadata["image_filename"])
+    raise HTTPException(status_code=404, detail="Demo image unavailable.")
+
+
+@router.delete("/api/cases/{study_id}", dependencies=[Depends(require_admin)])
 def delete_case(study_id: str, db: Session = Depends(get_db)):
     """
     Delete a case record and clean up associated image files.
@@ -272,14 +253,14 @@ def delete_case(study_id: str, db: Session = Depends(get_db)):
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy ca khám để xóa.")
 
-    # Clean up physical files from upload directory if not sample assets
-    for img in study.images:
-        if img.raw_path and os.path.exists(img.raw_path) and not os.path.basename(img.raw_path).startswith("sample_"):
-            try:
-                os.remove(img.raw_path)
-            except Exception:
-                pass
-
+    upload_root = Path(UPLOAD_DIR).resolve()
+    uploaded_paths = [Path(img.raw_path).resolve() for img in study.images if img.raw_path]
     db.delete(study)
     db.commit()
+    for path in uploaded_paths:
+        if path.is_relative_to(upload_root) and not path.name.startswith("sample_"):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
     return {"status": "SUCCESS", "message": "Đã xóa ca khám thành công."}

@@ -22,7 +22,12 @@ def test_baseline_paths_exclude_production_db():
         assert runtime_db != prod_db, f"Runtime DB must not equal production DB candidate {prod_db}"
 
 
+import os
+
 def test_verifier_preserves_exit_status(tmp_path):
+    if os.environ.get("VERIFIER_TEST_RUNNING"):
+        return
+
     verifier_script = ROOT / "scripts" / "verify_evaluation_release.ps1"
     assert verifier_script.exists(), f"Verifier script {verifier_script} must exist"
 
@@ -40,7 +45,9 @@ def test_verifier_preserves_exit_status(tmp_path):
         str(tmp_path),
         "-BaselineOnly"
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    env = dict(os.environ)
+    env["VERIFIER_TEST_RUNNING"] = "1"
+    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
     assert result.returncode != 0, f"Verifier must exit nonzero when child process exits 7. Output: {result.stdout}\nError: {result.stderr}"
     
     results_json = tmp_path / "baseline_results.json"

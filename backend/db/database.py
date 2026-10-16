@@ -3,6 +3,7 @@ Database Engine & ORM Models for Ovarian Ultrasound AI System (SQLAlchemy + SQLi
 Author: Nguyen Huu Dung (MIS 65A - NEU)
 """
 
+import hashlib
 import os
 import sqlite3
 import uuid
@@ -18,11 +19,16 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "ovarian_ai.db"))
+_env_db_path = os.environ.get("APP_DB_PATH")
+if _env_db_path:
+    DB_PATH = os.path.abspath(_env_db_path) if os.path.isabs(_env_db_path) else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", _env_db_path))
+else:
+    DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "ovarian_ai.db"))
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -63,12 +69,14 @@ class StudyModel(Base):
 
 class ImageModel(Base):
     __tablename__ = "images"
+    __table_args__ = (UniqueConstraint("study_id", "file_hash", name="uq_study_file_hash"),)
 
     id = Column(String(36), primary_key=True)
     study_id = Column(String(36), ForeignKey("studies.id"), nullable=False)
     filename = Column(String(255), nullable=False)
     laterality = Column(String(1), nullable=True)  # R/L; null for legacy single-image studies
     raw_path = Column(String(500), nullable=False)
+    file_hash = Column(String(64), nullable=True)
     width = Column(Integer, default=512)
     height = Column(Integer, default=512)
     pixel_spacing_mm = Column(Float, nullable=True)
@@ -106,12 +114,13 @@ class ReviewModel(Base):
     doctor_id = Column(String(64), default="UNVERIFIED_REVIEWER")
     doctor_action = Column(String(30), default="ACCEPTED_RAW")  # ACCEPTED_RAW, MODIFIED, REJECTED
     verified_mask_rle = Column(JSON, nullable=False)
-    max_diameter_mm = Column(Float, default=0.0)
-    ortho_diameter_mm = Column(Float, default=0.0)
-    total_area_cm2 = Column(Float, default=0.0)
+    max_diameter_mm = Column(Float().evaluates_none(), default=0.0)
+    ortho_diameter_mm = Column(Float().evaluates_none(), default=0.0)
+    total_area_cm2 = Column(Float().evaluates_none(), default=0.0)
     lesion_type = Column(String(100), default="UNSPECIFIED")
     clinical_notes = Column(Text, default="")
     time_spent_seconds = Column(Integer, default=15)
+    hitl_feedback = Column(JSON, nullable=True)
     is_official_ground_truth = Column(Boolean, default=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
@@ -147,6 +156,7 @@ class UserModel(Base):
 
 def init_db():
     try:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         Base.metadata.create_all(bind=engine, checkfirst=True)
     except Exception as e:
         print("[Database] Schema create notice:", e)
@@ -154,25 +164,57 @@ def init_db():
     # Auto-migration check for SQLite columns in case existing DB was created with older schema
     try:
         conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(studies);")
-        columns = [col[1] for col in cursor.fetchall()]
-        if "study_code" not in columns:
-            cursor.execute("ALTER TABLE studies ADD COLUMN study_code VARCHAR(64);")
-        if "status" not in columns:
-            cursor.execute("ALTER TABLE studies ADD COLUMN status VARCHAR(30) DEFAULT 'PENDING';")
-        if "ovary_side" not in columns:
-            cursor.execute("ALTER TABLE studies ADD COLUMN ovary_side VARCHAR(10) DEFAULT 'RIGHT';")
-        if "contralateral_status" not in columns:
-            cursor.execute("ALTER TABLE studies ADD COLUMN contralateral_status VARCHAR(30) DEFAULT 'NOT_VISUALIZED';")
-        cursor.execute("PRAGMA table_info(images);")
-        image_columns = [col[1] for col in cursor.fetchall()]
-        if "laterality" not in image_columns:
-            cursor.execute("ALTER TABLE images ADD COLUMN laterality VARCHAR(1);")
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
+        try:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(studies);")
+            columns = [col[1] for col in cursor.fetchall()]
+            if "study_code" not in columns:
+                cursor.execute("ALTER TABLE studies ADD COLUMN study_code VARCHAR(64);")
+            if "status" not in columns:
+                cursor.execute("ALTER TABLE studies ADD COLUMN status VARCHAR(30) DEFAULT 'PENDING';")
+            if "ovary_side" not in columns:
+                cursor.execute("ALTER TABLE studies ADD COLUMN ovary_side VARCHAR(10) DEFAULT 'RIGHT';")
+            if "contralateral_status" not in columns:
+                cursor.execute("ALTER TABLE studies ADD COLUMN contralateral_status VARCHAR(30) DEFAULT 'NOT_VISUALIZED';")
+            cursor.execute("PRAGMA table_info(images);")
+            image_columns = [col[1] for col in cursor.fetchall()]
+            if "laterality" not in image_columns:
+                cursor.execute("ALTER TABLE images ADD COLUMN laterality VARCHAR(1);")
+            if "file_hash" not in image_columns:
+                cursor.execute("ALTER TABLE images ADD COLUMN file_hash VARCHAR(64);")
+            indexes = cursor.execute("PRAGMA index_list(images)").fetchall()
+            has_hash_constraint = False
+            for index in indexes:
+                if index[2]:
+                    index_name = index[1].replace('"', '""')
+                    indexed_columns = [column[2] for column in cursor.execute(f'PRAGMA index_info("{index_name}")')]
+                    if indexed_columns == ["study_id", "file_hash"]:
+                        has_hash_constraint = True
+                        break
+            if not has_hash_constraint:
+                images = cursor.execute("SELECT id, study_id, raw_path, file_hash FROM images ORDER BY id").fetchall()
+                claimed = {(study_id, file_hash) for _, study_id, _, file_hash in images if file_hash}
+                for image_id, study_id, raw_path, file_hash in images:
+                    if file_hash or not raw_path:
+                        continue
+                    try:
+                        with open(raw_path, "rb") as image_file:
+                            digest = hashlib.file_digest(image_file, "sha256").hexdigest()
+                    except OSError:
+                        continue
+                    if (study_id, digest) not in claimed:
+                        cursor.execute("UPDATE images SET file_hash = ? WHERE id = ?", (digest, image_id))
+                        claimed.add((study_id, digest))
+                cursor.execute("CREATE UNIQUE INDEX uq_study_file_hash ON images(study_id, file_hash)")
+            cursor.execute("PRAGMA table_info(reviews);")
+            review_columns = [col[1] for col in cursor.fetchall()]
+            if "hitl_feedback" not in review_columns:
+                cursor.execute("ALTER TABLE reviews ADD COLUMN hitl_feedback JSON;")
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        raise RuntimeError("SQLite schema migration failed") from exc
 
     # Seed default user accounts if not exist
     try:

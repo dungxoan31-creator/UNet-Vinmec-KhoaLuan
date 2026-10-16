@@ -6,24 +6,53 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
+from backend.app.config import model_registry
 from backend.db.database import ImageModel, ReviewModel, StudyModel, get_db
+from backend.app.routers.auth import get_current_user
 from backend.schemas.schemas import DashboardStatsResponse
 
 router = APIRouter(tags=["System & Metrics"])
 
 
+def get_system_capabilities() -> dict[str, bool]:
+    return {
+        "case_workflow": False,
+        "research_review": True,
+        "research_export": True,
+        "hitl_events": True,
+        "manual_review": False,
+        "remote_lease": False,
+    }
+
+
 @router.get("/api/health")
 def health_check():
+    adapter = model_registry.get_primary_adapter()
+    is_ready = bool(adapter and getattr(adapter, "is_loaded", False))
+    engine = getattr(adapter, "engine", None) if is_ready else None
+    if engine and getattr(engine, "is_model_ready", False) is False:
+        is_ready = False
+    checksum = getattr(engine, "model_checksum", None) if is_ready else None
+    model_name = getattr(adapter, "name", "Standard U-Net")
+
     return {
         "status": "healthy",
         "system": "Ovarian ultrasound segmentation workstation (research prototype)",
-        "primary_model": "Standard U-Net",
+        "primary_model": model_name,
         "environment": "EXPERIMENTAL_RESEARCH_PROTOTYPE",
+        "model_ready": is_ready,
+        "checkpoint_sha256": checksum,
+        "capabilities": get_system_capabilities(),
         "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
-@router.get("/api/stats", response_model=DashboardStatsResponse)
+@router.get("/api/capabilities")
+def get_capabilities():
+    return get_system_capabilities()
+
+
+@router.get("/api/stats", response_model=DashboardStatsResponse, dependencies=[Depends(get_current_user)])
 def get_dashboard_statistics(db: Session = Depends(get_db)):
     """Count real records only; no historical research totals in live counters."""
     total_cases = db.query(StudyModel).count()
