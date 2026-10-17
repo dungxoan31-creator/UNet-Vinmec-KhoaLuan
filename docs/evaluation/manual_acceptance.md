@@ -20,7 +20,8 @@ Tài liệu này quy định quy trình nghiệm thu thủ công từng bước 
 
 ## 2. Danh mục Điều kiện Tiên quyết (Pre-flight Checklist)
 - [x] Môi trường thực thi độc lập: `APP_DATA_DIR` và `APP_DB_PATH` được cô lập.
-- [x] Trọng số mô hình U-Net được khóa cố định: SHA256 `417828fa74340d85915d3ce443ccf24b267ad1082ce7db5ec4433d7120df9dd2`.
+- [x] Trọng số mô hình U-Net được khóa cố định: SHA256 `417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d`.  
+  *(Ghi chú kiểm toán: Bản thảo ban đầu ghi nhầm chuỗi `417828fa74340d85915d3ce443ccf24b267ad1082ce7db5ec4433d7120df9dd2`; đã đối soát và chuẩn hóa lại chính xác theo mã băm SHA-256 đọc trực tiếp từ `checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/baseline_unet_best.pth`).*
 - [x] Dịch vụ Backend phản hồi trạng thái: `GET /api/health` trả về `model_ready: true` và đầy đủ các trường `capabilities`.
 - [x] Tài khoản kiểm thử có vai trò `DOCTOR` được cấp phép hợp lệ.
 

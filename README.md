@@ -278,7 +278,10 @@ Dự án tích hợp bộ kiểm thử toàn diện bảo đảm tính toàn v�
 4. **Xác minh Toàn diện Bàn giao & Đóng gói Bằng chứng Thực nghiệm (Release Verification Pipeline)**:
    ```powershell
    # Xác minh toàn bộ các cổng kỹ thuật (Git, Checkpoint SHA, Node, Playwright E2E, Pytest isolated, Report build):
-   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_evaluation_release.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_evaluation_release.ps1 -TestScope full
+
+   # Hoặc kiểm tra nhanh với bộ selected release smoke tests:
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_evaluation_release.ps1 -TestScope selected
 
    # Hoặc kiểm tra riêng tính sẵn sàng của nguyên mẫu (bỏ qua cổng holdout độc lập đang chờ dữ liệu):
    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_evaluation_release.ps1 -PrototypeOnly
