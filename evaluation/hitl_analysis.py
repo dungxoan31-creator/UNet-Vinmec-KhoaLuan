@@ -258,33 +258,122 @@ def summarize_timeline(events: list[dict[str, Any]]) -> dict[str, Any]:
 def analyze_hitl(
     sessions: list[dict[str, Any]],
     references: dict[str, dict[str, Any]] | None = None,
+    participant_registry: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Analyzes multiple HITL sessions, task timelines, and paired mask metrics.
+    Enforces participant provenance: self-declared clinician roles without verified
+    registry evidence are quarantined as unverified. Unique participants are counted separately
+    from session counts.
     """
+    registry_by_code: dict[str, dict[str, Any]] = {}
+    if participant_registry is not None:
+        for entry in participant_registry:
+            code = entry.get("participant_code")
+            if code:
+                registry_by_code[str(code).strip()] = entry
+
     per_task = []
     per_session = []
 
     total_sessions = len(sessions)
-    clinician_sessions = 0
-    technical_sessions = 0
+    verified_clinician_sessions = 0
+    verified_technical_sessions = 0
+    technical_fixture_sessions = 0
+    unverified_sessions = 0
+    quarantined_sessions = 0
     demo_sessions = 0
     completed_sessions = 0
+
+    all_unique_participants = set()
+    verified_clinician_codes = set()
+    verified_technical_codes = set()
+    technical_fixture_codes = set()
+    unverified_codes = set()
 
     clinician_review_times = []
     clinician_deltas = []
 
     for s in sessions:
-        role = s.get("participant_role", "technical_tester")
-        origin = s.get("data_origin", "live")
-        is_clinician = bool(role == "clinician" and origin == "live")
+        p_code = str(s.get("participant_code", "")).strip()
+        if p_code:
+            all_unique_participants.add(p_code)
+
+        declared_role = str(s.get("participant_role", "technical_tester")).strip()
+        origin = str(s.get("data_origin", "live")).strip()
+
+        reg_entry = registry_by_code.get(p_code) if registry_by_code else None
 
         if origin == "demo":
+            classification = "technical_fixture"
+            disposition = "quarantine_demo"
             demo_sessions += 1
-        elif role == "technical_tester":
-            technical_sessions += 1
-        elif is_clinician:
-            clinician_sessions += 1
+            technical_fixture_sessions += 1
+            if p_code:
+                technical_fixture_codes.add(p_code)
+            quarantined_sessions += 1
+        elif reg_entry is not None:
+            verified_role = str(reg_entry.get("role_verified", "unverified")).strip().lower()
+            consent = str(reg_entry.get("consent_status", "NONE")).strip().upper()
+            disp_from_reg = str(reg_entry.get("disposition", "")).strip().lower()
+
+            if verified_role == "verified_clinician" and consent == "CONSENTED":
+                classification = "verified_clinician"
+                disposition = disp_from_reg or "included"
+                verified_clinician_sessions += 1
+                if p_code:
+                    verified_clinician_codes.add(p_code)
+            elif verified_role in ("verified_technical", "technical_tester"):
+                classification = "verified_technical"
+                disposition = disp_from_reg or "included_technical"
+                verified_technical_sessions += 1
+                if p_code:
+                    verified_technical_codes.add(p_code)
+            elif verified_role in ("technical_fixture", "fixture"):
+                classification = "technical_fixture"
+                disposition = disp_from_reg or "included_technical"
+                technical_fixture_sessions += 1
+                if p_code:
+                    technical_fixture_codes.add(p_code)
+            else:
+                classification = "unverified"
+                disposition = disp_from_reg or "quarantine"
+                unverified_sessions += 1
+                quarantined_sessions += 1
+                if p_code:
+                    unverified_codes.add(p_code)
+        else:
+            # No registry entry or no registry provided
+            if declared_role.lower() == "clinician":
+                classification = "unverified"
+                disposition = "quarantine"
+                unverified_sessions += 1
+                quarantined_sessions += 1
+                if p_code:
+                    unverified_codes.add(p_code)
+            elif declared_role.lower() in ("technical_tester", "technical"):
+                if participant_registry is not None:
+                    classification = "unverified"
+                    disposition = "quarantine"
+                    unverified_sessions += 1
+                    quarantined_sessions += 1
+                    if p_code:
+                        unverified_codes.add(p_code)
+                else:
+                    classification = "verified_technical"
+                    disposition = "included_technical"
+                    verified_technical_sessions += 1
+                    if p_code:
+                        verified_technical_codes.add(p_code)
+            else:
+                classification = "unverified"
+                disposition = "quarantine"
+                unverified_sessions += 1
+                quarantined_sessions += 1
+                if p_code:
+                    unverified_codes.add(p_code)
+
+        is_verified_clinician = (classification == "verified_clinician")
 
         sess_status = s.get("status", "IN_PROGRESS")
         if sess_status == "COMPLETED":
@@ -319,14 +408,14 @@ def analyze_hitl(
                     dice_pre = res_pre["dice"]
                     dice_post = res_post["dice"]
                     delta_dice = dice_post - dice_pre
-                    if is_clinician and delta_dice is not None:
+                    if is_verified_clinician and delta_dice is not None:
                         clinician_deltas.append(delta_dice)
                 else:
                     quality_null_reason = "GT_MASK_MISSING"
             else:
                 quality_null_reason = "NO_INDEPENDENT_REFERENCE"
 
-            if is_clinician and t_summary["review_elapsed_ms"] is not None:
+            if is_verified_clinician and t_summary["review_elapsed_ms"] is not None:
                 clinician_review_times.append(t_summary["review_elapsed_ms"])
 
             row = {
@@ -335,7 +424,9 @@ def analyze_hitl(
                 "image_id": img_id,
                 "prediction_id": t.get("prediction_id"),
                 "participant_code": s.get("participant_code"),
-                "participant_role": role,
+                "participant_role": declared_role,
+                "session_classification": classification,
+                "provenance_disposition": disposition,
                 "data_origin": origin,
                 "doctor_action": t.get("doctor_action"),
                 "roundtrip_ms": t_summary["roundtrip_ms"],
@@ -358,7 +449,9 @@ def analyze_hitl(
             "session_id": s.get("id"),
             "study_id": s.get("study_id"),
             "participant_code": s.get("participant_code"),
-            "participant_role": role,
+            "participant_role": declared_role,
+            "session_classification": classification,
+            "provenance_disposition": disposition,
             "data_origin": origin,
             "status": sess_status,
             "wall_time_ms": wall_time_ms,
@@ -369,11 +462,23 @@ def analyze_hitl(
 
     summary = {
         "total_sessions": total_sessions,
-        "clinician_sessions": clinician_sessions,
-        "technical_sessions": technical_sessions,
+        "verified_clinician_sessions": verified_clinician_sessions,
+        "verified_technical_sessions": verified_technical_sessions,
+        "technical_fixture_sessions": technical_fixture_sessions,
+        "unverified_sessions": unverified_sessions,
+        "quarantined_sessions": quarantined_sessions,
         "demo_sessions": demo_sessions,
         "completed_sessions": completed_sessions,
+        "clinician_sessions": verified_clinician_sessions,
+        "technical_sessions": verified_technical_sessions,
         "total_tasks": len(per_task),
+        "participant_counts": {
+            "total_unique": len(all_unique_participants),
+            "verified_clinicians": len(verified_clinician_codes),
+            "verified_technical": len(verified_technical_codes),
+            "technical_fixture": len(technical_fixture_codes),
+            "unverified": len(unverified_codes),
+        },
         "clinician_median_review_ms": float(np.median(clinician_review_times)) if clinician_review_times else None,
         "clinician_median_delta_dice": float(np.median(clinician_deltas)) if clinician_deltas else None,
     }
@@ -389,6 +494,7 @@ def main():
     parser = argparse.ArgumentParser(description="Analyze measured HITL sessions and questionnaire responses.")
     parser.add_argument("--input", default=None, help="Input directory containing raw exported HITL sessions")
     parser.add_argument("--references", default=None, help="Optional validated reference ground truth manifest")
+    parser.add_argument("--participant-registry", default=None, help="Optional participant provenance registry CSV")
     parser.add_argument("--output", default=None, help="Output directory for HITL analysis artifacts")
     parser.add_argument("--questionnaire", default=None, help="Optional path to questionnaire responses CSV")
     parser.add_argument("--participants", default=None, help="Optional path to participant metadata CSV")
@@ -421,12 +527,29 @@ def main():
                 for row in reader:
                     references[row.get("image_id", "")] = row
 
-        results = analyze_hitl(sessions, references=references)
+        participant_registry = None
+        if args.participant_registry and os.path.isfile(args.participant_registry):
+            participant_registry = []
+            with open(args.participant_registry, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                participant_registry = list(reader)
+
+        import hashlib
+        input_hashes = {}
+        if os.path.isfile(sessions_file):
+            with open(sessions_file, "rb") as f:
+                input_hashes["sessions_sha256"] = hashlib.sha256(f.read()).hexdigest()
+        if args.participant_registry and os.path.isfile(args.participant_registry):
+            with open(args.participant_registry, "rb") as f:
+                input_hashes["participant_registry_sha256"] = hashlib.sha256(f.read()).hexdigest()
+        results = analyze_hitl(sessions, references=references, participant_registry=participant_registry)
+        summary_payload = dict(results["summary"])
+        summary_payload["input_hashes"] = input_hashes
 
         # Save summary.json
         summary_path = os.path.join(args.output, "summary.json")
         with open(summary_path, "w", encoding="utf-8") as f:
-            json.dump(results["summary"], f, indent=2)
+            json.dump(summary_payload, f, indent=2)
 
         # Save per_task.csv
         per_task_path = os.path.join(args.output, "per_task.csv")

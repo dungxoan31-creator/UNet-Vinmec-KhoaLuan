@@ -1,10 +1,26 @@
 {
   "total_sessions": 32,
-  "clinician_sessions": 4,
-  "technical_sessions": 28,
+  "verified_clinician_sessions": 0,
+  "verified_technical_sessions": 24,
+  "technical_fixture_sessions": 4,
+  "unverified_sessions": 4,
+  "quarantined_sessions": 4,
   "demo_sessions": 0,
   "completed_sessions": 2,
+  "clinician_sessions": 0,
+  "technical_sessions": 24,
   "total_tasks": 15,
+  "participant_counts": {
+    "total_unique": 8,
+    "verified_clinicians": 0,
+    "verified_technical": 6,
+    "technical_fixture": 1,
+    "unverified": 1
+  },
   "clinician_median_review_ms": null,
-  "clinician_median_delta_dice": null
+  "clinician_median_delta_dice": null,
+  "input_hashes": {
+    "sessions_sha256": "50b8265534e2d52a89aa9a4a5515aafedcf463f26af481032577b6a35700503f",
+    "participant_registry_sha256": "090b68deb6fe755fe65e01437d4de38de15da1ad424ce8c17522c3628e8f574e"
+  }
 }

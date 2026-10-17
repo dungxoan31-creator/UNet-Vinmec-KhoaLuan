@@ -163,11 +163,122 @@ def test_demo_and_technical_not_clinician():
             "tasks": [],
         },
     ]
-    res = analyze_hitl(sessions, references=None)
+    registry = [
+        {"participant_code": "DR_VINMEC_01", "role_verified": "verified_clinician", "consent_status": "CONSENTED", "data_origin": "live"},
+        {"participant_code": "QA_ENGINEER", "role_verified": "verified_technical", "consent_status": "EXEMPT", "data_origin": "live"},
+        {"participant_code": "DEMO_USER", "role_verified": "technical_fixture", "consent_status": "EXEMPT", "data_origin": "demo"},
+    ]
+    res = analyze_hitl(sessions, references=None, participant_registry=registry)
     assert res["summary"]["total_sessions"] == 3
     assert res["summary"]["clinician_sessions"] == 1
     assert res["summary"]["technical_sessions"] == 1
     assert res["summary"]["demo_sessions"] == 1
+
+
+def test_self_declared_clinician_is_not_verified_participant():
+    sessions = [
+        {
+            "id": "s-unverified",
+            "study_id": "c-1",
+            "participant_code": "SELF_DECLARED_DR",
+            "participant_role": "clinician",
+            "data_origin": "live",
+            "status": "COMPLETED",
+            "tasks": [],
+        }
+    ]
+    registry = [
+        {
+            "participant_code": "SELF_DECLARED_DR",
+            "role_verified": "unverified",
+            "consent_status": "NONE",
+            "source_evidence": "none",
+            "data_origin": "test_fixture",
+            "disposition": "quarantine",
+        }
+    ]
+    res = analyze_hitl(sessions, references=None, participant_registry=registry)
+    assert res["summary"]["clinician_sessions"] == 0
+    assert res["summary"]["verified_clinician_sessions"] == 0
+    assert res["summary"]["unverified_sessions"] == 1
+    assert res["summary"]["quarantined_sessions"] == 1
+    assert res["summary"]["participant_counts"]["verified_clinicians"] == 0
+    assert res["per_session"][0]["session_classification"] == "unverified"
+    assert res["per_session"][0]["provenance_disposition"] == "quarantine"
+
+
+def test_missing_registry_quarantines_clinician_sessions():
+    sessions = [
+        {
+            "id": "s-no-reg",
+            "study_id": "c-2",
+            "participant_code": "CLINICIAN_01",
+            "participant_role": "clinician",
+            "data_origin": "live",
+            "status": "IN_PROGRESS",
+            "tasks": [],
+        }
+    ]
+    res = analyze_hitl(sessions, references=None, participant_registry=None)
+    assert res["summary"]["clinician_sessions"] == 0
+    assert res["summary"]["verified_clinician_sessions"] == 0
+    assert res["summary"]["unverified_sessions"] == 1
+    assert res["summary"]["quarantined_sessions"] == 1
+    assert res["summary"]["participant_counts"]["verified_clinicians"] == 0
+    assert res["per_session"][0]["session_classification"] == "unverified"
+    assert res["per_session"][0]["provenance_disposition"] == "quarantine"
+
+
+def test_repeated_sessions_count_one_participant():
+    sessions = [
+        {"id": f"s-{i}", "study_id": f"c-{i}", "participant_code": "DR_VERIFIED", "participant_role": "clinician", "data_origin": "live", "status": "COMPLETED", "tasks": []}
+        for i in range(5)
+    ]
+    registry = [
+        {
+            "participant_code": "DR_VERIFIED",
+            "role_verified": "verified_clinician",
+            "consent_status": "CONSENTED",
+            "source_evidence": "hospital_irb",
+            "data_origin": "live",
+            "disposition": "included",
+        }
+    ]
+    res = analyze_hitl(sessions, references=None, participant_registry=registry)
+    assert res["summary"]["total_sessions"] == 5
+    assert res["summary"]["clinician_sessions"] == 5
+    assert res["summary"]["verified_clinician_sessions"] == 5
+    assert res["summary"]["participant_counts"]["total_unique"] == 1
+    assert res["summary"]["participant_counts"]["verified_clinicians"] == 1
+
+
+def test_missing_gt_preserves_null_delta():
+    mask = np.ones((50, 50), dtype=np.uint8)
+    sessions = [
+        {
+            "id": "s-nogt",
+            "study_id": "c-nogt",
+            "participant_code": "TECH_01",
+            "participant_role": "technical_tester",
+            "data_origin": "live",
+            "status": "COMPLETED",
+            "tasks": [
+                {
+                    "task_id": "t-1",
+                    "image_id": "img-no-reference",
+                    "pre_mask": mask,
+                    "post_mask": mask,
+                    "events": [{"event_type": "CONFIRM_ACK", "elapsed_ms": 1000.0, "seq": 1}],
+                }
+            ],
+        }
+    ]
+    res = analyze_hitl(sessions, references=None)
+    t = res["per_task"][0]
+    assert t["delta_dice"] is None
+    assert t["delta_dice"] != 0.0
+    assert t["quality_null_reason"] == "NO_INDEPENDENT_REFERENCE"
+
 
 
 def test_paired_deltas_include_negative():

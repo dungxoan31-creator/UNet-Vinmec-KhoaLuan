@@ -23,6 +23,7 @@ def export_hitl_sessions(
     db_path: str,
     output_dir: str,
     session_ids: list[str] | None = None,
+    participant_registry: list[dict[str, Any]] | None = None,
     overwrite: bool = False,
 ):
     if os.path.exists(output_dir) and not overwrite:
@@ -32,6 +33,20 @@ def export_hitl_sessions(
     abs_db = os.path.abspath(db_path)
     if not os.path.isfile(abs_db):
         raise FileNotFoundError(f"Database not found at {abs_db}")
+
+    # Build registry lookup if provided or fallback to repo default
+    reg_lookup = {}
+    if participant_registry is None:
+        default_provenance = os.path.join(PROJECT_ROOT, "docs", "evaluation", "hitl_session_provenance.csv")
+        if os.path.isfile(default_provenance):
+            with open(default_provenance, "r", encoding="utf-8") as f:
+                participant_registry = list(csv.DictReader(f))
+
+    if participant_registry:
+        for r in participant_registry:
+            code = r.get("participant_code")
+            if code:
+                reg_lookup[str(code).strip()] = r
 
     # Read-only SQLite URI connection (mode=ro)
     uri = f"file:{abs_db}?mode=ro"
@@ -68,11 +83,28 @@ def export_hitl_sessions(
             created_at = s["created_at"]
             completed_at = s["completed_at"]
 
+            # Provenance classification
+            reg_entry = reg_lookup.get(str(p_code).strip()) if reg_lookup else None
+            if reg_entry:
+                sess_class = reg_entry.get("role_verified", "unverified")
+                disposition = reg_entry.get("disposition", "quarantine")
+            elif origin == "demo":
+                sess_class = "technical_fixture"
+                disposition = "quarantine_demo"
+            elif str(p_role).lower() == "clinician":
+                sess_class = "unverified"
+                disposition = "quarantine"
+            else:
+                sess_class = "verified_technical"
+                disposition = "included_technical"
+
             sessions_csv_rows.append({
                 "session_id": sess_id,
                 "study_id": study_id,
                 "participant_code": p_code,
                 "participant_role": p_role,
+                "session_classification": sess_class,
+                "provenance_disposition": disposition,
                 "data_origin": origin,
                 "status": status,
                 "review_batch_id": batch_id,
@@ -173,6 +205,8 @@ def export_hitl_sessions(
                 "study_id": study_id,
                 "participant_code": p_code,
                 "participant_role": p_role,
+                "session_classification": sess_class,
+                "provenance_disposition": disposition,
                 "data_origin": origin,
                 "status": status,
                 "review_batch_id": batch_id,
@@ -210,13 +244,20 @@ def main():
     parser = argparse.ArgumentParser(description="Export HITL sessions and events from read-only SQLite database.")
     parser.add_argument("--db", required=True, help="Path to SQLite database file")
     parser.add_argument("--session-ids", default=None, help="Comma-separated session IDs to export")
+    parser.add_argument("--participant-registry", default=None, help="Optional participant provenance registry CSV")
     parser.add_argument("--output", required=True, help="Output directory for raw export files")
     parser.add_argument("--overwrite", action="store_true", help="Allow overwriting output directory")
     args = parser.parse_args()
 
+    registry = None
+    if args.participant_registry and os.path.isfile(args.participant_registry):
+        with open(args.participant_registry, "r", encoding="utf-8") as f:
+            registry = list(csv.DictReader(f))
+
     s_ids = [s.strip() for s in args.session_ids.split(",") if s.strip()] if args.session_ids else None
-    export_hitl_sessions(args.db, args.output, session_ids=s_ids, overwrite=args.overwrite)
+    export_hitl_sessions(args.db, args.output, session_ids=s_ids, participant_registry=registry, overwrite=args.overwrite)
 
 
 if __name__ == "__main__":
     main()
+
