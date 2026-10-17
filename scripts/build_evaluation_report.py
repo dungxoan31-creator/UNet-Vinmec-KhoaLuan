@@ -924,6 +924,7 @@ def generate_final_checks(
     checks = {
         "schema_version": 1,
         "generated_at": results.get("start_time") or datetime.now(timezone.utc).isoformat(),
+        "test_scope": results.get("test_scope", "selected"),
         "overall_exit_code": overall_exit,
         "prototype_ready": status_res["prototype_ready"],
         "evaluation_complete": status_res["evaluation_complete"],

@@ -143,3 +143,33 @@ def test_skipped_browser_is_not_live_verified(tmp_path):
     assert checks["browser_skipped"] is True
 
 
+def test_full_verifier_does_not_select_four_files():
+    """Verifier script must support full regression scope without hardcoding 4 files."""
+    script_text = (ROOT / "scripts" / "verify_evaluation_release.ps1").read_text(encoding="utf-8")
+    assert "TestScope" in script_text, "verify_evaluation_release.ps1 must support -TestScope parameter"
+    assert "full" in script_text.lower(), "verify_evaluation_release.ps1 must define 'full' test scope"
+    assert "pytest.main(['tests'" in script_text or 'pytest.main(["tests"' in script_text, (
+        "Full test scope must target entire tests/ directory"
+    )
+
+
+def test_selected_suite_cannot_claim_full_regression(tmp_path):
+    """When running selected suite, recorded test_scope must be 'selected' and never claim 'full'."""
+    script_text = (ROOT / "scripts" / "verify_evaluation_release.ps1").read_text(encoding="utf-8")
+    assert "test_scope" in script_text, "verify_evaluation_release.ps1 must record test_scope in results"
+
+
+def test_final_checks_records_test_scope(tmp_path):
+    """generate_final_checks must record test_scope in final_checks.json."""
+    from scripts.build_evaluation_report import generate_final_checks
+    checks = generate_final_checks(
+        results={"test_scope": "selected", "overall_exit_code": 0, "live_browser_verified": True},
+        independent_gate_status="BLOCKED",
+        output_dir=tmp_path,
+    )
+    assert checks["test_scope"] == "selected"
+    saved = json.loads((tmp_path / "final_checks.json").read_text(encoding="utf-8"))
+    assert saved["test_scope"] == "selected"
+
+
+

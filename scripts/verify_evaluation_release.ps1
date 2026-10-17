@@ -2,6 +2,8 @@ param(
     [switch]$BaselineOnly,
     [switch]$SkipBrowser,
     [switch]$PrototypeOnly,
+    [ValidateSet("full", "selected")]
+    [string]$TestScope = "selected",
     [string]$OutputDir = "",
     [int]$MockCommandExit = -1
 )
@@ -33,6 +35,7 @@ $Results = [ordered]@{
     baseline_only = [bool]$BaselineOnly
     skip_browser = [bool]$SkipBrowser
     prototype_only = [bool]$PrototypeOnly
+    test_scope = $TestScope
     commands = @()
     overall_exit_code = 0
 }
@@ -182,10 +185,17 @@ if (-not $SkipBrowser -and -not $BaselineOnly) {
 }
 
 # 6. Pytest in isolated runtime
-$pyTestArgs = @(
-    "-c",
-    "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests/test_release_evidence.py', 'tests/test_evaluation_report.py', 'tests/test_runtime_configuration.py', 'tests/test_prototype_release_failures.py', '-q', '--tb=short']))`""
-)
+if ($TestScope -eq "full") {
+    $pyTestArgs = @(
+        "-c",
+        "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests', '-q', '--tb=short']))`""
+    )
+} else {
+    $pyTestArgs = @(
+        "-c",
+        "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests/test_release_evidence.py', 'tests/test_evaluation_report.py', 'tests/test_runtime_configuration.py', 'tests/test_prototype_release_failures.py', '-q', '--tb=short']))`""
+    )
+}
 Run-LoggedProcess -Name "pytest_isolated" -FilePath $pyPath -ArgumentList $pyTestArgs -OutputFile (Join-Path $OutputDir "pytest.txt")
 
 # 7. Record Baseline Results & Build Consolidated Report
@@ -217,6 +227,7 @@ if (Test-Path $finalChecksPath) {
     $finalChecks = [ordered]@{
         schema_version = 1
         generated_at = $Results.end_time
+        test_scope = $TestScope
         overall_exit_code = $Results.overall_exit_code
         prototype_ready = ($Results.overall_exit_code -eq 0 -and -not $SkipBrowser -and $browserPassed)
         evaluation_complete = $false
@@ -232,6 +243,7 @@ if (Test-Path $finalChecksPath) {
 Write-Host "================================================================="
 Write-Host " RELEASE EVIDENCE SUMMARY"
 Write-Host "================================================================="
+Write-Host " Regression Test Scope:               $TestScope"
 Write-Host " Prototype Ready (Supervised Pilot): $(if ($finalChecks.prototype_ready) { 'PASS [READY]' } else { 'FAIL [NOT READY]' })"
 Write-Host " Scientific Evaluation Complete:      $(if ($finalChecks.evaluation_complete) { 'PASS [COMPLETE]' } else { 'PARTIAL / BLOCKED' })"
 Write-Host " Independent Holdout Gate:            BLOCKED (Missing patient-level mapping)"
