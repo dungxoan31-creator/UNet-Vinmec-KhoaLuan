@@ -188,7 +188,12 @@ $pyTestArgs = @(
 )
 Run-LoggedProcess -Name "pytest_isolated" -FilePath $pyPath -ArgumentList $pyTestArgs -OutputFile (Join-Path $OutputDir "pytest.txt")
 
-# 7. Consolidate Evaluation Report and Artifacts (if not -BaselineOnly)
+# 7. Record Baseline Results & Build Consolidated Report
+$Results.live_browser_verified = $browserPassed
+$Results.end_time = (Get-Date -Format "yyyy-MM-ddTHH:mm:sszzz")
+$baselineResultsPath = Join-Path $OutputDir "baseline_results.json"
+Write-Utf8File -Path $baselineResultsPath -Content ($Results | ConvertTo-Json -Depth 5)
+
 if (-not $BaselineOnly) {
     Write-Host "[verify] Building consolidated evaluation report artifacts..."
     $reportArgs = @(
@@ -198,35 +203,39 @@ if (-not $BaselineOnly) {
         "--hitl", "evaluation/milestone_3_final/hitl/analysis",
         "--user-study", "evaluation/milestone_3_final/user_study",
         "--output", $OutputDir,
-        "--set-current", "evaluation/milestone_3_final/legacy_test_v1"
+        "--set-current", "evaluation/milestone_3_final/legacy_test_v1",
+        "--checks", $baselineResultsPath
     )
     Run-LoggedProcess -Name "build_evaluation_report" -FilePath $pyPath -ArgumentList $reportArgs -OutputFile (Join-Path $OutputDir "build_report.txt")
 }
 
 # 8. Record Final Checks and Release Evidence
-$Results.end_time = (Get-Date -Format "yyyy-MM-ddTHH:mm:sszzz")
-Write-Utf8File -Path (Join-Path $OutputDir "baseline_results.json") -Content ($Results | ConvertTo-Json -Depth 5)
-
-$finalChecks = [ordered]@{
-    schema_version = 1
-    generated_at = $Results.end_time
-    overall_exit_code = $Results.overall_exit_code
-    prototype_ready = ($Results.overall_exit_code -eq 0)
-    evaluation_complete = $false
-    independent_gate_status = "BLOCKED"
-    browser_skipped = [bool]$SkipBrowser
-    live_browser_verified = $browserPassed
-    commands_executed = $Results.commands.Count
+$finalChecksPath = Join-Path $OutputDir "final_checks.json"
+if (Test-Path $finalChecksPath) {
+    $finalChecks = Get-Content $finalChecksPath -Raw | ConvertFrom-Json
+} else {
+    $finalChecks = [ordered]@{
+        schema_version = 1
+        generated_at = $Results.end_time
+        overall_exit_code = $Results.overall_exit_code
+        prototype_ready = ($Results.overall_exit_code -eq 0 -and -not $SkipBrowser -and $browserPassed)
+        evaluation_complete = $false
+        clinician_validation = $false
+        independent_gate_status = "BLOCKED"
+        browser_skipped = [bool]$SkipBrowser
+        live_browser_verified = $browserPassed
+        commands_executed = $Results.commands.Count
+    }
+    Write-Utf8File -Path $finalChecksPath -Content ($finalChecks | ConvertTo-Json -Depth 5)
 }
-Write-Utf8File -Path (Join-Path $OutputDir "final_checks.json") -Content ($finalChecks | ConvertTo-Json -Depth 5)
 
 Write-Host "================================================================="
 Write-Host " RELEASE EVIDENCE SUMMARY"
 Write-Host "================================================================="
 Write-Host " Prototype Ready (Supervised Pilot): $(if ($finalChecks.prototype_ready) { 'PASS [READY]' } else { 'FAIL [NOT READY]' })"
-Write-Host " Scientific Evaluation Complete:      PARTIAL / BLOCKED"
+Write-Host " Scientific Evaluation Complete:      $(if ($finalChecks.evaluation_complete) { 'PASS [COMPLETE]' } else { 'PARTIAL / BLOCKED' })"
 Write-Host " Independent Holdout Gate:            BLOCKED (Missing patient-level mapping)"
-Write-Host " Clinician User Study:                NOT_CONDUCTED (Technical Acceptance PASS)"
+Write-Host " Clinician User Study:                $(if ($finalChecks.clinician_validation) { 'VERIFIED' } else { 'NOT_CONDUCTED (Technical Acceptance PASS)' })"
 Write-Host " Live Playwright Browser Verified:    $(if ($browserPassed) { 'YES' } else { 'NO / SKIPPED' })"
 Write-Host " Overall Exit Code:                   $($Results.overall_exit_code)"
 Write-Host " Output Directory:                    $OutputDir"

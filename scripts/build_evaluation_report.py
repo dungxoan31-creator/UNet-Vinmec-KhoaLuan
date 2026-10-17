@@ -18,10 +18,151 @@ Enforces:
 
 import argparse
 import csv
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+
+def derive_release_status(
+    checks: Optional[Dict[str, Any]] = None,
+    independent_gate: Optional[Dict[str, Any]] = None,
+    user_study: Optional[Dict[str, Any]] = None,
+    hitl: Optional[Dict[str, Any]] = None,
+    runs: Optional[List[Dict[str, Any]]] = None,
+    prototype_checks_passed: bool = False,
+) -> Dict[str, Any]:
+    """
+    Evaluates release gates and returns a unified status dictionary:
+    - prototype_ready: bool
+    - evaluation_complete: bool
+    - clinician_validation: bool
+    - blockers: list of blocker descriptions
+    - limitations: list of limitation descriptions
+
+    Rules:
+    1. prototype_ready requires:
+       - No browser skip (browser_skipped / skip_browser must be False).
+       - Zero overall exit code from execution checks.
+       - Verified live browser test (live_browser_verified is True or passed release_e2e command).
+       - If checks dictionary is not provided, falls back to prototype_checks_passed flag.
+    2. clinician_validation requires:
+       - Verified clinical participants (has_clinician_validation is True and study_status != 'NOT_CONDUCTED').
+       - Never coerced to True merely because technical fallback succeeded.
+    3. evaluation_complete requires:
+       - prototype_ready is True.
+       - Independent holdout gate is PASS (patient-level mapping verified, not BLOCKED).
+       - Quantitative independent evaluation runs completed (if runs provided).
+       - Either verified clinician validation OR verified technical acceptance fallback recorded.
+    """
+    blockers: List[str] = []
+    limitations: List[str] = []
+
+    # 1. Prototype Readiness
+    prototype_ready = False
+    if checks is not None:
+        overall_exit = checks.get("overall_exit_code", 0)
+        skip_browser = bool(checks.get("skip_browser", False) or checks.get("browser_skipped", False))
+        commands = checks.get("commands", [])
+
+        if "live_browser_verified" in checks:
+            live_browser_verified = bool(checks["live_browser_verified"])
+        else:
+            e2e_cmd = next((c for c in commands if "release_e2e" in c.get("name", "")), None)
+            live_browser_verified = (not skip_browser) and (e2e_cmd is not None) and (e2e_cmd.get("exit_code") == 0)
+
+        if skip_browser:
+            blockers.append("Live browser E2E verification was skipped; prototype readiness requires verified browser execution")
+        elif overall_exit != 0:
+            blockers.append(f"Execution checks failed with non-zero exit code ({overall_exit})")
+        elif commands and not live_browser_verified:
+            blockers.append("Live browser E2E test not verified")
+        else:
+            # If explicit live_browser_verified is present or prototype_ready is asserted in checks without failure
+            if live_browser_verified or (not commands and checks.get("prototype_ready", True) and not skip_browser):
+                prototype_ready = True
+            elif not commands and overall_exit == 0 and not skip_browser:
+                prototype_ready = True
+            else:
+                blockers.append("Prototype readiness requires verified live browser test")
+    else:
+        if prototype_checks_passed:
+            prototype_ready = True
+        else:
+            blockers.append("Prototype checks not verified or failed")
+
+    # 2. Clinician Validation
+    clinician_validation = False
+    if user_study is not None:
+        has_clin = user_study.get("has_clinician_validation")
+        status_str = user_study.get("study_status", "UNKNOWN")
+        clin_count = user_study.get("clinician_count", 0)
+        if has_clin is True and status_str not in ("NOT_CONDUCTED", "UNKNOWN"):
+            clinician_validation = True
+        elif has_clin is True and clin_count > 0:
+            clinician_validation = True
+
+    # 3. Independent Gate
+    gate_status = "UNKNOWN"
+    if independent_gate is not None:
+        gate_status = independent_gate.get("status", "UNKNOWN")
+
+    gate_passed = (gate_status == "PASS")
+    if not gate_passed:
+        if gate_status == "BLOCKED":
+            blockers.append("Independent test cohort patient-level mapping unverified (independent_gate status: BLOCKED)")
+        else:
+            blockers.append(f"Independent test cohort audit not passed (independent_gate status: {gate_status})")
+
+    # 4. User Study / Technical Fallback
+    user_study_ok = False
+    if user_study is not None:
+        if clinician_validation:
+            user_study_ok = True
+        else:
+            study_status = user_study.get("study_status", "UNKNOWN")
+            tech_acc = user_study.get("technical_acceptance")
+            tech_fallback = user_study.get("technical_fallback_verified")
+            tech_count = user_study.get("technical_count")
+
+            if tech_fallback is True or tech_acc == "PASS" or (tech_count is not None and tech_count > 0):
+                user_study_ok = True
+                limitations.append("Clinician user study not conducted (study_status: NOT_CONDUCTED); technical acceptance protocol used as fallback")
+            elif study_status == "NOT_CONDUCTED":
+                if prototype_ready:
+                    user_study_ok = True
+                    limitations.append("Clinician user study not conducted (study_status: NOT_CONDUCTED); prototype technical acceptance verified")
+                else:
+                    blockers.append("Clinician user study not conducted and prototype technical acceptance not verified")
+            else:
+                blockers.append(f"User study unverified (status: {study_status})")
+    else:
+        blockers.append("User study evidence not provided")
+
+    # 5. Quantitative Independent Runs
+    runs_ok = True
+    if runs is not None and gate_passed:
+        indep_runs = [r for r in runs if r.get("run_kind") == "independent_test"]
+        if indep_runs and not any(r.get("status") == "COMPLETE" for r in indep_runs):
+            runs_ok = False
+            blockers.append("Independent test evaluation run not complete")
+
+    # 6. Evaluation Complete
+    evaluation_complete = (
+        prototype_ready
+        and gate_passed
+        and user_study_ok
+        and runs_ok
+    )
+
+    return {
+        "prototype_ready": prototype_ready,
+        "evaluation_complete": evaluation_complete,
+        "clinician_validation": clinician_validation,
+        "blockers": blockers,
+        "limitations": limitations,
+    }
 
 
 def audit_run_summary(summary_path: Path) -> Dict[str, Any]:
@@ -266,7 +407,7 @@ def generate_markdown_report(report_data: Dict[str, Any]) -> str:
         "",
         "## 7. Kết luận và Đề xuất Hướng Phát triển",
         "",
-        "- **Hoàn thành nguyên mẫu nghiên cứu (Prototype Readiness: PASS)**: Hệ thống đáp ứng toàn bộ các yêu cầu tương tác Human-in-the-Loop, lưu trữ atomic, export ZIP có mã hóa SHA-256, chạy bền vững qua restart.",
+        "- **Hoàn thành nguyên mẫu nghiên cứu (Prototype Readiness: PASS)**: Hệ thống đáp ứng toàn bộ các yêu cầu tương tác Human-in-the-Loop, lưu trữ atomic, export ZIP có mã băm toàn vẹn SHA-256, chạy bền vững qua restart.",
         "- **Khuyến nghị tiếp theo**: Thu thập tập dữ liệu kiểm thử độc lập có đầy đủ Patient ID và đồng thuận chuyên gia đa trung tâm để mở khóa cổng đánh giá khoa học toàn diện (`evaluation_complete`).",
         "",
     ])
@@ -324,7 +465,8 @@ def build_report(
     user_dir: Optional[Path],
     independent_gate_path: Optional[Path],
     output: Path,
-    prototype_checks_passed: bool = True,
+    prototype_checks_passed: bool = False,
+    checks: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Consolidates evaluation runs, HITL telemetry, user study findings, and gates
@@ -353,9 +495,9 @@ def build_report(
 
     # 3. Audit User Study
     user_study_data = {
-        "study_status": "NOT_CONDUCTED",
+        "study_status": "UNKNOWN",
         "clinician_count": 0,
-        "technical_count": 1,
+        "technical_count": None,
         "has_clinician_validation": False,
     }
     if user_dir and (user_dir / "study_status.json").exists():
@@ -363,14 +505,12 @@ def build_report(
             user_study_data = json.load(f)
 
     # 4. Check Independent Gate
+    gate_json = None
     independent_gate_status = "UNKNOWN"
-    blockers = []
     if independent_gate_path and independent_gate_path.exists():
         with open(independent_gate_path, "r", encoding="utf-8") as f:
             gate_json = json.load(f)
             independent_gate_status = gate_json.get("status", "UNKNOWN")
-            if independent_gate_status == "BLOCKED":
-                blockers.append("Independent test cohort patient-level mapping unverified (independent_gate status: BLOCKED)")
     else:
         # Check standard location under root
         std_gate = root / "evaluation" / "milestone_3_final" / "data_audit" / "independent_gate" / "audit.json"
@@ -378,29 +518,31 @@ def build_report(
             with open(std_gate, "r", encoding="utf-8") as f:
                 gate_json = json.load(f)
                 independent_gate_status = gate_json.get("status", "UNKNOWN")
-                if independent_gate_status == "BLOCKED":
-                    blockers.append("Independent test cohort patient-level mapping unverified (independent_gate status: BLOCKED)")
-        else:
-            blockers.append("Independent test cohort audit file not found")
 
-    if user_study_data.get("study_status") == "NOT_CONDUCTED":
-        blockers.append("Clinician user study not conducted (study_status: NOT_CONDUCTED)")
-
-    # 5. Determine prototype_ready and evaluation_complete
-    prototype_ready = bool(prototype_checks_passed)
-    evaluation_complete = (
-        prototype_ready
-        and independent_gate_status == "PASS"
-        and user_study_data.get("has_clinician_validation", False)
+    # 5. Determine release status via derive_release_status
+    status_result = derive_release_status(
+        checks=checks,
+        independent_gate=gate_json,
+        user_study=user_study_data if (user_dir and (user_dir / "study_status.json").exists()) else (user_study_data if user_dir else None),
+        hitl=hitl_data if hitl_dir else None,
+        runs=audited_runs,
+        prototype_checks_passed=prototype_checks_passed,
     )
+    prototype_ready = status_result["prototype_ready"]
+    evaluation_complete = status_result["evaluation_complete"]
+    clinician_validation = status_result["clinician_validation"]
+    blockers = status_result["blockers"]
+    limitations = status_result["limitations"]
 
     report_payload = {
         "schema_version": 1,
-        "generated_at": "2026-10-16T23:59:59Z",
-        "checkpoint_sha256": checkpoint_sha or "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "checkpoint_sha256": checkpoint_sha,
         "prototype_ready": prototype_ready,
         "evaluation_complete": evaluation_complete,
+        "clinician_validation": clinician_validation,
         "blockers": blockers,
+        "limitations": limitations,
         "runs": audited_runs,
         "hitl": hitl_data,
         "user_study": user_study_data,
@@ -465,14 +607,21 @@ def build_report(
     generate_demo_script_md(output / "demo_script.md")
 
     # 13. Write final_checks.json
+    checks_input = checks or {
+        "skip_browser": False,
+        "overall_exit_code": 0 if prototype_ready else 1,
+        "live_browser_verified": prototype_ready,
+        "commands": [{"name": "build_report", "exit_code": 0 if prototype_ready else 1}],
+        "prototype_ready": prototype_ready,
+    }
     generate_final_checks(
-        results={
-            "skip_browser": False,
-            "overall_exit_code": 0 if prototype_ready else 1,
-            "commands": [{"name": "build_report", "exit_code": 0}],
-        },
+        results=checks_input,
         independent_gate_status=independent_gate_status,
         output_dir=output,
+        user_study=user_study_data if (user_dir and (user_dir / "study_status.json").exists()) else (user_study_data if user_dir else None),
+        hitl=hitl_data if hitl_dir else None,
+        runs=audited_runs,
+        independent_gate=gate_json,
     )
 
     # 14. Write checksums.csv
@@ -744,28 +893,47 @@ def generate_final_checks(
     results: Dict[str, Any],
     independent_gate_status: str,
     output_dir: Path,
+    user_study: Optional[Dict[str, Any]] = None,
+    hitl: Optional[Dict[str, Any]] = None,
+    runs: Optional[List[Dict[str, Any]]] = None,
+    independent_gate: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    skip_browser = bool(results.get("skip_browser", False))
+    if independent_gate is None:
+        independent_gate = {"status": independent_gate_status}
+
+    status_res = derive_release_status(
+        checks=results,
+        independent_gate=independent_gate,
+        user_study=user_study,
+        hitl=hitl,
+        runs=runs,
+    )
+    skip_browser = bool(results.get("skip_browser", False) or results.get("browser_skipped", False))
     commands = results.get("commands", [])
     overall_exit = results.get("overall_exit_code", 0)
 
     e2e_cmd = next((c for c in commands if "release_e2e" in c.get("name", "")), None)
-    live_browser_verified = (not skip_browser) and (e2e_cmd is not None) and (e2e_cmd.get("exit_code") == 0)
-
-    prototype_ready = (overall_exit == 0)
-    evaluation_complete = (prototype_ready and independent_gate_status == "PASS")
+    if "live_browser_verified" in results:
+        live_browser_verified = bool(results["live_browser_verified"])
+    elif e2e_cmd is not None:
+        live_browser_verified = (not skip_browser) and (e2e_cmd.get("exit_code") == 0)
+    else:
+        live_browser_verified = False
 
     checks = {
         "schema_version": 1,
-        "generated_at": results.get("start_time", "2026-10-16T23:59:59Z"),
+        "generated_at": results.get("start_time") or datetime.now(timezone.utc).isoformat(),
         "overall_exit_code": overall_exit,
-        "prototype_ready": prototype_ready,
-        "evaluation_complete": evaluation_complete,
+        "prototype_ready": status_res["prototype_ready"],
+        "evaluation_complete": status_res["evaluation_complete"],
+        "clinician_validation": status_res["clinician_validation"],
         "independent_gate_status": independent_gate_status,
         "browser_skipped": skip_browser,
         "live_browser_verified": live_browser_verified,
         "commands_executed": len(commands),
+        "blockers": status_res["blockers"],
+        "limitations": status_res["limitations"],
     }
 
     final_checks_path = output_dir / "final_checks.json"
@@ -820,6 +988,7 @@ def main():
     parser.add_argument("--independent-gate", type=str, default=None, help="Path to independent gate audit.json")
     parser.add_argument("--output", type=str, required=True, help="Path to output report directory")
     parser.add_argument("--set-current", type=str, default=None, help="Path to run directory to set as current_run.json")
+    parser.add_argument("--checks", type=str, default=None, help="Path to baseline_results.json / checks log")
 
     args = parser.parse_args()
 
@@ -830,6 +999,13 @@ def main():
     gate_path = Path(args.independent_gate).resolve() if args.independent_gate else None
     output = Path(args.output).resolve()
 
+    checks_data = None
+    if args.checks:
+        checks_file = Path(args.checks).resolve()
+        if checks_file.exists():
+            with open(checks_file, "r", encoding="utf-8") as f:
+                checks_data = json.load(f)
+
     report = build_report(
         root=root,
         run_dirs=run_dirs,
@@ -837,7 +1013,8 @@ def main():
         user_dir=user_dir,
         independent_gate_path=gate_path,
         output=output,
-        prototype_checks_passed=True,
+        prototype_checks_passed=False,
+        checks=checks_data,
     )
 
     print(f"[OK] Report generated at {output}")

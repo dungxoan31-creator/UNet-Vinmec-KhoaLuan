@@ -228,3 +228,142 @@ def test_missing_independent_test_blocks_complete(tmp_path):
     assert status_json["prototype_ready"] is True
     assert status_json["evaluation_complete"] is False
     assert any("independent" in b.lower() for b in status_json["blockers"])
+
+
+def test_fallback_is_not_a_clinician_blocker(tmp_path):
+    """When scientific/technical gates pass + technical fallback has evidence:
+    evaluation_complete=True, clinician_validation=False.
+    If independent gate is BLOCKED, evaluation_complete remains False.
+    """
+    from scripts.build_evaluation_report import derive_release_status
+
+    # Subcase A: Gate is PASS, technical fallback verified, prototype ready
+    checks_pass = {
+        "overall_exit_code": 0,
+        "live_browser_verified": True,
+        "skip_browser": False,
+        "browser_skipped": False,
+    }
+    independent_gate_pass = {
+        "status": "PASS",
+        "counts": {"total": 402, "valid": 402, "failed": 0},
+    }
+    user_study_fallback = {
+        "study_status": "NOT_CONDUCTED",
+        "clinician_count": 0,
+        "technical_acceptance": "PASS",
+        "technical_fallback_verified": True,
+        "has_clinician_validation": False,
+    }
+    runs_completed = [
+        {
+            "run_id": "holdout_test",
+            "run_kind": "independent_test",
+            "status": "COMPLETE",
+            "primary": {"dice": {"mean": 0.74}},
+        }
+    ]
+
+    status_pass = derive_release_status(
+        checks=checks_pass,
+        independent_gate=independent_gate_pass,
+        user_study=user_study_fallback,
+        runs=runs_completed,
+    )
+    assert status_pass["prototype_ready"] is True
+    assert status_pass["evaluation_complete"] is True
+    assert status_pass["clinician_validation"] is False
+    assert not any("clinician user study" in b.lower() for b in status_pass.get("blockers", []))
+
+    # Subcase B: Gate is BLOCKED -> evaluation_complete must be False
+    independent_gate_blocked = {
+        "status": "BLOCKED",
+        "counts": {"total": 402, "valid": 0, "failed": 402},
+        "errors": ["Sample has empty patient_id"],
+    }
+    status_blocked = derive_release_status(
+        checks=checks_pass,
+        independent_gate=independent_gate_blocked,
+        user_study=user_study_fallback,
+        runs=runs_completed,
+    )
+    assert status_blocked["prototype_ready"] is True
+    assert status_blocked["evaluation_complete"] is False
+    assert status_blocked["clinician_validation"] is False
+    assert any("independent" in b.lower() for b in status_blocked.get("blockers", []))
+
+
+def test_unknown_evidence_has_no_defaults(tmp_path):
+    """Missing runs/evidence must not populate hardcoded checkpoint hashes or default participant counts."""
+    out_dir = tmp_path / "unknown_report"
+    report = build_report(
+        root=tmp_path,
+        run_dirs=[],
+        hitl_dir=None,
+        user_dir=None,
+        independent_gate_path=None,
+        output=out_dir,
+        prototype_checks_passed=False,
+    )
+
+    # Checkpoint SHA must be None or UNKNOWN, not the hardcoded hash
+    assert report["checkpoint_sha256"] in (None, "UNKNOWN")
+    assert report["checkpoint_sha256"] != "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d"
+
+    # User study without evidence must not fabricate technical_count=1
+    user_info = report["user_study"]
+    assert user_info.get("technical_count") in (None, 0)
+    assert user_info.get("clinician_count") == 0
+    assert user_info.get("has_clinician_validation") is False
+
+    # Timestamp must not be hardcoded historical string
+    assert report["generated_at"] != "2026-10-16T23:59:59Z"
+    assert "T" in report["generated_at"]
+
+    assert report["prototype_ready"] is False
+    assert report["evaluation_complete"] is False
+
+
+def test_browser_skip_prevents_readiness(tmp_path):
+    """Skipping browser verification prevents prototype readiness even with overall_exit_code=0."""
+    from scripts.build_evaluation_report import derive_release_status
+
+    checks = {
+        "overall_exit_code": 0,
+        "skip_browser": True,
+        "browser_skipped": True,
+        "live_browser_verified": False,
+    }
+    status = derive_release_status(checks=checks)
+    assert status["prototype_ready"] is False
+    assert status["evaluation_complete"] is False
+    assert any("browser" in b.lower() for b in status.get("blockers", []))
+
+
+def test_status_build_paths_agree(tmp_path):
+    """release_status.json and final_checks.json must agree on readiness and evaluation gates."""
+    out_dir = tmp_path / "agree_report"
+    checks = {
+        "overall_exit_code": 0,
+        "skip_browser": False,
+        "browser_skipped": False,
+        "live_browser_verified": True,
+        "commands": [{"name": "release_e2e", "exit_code": 0}],
+    }
+    build_report(
+        root=tmp_path,
+        run_dirs=[],
+        hitl_dir=None,
+        user_dir=None,
+        independent_gate_path=None,
+        output=out_dir,
+        checks=checks,
+    )
+
+    release_status = json.loads((out_dir / "release_status.json").read_text(encoding="utf-8"))
+    final_checks = json.loads((out_dir / "final_checks.json").read_text(encoding="utf-8"))
+
+    assert release_status["prototype_ready"] == final_checks["prototype_ready"]
+    assert release_status["evaluation_complete"] == final_checks["evaluation_complete"]
+    assert release_status.get("clinician_validation", False) == final_checks.get("clinician_validation", False)
+
