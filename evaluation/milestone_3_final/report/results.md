@@ -1,7 +1,7 @@
 # Báo cáo Đánh giá Định lượng và Thực nghiệm Mô hình Phân đoạn Buồng trứng
 
 > **Dự án**: Khóa luận Tốt nghiệp & Hệ thống Hỗ trợ Chẩn đoán Siêu âm Buồng trứng Human-in-the-Loop
-> **Thời điểm tạo**: 2026-10-16T23:59:59Z
+> **Thời điểm tạo**: 2026-10-17T03:41:19.929611+00:00
 > **Trạng thái nguyên mẫu (Prototype Ready)**: PASS
 > **Trạng thái đánh giá khoa học (Evaluation Complete)**: PARTIAL / BLOCKED
 
@@ -43,8 +43,8 @@ Phân tích lỗi được thực hiện theo 8 nhóm hình thái và trường 
 ## 4. Đo lường Quy trình Tương tác Human-in-the-Loop (HITL)
 
 - **Tổng số phiên ghi nhận**: 32 phiên
-- **Phiên thử nghiệm kỹ thuật (Technical Sessions)**: 28 phiên
-- **Phiên bác sĩ (Clinician Sessions)**: 4 phiên
+- **Phiên thử nghiệm kỹ thuật (Technical Sessions)**: 24 phiên
+- **Phiên bác sĩ (Clinician Sessions)**: 0 phiên
 - **Tổng số tác vụ chỉnh sửa (Total Tasks)**: 15 tác vụ
 - **Thời gian phản hồi rà soát trung vị (Median Review Time)**: Chưa có / Không xác định ms
 - **Độ cải thiện Dice trước và sau chỉnh sửa (Δ Dice)**: Chưa có / Không xác định (chưa tính nếu thiếu nhãn độc lập)
@@ -78,5 +78,5 @@ Phân tích lỗi được thực hiện theo 8 nhóm hình thái và trường 
 
 ## 7. Kết luận và Đề xuất Hướng Phát triển
 
-- **Hoàn thành nguyên mẫu nghiên cứu (Prototype Readiness: PASS)**: Hệ thống đáp ứng toàn bộ các yêu cầu tương tác Human-in-the-Loop, lưu trữ atomic, export ZIP có mã hóa SHA-256, chạy bền vững qua restart.
+- **Hoàn thành nguyên mẫu nghiên cứu (Prototype Readiness: PASS)**: Hệ thống đáp ứng toàn bộ các yêu cầu tương tác Human-in-the-Loop, lưu trữ atomic, export ZIP có mã băm toàn vẹn SHA-256, chạy bền vững qua restart.
 - **Khuyến nghị tiếp theo**: Thu thập tập dữ liệu kiểm thử độc lập có đầy đủ Patient ID và đồng thuận chuyên gia đa trung tâm để mở khóa cổng đánh giá khoa học toàn diện (`evaluation_complete`).
