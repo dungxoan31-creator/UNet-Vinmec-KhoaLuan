@@ -1,0 +1,72 @@
+[InferenceEngine] Successfully loaded Standard U-Net (Baseline) weights (SHA256: 417828fa7434...)
+[Database] SQLite DB initialized and verified.
+[Database] SQLite DB initialized and verified.
+......................................F................................. [ 24%]
+................ss...................................................... [ 49%]
+.venv\Scripts\python.exe : [ WARN:12@35.798] global grfmt_png.cpp:834 cv::PngDecoder::read_chunk user chunk data is too large
+At line:1 char:1
++ .venv\Scripts\python.exe -c "import tests.serve_isolated_app; import  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([ WARN:12@35.79...ta is too large:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[ERROR:12@35.798] global grfmt_png.cpp:297 cv::PngDecoder::readHeader IHDR chunk shall be first. This data may be broken or malformed.
+............F............FF............................................. [ 74%]
+........................................................................ [ 98%]
+F..                                                                      [100%]
+================================== FAILURES ===================================
+________ test_relocated_3d_masks_match_audited_pixel_equivalent_copies ________
+tests\test_dataset_paths.py:43: in test_relocated_3d_masks_match_audited_pixel_equivalent_copies
+    with report.open(newline="", encoding="utf-8-sig") as source:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\AppData\Roaming\uv\python\cpython-3.12.10-windows-x86_64-none\Lib\pathlib.py:1013: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\reports\\dataset_deduplication_report.csv'
+____________ test_manual_spacing_scales_source_calipers_and_review ____________
+tests\test_prototype_extensions.py:108: in test_manual_spacing_scales_source_calipers_and_review
+    assert saved.status_code == 200, saved.text
+E   AssertionError: {"detail":"Y\xeau c\u1ea7u cung c\u1ea5p expected_revision cho phi\xean r\xe0 so\xe1t."}
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Content]>.status_code
+__________ test_source_missing_records_and_missing_files_fail_closed __________
+tests\test_prototype_extensions.py:197: in test_source_missing_records_and_missing_files_fail_closed
+    assert saved.status_code == 200, saved.text
+E   AssertionError: {"detail":"Y\xeau c\u1ea7u cung c\u1ea5p expected_revision cho phi\xean r\xe0 so\xe1t."}
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Content]>.status_code
+_____________ test_survey_persistence_actor_timestamp_and_reopen ______________
+tests\test_prototype_extensions.py:211: in test_survey_persistence_actor_timestamp_and_reopen
+    assert result.status_code == 200, result.text
+E   AssertionError: {"detail":"Y\xeau c\u1ea7u cung c\u1ea5p expected_revision cho phi\xean r\xe0 so\xe1t."}
+E   assert 422 == 200
+E    +  where 422 = <Response [422 Unprocessable Content]>.status_code
+___________________________ test_reports_generated ____________________________
+tests\test_vinmec_clean_dataset.py:85: in test_reports_generated
+    assert rep_csv.is_file()
+E   AssertionError: assert False
+E    +  where False = is_file()
+E    +    where is_file = WindowsPath('C:/Users/Dung/Documents/UNet-Vinmec-KhoaLuan/reports/dataset_deduplication_report.csv').is_file
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\config\__init__.py:1345
+  C:\Users\Dung\Documents\UNet-Vinmec-KhoaLuan\.venv\Lib\site-packages\_pytest\config\__init__.py:1345: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+tests/test_milestone_1_audit.py::test_dataloader_batch
+tests/test_retraining.py::test_training_augmentation_is_reproducible
+  C:\Users\Dung\Documents\UNet-Vinmec-KhoaLuan\.venv\Lib\site-packages\albumentations\core\validation.py:114: UserWarning: ShiftScaleRotate is a special case of Affine transform. Please use Affine transform instead.
+    original_init(self, **validated_kwargs)
+
+tests/test_retraining.py::test_amp_gradient_overflow_skips_update_instead_of_crashing
+  C:\Users\Dung\Documents\UNet-Vinmec-KhoaLuan\.venv\Lib\site-packages\torch\optim\lr_scheduler.py:227: UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`. In PyTorch 1.1.0 and later, you should call them in the opposite order: `optimizer.step()` before `lr_scheduler.step()`.  Failure to do this will result in PyTorch skipping the first value of the learning rate schedule. See more details at https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_dataset_paths.py::test_relocated_3d_masks_match_audited_pixel_equivalent_copies
+FAILED tests/test_prototype_extensions.py::test_manual_spacing_scales_source_calipers_and_review
+FAILED tests/test_prototype_extensions.py::test_source_missing_records_and_missing_files_fail_closed
+FAILED tests/test_prototype_extensions.py::test_survey_persistence_actor_timestamp_and_reopen
+FAILED tests/test_vinmec_clean_dataset.py::test_reports_generated - Assertion...
+5 failed, 284 passed, 2 skipped, 4 warnings in 72.51s (0:01:12)
+FULL_REGRESSION_EXIT_CODE: 1

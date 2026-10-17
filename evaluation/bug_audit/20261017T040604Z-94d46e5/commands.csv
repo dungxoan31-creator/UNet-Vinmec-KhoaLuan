@@ -1,0 +1,12 @@
+command_id,redacted_command,started_utc,ended_utc,exit_code,scope,stdout_path,stderr_path
+cmd_a03_pytest,pytest tests/test_segmentation_metrics_v1.py tests/test_inference_parity_v1.py tests/test_evaluation_protocol_v1.py tests/test_evaluation_run_v1.py,2026-10-17T04:08:49Z,2026-10-17T04:09:00Z,0,A03_metrics_model_protocol,logs/pytest_a03.txt,
+cmd_a03_node,node tests/workspace_v2_logic.mjs,2026-10-17T04:09:12Z,2026-10-17T04:09:13Z,0,A03_coordinate_letterbox,logs/node_workspace_logic.txt,
+cmd_a04_pytest,pytest tests/test_review_batch.py tests/test_research_export.py tests/test_auth_boundaries.py tests/test_protected_clinical_api.py tests/test_prototype_release_failures.py tests/test_duplicate_upload.py,2026-10-17T04:10:27Z,2026-10-17T04:10:38Z,0,A04_api_transactions_auth,logs/pytest_a04.txt,
+cmd_a05_telemetry,node tests/workspace_v2_telemetry.mjs,2026-10-17T04:11:22Z,2026-10-17T04:11:23Z,0,A05_telemetry_clocks,logs/node_telemetry.txt,
+cmd_a05_e2e_release,node tests/workspace_v2_release_e2e.js,2026-10-17T04:12:01Z,2026-10-17T04:12:26Z,0,A05_live_browser_e2e,logs/e2e_release.txt,
+cmd_a05_races,node tests/workspace_v2_races.js,2026-10-17T04:12:34Z,2026-10-17T04:12:40Z,0,A05_races_and_expiry,logs/races.txt,
+cmd_a05_draft_conflict,node tests/workspace_v2_draft_conflict.js,2026-10-17T04:12:44Z,2026-10-17T04:12:48Z,0,A05_draft_conflict,logs/draft_conflict.txt,
+cmd_a05_api_abort,node tests/workspace_v2_api_abort.js,2026-10-17T04:12:55Z,2026-10-17T04:12:57Z,0,A05_api_abort_guard,logs/api_abort.txt,
+cmd_a05_lease_guards,node tests/workspace_v2_lease_guards.js,2026-10-17T04:13:02Z,2026-10-17T04:13:08Z,0,A05_lease_mutation_guard,logs/lease_guards.txt,
+cmd_a06_eval_pytest,pytest tests/test_evaluation_report.py tests/test_release_evidence.py tests/test_hitl_analysis.py tests/test_user_study_summary.py,2026-10-17T04:13:59Z,2026-10-17T04:14:36Z,0,A06_evaluation_artifacts,logs/pytest_a06_eval.txt,
+cmd_a06_full_regression,pytest tests -q --tb=short,2026-10-17T04:14:49Z,2026-10-17T04:16:11Z,1,A06_full_regression,logs/full_regression_pytest.txt,

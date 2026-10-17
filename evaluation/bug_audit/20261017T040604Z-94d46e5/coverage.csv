@@ -1,0 +1,15 @@
+domain,component,test_target,test_type,status,evidence_file,notes
+Startup & Model Loading,backend/services/model_service.py,tests/test_runtime_configuration.py,unit,PASS,logs/pytest_a03.txt,A01 preflight
+Preprocessing & Metrics,backend/services/preprocessor.py,tests/test_segmentation_metrics_v1.py,unit,PASS,logs/pytest_a03.txt,A03 scope
+Preprocessing & Metrics,evaluation/segmentation_metrics.py,tests/test_inference_parity_v1.py,unit,PASS,logs/pytest_a03.txt,A03 scope
+Preprocessing & Metrics,evaluation/protocol.py,tests/test_evaluation_protocol_v1.py,unit,PASS,logs/pytest_a03.txt,A03 scope
+API & Transactions,backend/app/routers/reviews.py,tests/test_review_batch.py,integration,PASS,logs/pytest_a04.txt,A04 scope
+API & Transactions,backend/services/research_export.py,tests/test_research_export.py,integration,PASS,logs/pytest_a04.txt,A04 scope
+API & Transactions,backend/app/routers/auth.py,tests/test_auth_boundaries.py,integration,PASS,logs/pytest_a04.txt,A04 scope
+API & Transactions,backend/app/routers/cases.py,tests/test_protected_clinical_api.py,integration,PASS,logs/pytest_a04.txt,A04 scope
+UI & HITL Workflow,frontend/app/review.js,tests/workspace_v2_release_e2e.js,e2e_browser,PASS,logs/e2e_release.txt,A05 scope
+UI & HITL Workflow,frontend/app/hitl-tracker.js,tests/workspace_v2_telemetry.mjs,node,PASS,logs/e2e_release.txt,A05 scope
+Evaluation & Release,scripts/build_evaluation_report.py,tests/test_evaluation_report.py,unit,PASS,logs/pytest_a06_eval.txt,A06 scope
+Evaluation & Release,scripts/verify_evaluation_release.ps1,tests/test_release_evidence.py,unit,PASS,logs/pytest_a06_eval.txt,A06 scope
+Evaluation & Release,evaluation/hitl_analysis.py,tests/test_hitl_analysis.py,unit,PASS,logs/pytest_a06_eval.txt,A06 scope
+Full Repository Regression,tests/,entire test suite (291 tests),regression,"FAIL (284 passed, 5 failed, 2 skipped)",logs/full_regression_pytest.txt,"5 failures audited: 2 DATA_BLOCKER (AUD-0001), 3 TEST_MAINTENANCE (AUD-0002)"
