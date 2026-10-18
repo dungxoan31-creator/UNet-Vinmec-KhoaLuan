@@ -751,3 +751,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_minor_fixes.py::test_be_11_audit_events_export_endpoint` (Fails với `assert 404 == 401` trước khi sửa do endpoint không tồn tại).
   - Xác nhận: Test chuyển sang PASSED (request không có token bị từ chối HTTP 401; request admin hợp lệ nhận HTTP 200 với danh sách đầy đủ trường và áp dụng đúng các bộ lọc).
   - Hồi quy: 345 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [DEMO-01] Loại bỏ các giá trị lâm sàng và danh tính mặc định (Hardcoded Fallbacks) trong Report Generator
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `backend/services/report_generator.py`
+- **Nguyên nhân gốc (Root Cause)**: Hàm chuẩn hóa dữ liệu báo cáo `_normalize_report_data` trong `MedicalReportGenerator` chứa hàng loạt giá trị dữ liệu giả lập được hardcode sẵn trong mã nguồn (như mã bệnh nhân `"200044962"`, tên `"Nguyễn Thị Phượng"`, bác sĩ `"Trương Thị Phượng"`, số đo `"D1=28.5 mm, D2=21.0 mm, Diện tích=4.62 cm²"` và kết luận phân loại `"O-RADS 2"` kèm hẹn tái khám 3 tháng). Nếu generator này được gọi với dữ liệu rỗng hoặc chưa hoàn thiện, phiếu kết quả có thể tự động điền các thông số chẩn đoán giả mạo, vi phạm an toàn y tế và nguyên tắc không bịa đặt số liệu lâm sàng.
+- **Giải pháp**:
+  - Tại `_normalize_report_data`: Bắt buộc phải có mã định danh bệnh nhân hợp lệ (`patientId`/`anonymized_pid`/`pid`), ném `ValueError` ngay lập tức nếu thiếu.
+  - Loại bỏ hoàn toàn các tên người bệnh, tên bác sĩ, số đo kích thước và kết luận O-RADS 2 hardcode.
+  - Chuyển đổi các trường chưa được người dùng nhập sang trạng thái trung tính an toàn (`"Chưa ghi nhận"`, `"Chưa có kết luận lâm sàng"`, `"N/A"`), bảo đảm tính trung thực tuyệt đối của tài liệu y khoa.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_demo_01_report_generator_removes_hardcoded_placeholders` (Fails với `Failed: DID NOT RAISE ValueError` do sử dụng PID hardcode trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (thiếu PID ném đúng `ValueError`; khi có PID nhưng thiếu trường lâm sàng, toàn bộ chuỗi giả mạo không còn xuất hiện).
+  - Hồi quy: 346 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
