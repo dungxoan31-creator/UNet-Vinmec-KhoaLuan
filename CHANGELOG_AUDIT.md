@@ -491,3 +491,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_23_admin_create_user_normalizes_username_lowercase` (Fails với `Status=401, Body={"detail":"Invalid username or password."}` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (người dùng tạo với tên hỗn hợp hoa thường đăng nhập thành công với HTTP 200 và nhận token).
   - Hồi quy: 330 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
+### [BE-26] Ràng buộc chặt chẽ kiểu boolean cho is_active và thu hồi phiên tức thì khi vô hiệu hóa tài khoản
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Trong endpoint `PATCH /api/admin/users/{user_id}`, việc xử lý trường `is_active` chấp nhận chuỗi bất kỳ và ép kiểu lỏng lẻo (`val.strip().lower() not in ("false", "0", "no", "")`), khiến các chuỗi không hợp lệ như `"invalid_value"` vô tình được diễn giải thành `True` mà không bị từ chối bằng HTTP 422. Đồng thời, khi quản trị viên chuyển `is_active = False` để vô hiệu hóa một tài khoản, hệ thống không cập nhật `tokens_revoked_at` hay `token_version`, khiến phiên làm việc hiện tại của tài khoản vẫn tiếp tục truy cập hợp lệ trước khi hết hạn.
+- **Giải pháp**:
+  - Kiểm tra kiểu dữ liệu đầu vào nghiêm ngặt: chỉ chấp nhận boolean thực thụ hoặc các chuỗi đại diện boolean rõ ràng (`"true"`, `"1"`, `"yes"`, `"on"`, `"active"` -> `True`; `"false"`, `"0"`, `"no"`, `"off"`, `"inactive"` -> `False`). Các giá trị không hợp lệ khác bị từ chối ngay lập tức với `HTTP 422 Unprocessable Entity`.
+  - Khi tài khoản chuyển từ kích hoạt sang vô hiệu hóa (`user.is_active and not new_active`), lập tức cập nhật `user.tokens_revoked_at = datetime.now(UTC)` và tăng `user.token_version = (user.token_version or 1) + 1` để thu hồi toàn bộ token/phiên làm việc đang tồn tại.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_26_patch_is_active_strict_validation_and_revocation` (Fails với `Status=200` khi truyền chuỗi không hợp lệ trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (chuỗi lạ nhận 422, `"false"` cập nhật thành công và token cũ của tài khoản bị thu hồi ngay lập tức với 401).
+  - Hồi quy: 331 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
