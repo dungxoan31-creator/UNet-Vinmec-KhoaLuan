@@ -307,6 +307,62 @@ def get_audit_events(
     return {"items": items, "total": total}
 
 
+@router.get("/api/admin/audit-events/export")
+def export_audit_events(
+    q: str | None = None,
+    actor: str | None = None,
+    action: str | None = None,
+    from_date: str | None = Query(None, alias="from"),
+    from_param: str | None = Query(None, alias="from_date"),
+    start_date: str | None = Query(None, alias="start_date"),
+    to_date: str | None = Query(None, alias="to"),
+    to_param: str | None = Query(None, alias="to_date"),
+    end_date: str | None = Query(None, alias="end_date"),
+    limit: int = 5000,
+    db: Session = Depends(get_db),
+):
+    """Export audit events filtered by query criteria for admin compliance review (BE-11)."""
+    query = db.query(AuditLogModel)
+    if actor:
+        query = query.filter(AuditLogModel.actor_id.ilike(f"%{actor}%"))
+    if action:
+        query = query.filter(AuditLogModel.action_type == action)
+    if q:
+        search_fmt = f"%{q.strip()}%"
+        query = query.filter(
+            (AuditLogModel.actor_id.ilike(search_fmt))
+            | (AuditLogModel.action_type.ilike(search_fmt))
+            | (AuditLogModel.entity_id.ilike(search_fmt))
+            | (AuditLogModel.details.ilike(search_fmt))
+        )
+
+    effective_from = from_date or from_param or start_date
+    effective_to = to_date or to_param or end_date
+    from_dt = parse_date_boundary(effective_from, is_end_of_day=False)
+    to_dt = parse_date_boundary(effective_to, is_end_of_day=True)
+    if from_dt:
+        query = query.filter(AuditLogModel.timestamp >= from_dt)
+    if to_dt:
+        query = query.filter(AuditLogModel.timestamp <= to_dt)
+
+    logs = query.order_by(desc(AuditLogModel.timestamp)).limit(min(limit, 10000)).all()
+    items = [
+        {
+            "id": log_item.id,
+            "entity_name": log_item.entity_name,
+            "entity_id": log_item.entity_id,
+            "action_type": log_item.action_type,
+            "actor_id": log_item.actor_id,
+            "details": log_item.details,
+            "timestamp": log_item.timestamp.strftime("%d/%m/%Y %H:%M:%S")
+            if hasattr(log_item.timestamp, "strftime")
+            else str(log_item.timestamp),
+        }
+        for log_item in logs
+    ]
+    return {"items": items, "total": len(items)}
+
+
 @router.get("/api/admin/departments")
 def get_admin_departments(db: Session = Depends(get_db)):
     """Return clinical ultrasound and ob/gyn departments with real membership count."""
