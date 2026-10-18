@@ -627,3 +627,29 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
 - **Kiểm thử xác minh**:
   - Tái hiện & Xác nhận: `tests/test_audit_major_fixes.py::test_fe_05_and_06_css_contrast_compliance` PASSED.
   - Hồi quy: 339 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [OPS-02] Tách biệt Endpoint Liveness/Readiness và phản ánh chính xác năng lực phục vụ của Model
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/health.py`, `Dockerfile`, `docker-compose.yml`
+- **Nguyên nhân gốc (Root Cause)**: Trước đây hệ thống chỉ có một endpoint `/api/health` duy nhất trả về HTTP 200 `status: healthy` bất kể mô hình học sâu chính có được tải hay không (`model_ready=False` do thiếu checkpoint hoặc lỗi khởi tạo). Lệnh `HEALTHCHECK` trong `Dockerfile` và `docker-compose.yml` sử dụng `curl -f http://localhost:8000/api/health`, dẫn đến việc bộ điều phối container (Docker/Kubernetes) vẫn nhận định instance container hoàn toàn khỏe mạnh, không kích hoạt cơ chế khởi động lại hoặc điều chuyển lưu lượng mạng khi instance đã mất khả năng suy luận.
+- **Giải pháp**:
+  - Tách bạch rõ rệt giữa hai cơ chế kiểm tra sức khỏe hệ thống:
+    - `GET /api/health/live`: Liveness probe phản hồi HTTP 200 `{"status": "alive"}` xác nhận tiến trình máy chủ web FastAPI/Uvicorn đang chạy và phản hồi request.
+    - `GET /api/health/ready`: Readiness probe kiểm tra toàn diện năng lực phục vụ. Chỉ phản hồi HTTP 200 khi cả CSDL lẫn mô hình phân đoạn đều sẵn sàng (`model_ready=True` và `database="connected"`). Nếu mô hình chưa sẵn sàng hoặc adapter chưa nạp, trả về `HTTP 503 Service Unavailable` (`status: unhealthy`).
+  - Cập nhật lệnh kiểm tra sức khỏe trong `Dockerfile` và `docker-compose.yml` chuyển sang nhắm tới endpoint `/api/health/ready`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ops_02_and_03_liveness_readiness_separation_and_db_ping` (Fails với `AssertionError: Liveness check failed: 404` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (liveness trả về 200; khi model unready readiness trả về HTTP 503; khi cấu hình container khớp `/api/health/ready`).
+  - Hồi quy: 340 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [OPS-03] Bổ sung truy vấn kiểm tra kết nối CSDL trực tiếp (Live DB Ping) trong Readiness Probe
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/health.py`
+- **Nguyên nhân gốc (Root Cause)**: Endpoint `/api/health` trước đây hoàn toàn không thực hiện bất kỳ truy vấn kiểm tra nào vào cơ sở dữ liệu SQLite/SQLAlchemy. Khi file CSDL bị khóa, ngắt kết nối mạng hoặc đĩa bị lỗi, endpoint kiểm tra sức khỏe vẫn báo xanh HTTP 200, che giấu sự cố nghiêm trọng cho đến khi người dùng gửi các request nghiệp vụ thực tế.
+- **Giải pháp**:
+  - Tại `readiness_check` (`/api/health/ready`): Thực hiện truy vấn kiểm tra trực tiếp qua kết nối runtime `conn.execute(text("SELECT 1"))`. Nếu có lỗi kết nối hoặc CSDL bị gián đoạn, gán `database="disconnected"` và phản hồi `HTTP 503 Service Unavailable` kèm thông báo lỗi.
+  - Tại `health_check` (`/api/health`): Bổ sung trường `database_ready` và chuyển trạng thái tổng quát thành `degraded` nếu CSDL mất kết nối, giữ tính tương thích ngược cho các client giám sát bên ngoài.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ops_02_and_03_liveness_readiness_separation_and_db_ping` (Fails trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (khi mô phỏng lỗi kết nối CSDL, readiness lập tức phản hồi HTTP 503 với `database="disconnected"`).
+  - Hồi quy: 340 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
