@@ -185,4 +185,27 @@ def test_fe_04_viewer_readonly_and_lease_loss_guard_blocks_clinical_mutation():
     )
 
 
+def test_ops_04_security_headers_present():
+    """OPS-04: Responses must contain Content-Security-Policy and X-Content-Type-Options: nosniff headers."""
+    from fastapi.testclient import TestClient
 
+    from backend.app.main import app
+
+    client = TestClient(app)
+    response = client.get("/")
+
+    # Must include Content-Security-Policy
+    csp = response.headers.get("content-security-policy", "")
+    assert csp, "OPS-04 VULNERABILITY: Missing Content-Security-Policy header in response!"
+    assert "default-src 'self'" in csp, "OPS-04 VULNERABILITY: CSP missing default-src 'self' directive!"
+    assert "object-src 'none'" in csp, "OPS-04 VULNERABILITY: CSP missing object-src 'none' directive!"
+
+    # Must include X-Content-Type-Options: nosniff
+    assert response.headers.get("x-content-type-options") == "nosniff", (
+        "OPS-04 VULNERABILITY: Missing or invalid X-Content-Type-Options header!"
+    )
+
+    # Must include X-Frame-Options
+    assert response.headers.get("x-frame-options") in ("DENY", "SAMEORIGIN"), (
+        "OPS-04 VULNERABILITY: Missing or invalid X-Frame-Options header!"
+    )
