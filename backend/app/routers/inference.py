@@ -238,90 +238,91 @@ async def upload_image(
     with open(file_path, "wb") as f:
         f.write(contents)
 
-    # Extract DICOM calibration spacing if available
-    calibrated_spacing = extract_dicom_calibration_spacing(file_path)
-    if dicom_metadata is not None:
-        dicom_metadata["calibrated_spacing_mm"] = calibrated_spacing
-
-    # Read image with OpenCV to get dimensions and verify validity
-    img_np = decode_ultrasound_image(file_path)
-
-    if img_np is None:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế. File có thể bị hỏng.")
-
-    h, w = img_np.shape[:2]
-    if h * w > 25_000_000:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(status_code=413, detail="Kích thước điểm ảnh giải mã quá lớn (> 25 triệu pixels).")
-
-    # Link or Create Study & Patient
-    if not study_id:
-        anonymized_pid = anonymized_pid or f"ANON-UPLOAD-{uuid.uuid4().hex[:12].upper()}"
-        patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == anonymized_pid).first()
-        if not patient:
-            patient = PatientModel(
-                id=str(uuid.uuid4()), anonymized_pid=anonymized_pid, age_bucket=patient_age
-            )
-            db.add(patient)
-            db.commit()
-
-        study_id = str(uuid.uuid4())
-        study = StudyModel(
-            id=study_id,
-            patient_id=patient.id,
-            study_code=f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}",
-            study_date=datetime.now().strftime("%Y-%m-%d"),
-            status="PENDING",
-            device_vendor=None,
-            probe_type=None,
-        )
-        db.add(study)
-        db.commit()
-
-    image_record = ImageModel(
-        id=image_id,
-        study_id=study.id,
-        filename=safe_filename,
-        laterality=laterality,
-        raw_path=file_path,
-        file_hash=uploaded_hash,
-        width=w,
-        height=h,
-        pixel_spacing_mm=pixel_spacing_mm if pixel_spacing_mm is not None else calibrated_spacing,
-    )
-    db.add(image_record)
-
-    # Log Clinical Audit Trail
-    audit_log = AuditLogModel(
-        entity_name="image",
-        entity_id=image_id,
-        action_type="UPLOAD_IMAGE",
-        actor_id=current_user.username,
-        details={
-            "filename": safe_filename,
-            "dimensions": [w, h],
-            "size_kb": round(len(contents) / 1024, 1),
-            "study_id": study.id,
-            "laterality": laterality,
-        },
-    )
-    db.add(audit_log)
     try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
+        # Extract DICOM calibration spacing if available
+        calibrated_spacing = extract_dicom_calibration_spacing(file_path)
+        if dicom_metadata is not None:
+            dicom_metadata["calibrated_spacing_mm"] = calibrated_spacing
+
+        # Read image with OpenCV to get dimensions and verify validity
+        img_np = decode_ultrasound_image(file_path)
+
+        if img_np is None:
+            raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế. File có thể bị hỏng.")
+
+        h, w = img_np.shape[:2]
+        if h * w > 25_000_000:
+            raise HTTPException(status_code=413, detail="Kích thước điểm ảnh giải mã quá lớn (> 25 triệu pixels).")
+
+        # Link or Create Study & Patient
+        if not study_id:
+            anonymized_pid = anonymized_pid or f"ANON-UPLOAD-{uuid.uuid4().hex[:12].upper()}"
+            patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == anonymized_pid).first()
+            if not patient:
+                patient = PatientModel(
+                    id=str(uuid.uuid4()), anonymized_pid=anonymized_pid, age_bucket=patient_age
+                )
+                db.add(patient)
+                db.flush()
+
+            study_id = str(uuid.uuid4())
+            study = StudyModel(
+                id=study_id,
+                patient_id=patient.id,
+                study_code=f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}",
+                study_date=datetime.now().strftime("%Y-%m-%d"),
+                status="PENDING",
+                device_vendor=None,
+                probe_type=None,
+            )
+            db.add(study)
+            db.flush()
+
+        image_record = ImageModel(
+            id=image_id,
+            study_id=study.id,
+            filename=safe_filename,
+            laterality=laterality,
+            raw_path=file_path,
+            file_hash=uploaded_hash,
+            width=w,
+            height=h,
+            pixel_spacing_mm=pixel_spacing_mm if pixel_spacing_mm is not None else calibrated_spacing,
+        )
+        db.add(image_record)
+
+        # Log Clinical Audit Trail
+        audit_log = AuditLogModel(
+            entity_name="image",
+            entity_id=image_id,
+            action_type="UPLOAD_IMAGE",
+            actor_id=current_user.username,
+            details={
+                "filename": safe_filename,
+                "dimensions": [w, h],
+                "size_kb": round(len(contents) / 1024, 1),
+                "study_id": study.id,
+                "laterality": laterality,
+            },
+        )
+        db.add(audit_log)
+
         try:
-            os.remove(file_path)
-        except OSError:
-            pass
-        orig_str = str(getattr(exc, "orig", exc))
-        if "uq_study_file_hash" in orig_str or "images.study_id, images.file_hash" in orig_str:
-            raise HTTPException(status_code=409, detail="Ảnh này đã tồn tại trong ca khảo sát.") from exc
-        if "uq_study_laterality" in orig_str or "images.study_id, images.laterality" in orig_str:
-            raise HTTPException(status_code=409, detail="Ca khám đã có ảnh cho bên khảo sát này.") from exc
+            db.commit()
+        except IntegrityError as exc:
+            orig_str = str(getattr(exc, "orig", exc))
+            if "uq_study_file_hash" in orig_str or "images.study_id, images.file_hash" in orig_str:
+                raise HTTPException(status_code=409, detail="Ảnh này đã tồn tại trong ca khảo sát.") from exc
+            if "uq_study_laterality" in orig_str or "images.study_id, images.laterality" in orig_str:
+                raise HTTPException(status_code=409, detail="Ca khám đã có ảnh cho bên khảo sát này.") from exc
+            raise
+    except Exception:
+        db.rollback()
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
         raise
 
     return {

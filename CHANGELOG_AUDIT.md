@@ -359,3 +359,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_10_audit_events_date_range_filtering` (Fails với `AssertionError: BE-10 VULNERABILITY: Future date filter ignored! Expected 0, got total=3` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (lọc ngày tương lai trả về đúng 0 bản ghi; lọc khoảng thời gian trong tháng trả về chính xác 1 bản ghi khớp điều kiện).
   - Hồi quy: 320 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [BE-14] Bảo đảm tính nguyên tử (Atomicity) và dọn dẹp file vật lý khi upload thất bại
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/inference.py`
+- **Nguyên nhân gốc (Root Cause)**: Tại endpoint `POST /api/upload` (`upload_image`), khi người dùng tải ảnh lên mà không cung cấp `study_id`, hệ thống đã thực hiện `db.commit()` sớm cho `PatientModel` và tiếp tục `db.commit()` sớm cho `StudyModel` trước khi khởi tạo `ImageModel`. Nếu sau đó xảy ra lỗi ghi DB (ví dụ `OperationalError` hoặc lỗi ràng buộc), chỉ có `ImageModel` bị dừng lại trong khi `PatientModel` và `StudyModel` đã bị commit vĩnh viễn vào cơ sở dữ liệu, đồng thời file ảnh siêu âm vừa ghi ra đĩa (`file_path`) không được thu hồi/xóa bỏ. Điều này tạo ra các bản ghi bệnh nhân/ca khám mồ côi (orphan records) và rác đĩa không kiểm soát.
+- **Giải pháp**:
+  - Thay thế các lệnh `db.commit()` sớm của `PatientModel` và `StudyModel` bằng `db.flush()`. Toàn bộ chuỗi tạo Patient $\to$ Study $\to$ Image $\to$ AuditLog được gom vào một giao dịch cơ sở dữ liệu nguyên tử duy nhất.
+  - Bao bọc toàn bộ khối xử lý sau khi ghi file tạm vào khối `try...except Exception`: Nếu có bất kỳ ngoại lệ nào xảy ra trước khi giao dịch hoàn tất, tự động gọi `db.rollback()` (hủy bỏ toàn bộ Patient, Study, Image, AuditLog vừa tạo) và xóa file tạm trên đĩa an toàn bằng `os.remove(file_path)` có bảo vệ `try...except OSError`.
+  - Giữ nguyên cơ chế chuyển đổi lỗi `IntegrityError` thành phản hồi `HTTP 409 Conflict` thân thiện khi trùng lặp ảnh trong ca khám.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_14_upload_db_failure_rolls_back_atomically` (Fails với `AssertionError: BE-14 VULNERABILITY: Patient was committed despite upload failure! count=1` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (khi commit ImageModel thất bại, số lượng patient và study trong cơ sở dữ liệu đều là 0, và không có file mồ côi nào lưu lại trên đĩa).
+  - Hồi quy: 321 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+

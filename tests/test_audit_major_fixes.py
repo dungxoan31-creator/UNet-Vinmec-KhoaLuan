@@ -453,3 +453,86 @@ def test_be_10_audit_events_date_range_filtering(tmp_path, monkeypatch):
     finally:
         app.dependency_overrides.pop(get_db, None)
         engine_db.dispose()
+
+
+def test_be_14_upload_db_failure_rolls_back_atomically(tmp_path, monkeypatch):
+    """BE-14: If database commit fails during upload, newly added patient/study must rollback and file must be removed."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+
+    import cv2
+    import pytest
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import OperationalError
+    from sqlalchemy.orm import Session
+
+    import backend.app.routers.inference as inf_router
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token, hash_password
+    from backend.db.database import Base, ImageModel, PatientModel, StudyModel, UserModel, get_db
+
+    monkeypatch.setattr(inf_router, "UPLOAD_DIR", str(upload_dir))
+
+    engine_db = create_engine(f"sqlite:///{tmp_path / 'be14.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine_db)
+
+    with Session(engine_db) as db:
+        doc = UserModel(
+            id="u_doc14",
+            username="doc14",
+            full_name="Doctor 14",
+            role="DOCTOR",
+            is_active=True,
+            password_hash=hash_password("docpass123"),
+        )
+        db.add(doc)
+        db.commit()
+
+    class FailingCommitSession(Session):
+        def commit(self):
+            # Fail when ImageModel is being committed
+            if any(isinstance(x, ImageModel) for x in self.new):
+                raise OperationalError("synthetic final image commit", {}, Exception("injected temporary database failure"))
+            return super().commit()
+
+    def failing_db():
+        with FailingCommitSession(engine_db, autoflush=False) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = failing_db
+    try:
+        with TestClient(app) as client:
+            token = create_access_token({"sub": "doc14", "uid": "u_doc14"})
+            headers = {"Authorization": f"Bearer {token}"}
+
+            raw_png = cv2.imencode(".png", np.full((64, 64, 3), 77, np.uint8))[1].tobytes()
+
+            with pytest.raises(Exception):
+                client.post(
+                    "/api/upload",
+                    headers=headers,
+                    files={"file": ("test_fail.png", raw_png, "image/png")},
+                    data={"anonymized_pid": "ANON_FAIL_PID_14"},
+                )
+
+            # Check that patient and study were NOT committed
+            with Session(engine_db) as db:
+                patients_count = db.query(PatientModel).filter(PatientModel.anonymized_pid == "ANON_FAIL_PID_14").count()
+                assert patients_count == 0, (
+                    f"BE-14 VULNERABILITY: Patient was committed despite upload failure! count={patients_count}"
+                )
+                studies_count = db.query(StudyModel).count()
+                assert studies_count == 0, (
+                    f"BE-14 VULNERABILITY: Study was committed despite upload failure! count={studies_count}"
+                )
+
+            # Check that no file was left on disk in upload directory
+            files_left = list(upload_dir.iterdir())
+            assert len(files_left) == 0, (
+                f"BE-14 VULNERABILITY: Uploaded file was left on disk after failure! files={files_left}"
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine_db.dispose()
