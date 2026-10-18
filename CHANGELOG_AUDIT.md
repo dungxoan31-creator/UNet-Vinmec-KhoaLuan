@@ -692,3 +692,18 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
 - **Kiểm thử xác minh**:
   - Tái hiện & Xác nhận: `tests/test_audit_major_fixes.py::test_ops_06_07_08_packaging_and_backup_boundaries` PASSED.
   - Hồi quy: 341 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [DEP-01 đến DEP-05, OPS-05] Nâng cấp yêu cầu phiên bản MONAI khắc phục các lỗ hổng bảo mật và cố định phụ thuộc (Dependency Pinning)
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `requirements.txt`, `requirements-lock.txt`, `Dockerfile`
+- **Nguyên nhân gốc (Root Cause)**:
+  - Scanner báo 5 lỗ hổng bảo mật nghiêm trọng liên quan đến gói `monai 1.5.2` (gồm PYSEC-2026-4020, 4017, 4015, 4019, 4018 / CVE-2026-100840, 100842, 100843, 100844, 100845: giải tuần tự hóa không an toàn trong NumpyReader, eval injection trong shape helper, bundle RCE, và command injection trong nnUNetV2Runner). Tệp cấu hình `requirements.txt` trước đây chỉ đặt chặn dưới `monai>=1.3.0`, cho phép cài đặt các phiên bản dính lỗ hổng trên môi trường triển khai.
+  - Đồng thời ở `OPS-05`, `Dockerfile` cài đặt phụ thuộc bằng lệnh `pip install -r requirements.txt` dựa trên các chặn dưới không cố định (`>=`), khiến việc xây dựng image container ở các thời điểm khác nhau có thể tải về các phiên bản khác biệt, làm mất tính tái lập (non-reproducible build) và có nguy cơ nạp thư viện lỗi vào môi trường y tế.
+- **Giải pháp**:
+  - Trong `requirements.txt`: Nâng chặn dưới bắt buộc của MONAI lên `monai>=1.6.1`, vượt qua toàn bộ các mốc phiên bản bị khuyến cáo lỗ hổng từ upstream.
+  - Tạo tệp khóa phụ thuộc `requirements-lock.txt` ghi nhận chính xác 100% các phiên bản của toàn bộ hệ sinh thái thư viện đã được xác minh (`torch==2.6.0`, `monai==1.6.1`, `fastapi==0.141.1`,...).
+  - Cập nhật `Dockerfile`: Sao chép `requirements-lock.txt` và thực thi cài đặt `pip install --no-cache-dir -r requirements-lock.txt`, bảo đảm tính tái lập hoàn toàn cho container đóng gói.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_dep_01_through_05_and_ops_05_dependency_advisories_and_pinning` (Fails với `DEP-01..05 VULNERABILITY: monai declared as >=1.3.0, must be >= 1.6.0` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (`requirements.txt` yêu cầu `monai>=1.6.1`, `requirements-lock.txt` cố định đầy đủ phiên bản và `Dockerfile` sử dụng tệp lockfile).
+  - Hồi quy: 342 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
