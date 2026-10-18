@@ -587,3 +587,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_03_caliper_bounding_proxy_disclaimer_and_outside_mask_annotation` (Fails với `KeyError: 'measurement_method'` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (mặt nạ tam giác nhận diện chính xác `endpoints_outside_mask = True`, khai báo đầy đủ `measurement_method`, `proxy_type` và `clinical_disclaimer`).
   - Hồi quy: 337 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [AI-11] Thiết lập ranh giới phân định bảo mật (Deidentification Boundary) giữa file DICOM thô và gói nghiên cứu
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/inference.py`, `backend/services/research_export.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi bác sĩ tải lên tệp DICOM (`POST /api/upload`), tệp gốc được lưu trữ nguyên vẹn trên đĩa phục vụ lưu trữ lâm sàng và đối chuẩn kỹ thuật. Dù hệ thống gán mã định danh bệnh nhân ẩn danh (`anonymized_pid`), các thẻ siêu dữ liệu nhạy cảm trong header DICOM thô (`PatientName`, `PatientID`) vẫn tồn tại trên file đĩa máy chủ. Trước đây, hệ thống chưa thiết lập ranh giới phân định rõ ràng giữa kho lưu trữ thô lâm sàng (`clinical raw storage`) và các tài nguyên nghiên cứu đã khử định danh (`deidentified research artifacts`), tạo ra rủi ro lẫn lộn dữ liệu và thiếu cơ chế kiểm chứng rò rỉ thông tin y tế (PHI).
+- **Giải pháp**:
+  - Tại `upload_image`: Trích xuất và chỉ lưu giữ các thuộc tính kỹ thuật cần thiết của ảnh siêu âm (`modality`, `number_of_frames`, `study_instance_uid`, `series_instance_uid`, `calibrated_spacing_mm`). Tuyệt đối không lưu các thẻ định danh người bệnh vào metadata phản hồi API.
+  - Gắn nhãn ranh giới lưu trữ tường minh: `deidentified_boundary = "clinical_raw_storage"` trong phản hồi `dicom_metadata` và ghi nhận trong nhật ký kiểm toán `AuditLogModel`.
+  - Tại `build_research_bundle`: Bổ sung khối khai báo ranh giới khử định danh `deidentification` trong file `metadata.json` (`boundary: "derived_pixel_and_mask_artifacts_only"`, `raw_dicom_included: False`, `phi_scrubbed: True`).
+  - Đảm bảo toàn bộ gói nghiên cứu xuất khẩu chỉ chứa các mặt nạ dẫn xuất và ảnh trực quan hóa định dạng PNG, tuyệt đối không xuất kèm tệp DICOM thô hoặc bất kỳ thông tin nhận dạng cá nhân nào.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_11_deidentification_boundary_separates_clinical_raw_from_research_artifacts` (Fails với `AssertionError: assert None == 'clinical_raw_storage'` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (upload DICOM chứa synthetic sentinel headers bảo đảm an toàn: phản hồi API không lộ thông tin, endpoint source trả về PNG chuẩn, và gói nghiên cứu ZIP chứa 0 file DICOM kèm khối xác nhận `deidentification`).
+  - Hồi quy: 338 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
