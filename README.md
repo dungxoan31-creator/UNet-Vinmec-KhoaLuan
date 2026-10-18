@@ -130,7 +130,6 @@ UNet-Vinmec-KhoaLuan/
 ├── templates/               # Mẫu HTML phiếu kết quả siêu âm
 ├── tests/                   # Bộ kiểm thử tự động (Pytest & Playwright)
 ├── data/                    # Thư mục runtime cục bộ (uploads tạm và reports sinh ra)
-├── PROJECT_STRUCTURE.md     # Danh mục vai trò chi tiết của 100% tệp tin trong repo
 ├── MODEL_CARD.md            # Báo cáo kỹ thuật mô hình (Model Card)
 ├── TECH_STACK.md            # Thông số chi tiết các phiên bản thư viện
 ├── pyproject.toml           # Cấu hình Pytest và Ruff
@@ -309,10 +308,9 @@ Dự án tích hợp bộ kiểm thử toàn diện bảo đảm tính toàn v�
 ## 11. Hướng dẫn Phát triển & Đóng góp Tiếp theo
 
 Khi tiếp tục mở rộng và phát triển dự án, các nhà phát triển cần tuân thủ các nguyên tắc sau:
-1. **Tra cứu Vai trò Tệp tin**: Đọc kỹ [PROJECT_STRUCTURE.md](file:///C:/Users/Dung/Documents/UNet-Vinmec-KhoaLuan/PROJECT_STRUCTURE.md) trước khi thêm/sửa file để duy trì cấu trúc gọn nhẹ, không tạo các file script thừa ở thư mục gốc.
-2. **Kỷ luật Kiểm soát Mô hình (Model Integrity)**: Khi cập nhật hoặc huấn luyện mô hình mới, bắt buộc phải cập nhật file `evaluation/selected_model.json` đi kèm mã băm SHA-256 hợp lệ; API Backend sẽ từ chối nạp mô hình nếu mã băm không trùng khớp.
-3. **Bảo toàn Dữ liệu Gốc**: Thư mục `dataset/` phải luôn được xem là nguồn dữ liệu chỉ đọc (read-only), không ghi đè hoặc can thiệp trực tiếp vào ảnh gốc.
-4. **Quy tắc Kiểm thử**: Luôn chạy `pytest` và `ruff check .` để đảm bảo hệ thống đạt trạng thái xanh (Pass) trước khi tạo commit mới.
+1. **Kỷ luật Kiểm soát Mô hình (Model Integrity)**: Khi cập nhật hoặc huấn luyện mô hình mới, bắt buộc phải cập nhật file `evaluation/selected_model.json` đi kèm mã băm SHA-256 hợp lệ; API Backend sẽ từ chối nạp mô hình nếu mã băm không trùng khớp.
+2. **Bảo toàn Dữ liệu Gốc**: Thư mục `dataset/` phải luôn được xem là nguồn dữ liệu chỉ đọc (read-only), không ghi đè hoặc can thiệp trực tiếp vào ảnh gốc.
+3. **Quy tắc Kiểm thử**: Luôn chạy `pytest` và `ruff check .` để đảm bảo hệ thống đạt trạng thái xanh (Pass) trước khi tạo commit mới.
 
 ## Cấu hình gửi OTP đăng ký qua email
 

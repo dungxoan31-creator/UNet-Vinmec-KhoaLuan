@@ -212,7 +212,33 @@ def _generate_html_report(annotations: list[dict[str, Any]], panel_dir: Path) ->
 """
 
 
-def build_error_analysis(run_dir: Path, output_dir: Path | None = None, k: int = 5) -> dict[str, Any]:
+def _find_project_root(run_dir: Path) -> Path:
+    for candidate in (run_dir, *run_dir.parents):
+        if (candidate / "evaluation" / "manifests").is_dir() and (candidate / "dataset").is_dir():
+            return candidate
+    raise FileNotFoundError(f"Could not locate project root above evaluation run: {run_dir}")
+
+
+def _load_matching_manifest(root: Path, sample_ids: set[str]) -> dict[str, dict[str, str]]:
+    candidates = []
+    for manifest_path in sorted((root / "evaluation" / "manifests").glob("*.csv")):
+        with manifest_path.open(encoding="utf-8-sig", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        by_id = {row.get("sample_id", ""): row for row in rows if row.get("sample_id")}
+        overlap = len(sample_ids & by_id.keys())
+        if overlap:
+            candidates.append((overlap, manifest_path.name, by_id))
+    if not candidates:
+        raise FileNotFoundError("No evaluation manifest contains sample IDs from this run")
+    return max(candidates, key=lambda item: (item[0], item[1]))[2]
+
+
+def build_error_analysis(
+    run_dir: Path,
+    output_dir: Path | None = None,
+    k: int = 5,
+    root: Path | None = None,
+) -> dict[str, Any]:
     """Build full error analysis package from an existing evaluation run directory."""
     run_dir = run_dir.resolve()
     output_dir = (output_dir or (run_dir / "error_analysis")).resolve()
@@ -242,7 +268,7 @@ def build_error_analysis(run_dir: Path, output_dir: Path | None = None, k: int =
     # Load protocol and manifest
     _protocol_json = run_dir / "protocol.json"
     _audit_json = run_dir / "input_audit.json"
-    root = run_dir.parents[1]  # evaluation/milestone_3_final/run -> repo root
+    root = root.resolve() if root is not None else _find_project_root(run_dir)
 
     groups = rank_cases(rows, k=k)
 
@@ -267,15 +293,7 @@ def build_error_analysis(run_dir: Path, output_dir: Path | None = None, k: int =
     rows_by_id = {r["sample_id"]: r for r in rows}
 
     # Find original dataset images using audit or resolve_dataset_path
-    manifest_rows = {}
-    manifest_csv = root / "evaluation" / "manifests" / "legacy_test_v1.csv"
-    if not manifest_csv.is_file():
-        manifest_csv = root / "evaluation" / "manifests" / "validation_v1.csv"
-    if manifest_csv.is_file():
-        with open(manifest_csv, encoding="utf-8-sig") as mf:
-            mreader = csv.DictReader(mf)
-            for m in mreader:
-                manifest_rows[m["sample_id"]] = m
+    manifest_rows = _load_matching_manifest(root, {str(row["sample_id"]) for row in rows})
 
     for sid, grp_list in sample_to_groups.items():
         row_info = rows_by_id.get(sid, {})
@@ -367,9 +385,10 @@ def main():
     parser.add_argument("--run", type=Path, required=True, help="Path to evaluation run directory (e.g. legacy_test_v1)")
     parser.add_argument("--output", type=Path, default=None, help="Output directory for error analysis")
     parser.add_argument("--k", type=int, default=5, help="Number of cases per group")
+    parser.add_argument("--root", type=Path, default=None, help="Project root (auto-detected when omitted)")
 
     args = parser.parse_args()
-    data = build_error_analysis(run_dir=args.run, output_dir=args.output, k=args.k)
+    data = build_error_analysis(run_dir=args.run, output_dir=args.output, k=args.k, root=args.root)
     print(f"Error analysis built for {data['run_id']}. Analyzed {data['total_analyzed_cases']} cases across groups.")
 
 

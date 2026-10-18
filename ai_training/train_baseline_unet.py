@@ -1,9 +1,9 @@
 """
 Standard U-Net Baseline Training Pipeline with Combo Loss (BCE + Soft Dice).
-Optimized for NVIDIA RTX GPU with CUDA Mixed Precision (AMP).
-Patient-Level Stratified Validation and Best Model Checkpointing.
+Patient-level training requires source-verified IDs; image-level runs need an explicit exploratory opt-in.
 """
 
+import csv
 import hashlib
 import json
 import os
@@ -87,15 +87,51 @@ def load_initial_checkpoint(model, checkpoint_path, device):
     return _file_sha256(checkpoint_path)
 
 
+def validate_training_split_identity(splits_dir, allow_image_level=False):
+    """Require verified patient IDs for a patient-independent training claim."""
+    splits_dir = Path(splits_dir)
+    manifest_path = splits_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
+    verified = manifest.get("patient_ids_verified") is True or manifest.get("identity_level") == "patient_verified"
+
+    if not verified:
+        if allow_image_level:
+            return "image_level_only"
+        raise ValueError(
+            f"Patient-level independence is not verified for {splits_dir}. "
+            "Supply source-verified patient IDs or explicitly set allow_image_level=True for exploratory training."
+        )
+
+    patient_sets = {}
+    for split in ("train", "val", "test"):
+        path = splits_dir / f"{split}.csv"
+        with path.open(newline="", encoding="utf-8-sig") as stream:
+            reader = csv.DictReader(stream)
+            if "patient_id" not in (reader.fieldnames or []):
+                raise ValueError(f"Verified patient split is missing patient_id column: {path}")
+            ids = {str(row.get("patient_id") or "").strip() for row in reader}
+            ids.discard("")
+            if not ids:
+                raise ValueError(f"Verified patient split contains no patient IDs: {path}")
+            patient_sets[split] = ids
+
+    for left, right in (("train", "val"), ("train", "test"), ("val", "test")):
+        overlap = patient_sets[left] & patient_sets[right]
+        if overlap:
+            raise ValueError(f"Patient ID overlap between {left} and {right}: {len(overlap)} patient(s)")
+    return "patient_level_verified"
+
+
 def train_baseline(
     epochs=12,
     batch_size=4,
     lr=1e-3,
     checkpoint_dir="checkpoints",
-    splits_dir="ai_training/splits",
+    splits_dir="ai_training/splits/unified_vinmec_clean_2026-10-06",
     seed=42,
     patience=8,
     initial_checkpoint_path=None,
+    allow_image_level=False,
 ):
     print("=" * 70, flush=True)
     print("   BƯỚC 5: HUẤN LUYỆN MÔ HÌNH STANDARD U-NET BASELINE", flush=True)
@@ -112,6 +148,9 @@ def train_baseline(
     torch.manual_seed(seed)
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
+
+    split_identity_status = validate_training_split_identity(splits_dir, allow_image_level=allow_image_level)
+    print(f"[SPLIT] Identity status: {split_identity_status}", flush=True)
 
     # 1. Dataloaders
     train_loader, val_loader, test_loader = get_dataloaders(splits_dir=splits_dir, batch_size=batch_size, num_workers=0, seed=seed)
@@ -248,6 +287,7 @@ def train_baseline(
             "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
             "architecture": "StandardUNet(base_filters=32)",
             "augmentation": "HorizontalFlip, RandomBrightnessContrast, ShiftScaleRotate; train only",
+            "split_identity_status": split_identity_status,
             "validation_metric": "mean per-image Dice at 512x512, threshold 0.5",
             "device": str(device),
             "gpu_name": torch.cuda.get_device_name(0) if device.type == "cuda" else None,
@@ -273,4 +313,10 @@ def train_baseline(
 
 
 if __name__ == "__main__":
-    train_baseline(epochs=12, batch_size=4, lr=1e-3)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Train the U-Net baseline on a declared split manifest.")
+    parser.add_argument("--splits-dir", default="ai_training/splits/unified_vinmec_clean_2026-10-06")
+    parser.add_argument("--allow-image-level-split", action="store_true", help="Allow exploratory training without verified source patient IDs.")
+    args = parser.parse_args()
+    train_baseline(epochs=12, batch_size=4, lr=1e-3, splits_dir=args.splits_dir, allow_image_level=args.allow_image_level_split)

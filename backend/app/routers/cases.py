@@ -351,6 +351,9 @@ def delete_case(study_id: str, db: Session = Depends(get_db)):
                 if hasattr(ev_query, "delete"):
                     ev_query.delete(synchronize_session=False)
                 db.delete(s)
+        # SessionLocal disables autoflush, so remove HITL sessions that hold
+        # review_batch_id foreign keys before issuing the bulk batch delete.
+        db.flush()
     batch_query = db.query(ReviewBatchModel).filter(ReviewBatchModel.study_id == study_id)
     if hasattr(batch_query, "delete"):
         batch_query.delete(synchronize_session=False)

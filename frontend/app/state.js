@@ -50,7 +50,6 @@ export const permissions = {
     "case",
     "report",
     "patients",
-    "evaluation",
     "profile",
     "preferences",
     "notifications",

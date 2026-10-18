@@ -1,15 +1,97 @@
 import { inspectDicom } from "./dicom-inspect.js";
 import { state } from "./state.js";
 
-import { $, $$, esc, button, field, pageHead, icon, toast } from "./ui.js";
+import { $, $$, esc, button, field, modal, pageHead, icon, toast } from "./ui.js";
 import { startBilateral } from "./upload.js";
+const DEMO_PATIENTS_KEY = "ova.demo-patients.v1";
+const demoPatientSeeds = [
+  { pid: "100000001", visit: "000001", name: "Nguyễn Minh Anh", age: 32 },
+  { pid: "100000002", visit: "000002", name: "Trần Thu Hà", age: 41 },
+  { pid: "100000003", visit: "000003", name: "Lê Ngọc Mai", age: 28 },
+  { pid: "100000004", visit: "000004", name: "Phạm Thanh Vy", age: 36 },
+];
+function getDemoPatients() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DEMO_PATIENTS_KEY));
+    if (Array.isArray(saved) && saved.length) return saved;
+  } catch {}
+  localStorage.setItem(DEMO_PATIENTS_KEY, JSON.stringify(demoPatientSeeds));
+  return demoPatientSeeds;
+}
+function makeDemoId(length, used) {
+  let value;
+  do {
+    value = Array.from(
+      crypto.getRandomValues(new Uint8Array(length)),
+      (digit) => digit % 10,
+    ).join("");
+  }
+  while (used.has(value));
+  return value;
+}
 export function renderIntake(root) {
+  let cleanupUpload;
+  const renderList = () => {
+    const patients = getDemoPatients();
+    root.innerHTML = pageHead("Chọn bệnh nhân", "Chọn hồ sơ mô phỏng để bắt đầu khảo sát.", button("Tạo bệnh nhân", "add-patient", "primary", "plus")) + `<section class="panel"><div class="panel-head"><h2>Danh sách bệnh nhân mô phỏng</h2><span class="badge">${patients.length} hồ sơ mẫu</span></div><div class="table-wrap"><table><thead><tr><th>PID</th><th>Visit No</th><th>Bệnh nhân</th><th>Tuổi</th><th></th></tr></thead><tbody>${patients.map((p, i) => `<tr><td class="mono">${esc(p.pid)}</td><td class="mono">${esc(p.visit)}</td><td><strong>${esc(p.name)}</strong><small>Dữ liệu mô phỏng</small></td><td>${p.age} tuổi</td><td><button class="btn small primary" type="button" data-select="${i}">Chọn bệnh nhân</button></td></tr>`).join("")}</tbody></table></div></section>`;
+    root.querySelector("[data-action=add-patient]").onclick = () => {
+      const currentYear = new Date().getFullYear();
+      modal(
+        "Tạo bệnh nhân mô phỏng",
+        '<p class="small muted">Thông tin được lưu trong danh sách mô phỏng trên trình duyệt này, không gửi lên máy chủ.</p>' +
+          field("Họ và tên", "full_name", "text", "", 'required maxlength="120" autocomplete="name"') +
+          field("Năm sinh", "birth_year", "number", "", `required min="1900" max="${currentYear}" inputmode="numeric"`) +
+          field("Số điện thoại", "phone", "tel", "", 'required maxlength="24" autocomplete="tel"') +
+          '<label class="field">Giới tính<select name="gender" required><option value="">Chọn giới tính</option><option value="female">Nữ</option><option value="male">Nam</option><option value="other">Khác</option><option value="unknown">Không muốn nêu</option></select></label>' +
+          field("Quê quán", "hometown", "text", "", 'required maxlength="120" autocomplete="address-level1"') +
+          '<p class="form-error" data-patient-error role="alert" hidden></p><div class="actions"><button class="btn" value="cancel">Hủy</button><button class="btn primary" type="submit">Tạo và tiếp tục</button></div>',
+        (event, dialog) => {
+          const data = Object.fromEntries(new FormData(event.target));
+          const digits = String(data.phone).replace(/\D/g, "");
+          const error = dialog.querySelector("[data-patient-error]");
+          if (digits.length < 9 || digits.length > 12) {
+            error.textContent = "Vui lòng nhập số điện thoại có từ 9 đến 12 chữ số.";
+            error.hidden = false;
+            return;
+          }
+          const rows = getDemoPatients();
+          const year = Number(data.birth_year);
+          const patient = {
+            pid: makeDemoId(9, new Set(rows.map((p) => p.pid))),
+            visit: makeDemoId(6, new Set(rows.map((p) => p.visit))),
+            name: String(data.full_name).trim(),
+            age: currentYear - year,
+            birth_year: year,
+            phone: String(data.phone).trim(),
+            gender: data.gender,
+            hometown: String(data.hometown).trim(),
+          };
+          rows.push(patient);
+          localStorage.setItem(DEMO_PATIENTS_KEY, JSON.stringify(rows));
+          dialog.close();
+          cleanupUpload = renderUpload(root, patient, () => { cleanupUpload?.(); renderList(); });
+        },
+      );
+    };
+    root.querySelectorAll("[data-select]").forEach((el) => el.onclick = () => {
+      cleanupUpload = renderUpload(root, patients[Number(el.dataset.select)], () => { cleanupUpload?.(); renderList(); });
+    });
+  };
+  renderList();
+  return () => cleanupUpload?.();
+}
+
+function renderUpload(root, patient, onBack) {
   root.innerHTML =
     pageHead(
       "Khảo sát hai bên",
       "Tải ảnh buồng trứng trái và phải để bắt đầu.",
     ) +
     `<div class="panel" style="margin-bottom:24px"><div class="panel-body grid-2">${field("Mã bệnh nhân (PID)", "pid", "text", "", 'placeholder="Để trống để tự cấp BN-XXXX" maxlength="64"')}<label class="field">Lý do khảo sát<select name="reason"><option>Khác / chưa ghi nhận</option><option>Theo dõi hình thái</option><option>Khảo sát định kỳ</option></select></label></div></div><div class="grid-2">${["L", "R"].map((side) => `<section class="upload-card side-${side}"><h2><span class="side-letter">${side === "L" ? "T" : "P"}</span>Buồng trứng ${side === "L" ? "trái (L)" : "phải (R)"}</h2><div class="dropzone" data-side="${side}">${icon("upload", 28)}<p>Kéo thả ảnh vào đây</p><small class="muted">PNG, JPG, JPEG, DICOM · tối đa 20 MB</small><label class="btn" style="margin-top:16px">Chọn ảnh ${side === "L" ? "trái" : "phải"}<input type="file" data-file="${side}" accept=".png,.jpg,.jpeg,.dcm" class="visually-hidden"></label></div><div id="file-${side}" class="small muted" style="min-height:24px;margin-top:6px">Chưa chọn ảnh</div><progress id="progress-${side}" max="100" value="0"></progress><p id="stage-${side}" class="small" role="status">Chờ ảnh</p><span class="badge" style="background:${side === 'L' ? '#e0f2fe' : '#f3e8ff'};color:${side === 'L' ? '#0369a1' : '#7e22ce'};font-weight:600">${side === 'L' ? 'Buồng trứng Trái' : 'Buồng trứng Phải'}</span></section>`).join("")}</div><div class="stepper"><span class="current"><b>1</b>Tải ảnh</span><span><b>2</b>Kiểm tra chất lượng</span><span><b>3</b>Phân đoạn</span><span><b>4</b>Đo kích thước</span></div><div id="intakeError" role="alert"></div><div class="actions" style="margin:20px 0 6px 0"><button class="btn primary wide" id="startSegmentationBtn" data-action="start-segmentation" disabled style="padding:14px 20px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;">${icon("arrow")} Kích hoạt phân đoạn AI & Đo kích thước</button></div><p class="small muted" id="intakeHint" style="margin-top:4px;margin-bottom:14px;text-align:center;">Vui lòng tải đủ ảnh buồng trứng trái và phải để kích hoạt phân tích.</p><div class="banner info">${icon("help")}<div>Chọn đủ hai ảnh buồng trứng trái và phải, sau đó bấm <strong>Kích hoạt phân đoạn AI</strong> để hệ thống tiến hành kiểm tra chất lượng, suy luận U-Net và tự động đo kích thước tổn thương.</div></div><div class="actions">${button("Thử lại quá trình", "retry-upload")}${button("Dừng chờ phản hồi", "cancel-upload")}</div>`;
+  const pidField = $("[name=pid]");
+  pidField.value = patient.pid;
+  root.insertAdjacentHTML("afterbegin", `<div class="banner info" style="margin-bottom:16px"><div><strong>${esc(patient.name)}</strong> · PID <span class="mono">${esc(patient.pid)}</span> · Visit No <span class="mono">${esc(patient.visit)}</span> <button type="button" class="btn small" data-action="change-patient">Chọn bệnh nhân khác</button></div></div>`);
+  root.querySelector("[data-action=change-patient]").onclick = onBack;
   const files = { L: null, R: null };
   const dicom = {};
   const urls = [];

@@ -78,7 +78,7 @@ def test_training_persists_metrics_and_configuration_each_epoch(tmp_path, monkey
         return model
 
     monkeypatch.setattr("ai_training.train_baseline_unet.StandardUNet", tiny_model)
-    checkpoint = train_baseline(epochs=2, batch_size=2, checkpoint_dir=str(tmp_path), seed=17, patience=8)
+    checkpoint = train_baseline(epochs=2, batch_size=2, checkpoint_dir=str(tmp_path), seed=17, patience=8, allow_image_level=True)
     assert torch.load(checkpoint, map_location="cpu", weights_only=True)
     assert torch.load(tmp_path / "baseline_unet_last.pth", map_location="cpu", weights_only=True)
     history = json.loads((tmp_path / "vinmec_unet_best_history.json").read_text())
@@ -110,7 +110,7 @@ def test_amp_gradient_overflow_skips_update_instead_of_crashing(tmp_path, monkey
     monkeypatch.setattr("ai_training.train_baseline_unet.StandardUNet", tiny_model)
     scaler_type = torch.amp.GradScaler
     monkeypatch.setattr("ai_training.train_baseline_unet.torch.amp.GradScaler", lambda device, enabled: scaler_type(device, enabled=enabled, init_scale=2.0**30))
-    checkpoint = train_baseline(epochs=1, batch_size=2, checkpoint_dir=str(tmp_path))
+    checkpoint = train_baseline(epochs=1, batch_size=2, checkpoint_dir=str(tmp_path), allow_image_level=True)
     history = json.loads((tmp_path / "vinmec_unet_best_history.json").read_text())
     assert history[0]["amp_skipped_steps"] == 1
     saved_weights = torch.load(checkpoint, map_location="cpu", weights_only=True)

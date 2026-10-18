@@ -8,7 +8,7 @@ import {
   renderCaseDetail,
   getCases,
 } from "./cases.js";
-import { renderIntake } from "./intake.js";
+import { renderIntake } from "./intake.js?v=demo-patients-1";
 import { renderViewer } from "./viewer.js";
 import { renderApproval } from "./approval.js";
 import { renderPatients } from "./patients.js";
@@ -45,10 +45,15 @@ export function applyTheme(route) {
 function shell(route) {
   const language = state.preferences.language;
   $("#app").innerHTML =
-    `<header class="topbar"><button class="icon-btn" id="collapseNav" aria-label="Thu gọn điều hướng">${icon("menu")}</button><a class="brand" href="#dashboard"><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png" alt="Vinmec" width="81" height="50"><span class="brand-product">Siêu âm<small>BUỒNG TRỨNG</small></span></a><button class="btn top-search" id="quickSearch">${icon("search")}Tìm PID hoặc mã ca <kbd>Ctrl K</kbd></button><span class="spacer"></span>${role() !== "QT" ? '<a class="btn quiet next-label" href="#' + (role() === "TK" ? "approval" : "cases") + '">Ca tiếp theo</a>' : ""}<button class="icon-btn" id="themeToggle" aria-label="Chuyển giao diện sáng tối">${icon("sun")}</button><a class="icon-btn" href="#notifications" aria-label="Thông báo">${icon("bell")}</a><button class="btn quiet" id="accountMenu"><span class="avatar">${esc((state.user.full_name || state.user.username).slice(0, 1))}</span><span class="account-name">${esc(state.user.full_name || state.user.username)}</span></button></header><nav class="sidebar" aria-label="Điều hướng chính"><p class="nav-label">CÔNG VIỆC</p>${Object.entries(
+    `<header class="topbar"><button class="icon-btn" id="collapseNav" aria-label="Thu gọn điều hướng">${icon("menu")}</button><a class="brand" href="#dashboard"><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo" alt="Vinmec" width="81" height="50"><span class="brand-product">Siêu âm<small>BUỒNG TRỨNG</small></span></a><button class="btn top-search" id="quickSearch">${icon("search")}Tìm PID hoặc mã ca <kbd>Ctrl K</kbd></button><span class="spacer"></span>${role() !== "QT" ? '<a class="btn quiet next-label" href="#' + (role() === "TK" ? "approval" : "cases") + '">Ca tiếp theo</a>' : ""}<button class="icon-btn" id="themeToggle" aria-label="Chuyển giao diện sáng tối">${icon("sun")}</button><a class="icon-btn" href="#notifications" aria-label="Thông báo">${icon("bell")}</a><button class="btn quiet" id="accountMenu"><span class="avatar">${esc((state.user.full_name || state.user.username).slice(0, 1))}</span><span class="account-name">${esc(state.user.full_name || state.user.username)}</span></button></header><nav class="sidebar" aria-label="Điều hướng chính"><p class="nav-label">CÔNG VIỆC</p>${Object.entries(
       routes,
     )
-      .filter(([key]) => can(key) && !["preferences", "profile"].includes(key))
+      .filter(
+        ([key]) =>
+          can(key) &&
+          !["preferences", "profile"].includes(key) &&
+          !(role() === "BS" && key === "evaluation"),
+      )
       .map(
         ([key, ico]) =>
           `<a href="#${key}" title="${esc(t(key, language))}" class="${route === key ? "active" : ""}">${icon(ico)}<span>${esc(t(key, language))}</span></a>`,
@@ -138,6 +143,10 @@ export async function navigate() {
     .split("?")[0]
     .split("/");
   route = route || "dashboard";
+  if (route === "evaluation" && role() === "BS") {
+    location.hash = "#dashboard";
+    return;
+  }
   if (
     state.mustChangePassword &&
     !["first", "login", "expired"].includes(route)

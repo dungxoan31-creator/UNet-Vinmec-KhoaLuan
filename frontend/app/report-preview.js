@@ -167,7 +167,7 @@ export async function renderReport(root, id) {
     }
     const assets = await Promise.all(c.images.map(reportImages));
     if (!active()) return;
-    target.innerHTML = `<article class="report"><header class="report-header"><div><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png" alt="Vinmec" width="100" height="62"><p class="eyebrow">HỖ TRỢ PHÂN ĐOẠN SIÊU ÂM</p><h1>Phiếu rà soát phân đoạn siêu âm</h1><p>Khảo sát buồng trứng hai bên</p></div><div class="mono">${esc(c.study_code || c.study_id)}</div></header><p class="report-notice">Hỗ trợ phân đoạn siêu âm · Bác sĩ xác nhận kết quả</p><div class="grid-2"><p>PID: <strong>${esc(c.patient_id)}</strong></p><p>Ngày khảo sát: ${esc(c.study_date)}</p></div>${c.images
+    target.innerHTML = `<article class="report"><header class="report-header"><div><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo" alt="Vinmec" width="100" height="62"><p class="eyebrow">HỖ TRỢ PHÂN ĐOẠN SIÊU ÂM</p><h1>Phiếu rà soát phân đoạn siêu âm</h1><p>Khảo sát buồng trứng hai bên</p></div><div class="mono">${esc(c.study_code || c.study_id)}</div></header><p class="report-notice">Hỗ trợ phân đoạn siêu âm · Bác sĩ xác nhận kết quả</p><div class="grid-2"><p>PID: <strong>${esc(c.patient_id)}</strong></p><p>Ngày khảo sát: ${esc(c.study_date)}</p></div>${c.images
       .map((i, index) => {
         const m = i.measurements || {},
           cal = m.calibrated;

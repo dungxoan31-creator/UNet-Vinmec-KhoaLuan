@@ -72,6 +72,7 @@ fs.mkdirSync(artifactDir, { recursive: true });
 
     // 4. Create Bilateral Case 1 & Upload Dual Images
     await page.evaluate(() => { location.hash = '#intake'; });
+    await page.locator('[data-select]').first().click();
     await page.locator('[data-file=L]').setInputFiles(files[0]);
     await page.waitForTimeout(400);
     assert.equal(await page.locator('#stage-R').textContent(), 'Chờ ảnh');
@@ -206,11 +207,9 @@ fs.mkdirSync(artifactDir, { recursive: true });
 
     // 8. Unsupported Clinical Sign-off Guard (501 / explicit UI refusal)
     await page.locator('[data-action=sign]').click();
-    await page.locator('#modal button[type=submit]').click();
-    await page.locator('#signError').filter({ hasText: 'chưa khả dụng' }).waitFor({ timeout: 5000 });
+    await page.locator('#toasts .toast').filter({ hasText: 'Tính năng quy trình hai cấp' }).waitFor({ timeout: 5000 });
     const caseAfterSignAttempt = await (await page.request.get(`${base}/api/cases/${studyId1}`, { headers: authHeaders })).json();
     assert.equal(caseAfterSignAttempt.status, 'REVIEWED', 'Status must remain REVIEWED after rejected signoff');
-    await page.locator('#modal button[value=cancel]').last().click();
 
     // 9. Reopen / Restart Persistence Verification
     // Reload case in new page navigation
@@ -234,6 +233,7 @@ fs.mkdirSync(artifactDir, { recursive: true });
     // 10. Multi-Case Isolation (Case 2 must start clean)
     console.log('[E2E] Testing multi-case isolation with Case 2...');
     await page.evaluate(() => { location.hash = '#intake'; });
+    await page.locator('[data-select]').first().click();
     await page.locator('[data-file=L]').setInputFiles(files[0]);
     await page.waitForTimeout(400);
     await page.locator('[data-file=R]').setInputFiles(files[1]);

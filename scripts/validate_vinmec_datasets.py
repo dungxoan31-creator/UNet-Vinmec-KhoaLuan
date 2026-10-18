@@ -365,7 +365,7 @@ def audit(root: Path, output_dir: Path) -> dict:
         "project_root": str(root),
         "framework": "PyTorch",
         "training_entrypoints": {
-            "baseline": "ai_training/train_baseline_unet.py (uses train/val split; default split path must be overridden explicitly)",
+            "baseline": "ai_training/train_baseline_unet.py (defaults to the canonical image-level manifest; explicit opt-in required until source patient IDs are verified)",
             "full_data": "ai_training/train_full_unet.py (currently includes the source test folder in its training pair groups and has no validation loader; unsafe for requested run)",
         },
         "datasets": roots_summary,

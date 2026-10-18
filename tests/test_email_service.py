@@ -2,7 +2,6 @@ import importlib
 
 import pytest
 
-
 ENV_NAMES = (
     "SMTP_HOST",
     "SMTP_PORT",

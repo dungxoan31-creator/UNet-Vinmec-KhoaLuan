@@ -192,7 +192,7 @@ const researchReportPreview = (() => {
             '</td><td>' + metric(physical ? areaCm2 : areaPx, physical ? 'cm²' : 'px²') + '</td>';
         const lesions = Array.isArray(measurements.lesions) ? measurements.lesions : [];
         $('reportPreviewContent').innerHTML = '<article class="research-report" aria-label="Báo cáo nghiên cứu đã lưu">' +
-            '<header class="research-report-header"><img src="/static/vinmec_logo.svg" alt="Vinmec" width="112" height="64">' +
+            '<header class="research-report-header"><img src="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo" alt="Vinmec" width="112" height="64">' +
             '<div><p class="research-report-kicker">Hỗ trợ phân đoạn siêu âm buồng trứng</p><h1>Báo cáo rà soát phân đoạn siêu âm</h1>' +
             '<p>Cơ sở được chọn (bối cảnh nhập): <span data-report-facility>' + escaped(facility()) + '</span></p></div></header>' +
             '<p class="research-report-notice">Hỗ trợ phân đoạn siêu âm - Không thay thế chẩn đoán y khoa</p>' +

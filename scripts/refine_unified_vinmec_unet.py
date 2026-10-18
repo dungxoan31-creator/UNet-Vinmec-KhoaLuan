@@ -86,6 +86,7 @@ def run_refinement(root: Path) -> dict:
             lr=learning_rate,
             checkpoint_dir=str(run_dir),
             splits_dir=str(split_dir),
+            allow_image_level=True,
             seed=SEED,
             patience=PATIENCE,
             initial_checkpoint_path=str(initial_checkpoint),

@@ -22,6 +22,7 @@ import {
 } from "./ui.js";
 import { openSignoff, saveResearchReview } from "./review.js";
 import { tracker } from "./hitl-tracker.js";
+import { imageSourceBlob } from "./image-source.js";
 let active = null;
 export function currentViewer() {
   return active;
@@ -456,7 +457,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         item.sourceIsModel = true;
       }
       const bitmap = await createImageBitmap(
-        await (await fetch(item.source)).blob(),
+        await imageSourceBlob(item.source),
       );
       if (version !== serial || disposed) {
         bitmap.close();
@@ -783,7 +784,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           other.sourceIsModel = true;
         }
         const bitmap = await createImageBitmap(
-          await (await fetch(other.source)).blob(),
+          await imageSourceBlob(other.source),
         );
         if (
           disposed ||

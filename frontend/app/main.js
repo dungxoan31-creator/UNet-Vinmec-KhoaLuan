@@ -1,5 +1,5 @@
 import { restoreSession, sessionMonitor } from "./auth.js";
-import { bindGlobal, navigate } from "./navigation.js";
+import { bindGlobal, navigate } from "./navigation.js?v=hide-evaluation-for-doctor-1";
 import { nextCase } from "./workflow.js";
 window.addEventListener("ova:next-case", (e) => nextCase(e.detail));
 import { state } from "./state.js";
