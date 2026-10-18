@@ -222,5 +222,85 @@ def test_be_13_concurrent_laterality_upload_race(tmp_path, monkeypatch):
         engine.dispose()
 
 
+def test_ai_01_dicom_rejects_time_unit_physical_units_4(tmp_path):
+    """AI-01: DICOM Sequence of Ultrasound Regions with time units (PhysicalUnits=4) must NOT be calibrated as mm."""
+    import pydicom
+    from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
+    from pydicom.sequence import Sequence
+    from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, generate_uid
+    from backend.app.routers.inference import extract_dicom_calibration_spacing
+
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    dcm = FileDataset("test_ai01.dcm", {}, file_meta=meta, preamble=b"\0" * 128)
+    dcm.SOPClassUID = meta.MediaStorageSOPClassUID
+    dcm.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    dcm.Modality = "US"
+    dcm.Rows = 128
+    dcm.Columns = 128
+
+    # Create Ultrasound Region Sequence with time units (seconds: PhysicalUnits=4)
+    region = Dataset()
+    region.RegionSpatialFormat = 1
+    region.PhysicalUnitsXDirection = 4  # Seconds (time)
+    region.PhysicalUnitsYDirection = 4  # Seconds (time)
+    region.PhysicalDeltaX = 0.05
+    region.PhysicalDeltaY = 0.05
+    dcm.SequenceOfUltrasoundRegions = Sequence([region])
+
+    file_path = tmp_path / "time_unit.dcm"
+    dcm.save_as(str(file_path))
+
+    # Calibration spacing must be rejected (None), NOT interpreted as 0.05 mm!
+    spacing = extract_dicom_calibration_spacing(str(file_path))
+    assert spacing is None, (
+        f"AI-01 VULNERABILITY DETECTED: Time unit (PhysicalUnits=4) was accepted as physical mm spacing: {spacing}!"
+    )
+
+
+def test_ai_02_dicom_rejects_non_2d_region_or_picks_correct_2d_region(tmp_path):
+    """AI-02: DICOM calibration must ignore non-2D regions (e.g. M-mode / Doppler) and require valid 2D spatial format."""
+    import pydicom
+    from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
+    from pydicom.sequence import Sequence
+    from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, generate_uid
+    from backend.app.routers.inference import extract_dicom_calibration_spacing
+
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    dcm = FileDataset("test_ai02.dcm", {}, file_meta=meta, preamble=b"\0" * 128)
+    dcm.SOPClassUID = meta.MediaStorageSOPClassUID
+    dcm.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    dcm.Modality = "US"
+    dcm.Rows = 128
+    dcm.Columns = 128
+
+    # Region 0: M-mode waveform (SpatialFormat=2) - INVALID for 2D tissue calibration
+    mmode_region = Dataset()
+    mmode_region.RegionSpatialFormat = 2  # M-mode
+    mmode_region.PhysicalUnitsXDirection = 3  # cm
+    mmode_region.PhysicalUnitsYDirection = 3  # cm
+    mmode_region.PhysicalDeltaX = 0.01
+    mmode_region.PhysicalDeltaY = 0.01
+
+    dcm.SequenceOfUltrasoundRegions = Sequence([mmode_region])
+    file_path = tmp_path / "mmode_only.dcm"
+    dcm.save_as(str(file_path))
+
+    # Must NOT blindly take us_regions[0] and use M-mode calibration!
+    spacing = extract_dicom_calibration_spacing(str(file_path))
+    assert spacing is None, (
+        f"AI-02 VULNERABILITY DETECTED: Non-2D M-mode region was used for 2D calibration: {spacing} mm!"
+    )
+
+
+
+
 
 

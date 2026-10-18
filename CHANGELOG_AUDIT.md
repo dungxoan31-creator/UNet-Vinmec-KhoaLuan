@@ -64,6 +64,30 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (Một request thành công 200, request cạnh tranh còn lại nhận 409 Conflict; DB lưu đúng 1 ảnh duy nhất cho bên R).
   - Hồi quy: 301 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [AI-01] Loại bỏ đơn vị thời gian và vận tốc trong Sequence hiệu chuẩn DICOM
+- **Mức độ nghiêm trọng**: BLOCKER
+- **Tập tin sửa đổi**: `backend/app/routers/inference.py`
+- **Nguyên nhân gốc (Root Cause)**: Hàm `extract_dicom_calibration_spacing` chấp nhận `unit_x in (3, 4)` và gán `scale = 1` nếu `unit_x == 4`. Theo chuẩn DICOM PS3.3 C.8.5.5.1, `PhysicalUnits=4` là đơn vị thời gian (giây) của Doppler/M-mode chứ không phải khoảng cách không gian. Việc gán 1 giây = 1 mm làm sai lệch hoàn toàn kích thước Dmax/Dorth và phân loại nguy cơ O-RADS.
+- **Giải pháp**: Bắt buộc chỉ chấp nhận `PhysicalUnitsXDirection == 3` và `PhysicalUnitsYDirection == 3` (Centimeters, scale 10.0 mm/cm). Mọi đơn vị thời gian (4: seconds), vận tốc (5: cm/s), nhịp tim (7: bpm) đều bị từ chối triệt để.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_blocker_fixes.py::test_ai_01_dicom_rejects_time_unit_physical_units_4` (Fails với `0.05 is not None` trước khi sửa do chấp nhận PhysicalUnits=4).
+  - Xác nhận: Test chuyển sang PASSED sau khi sửa.
+  - Hồi quy: 303 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [AI-02] Xác thực định dạng không gian 2D và kiểm tra biên vùng hiệu chuẩn DICOM
+- **Mức độ nghiêm trọng**: BLOCKER
+- **Tập tin sửa đổi**: `backend/app/routers/inference.py`
+- **Nguyên nhân gốc (Root Cause)**: Hàm `extract_dicom_calibration_spacing` giả định mù quáng vùng hiệu chuẩn đầu tiên `us_regions[0]` áp dụng cho toàn bộ ảnh mà không kiểm tra `RegionSpatialFormat`. Khi máy siêu âm ghi nhận Sequence gồm vùng M-mode waveform (`RegionSpatialFormat=2`) ở vị trí đầu tiên, server dùng sai scale của M-mode để đo khối u 2D.
+- **Giải pháp**:
+  - Duyệt toàn bộ `SequenceOfUltrasoundRegions`, bắt buộc kiểm tra `RegionSpatialFormat == 1` (2D Tissue Ultrasound).
+  - Kiểm tra tính hợp lệ của tọa độ bao phủ hình học vùng (`min_x0 < max_x1` và `min_y0 < max_y1`).
+  - Khi có nhiều vùng 2D, kiểm tra tính đồng nhất của calibration; nếu có mâu thuẫn thì từ chối để tránh áp sai scale.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_blocker_fixes.py::test_ai_02_dicom_rejects_non_2d_region_or_picks_correct_2d_region` (Fails với `0.1 is not None` trước khi sửa do lấy bừa us_regions[0] của M-mode).
+  - Xác nhận: Test chuyển sang PASSED sau khi sửa.
+  - Hồi quy: 303 passed, 2 skipped, 0 regressions trên toàn bộ test suite (bao gồm 7 test trong `tests/test_dicom_scope_guard.py`).
+
+
 
 
 

@@ -96,17 +96,48 @@ def extract_dicom_calibration_spacing(file_path: str) -> float | None:
         # Check Sequence of Ultrasound Regions (0018,6011)
         us_regions = dcm.get("SequenceOfUltrasoundRegions")
         if us_regions and len(us_regions) > 0:
-            region = us_regions[0]
-            dx = getattr(region, "PhysicalDeltaX", None)
-            dy = getattr(region, "PhysicalDeltaY", None)
-            unit_x = getattr(region, "PhysicalUnitsXDirection", None)
-            unit_y = getattr(region, "PhysicalUnitsYDirection", None)
-            if dx is not None and dy is not None and unit_x in (3, 4) and unit_y in (3, 4):
-                spacing_x = float(dx) * (10 if unit_x == 3 else 1)
-                spacing_y = float(dy) * (10 if unit_y == 3 else 1)
-                if (math.isfinite(spacing_x) and math.isfinite(spacing_y) and
-                        spacing_x > 0 and spacing_y > 0 and math.isclose(spacing_x, spacing_y, rel_tol=0.001)):
-                    return round(spacing_x, 4)
+            valid_spacings = []
+            for region in us_regions:
+                # DICOM PS3.3 C.8.5.5.1: RegionSpatialFormat == 1 is 2D Ultrasound Tissue
+                spatial_format = getattr(region, "RegionSpatialFormat", None)
+                if spatial_format != 1:
+                    continue
+
+                dx = getattr(region, "PhysicalDeltaX", None)
+                dy = getattr(region, "PhysicalDeltaY", None)
+                unit_x = getattr(region, "PhysicalUnitsXDirection", None)
+                unit_y = getattr(region, "PhysicalUnitsYDirection", None)
+
+                # Strict clinical safety (AI-01): Only PhysicalUnits=3 (Centimeters) represents 2D distance.
+                # PhysicalUnits=4 (seconds), 5 (cm/s), 7 (bpm) are time/velocity and MUST BE REJECTED.
+                if dx is not None and dy is not None and unit_x == 3 and unit_y == 3:
+                    # Validate region bounding coordinates if present (AI-02)
+                    min_x0 = getattr(region, "RegionLocationMinX0", None)
+                    max_x1 = getattr(region, "RegionLocationMaxX1", None)
+                    min_y0 = getattr(region, "RegionLocationMinY0", None)
+                    max_y1 = getattr(region, "RegionLocationMaxY1", None)
+                    if min_x0 is not None and max_x1 is not None and min_x0 >= max_x1:
+                        continue
+                    if min_y0 is not None and max_y1 is not None and min_y0 >= max_y1:
+                        continue
+
+                    spacing_x = float(dx) * 10.0  # cm to mm
+                    spacing_y = float(dy) * 10.0  # cm to mm
+                    if (
+                        math.isfinite(spacing_x)
+                        and math.isfinite(spacing_y)
+                        and spacing_x > 0
+                        and spacing_y > 0
+                        and math.isclose(spacing_x, spacing_y, rel_tol=0.001)
+                    ):
+                        valid_spacings.append(round(spacing_x, 4))
+
+            if valid_spacings:
+                # If multiple 2D regions exist, ensure they agree
+                first_spacing = valid_spacings[0]
+                if all(math.isclose(s, first_spacing, rel_tol=0.001) for s in valid_spacings):
+                    return first_spacing
+                # Conflicting 2D regions: reject ambiguous calibration
                 return None
 
         # Check standard Pixel Spacing (0028,0030)
