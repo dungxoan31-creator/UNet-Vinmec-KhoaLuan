@@ -2,7 +2,7 @@
 
 ## Mục tiêu
 
-Luồng đăng ký bác sĩ yêu cầu địa chỉ email hợp lệ, gửi OTP tự động tới địa chỉ đó và chỉ kích hoạt tài khoản sau khi OTP được xác minh. Tài khoản đã tồn tại và tài khoản quản trị được bootstrap tiếp tục dùng luồng đăng nhập hiện tại.
+Luồng đăng ký bác sĩ yêu cầu địa chỉ email hợp lệ, gửi OTP tự động tới địa chỉ đó và chỉ kích hoạt tài khoản sau khi OTP được xác minh. Sau khi xác minh, người đăng ký được đăng nhập ngay; không cần quản trị viên duyệt tài khoản công khai mới.
 
 ## Hiện trạng
 
@@ -23,7 +23,7 @@ Dùng SMTP qua thư viện chuẩn `smtplib` và `email.message`, cấu hình b�
 4. Nếu cấu hình SMTP thiếu hoặc gửi thất bại, giao dịch đăng ký bị rollback và API trả lỗi có thể hiển thị được cho người dùng.
 5. Giao diện chuyển sang màn xác minh email và yêu cầu mã OTP.
 6. `POST /api/auth/verify-registration-otp` kiểm tra mã, thời hạn và số lần thử. Mã hợp lệ đánh dấu email đã xác minh và kích hoạt tài khoản; mã hết hạn hoặc vượt số lần thử không kích hoạt tài khoản.
-7. Sau xác minh, người dùng được đưa về đăng nhập. Không tự đăng nhập bằng tài khoản vừa xác minh.
+7. Sau xác minh, backend kích hoạt tài khoản và trả access token; frontend tạo phiên đăng nhập ngay.
 
 OTP có hiệu lực 10 phút, tối đa 5 lần nhập. Mỗi đăng ký chỉ có một OTP còn hiệu lực cho email đó. API không trả OTP trong response hoặc log. OTP được HMAC bằng `APP_JWT_SECRET`, vốn đã bắt buộc trong môi trường chạy.
 
@@ -32,7 +32,7 @@ Màn xác minh cho phép gửi lại mã. Giới hạn gửi lại là tối đa
 ## Dữ liệu và migration
 
 - Thêm `email` nullable vào `users` để tương thích các tài khoản cũ; email bắt buộc ở schema đăng ký.
-- Thêm `email_verified` mặc định false. Người dùng cũ không bị vô hiệu hóa hoặc buộc xác minh lại.
+- Thêm `email_verified` mặc định false. Người dùng cũ không bị vô hiệu hóa hoặc buộc xác minh lại; tài khoản bootstrap tiếp tục đăng nhập theo cấu hình hiện tại.
 - Bảo đảm email duy nhất không phân biệt hoa thường cho các địa chỉ có giá trị.
 - Thêm bảng challenge đăng ký chứa email chuẩn hóa, mã HMAC, hạn dùng, số lần thử, số lần gửi lại, thời điểm gửi gần nhất và thời điểm tạo; xóa challenge sau khi xác minh thành công.
 - Bổ sung migration SQLite trong `init_db()` theo mẫu hiện tại, không sửa hoặc xóa dữ liệu tài khoản cũ.
@@ -65,10 +65,10 @@ Màn xác minh cho phép gửi lại mã. Giới hạn gửi lại là tối đa
 - Kiểm thử email bắt buộc, trùng email không phân biệt hoa thường, tạo challenge, OTP đúng/sai/hết hạn/quá số lần thử.
 - Mock SMTP để kiểm tra email được gửi và lỗi gửi thư rollback đăng ký mà không cần tài khoản email thật.
 - Kiểm tra thời gian chờ gửi lại, giới hạn gửi lại và mã mới vô hiệu hóa mã cũ.
-- Kiểm thử giao diện đăng ký chuyển sang xác minh; OTP đúng kích hoạt tài khoản và đăng nhập hoạt động sau đó.
+- Kiểm thử giao diện đăng ký chuyển sang xác minh; OTP đúng kích hoạt tài khoản và tạo phiên đăng nhập ngay, OTP sai không kích hoạt.
 
 ## Ngoài phạm vi
 
 - OTP cho đăng nhập hoặc khôi phục mật khẩu.
 - Đổi email, quản trị nhà cung cấp email, hoặc dashboard theo dõi email.
-- Tự động đăng nhập người dùng sau khi xác minh email.
+- Duyệt thủ công tài khoản bác sĩ tự đăng ký.
