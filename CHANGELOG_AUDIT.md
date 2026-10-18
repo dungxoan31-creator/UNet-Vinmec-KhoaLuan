@@ -176,6 +176,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (request ẩn danh bị từ chối 401; request có token của `doctor1` truyền `actor_id="auditadmin"` chỉ ghi nhận đúng `actor_id="doctor1"` trong audit log).
   - Hồi quy: 308 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-09] Thiết lập nhật ký kiểm toán bảo mật (Security Audit Logging) cho Auth, Read ca bệnh và Quyền quản trị
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `backend/app/routers/auth.py`, `backend/app/routers/cases.py`, `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Các hành vi nhạy cảm cốt lõi trong hệ thống y tế — bao gồm đăng nhập thành công (`LOGIN_SUCCESS`), đăng nhập thất bại do sai thông tin/không tồn tại (`LOGIN_FAILURE`), bác sĩ truy cập hồ sơ và hình ảnh siêu âm của người bệnh (`CLINICAL_CASE_READ`), cũng như quản trị viên cập nhật thuộc tính tài khoản người dùng (`ADMIN_USER_UPDATE`) — hoàn toàn không ghi vết kiểm toán (0 audit rows) trong bảng `AuditLogModel`. Điều này vi phạm nghiêm trọng tiêu chuẩn an toàn thông tin y tế (HIPAA/GDPR) do không thể truy vết trách nhiệm khi xảy ra rò rỉ dữ liệu hoặc xâm nhập trái phép.
+- **Giải pháp**:
+  - Trong `backend/app/routers/auth.py`: Bổ sung ghi nhận sự kiện bảo mật `LOGIN_FAILURE` (với lý do không tìm thấy user hoặc sai mật khẩu) và `LOGIN_SUCCESS` (với vai trò tài khoản) vào `AuditLogModel`.
+  - Trong `backend/app/routers/cases.py`: Khi bác sĩ tải chi tiết ca bệnh qua `GET /api/cases/{study_id}`, tự động ghi nhận sự kiện `CLINICAL_CASE_READ` kèm `actor_id` của bác sĩ, `study_id`, và `patient_id`.
+  - Trong `backend/app/routers/admin.py`: Khi quản trị viên cập nhật tài khoản qua `PATCH /api/admin/users/{user_id}`, tự động ghi nhận sự kiện `ADMIN_USER_UPDATE` cùng các trường được chỉnh sửa và chuẩn hóa kiểu dữ liệu boolean (xử lý chuỗi `"false"` tránh lỗi ép kiểu ngầm định).
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_be_09_security_audit_logging_for_auth_read_and_admin` (Trước khi sửa, `actions` trả về tập rỗng `set()` và test thất bại).
+  - Xác nhận: Test chuyển sang PASSED (ghi nhận đầy đủ cả 4 loại sự kiện bảo mật `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `CLINICAL_CASE_READ`, `ADMIN_USER_UPDATE`).
+  - Hồi quy: 309 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
 
 
 

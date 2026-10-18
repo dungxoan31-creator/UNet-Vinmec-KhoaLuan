@@ -7,19 +7,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.app.config import UPLOAD_DIR
 from backend.app.routers.auth import require_admin, require_clinical
 from backend.db.database import (
+    AuditLogModel,
     HITLEventModel,
     HITLSessionModel,
     ImageModel,
     PatientModel,
     ReviewBatchModel,
     StudyModel,
+    UserModel,
     get_db,
 )
 from backend.schemas.schemas import CreateCaseRequest
@@ -183,8 +184,12 @@ def get_workspace_cases(
     return list_cases(search=search, status=status, date=date, limit=limit, offset=offset, db=db)
 
 
-@router.get("/api/cases/{study_id}", dependencies=[Depends(require_clinical)])
-def get_case_detail(study_id: str, db: Session = Depends(get_db)):
+@router.get("/api/cases/{study_id}")
+def get_case_detail(
+    study_id: str,
+    current_user: UserModel = Depends(require_clinical),
+    db: Session = Depends(get_db),
+):
     """
     Retrieve full case details for viewing/reopening.
     """
@@ -193,6 +198,18 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin ca khám.")
+
+    db.add(
+        AuditLogModel(
+            entity_name="study",
+            entity_id=study.id,
+            action_type="CLINICAL_CASE_READ",
+            actor_id=current_user.username,
+            details={"patient_id": study.patient_id, "laterality": study.ovary_side},
+            timestamp=datetime.now(UTC),
+        )
+    )
+    db.commit()
 
     latest_batch = (
         db.query(ReviewBatchModel)

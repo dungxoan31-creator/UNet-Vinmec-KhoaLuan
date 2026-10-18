@@ -117,17 +117,53 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     username = req.username.strip().lower()
     user = db.query(UserModel).filter(UserModel.username == username).first()
     if not user or not user.is_active:
+        db.add(
+            AuditLogModel(
+                entity_name="auth",
+                entity_id=username or "anonymous",
+                action_type="LOGIN_FAILURE",
+                actor_id=username or "anonymous",
+                details={"reason": "user_not_found_or_inactive"},
+                timestamp=datetime.now(UTC),
+            )
+        )
+        db.commit()
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
     password = req.password or ""
+    pwd_valid = False
     if user.password_hash:
-        if not verify_password(password, user.password_hash):
-            raise HTTPException(status_code=401, detail="Invalid username or password.")
+        pwd_valid = verify_password(password, user.password_hash)
     else:
         password_variable = "APP_ADMIN_PASSWORD" if user.role == "ADMIN" else "APP_DOCTOR_PASSWORD"
         configured_password = os.environ.get(password_variable)
-        if not configured_password or not secrets.compare_digest(password, configured_password):
-            raise HTTPException(status_code=401, detail="Invalid username or password.")
+        pwd_valid = bool(configured_password and secrets.compare_digest(password, configured_password))
+
+    if not pwd_valid:
+        db.add(
+            AuditLogModel(
+                entity_name="auth",
+                entity_id=user.id,
+                action_type="LOGIN_FAILURE",
+                actor_id=user.username,
+                details={"reason": "invalid_credentials"},
+                timestamp=datetime.now(UTC),
+            )
+        )
+        db.commit()
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
+
+    db.add(
+        AuditLogModel(
+            entity_name="auth",
+            entity_id=user.id,
+            action_type="LOGIN_SUCCESS",
+            actor_id=user.username,
+            details={"role": user.role},
+            timestamp=datetime.now(UTC),
+        )
+    )
+    db.commit()
 
     return TokenResponse(
         access_token=create_access_token({

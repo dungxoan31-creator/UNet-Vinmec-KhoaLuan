@@ -286,20 +286,45 @@ def create_admin_user(user_data: dict = Body(default={}), db: Session = Depends(
 
 
 @router.patch("/api/admin/users/{user_id}")
-def update_admin_user(user_id: str, payload: dict = Body(default={}), db: Session = Depends(get_db)):
+def update_admin_user(
+    user_id: str,
+    payload: dict = Body(default={}),
+    current_user: UserModel = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Update user account attributes."""
     user = db.query(UserModel).filter((UserModel.id == user_id) | (UserModel.username == user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
+    updated_fields = {}
     if "full_name" in payload:
         user.full_name = payload["full_name"]
+        updated_fields["full_name"] = str(payload["full_name"])
     if "role" in payload:
         role_map = {"BS": "DOCTOR", "TK": "SECRETARY", "QT": "ADMIN"}
         user.role = role_map.get(payload["role"], payload["role"])
+        updated_fields["role"] = user.role
     if "department" in payload:
         user.department = payload["department"]
+        updated_fields["department"] = str(payload["department"])
     if "is_active" in payload:
-        user.is_active = bool(payload["is_active"])
+        val = payload["is_active"]
+        if isinstance(val, str):
+            user.is_active = val.strip().lower() not in ("false", "0", "no", "")
+        else:
+            user.is_active = bool(val)
+        updated_fields["is_active"] = user.is_active
+
+    db.add(
+        AuditLogModel(
+            entity_name="user",
+            entity_id=user.id,
+            action_type="ADMIN_USER_UPDATE",
+            actor_id=current_user.username,
+            details=updated_fields,
+            timestamp=datetime.now(UTC),
+        )
+    )
     db.commit()
     return {"status": "SUCCESS", "user_id": user.id, "username": user.username}
 

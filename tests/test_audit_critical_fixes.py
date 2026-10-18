@@ -252,4 +252,87 @@ def test_be_08_feedback_requires_auth_and_prevents_actor_spoofing(tmp_path, monk
         engine.dispose()
 
 
+def test_be_09_security_audit_logging_for_auth_read_and_admin(tmp_path, monkeypatch):
+    """BE-09: Login success/failure, clinical case read, and admin modifications must emit durable audit events."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.routers.auth import create_access_token, hash_password
+    from backend.db.database import AuditLogModel, Base, PatientModel, StudyModel, UserModel, get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'be09.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(
+            UserModel(
+                id="u_doc",
+                username="auditdoc",
+                full_name="BS. Audit",
+                role="DOCTOR",
+                is_active=True,
+                password_hash=hash_password("docpassword123"),
+            )
+        )
+        db.add(
+            UserModel(
+                id="u_adm",
+                username="auditadmin",
+                full_name="Admin Audit",
+                role="ADMIN",
+                is_active=True,
+                password_hash=hash_password("adminpassword123"),
+            )
+        )
+        db.add(PatientModel(id="p1", anonymized_pid="PID-001"))
+        db.add(StudyModel(id="s1", patient_id="p1", study_date="2026-10-18", ovary_side="RIGHT", status="PENDING"))
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            doc_token = create_access_token({"sub": "auditdoc", "uid": "u_doc"})
+            admin_token = create_access_token({"sub": "auditadmin", "uid": "u_adm"})
+            dh = {"Authorization": f"Bearer {doc_token}"}
+            ah = {"Authorization": f"Bearer {admin_token}"}
+
+            with Session(engine) as db:
+                before_count = db.query(AuditLogModel).count()
+
+            # 1. Login success
+            login_ok = client.post("/api/auth/login", json={"username": "auditdoc", "password": "docpassword123"})
+            assert login_ok.status_code == 200
+
+            # 2. Login failure
+            login_fail = client.post("/api/auth/login", json={"username": "auditdoc", "password": "wrongpassword"})
+            assert login_fail.status_code == 401
+
+            # 3. Clinical case read
+            case_read = client.get("/api/cases/s1", headers=dh)
+            assert case_read.status_code == 200
+
+            # 4. Admin update user
+            admin_update = client.patch("/api/admin/users/u_doc", headers=ah, json={"department": "Khoa Phu San"})
+            assert admin_update.status_code == 200
+
+            with Session(engine) as db:
+                after_count = db.query(AuditLogModel).count()
+                new_logs = db.query(AuditLogModel).offset(before_count).all()
+                actions = {log.action_type for log in new_logs}
+
+            assert "LOGIN_SUCCESS" in actions, f"BE-09 VULNERABILITY: LOGIN_SUCCESS missing from audit! Found: {actions}"
+            assert "LOGIN_FAILURE" in actions, f"BE-09 VULNERABILITY: LOGIN_FAILURE missing from audit! Found: {actions}"
+            assert "CLINICAL_CASE_READ" in actions, f"BE-09 VULNERABILITY: CLINICAL_CASE_READ missing from audit! Found: {actions}"
+            assert "ADMIN_USER_UPDATE" in actions, f"BE-09 VULNERABILITY: ADMIN_USER_UPDATE missing from audit! Found: {actions}"
+            assert after_count - before_count >= 4
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+
 
