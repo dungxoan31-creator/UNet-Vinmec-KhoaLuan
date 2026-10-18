@@ -74,9 +74,14 @@ def get_current_user(authorization: str | None = Header(None), db: Session = Dep
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Account unavailable.")
 
-    # BE-07: Ensure token belongs to this user ID if uid is present
+    # BE-07: Ensure token belongs to this user ID if uid is present, or was not issued prior to account creation
     if uid and user.id != uid:
         raise HTTPException(status_code=401, detail="Account identity changed.")
+    created_at = getattr(user, "created_at", None)
+    if not uid and created_at is not None and iat is not None:
+        created_ts = (created_at.replace(tzinfo=UTC) if created_at.tzinfo is None else created_at).timestamp()
+        if float(iat) < (created_ts - 1.0):
+            raise HTTPException(status_code=401, detail="Account identity changed.")
 
     # BE-06: Check token revocation on password change / reset / logout
     if token_ver is not None and getattr(user, "token_version", None) is not None:

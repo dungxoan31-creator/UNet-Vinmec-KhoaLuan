@@ -150,6 +150,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (token cũ bị từ chối 401 sau khi đổi mật khẩu; sau khi đăng xuất token phiên cũng bị từ chối 401).
   - Hồi quy: 306 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-07] Ngăn chặn tái gắn token của tài khoản cũ sang tài khoản mới khi tái sử dụng username
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `backend/app/routers/auth.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi một tài khoản người dùng bị xóa và sau đó một tài khoản mới được tạo lại với cùng tên đăng nhập (`username`), hàm `get_current_user` chỉ truy vấn cơ sở dữ liệu theo `UserModel.username == username` mà không đối chiếu định danh bất biến `uid` (`user.id`) trong JWT payload. Do đó, token còn hạn của tài khoản cũ vô tình được gắn sang tài khoản mới tạo, cho phép chủ sở hữu token cũ chiếm quyền tài khoản mới.
+- **Giải pháp**:
+  - Trong `get_current_user`, kiểm tra đối chiếu ràng buộc danh tính:
+    1. Nếu JWT payload có chứa `uid`, bắt buộc `user.id == uid`. Nếu khác nhau, từ chối ngay HTTP 401 Unauthorized ("Account identity changed.").
+    2. Nếu JWT không chứa `uid` (legacy token), đối chiếu thời điểm phát hành `iat` với thời điểm tạo tài khoản `user.created_at`. Nếu token được phát hành trước khi tài khoản mới ra đời (`iat < created_ts - 1.0`), từ chối ngay HTTP 401 Unauthorized.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_be_07_old_token_cannot_rebind_to_recreated_username` (Trước khi sửa, token của user cũ giải mã thành user ID mới và trả về HTTP 200).
+  - Xác nhận: Test chuyển sang PASSED (cả token có `uid` cũ và token không có `uid` phát hành trước đó đều bị từ chối 401 khi tài khoản mới được tái tạo).
+  - Hồi quy: 307 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
 
 
 

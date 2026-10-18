@@ -125,3 +125,81 @@ def test_be_06_session_revocation_on_password_change_and_logout(tmp_path, monkey
         app.dependency_overrides.pop(get_db, None)
         engine.dispose()
 
+
+def test_be_07_old_token_cannot_rebind_to_recreated_username(tmp_path, monkeypatch):
+    """BE-07: Old token from deleted user cannot rebind to newly created account with same username."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.routers.auth import create_access_token, hash_password
+    from backend.db.database import Base, UserModel, get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'be07.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(
+            UserModel(
+                id="old-uid-123",
+                username="doctor1",
+                full_name="BS. Old Account",
+                role="DOCTOR",
+                is_active=True,
+                password_hash=hash_password("password123"),
+            )
+        )
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        # Issue token for old user with immutable uid
+        old_token = create_access_token({"sub": "doctor1", "uid": "old-uid-123"})
+        h_old = {"Authorization": f"Bearer {old_token}"}
+
+        # Also test legacy token without uid issued at t0 cannot rebind to recreated user at t1
+        import datetime
+        legacy_token = create_access_token({"sub": "doctor1"})
+        h_legacy = {"Authorization": f"Bearer {legacy_token}"}
+
+        with TestClient(app) as client:
+            # 1. Old token valid initially
+            res1 = client.get("/api/auth/current-user", headers=h_old)
+            assert res1.status_code == 200
+            assert res1.json()["id"] == "old-uid-123"
+
+            # 2. Delete old user and re-create a new user with same username but new ID and later created_at
+            with Session(engine) as db:
+                db.query(UserModel).filter(UserModel.username == "doctor1").delete()
+                db.add(
+                    UserModel(
+                        id="new-uid-456",
+                        username="doctor1",
+                        full_name="BS. Recreated Account",
+                        role="DOCTOR",
+                        is_active=True,
+                        password_hash=hash_password("newpassword456"),
+                        created_at=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=5),
+                    )
+                )
+                db.commit()
+
+            # 3. Old token with uid MUST NOT rebind to new account - must be rejected with 401
+            res_rebind = client.get("/api/auth/current-user", headers=h_old)
+            assert res_rebind.status_code == 401, (
+                f"BE-07 VULNERABILITY DETECTED: Old token rebound to new user ID {res_rebind.json().get('id')}! Status: {res_rebind.status_code}"
+            )
+
+            # 4. Old token WITHOUT uid issued before new user creation MUST ALSO be rejected with 401
+            res_legacy_rebind = client.get("/api/auth/current-user", headers=h_legacy)
+            assert res_legacy_rebind.status_code == 401, (
+                f"BE-07 VULNERABILITY DETECTED: Legacy token without uid rebound to new user! Status: {res_legacy_rebind.status_code}"
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
