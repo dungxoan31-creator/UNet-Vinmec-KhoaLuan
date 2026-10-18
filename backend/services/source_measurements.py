@@ -32,7 +32,8 @@ def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
     spacing = calibration["pixel_spacing_mm"]
     scale_x = int(transform["orig_w"] * transform["scale"]) / transform["orig_w"]
     scale_y = int(transform["orig_h"] * transform["scale"]) / transform["orig_h"]
-    for lesion in measurements["lesions"]:
+    components_to_scale = list(measurements.get("lesions", [])) + list(measurements.get("filtered_components", []))
+    for lesion in components_to_scale:
         # Normalize the existing engine's endpoint labels to the actual major/minor
         # axes, without changing its inference overlay or contour calculation.
         if math.dist(*lesion["caliper_dmax_points"]) < math.dist(*lesion["caliper_dorth_points"]):
@@ -53,8 +54,14 @@ def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
                 lesion[name] = round(math.dist(a, b) * spacing, 2)
             lesion["area_cm2"] = round(lesion["area_px"] * spacing**2 / 100, 3)
             lesion["perimeter_mm"] = round(lesion["perimeter_mm"] * spacing, 2)
-    dominant = measurements["lesions"][0] if measurements["lesions"] else {}
-    total_area = sum(lesion["area_px"] for lesion in measurements["lesions"])
+    dominant = (
+        measurements["lesions"][0]
+        if measurements.get("lesions")
+        else (measurements.get("filtered_components", [{}])[0] if measurements.get("filtered_components") else {})
+    )
+    total_area = sum(lesion["area_px"] for lesion in measurements.get("lesions", [])) or sum(
+        comp["area_px"] for comp in measurements.get("filtered_components", [])
+    )
     measurements.update({
         **calibration,
         "coordinate_space": "decoded-source-image",

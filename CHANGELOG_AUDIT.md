@@ -319,3 +319,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_07_monochrome1_polarity_inversion` (Fails với `AssertionError: AI-07 VULNERABILITY: MONOCHROME1 polarity was not inverted! Expected 255 at [0,0], got 0` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (pixel có giá trị thô 0 được ánh xạ sang 255 và pixel 255 được ánh xạ sang 0).
   - Hồi quy: 317 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [AI-05] Bảo toàn số đo và cảnh báo rà soát cho mặt nạ tổn thương nhỏ dưới ngưỡng lọc
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/inference_engine.py`, `backend/services/source_measurements.py`
+- **Nguyên nhân gốc (Root Cause)**: Hàm `extract_calipers_and_measurements` trước đây áp dụng điều kiện cứng `if area_px < 50: continue`. Khi bác sĩ vẽ hoặc rà soát một tổn thương dạng dải mỏng hoặc khối nhỏ (ví dụ 11×3 pixel = 33 pixel diện tích, nhưng chiều dài tới 10 mm trên thang tỉ lệ 1.0 mm/px), toàn bộ các thành phần tổn thương đều bị lọc bỏ trong im lặng (`has_lesion = False`, `total_lesions = 0`, `max_diameter_mm = 0.0`, `total_area_cm2 = 0.0`). Hệ thống không đưa ra bất kỳ lý do loại trừ hay cảnh báo lâm sàng nào, biến một mặt nạ thực tế không rỗng thành kết quả khám trắng (0 tổn thương).
+- **Giải pháp**:
+  - Tại `InferenceEngine.extract_calipers_and_measurements`: Tính toán đầy đủ hình học, đường kính trực giao và điểm caliper cho mọi thành phần tổn thương. Nếu thành phần có diện tích `< 50 px²`, lưu trữ vào danh sách `filtered_components` kèm `exclusion_reason` chỉ rõ diện tích và ngưỡng kỹ thuật.
+  - Khi mặt nạ có tổn thương nhưng toàn bộ thành phần đều dưới ngưỡng lọc diện tích: Không tự ý kết luận mặt nạ rỗng. Hệ thống giữ lại số đo tổn thương từ thành phần ưu thế, trả về `has_lesion = True`, đồng thời cung cấp cờ cảnh báo `warning` và lý do loại trừ `exclusion_reason = "all_components_below_min_area"` để bác sĩ kiểm tra và quyết định lâm sàng.
+  - Tại `source_measurements.measure_source_mask`: Đồng bộ xử lý cho cả `lesions` và `filtered_components`, bảo toàn việc tính tỉ lệ hiển thị (viewer calipers), diện tích và đường kính quy đổi theo độ phân giải nguồn.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_05_nonempty_subthreshold_mask_retains_measurements_and_warns` (Fails với `AssertionError: AI-05 VULNERABILITY: Nonempty mask was silently discarded as having no lesion!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (mặt nạ 33 px dài 10 mm giữ nguyên `has_lesion = True`, đường kính >= 9.0 mm, diện tích > 0 và sinh cảnh báo lâm sàng minh bạch; mặt nạ thực sự rỗng vẫn trả về `has_lesion = False`).
+  - Hồi quy: 318 passed, 2 skipped, 0 regressions trên toàn bộ test suite.

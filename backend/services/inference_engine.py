@@ -281,13 +281,10 @@ class InferenceEngine:
 
         outer_candidates.sort(key=lambda x: x[1], reverse=True)
         lesions = []
+        filtered_components = []
         total_area_px = 0.0
 
         for idx, (cnt, area_px) in enumerate(outer_candidates):
-            if area_px < 50:
-                continue
-
-            total_area_px += area_px
             perimeter_px = float(cv2.arcLength(cnt, True))
 
             # Minimum Area Bounding Box for true oriented diameters
@@ -325,38 +322,63 @@ class InferenceEngine:
             # Convert contour points to simple polygon list of ints
             polygon = [[int(pt[0]), int(pt[1])] for pt in cnt.reshape(-1, 2)]
 
-            lesions.append(
-                {
-                    "lesion_id": int(idx + 1),
-                    "center": [round(float(cx), 1), round(float(cy), 1)],
-                    "max_diameter_mm": round(float(d_max_mm), 2),
-                    "ortho_diameter_mm": round(float(d_orth_mm), 2),
-                    "max_diameter_px": round(d_max_px, 2),
-                    "ortho_diameter_px": round(d_orth_px, 2),
-                    "area_px": round(area_px, 2),
-                    "d3_mm": None,
-                    "volume_cm3": None,
-                    "area_cm2": round(float(area_cm2), 3),
-                    "perimeter_mm": round(float(perimeter_px * pixel_spacing_mm), 2),
-                    "caliper_dmax_points": caliper_dmax,
-                    "caliper_dorth_points": caliper_dorth,
-                    "polygon": polygon,
-                }
-            )
+            lesion_entry = {
+                "lesion_id": int(idx + 1),
+                "center": [round(float(cx), 1), round(float(cy), 1)],
+                "max_diameter_mm": round(float(d_max_mm), 2),
+                "ortho_diameter_mm": round(float(d_orth_mm), 2),
+                "max_diameter_px": round(d_max_px, 2),
+                "ortho_diameter_px": round(d_orth_px, 2),
+                "area_px": round(area_px, 2),
+                "d3_mm": None,
+                "volume_cm3": None,
+                "area_cm2": round(float(area_cm2), 3),
+                "perimeter_mm": round(float(perimeter_px * pixel_spacing_mm), 2),
+                "caliper_dmax_points": caliper_dmax,
+                "caliper_dorth_points": caliper_dorth,
+                "polygon": polygon,
+            }
 
+            if area_px < 50:
+                lesion_entry["exclusion_reason"] = f"Diện tích ({round(area_px, 1)} px²) dưới ngưỡng lọc (50 px²)"
+                filtered_components.append(lesion_entry)
+                continue
+
+            total_area_px += area_px
+            lesions.append(lesion_entry)
+
+        warning = None
+        exclusion_reason = None
         if lesions:
             dominant = lesions[0]
             max_d_overall = float(dominant["max_diameter_mm"])
             ortho_d_overall = float(dominant["ortho_diameter_mm"])
+            total_area_cm2 = float(sum([lesion["area_cm2"] for lesion in lesions]))
+            has_lesion = True
+        elif filtered_components:
+            dominant = filtered_components[0]
+            max_d_overall = float(dominant["max_diameter_mm"])
+            ortho_d_overall = float(dominant["ortho_diameter_mm"])
+            total_area_cm2 = float(sum([comp["area_cm2"] for comp in filtered_components]))
+            has_lesion = True
+            warning = (
+                f"Mặt nạ có {len(filtered_components)} vùng tổn thương dưới ngưỡng lọc diện tích (50 px²). "
+                "Số đo được giữ lại kèm cảnh báo để bác sĩ rà soát lâm sàng."
+            )
+            exclusion_reason = "all_components_below_min_area"
         else:
             max_d_overall = 0.0
             ortho_d_overall = 0.0
-        total_area_cm2 = float(sum([lesion["area_cm2"] for lesion in lesions]))
+            total_area_cm2 = 0.0
+            has_lesion = False
 
         return {
-            "has_lesion": len(lesions) > 0,
-            "total_lesions": len(lesions),
+            "has_lesion": has_lesion,
+            "total_lesions": len(lesions) if lesions else len(filtered_components),
             "lesions": lesions,
+            "filtered_components": filtered_components,
+            "exclusion_reason": exclusion_reason,
+            "warning": warning,
             "max_diameter_mm": round(max_d_overall, 2),
             "ortho_diameter_mm": round(ortho_d_overall, 2),
             "d3_mm": None,

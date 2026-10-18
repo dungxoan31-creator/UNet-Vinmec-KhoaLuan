@@ -274,5 +274,50 @@ def test_ai_07_monochrome1_polarity_inversion(tmp_path):
     )
 
 
+def test_ai_05_nonempty_subthreshold_mask_retains_measurements_and_warns():
+    """AI-05: Nonempty masks with small components (<50px) must retain measurements and expose warning/reason instead of silently reporting 0 findings."""
+    from backend.services.inference_engine import InferenceEngine
 
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.default_pixel_spacing_mm = 1.0
+
+    # Create a nonempty mask with 33 pixels (11 wide x 3 high)
+    # Physical extent: 10mm length at 1.0 mm/px
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    mask[100:103, 100:111] = 1
+    assert int(mask.sum()) == 33
+
+    res = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=1.0)
+
+    # In AI-05 vulnerability: has_lesion was False, max_diameter_mm was 0.0, total_area_cm2 was 0.0, and no warning/filtered_components existed
+    assert res["has_lesion"] is True, (
+        f"AI-05 VULNERABILITY: Nonempty mask was silently discarded as having no lesion! res={res}"
+    )
+    assert res["max_diameter_mm"] >= 9.0, (
+        f"AI-05 VULNERABILITY: Nonempty 10mm lesion was reported with diameter {res['max_diameter_mm']}mm"
+    )
+    assert "filtered_components" in res and len(res["filtered_components"]) > 0
+    assert res.get("warning") is not None
+
+    # Test measure_source_mask retains non-zero findings and warning as well
+    from backend.services.preprocessor import UltrasoundPreprocessor
+    from backend.services.source_measurements import calibration_metadata, measure_source_mask
+
+    preprocessor = UltrasoundPreprocessor()
+    source_img = np.zeros((200, 200), dtype=np.uint8)
+    rle = engine.mask_to_rle(mask)
+    calib = calibration_metadata(1.0)
+    source_res = measure_source_mask(source_img, rle, preprocessor, engine, calib)
+
+    assert source_res["has_lesion"] is True
+    assert source_res["max_diameter_mm"] >= 9.0
+    assert source_res["total_area_px"] > 0
+    assert source_res.get("warning") is not None
+
+    # Verify true empty mask still returns no lesion
+    empty_mask = np.zeros((200, 200), dtype=np.uint8)
+    empty_res = engine.extract_calipers_and_measurements(empty_mask, pixel_spacing_mm=1.0)
+    assert empty_res["has_lesion"] is False
+    assert empty_res["max_diameter_mm"] == 0.0
+    assert empty_res["total_area_cm2"] == 0.0
 
