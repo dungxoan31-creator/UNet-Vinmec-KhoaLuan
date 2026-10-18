@@ -73,10 +73,31 @@ def build_research_bundle(
             if not image or not image.raw_path or not os.path.isfile(image.raw_path):
                 raise HTTPException(status_code=404, detail=f"File ảnh gốc của {rev.image_id} không khả dụng.")
 
+            with open(image.raw_path, "rb") as rf:
+                current_source_sha256 = hashlib.sha256(rf.read()).hexdigest()
+
+            if image.file_hash and current_source_sha256 != image.file_hash:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"Phát hiện file ảnh gốc của {image.id} đã bị thay đổi nội dung (source content drift). "
+                        f"Băm hiện tại: {current_source_sha256[:12]}..., băm đã lưu: {image.file_hash[:12]}..."
+                    ),
+                )
+
             decoded = decode_ultrasound_image(image.raw_path)
             if decoded is None:
                 raise HTTPException(status_code=422, detail=f"Không thể giải mã file ảnh gốc của {rev.image_id}.")
             h, w = decoded.shape[:2]
+
+            if image.file_hash and ((image.width and image.width != w) or (image.height and image.height != h)):
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"Kích thước file ảnh gốc của {image.id} ({w}x{h}) không khớp với kích thước ban đầu "
+                        f"({image.width}x{image.height}). Dữ liệu nguồn đã bị thay đổi (source content drift)."
+                    ),
+                )
 
             if not rev.prediction_id:
                 raise HTTPException(status_code=422, detail=f"Bản rà soát {rev.id} thiếu liên kết prediction_id.")
@@ -149,7 +170,9 @@ def build_research_bundle(
                 "physical_units": "mm" if rev.max_diameter_mm is not None else None,
                 "geometry": {
                     "native_shape": [int(h), int(w)],
+                    "source_sha256": current_source_sha256,
                 },
+                "source_sha256": current_source_sha256,
                 "provenance": prediction.provenance_json or {},
                 "files": {
                     "ai_mask": {

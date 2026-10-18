@@ -1307,6 +1307,126 @@ def test_be_29_rle_shape_rejects_floats_with_422(monkeypatch, tmp_path):
         )
 
 
+def test_be_30_research_export_detects_source_content_drift(monkeypatch, tmp_path):
+    """BE-30: Research export must detect source content drift and include source_sha256 in metadata."""
+    import hashlib
+    import io
+    import json
+    import uuid
+    import zipfile
+
+    import cv2
+    import numpy as np
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import (
+        ImageModel,
+        PatientModel,
+        PredictionModel,
+        ReviewModel,
+        SessionLocal,
+        StudyModel,
+        UserModel,
+    )
+    from backend.services.inference_engine import InferenceEngine
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    doc_uname = f"doc_30_{uuid.uuid4().hex[:6]}"
+    doc_uid = f"u_doc_30_{uuid.uuid4().hex[:6]}"
+    study_id = f"st_30_{uuid.uuid4().hex[:6]}"
+    img_id = f"img_30_{uuid.uuid4().hex[:6]}"
+    pred_id = f"pred_30_{uuid.uuid4().hex[:6]}"
+    rev_id = f"rev_30_{uuid.uuid4().hex[:6]}"
+    pt_id = f"pt_30_{uuid.uuid4().hex[:6]}"
+
+    # Initial 512x512 image
+    img_path = str(tmp_path / "test_30.png")
+    initial_img = np.zeros((512, 512, 3), dtype=np.uint8)
+    initial_img[100:200, 100:200] = 128
+    cv2.imwrite(img_path, initial_img)
+
+    with open(img_path, "rb") as f:
+        initial_hash = hashlib.sha256(f.read()).hexdigest()
+
+    dummy_mask = np.zeros((512, 512), dtype=np.uint8)
+    dummy_mask[100:150, 100:150] = 1
+    dummy_rle = InferenceEngine.mask_to_rle(dummy_mask)
+
+    with SessionLocal() as db:
+        db.add(UserModel(id=doc_uid, username=doc_uname, full_name="Doc 30", role="DOCTOR", is_active=True))
+        db.add(PatientModel(id=pt_id, anonymized_pid=f"ANON_30_{uuid.uuid4().hex[:6]}"))
+        db.add(StudyModel(id=study_id, patient_id=pt_id, study_date="2026-10-18", review_revision=1))
+        db.add(
+            ImageModel(
+                id=img_id,
+                study_id=study_id,
+                filename="test_30.png",
+                raw_path=img_path,
+                file_hash=initial_hash,
+                width=512,
+                height=512,
+            )
+        )
+        db.add(
+            PredictionModel(
+                id=pred_id,
+                image_id=img_id,
+                raw_mask_rle=dummy_rle,
+                measurements={"max_diameter_mm": 10.0, "total_area_cm2": 2.0},
+            )
+        )
+        db.add(
+            ReviewModel(
+                id=rev_id,
+                image_id=img_id,
+                prediction_id=pred_id,
+                doctor_id=doc_uname,
+                doctor_action="ACCEPTED_RAW",
+                verified_mask_rle=dummy_rle,
+                max_diameter_mm=10.0,
+                total_area_cm2=2.0,
+            )
+        )
+        db.commit()
+
+    with TestClient(app) as client:
+        doc_token = create_access_token({"sub": doc_uname, "uid": doc_uid, "role": "DOCTOR"})
+        doc_headers = {"Authorization": f"Bearer {doc_token}"}
+
+        # 1. Normal export: must succeed and contain source_sha256 in image metadata
+        resp_valid = client.post(
+            f"/api/cases/{study_id}/research-export",
+            headers=doc_headers,
+            json={"review_ids": [rev_id], "expected_revision": 1},
+        )
+        assert resp_valid.status_code == 200, f"Valid export failed: {resp_valid.text}"
+        with zipfile.ZipFile(io.BytesIO(resp_valid.content)) as zf:
+            meta = json.loads(zf.read("metadata.json"))
+            img_meta = meta["images"][0]
+            assert "source_sha256" in json.dumps(img_meta), (
+                f"BE-30 VULNERABILITY: source_sha256 missing from exported image metadata! {img_meta}"
+            )
+            assert img_meta.get("source_sha256") == initial_hash
+
+        # 2. Modify source image on disk to 256x256 (source content drift)
+        drift_img = np.full((256, 256, 3), 123, dtype=np.uint8)
+        cv2.imwrite(img_path, drift_img)
+
+        # 3. Export on drifted source: MUST be rejected with HTTP 409 Conflict, NOT 200!
+        resp_drift = client.post(
+            f"/api/cases/{study_id}/research-export",
+            headers=doc_headers,
+            json={"review_ids": [rev_id], "expected_revision": 1},
+        )
+        assert resp_drift.status_code == 409, (
+            f"BE-30 VULNERABILITY: Export succeeded with HTTP 200 despite source content drift! Status={resp_drift.status_code}"
+        )
+
+
+
 
 
 
