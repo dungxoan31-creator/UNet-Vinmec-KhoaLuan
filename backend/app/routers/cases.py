@@ -33,11 +33,15 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
     """
     Create a new clinical study case.
     """
+    clean_pid = req.patient_id.strip() if req.patient_id else ""
+    if not clean_pid:
+        raise HTTPException(status_code=422, detail="Mã định danh bệnh nhân (PID) không được để trống.")
+
     try:
-        patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == req.patient_id.strip()).first()
+        patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == clean_pid).first()
         if not patient:
             patient = PatientModel(
-                id=str(uuid.uuid4()), anonymized_pid=req.patient_id.strip(), age_bucket=req.patient_age or None
+                id=str(uuid.uuid4()), anonymized_pid=clean_pid, age_bucket=req.patient_age or None
             )
             db.add(patient)
 

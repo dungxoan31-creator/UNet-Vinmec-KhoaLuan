@@ -565,3 +565,36 @@ def test_be_15_sqlite_foreign_keys_enforced():
             db.commit()
         db.rollback()
 
+
+def test_be_16_create_case_rejects_blank_pid(monkeypatch):
+    """BE-16: Case creation must reject blank or whitespace-only patient_id with HTTP 422."""
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    with SessionLocal() as db:
+        if not db.query(UserModel).filter(UserModel.username == "doc16").first():
+            db.add(UserModel(id="u_doc16", username="doc16", full_name="Doctor 16", role="DOCTOR", is_active=True))
+            db.commit()
+
+    with TestClient(app) as client:
+        token = create_access_token({"sub": "doc16", "uid": "u_doc16", "role": "DOCTOR"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Blank string
+        resp1 = client.post("/api/cases", headers=headers, json={"patient_id": ""})
+        assert resp1.status_code == 422, (
+            f"BE-16 VULNERABILITY: Empty patient_id accepted! Status={resp1.status_code}, Body={resp1.text}"
+        )
+
+        # 2. Whitespace-only string
+        resp2 = client.post("/api/cases", headers=headers, json={"patient_id": "    "})
+        assert resp2.status_code == 422, (
+            f"BE-16 VULNERABILITY: Whitespace-only patient_id accepted! Status={resp2.status_code}, Body={resp2.text}"
+        )
+
+

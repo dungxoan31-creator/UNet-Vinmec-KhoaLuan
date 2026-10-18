@@ -386,4 +386,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (kết nối trả về `PRAGMA foreign_keys = 1`, việc chèn ảnh mồ côi bị chặn đứng bằng `IntegrityError`, các quy trình rà soát HITL batch hoạt động trơn tru).
   - Hồi quy: 322 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-16] Kiểm tra hợp lệ và từ chối mã định danh bệnh nhân (PID) rỗng khi tạo ca khám
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/schemas/schemas.py`, `backend/app/routers/cases.py`
+- **Nguyên nhân gốc (Root Cause)**: Schema `CreateCaseRequest` và router `POST /api/cases` chấp nhận chuỗi `patient_id` rỗng `""` hoặc toàn khoảng trắng `"   "`. Hàm tạo ca bệnh cắt tỉa (strip) chuỗi thành `""`, tìm kiếm và tạo ra bệnh nhân có `anonymized_pid = ""` trong cơ sở dữ liệu (`HTTP 200`). Việc tồn tại ca khám không có định danh người bệnh hợp lệ gây nguy cơ gán nhầm ca khám, trùng lặp bệnh nhân và vi phạm các quy định quản lý hồ sơ y tế bệnh viện.
+- **Giải pháp**:
+  - Trong `CreateCaseRequest`: Bổ sung `@field_validator("patient_id")` kiểm tra chuỗi sau khi strip không được rỗng, đồng thời giới hạn độ dài tối đa 64 ký tự theo quy định schema.
+  - Trong router `create_new_case`: Kiểm tra tường minh `clean_pid = req.patient_id.strip()`; nếu rỗng lập tức trả về lỗi `HTTP 422 Unprocessable Entity` ("Mã định danh bệnh nhân (PID) không được để trống.").
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_16_create_case_rejects_blank_pid` (Fails với `AssertionError: BE-16 VULNERABILITY: Empty patient_id accepted! Status=200` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (cả chuỗi rỗng `""` và chuỗi chỉ chứa khoảng trắng `"    "` đều bị từ chối chính xác với HTTP 422).
+  - Hồi quy: 323 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 

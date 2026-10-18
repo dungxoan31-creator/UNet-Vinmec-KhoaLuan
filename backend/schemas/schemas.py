@@ -342,6 +342,16 @@ class CreateCaseRequest(BaseModel):
     active_ovary_side: Literal["RIGHT", "LEFT", "BOTH", "UNKNOWN"] = "RIGHT"
     contralateral_status: Literal["NOT_VISUALIZED", "NORMAL", "SUSPECTED"] = "NOT_VISUALIZED"
 
+    @field_validator("patient_id")
+    @classmethod
+    def validate_patient_id(cls, v: str) -> str:
+        trimmed = v.strip() if isinstance(v, str) else ""
+        if not trimmed:
+            raise ValueError("Mã định danh bệnh nhân (PID) không được để trống.")
+        if len(trimmed) > 64:
+            raise ValueError("Mã định danh bệnh nhân (PID) không được vượt quá 64 ký tự.")
+        return trimmed
+
 
 class CaseItem(BaseModel):
     id: str
