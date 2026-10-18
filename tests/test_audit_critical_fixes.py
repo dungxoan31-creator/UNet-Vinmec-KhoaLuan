@@ -334,5 +334,84 @@ def test_be_09_security_audit_logging_for_auth_read_and_admin(tmp_path, monkeypa
         engine.dispose()
 
 
+def test_be_12_review_idempotency_hash_includes_orads_and_descriptors(tmp_path, monkeypatch):
+    """BE-12: Idempotency hash must include O-RADS and morphology descriptors to prevent silent data discard on retry."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import Base, ImageModel, PatientModel, PredictionModel, StudyModel, UserModel, get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'be12.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    mask = {"shape": [512, 512], "first_val": 0, "counts": [10000, 20000, 232144]}
+    with Session(engine) as db:
+        db.add(UserModel(id="u_doc", username="doctor1", full_name="BS. Test", role="DOCTOR", is_active=True))
+        db.add(PatientModel(id="p1", anonymized_pid="PID-001"))
+        db.add(StudyModel(id="s1", patient_id="p1", study_date="2026-10-18", ovary_side="RIGHT", status="PENDING", review_revision=0))
+        db.add(ImageModel(id="img1", study_id="s1", filename="img1.png", raw_path="img1.png", width=512, height=512))
+        db.add(PredictionModel(id="pred1", image_id="img1", raw_mask_rle=mask, measurements={}))
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            token = create_access_token({"sub": "doctor1", "uid": "u_doc"})
+            dh = {"Authorization": f"Bearer {token}"}
+
+            body = {
+                "study_id": "s1",
+                "expected_revision": 0,
+                "request_id": "batch-idemp-123",
+                "reviews": [
+                    {
+                        "image_id": "img1",
+                        "prediction_id": "pred1",
+                        "doctor_action": "ACCEPTED_RAW",
+                        "verified_mask_rle": mask,
+                        "orads": "2",
+                        "morphology_description": "initial descriptor",
+                    }
+                ],
+            }
+
+            # 1. Initial save succeeds (200)
+            res1 = client.post("/api/reviews/batch", headers=dh, json=body)
+            assert res1.status_code == 200
+
+            # 2. Replay with identical request_id but changed orads/morphology MUST BE REJECTED with 409
+            body_changed = {
+                "study_id": "s1",
+                "expected_revision": 0,
+                "request_id": "batch-idemp-123",
+                "reviews": [
+                    {
+                        "image_id": "img1",
+                        "prediction_id": "pred1",
+                        "doctor_action": "ACCEPTED_RAW",
+                        "verified_mask_rle": mask,
+                        "orads": "5",
+                        "morphology_description": "changed descriptor",
+                    }
+                ],
+            }
+            res2 = client.post("/api/reviews/batch", headers=dh, json=body_changed)
+            assert res2.status_code == 409, (
+                f"BE-12 VULNERABILITY DETECTED: Retry with changed O-RADS/descriptor was accepted as idempotent replay! Status: {res2.status_code}"
+            )
+
+            # 3. True identical retry succeeds (200)
+            res3 = client.post("/api/reviews/batch", headers=dh, json=body)
+            assert res3.status_code == 200
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
 
 

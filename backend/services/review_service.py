@@ -2,11 +2,11 @@
 Service for atomic batch review persistence, revision validation, and idempotency tracking.
 """
 
-from datetime import UTC, datetime
 import hashlib
 import json
 import os
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -20,7 +20,6 @@ from backend.db.database import (
     AuditLogModel,
     HITLEventModel,
     HITLSessionModel,
-    ImageModel,
     PredictionModel,
     ReviewBatchModel,
     ReviewModel,
@@ -35,6 +34,16 @@ from backend.services.source_measurements import measure_source_mask
 def compute_request_hash(request: BatchReviewRequest) -> str:
     reviews_data = []
     for r in request.reviews:
+        fb = r.hitl_feedback.model_dump() if r.hitl_feedback else {}
+        orads_val = getattr(r, "orads", None) or getattr(r, "orads_score", None)
+        morph_desc = getattr(r, "morphology_description", None)
+        if orads_val:
+            fb["orads"] = orads_val
+            fb["orads_score"] = orads_val
+        if morph_desc:
+            fb["morphology_description"] = morph_desc
+            fb["morphologyDesc"] = morph_desc
+
         reviews_data.append({
             "image_id": r.image_id,
             "prediction_id": r.prediction_id,
@@ -42,8 +51,10 @@ def compute_request_hash(request: BatchReviewRequest) -> str:
             "verified_mask_rle": r.verified_mask_rle,
             "clinical_notes": r.clinical_notes,
             "lesion_type": r.lesion_type,
+            "orads": orads_val,
+            "morphology_description": morph_desc,
             "time_spent_seconds": r.time_spent_seconds,
-            "hitl_feedback": r.hitl_feedback.model_dump() if r.hitl_feedback else None,
+            "hitl_feedback": fb if fb else None,
         })
     reviews_data.sort(key=lambda x: x["image_id"])
     canonical = {

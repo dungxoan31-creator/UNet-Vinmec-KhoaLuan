@@ -189,6 +189,18 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (ghi nhận đầy đủ cả 4 loại sự kiện bảo mật `LOGIN_SUCCESS`, `LOGIN_FAILURE`, `CLINICAL_CASE_READ`, `ADMIN_USER_UPDATE`).
   - Hồi quy: 309 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-12] Bảo toàn tính toàn vẹn Idempotency Hash cho đánh giá O-RADS và mô tả hình thái
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `backend/services/review_service.py`
+- **Nguyên nhân gốc (Root Cause)**: Hàm `compute_request_hash` trong `review_service.py` chỉ đưa các trường `verified_mask_rle`, `clinical_notes`, `lesion_type`, `time_spent_seconds` vào cấu trúc tính băm SHA-256, nhưng bỏ qua hoàn toàn các trường `orads`, `orads_score` và `morphology_description` được lưu trữ trong `hitl_feedback`. Hậu quả là khi bác sĩ gửi lại request với cùng một `request_id` nhưng đã thay đổi phân loại O-RADS (ví dụ từ O-RADS 2 lên O-RADS 5) hoặc sửa mô tả hình thái u nang, hệ thống tính ra mã băm trùng khớp với bản ghi trước, ngộ nhận là một lần gửi lại lặp (idempotent replay), trả về HTTP 200 nhưng âm thầm giữ nguyên đánh giá cũ và vứt bỏ hoàn toàn chẩn đoán mới của bác sĩ.
+- **Giải pháp**:
+  - Cập nhật hàm `compute_request_hash`: Trích xuất đầy đủ `orads`, `orads_score`, `morphology_description` (và `morphologyDesc`), đóng gói vào cả cấu trúc canonical review item và `hitl_feedback` chuẩn hóa trước khi tính băm SHA-256.
+  - Khi một request gửi lại với cùng `request_id` nhưng có bất kỳ sự thay đổi nào về O-RADS hay mô tả hình thái, mã băm sẽ khác biệt và máy chủ trả về chính xác lỗi xung đột HTTP 409 Conflict ("Request ID đã tồn tại với nội dung khác."), ngăn ngừa việc mất mát dữ liệu chẩn đoán lâm sàng.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_be_12_review_idempotency_hash_includes_orads_and_descriptors` (Trước khi sửa, request gửi lại đổi O-RADS 2 thành 5 nhận HTTP 200 giả mạo).
+  - Xác nhận: Test chuyển sang PASSED (lần gửi lại cùng request_id nhưng đổi O-RADS bị từ chối 409 Conflict; lần gửi lại giống hệt 100% được trả về kết quả 200 an toàn).
+  - Hồi quy: 310 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
 
 
 
