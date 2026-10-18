@@ -284,6 +284,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (diện tích khấu trừ chính xác từ 100.0 cm² xuống 61.58 cm² khi đục lỗ 61×61 trong khối 101×101).
   - Hồi quy: 314 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [AI-06] Đồng nhất cặp kích thước tóm tắt (Dmax, Dorth) từ cùng một tổn thương ưu thế
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/inference_engine.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi một mặt nạ chứa nhiều tổn thương rời nhau (multi-component), hàm `extract_calipers_and_measurements` lấy giá trị tóm tắt `max_d_overall` bằng cách lấy `max()` trên toàn bộ các tổn thương và độc lập lấy `ortho_d_overall` bằng cách lấy `max()` trên trục trực giao của tất cả các tổn thương. Ví dụ: tổn thương 1 có kích thước 100×10 mm và tổn thương 2 có kích thước 40×40 mm, hệ thống trả về cặp kích thước tóm tắt là 100×40 mm — một tổn thương "ảo" không hề tồn tại trên hình thái giải phẫu của người bệnh và mâu thuẫn với quy ước của `source_measurements.py` (vốn tham chiếu theo tổn thương có diện tích lớn nhất).
+- **Giải pháp**:
+  - Đồng nhất quy ước kích thước tóm tắt với `source_measurements.py`: lấy cặp đường kính tóm tắt `(max_diameter_mm, ortho_diameter_mm)` từ chính tổn thương ưu thế (dominant lesion - tổn thương có diện tích lớn nhất đứng đầu danh sách `lesions[0]`).
+  - Đảm bảo tính nhất quán hình học: hai giá trị Dmax và Dorth luôn là cặp trục hình học thực tế thuộc về cùng một khối cấu trúc duy nhất.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_06_summary_diameters_belong_to_same_dominant_lesion` (Fails với `AssertionError: AI-06 VULNERABILITY: Summary dimensions mixed axes across different lesions! Reported Dmax=99.0, Dorth=39.0` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (Dmax và Dorth đều thuộc tổn thương ưu thế 100×20 mm thay vì ghép trục 40 mm từ tổn thương phụ).
+  - Hồi quy: 315 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
 

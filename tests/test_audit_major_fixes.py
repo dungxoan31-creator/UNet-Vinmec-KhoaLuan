@@ -137,3 +137,35 @@ def test_ai_04_erased_hole_reduces_mask_area():
         f"AI-04 VULNERABILITY: Internal hole ignored in total_area_cm2! Reported: {res['total_area_cm2']}"
     )
 
+
+def test_ai_06_summary_diameters_belong_to_same_dominant_lesion():
+    """AI-06: Summary max_diameter and ortho_diameter must belong to the same dominant lesion, not mixed across disjoint lesions."""
+    from backend.services.inference_engine import InferenceEngine
+
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.default_pixel_spacing_mm = 1.0
+
+    # Create mask with two separate components:
+    # Component 1 (dominant, area = 2000px): 100 wide x 20 high -> Dmax ~ 100, Dorth ~ 20
+    # Component 2 (area = 1600px): 40 wide x 40 high -> Dmax ~ 40, Dorth ~ 40
+    mask = np.zeros((300, 300), dtype=np.uint8)
+    mask[20:40, 50:150] = 1   # 20x100
+    mask[100:140, 50:90] = 1  # 40x40
+
+    res = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=1.0)
+    assert res["total_lesions"] == 2
+
+    # The dominant lesion (index 0) is the 20x100 rectangle
+    dominant = res["lesions"][0]
+    assert np.isclose(dominant["max_diameter_mm"], 100.0, atol=2.0)
+    assert np.isclose(dominant["ortho_diameter_mm"], 20.0, atol=2.0)
+
+    # In AI-06 vulnerability: res["ortho_diameter_mm"] was taken from Component 2 (40mm),
+    # resulting in a phantom lesion of 100mm x 40mm!
+    assert res["ortho_diameter_mm"] < 30.0, (
+        f"AI-06 VULNERABILITY: Summary dimensions mixed axes across different lesions! Reported Dmax={res['max_diameter_mm']}, Dorth={res['ortho_diameter_mm']}"
+    )
+    assert res["max_diameter_mm"] == dominant["max_diameter_mm"]
+    assert res["ortho_diameter_mm"] == dominant["ortho_diameter_mm"]
+
+

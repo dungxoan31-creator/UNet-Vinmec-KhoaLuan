@@ -344,8 +344,13 @@ class InferenceEngine:
                 }
             )
 
-        max_d_overall = float(max([lesion["max_diameter_mm"] for lesion in lesions], default=0.0))
-        ortho_d_overall = float(max([lesion["ortho_diameter_mm"] for lesion in lesions], default=0.0))
+        if lesions:
+            dominant = lesions[0]
+            max_d_overall = float(dominant["max_diameter_mm"])
+            ortho_d_overall = float(dominant["ortho_diameter_mm"])
+        else:
+            max_d_overall = 0.0
+            ortho_d_overall = 0.0
         total_area_cm2 = float(sum([lesion["area_cm2"] for lesion in lesions]))
 
         return {
