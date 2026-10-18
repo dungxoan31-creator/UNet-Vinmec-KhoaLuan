@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import ObjectDeletedError, StaleDataError
 
 from backend.app.config import UPLOAD_DIR, model_registry, preprocessor
 from backend.app.routers.auth import get_current_user, require_clinical
@@ -254,7 +255,7 @@ async def upload_image(
         if h * w > 25_000_000:
             raise HTTPException(status_code=413, detail="Kích thước điểm ảnh giải mã quá lớn (> 25 triệu pixels).")
 
-        # Link or Create Study & Patient
+        target_study_id = study.id if study else None
         if not study_id:
             anonymized_pid = anonymized_pid or f"ANON-UPLOAD-{uuid.uuid4().hex[:12].upper()}"
             patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == anonymized_pid).first()
@@ -277,10 +278,19 @@ async def upload_image(
             )
             db.add(study)
             db.flush()
+            target_study_id = study_id
+        else:
+            try:
+                db.expire(study)
+                study_check = db.query(StudyModel).filter(StudyModel.id == target_study_id).first()
+                if not study_check:
+                    raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.")
+            except (ObjectDeletedError, StaleDataError):
+                raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.")
 
         image_record = ImageModel(
             id=image_id,
-            study_id=study.id,
+            study_id=target_study_id,
             filename=safe_filename,
             laterality=laterality,
             raw_path=file_path,
@@ -301,7 +311,7 @@ async def upload_image(
                 "filename": safe_filename,
                 "dimensions": [w, h],
                 "size_kb": round(len(contents) / 1024, 1),
-                "study_id": study.id,
+                "study_id": target_study_id,
                 "laterality": laterality,
             },
         )
@@ -315,6 +325,8 @@ async def upload_image(
                 raise HTTPException(status_code=409, detail="Ảnh này đã tồn tại trong ca khảo sát.") from exc
             if "uq_study_laterality" in orig_str or "images.study_id, images.laterality" in orig_str:
                 raise HTTPException(status_code=409, detail="Ca khám đã có ảnh cho bên khảo sát này.") from exc
+            if "FOREIGN KEY" in orig_str.upper() or "foreign key" in orig_str.lower():
+                raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.") from exc
             raise
     except Exception:
         db.rollback()
@@ -327,7 +339,7 @@ async def upload_image(
 
     return {
         "image_id": image_id,
-        "study_id": study.id,
+        "study_id": target_study_id,
         "laterality": laterality,
         "filename": safe_filename,
         "dimensions": [w, h],

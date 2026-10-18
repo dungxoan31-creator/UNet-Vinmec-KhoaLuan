@@ -1426,10 +1426,86 @@ def test_be_30_research_export_detects_source_content_drift(monkeypatch, tmp_pat
         )
 
 
+def test_be_31_upload_case_deletion_race_prevents_orphan_image(monkeypatch, tmp_path):
+    """BE-31: Concurrently deleting a case during upload must not leave orphan image or fail with HTTP 500."""
+    import concurrent.futures
+    import threading
+    import uuid
 
+    import cv2
+    import numpy as np
+    from fastapi.testclient import TestClient
 
+    from backend.app.main import app
+    from backend.app.routers import inference
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import (
+        ImageModel,
+        PatientModel,
+        SessionLocal,
+        StudyModel,
+        UserModel,
+    )
 
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
 
+    admin_uname = f"admin_31_{uuid.uuid4().hex[:6]}"
+    admin_uid = f"u_adm_31_{uuid.uuid4().hex[:6]}"
+    doc_uname = f"doc_31_{uuid.uuid4().hex[:6]}"
+    doc_uid = f"u_doc_31_{uuid.uuid4().hex[:6]}"
+    study_id = f"st_31_{uuid.uuid4().hex[:6]}"
+    pt_id = f"pt_31_{uuid.uuid4().hex[:6]}"
 
+    with SessionLocal() as db:
+        db.add(UserModel(id=admin_uid, username=admin_uname, full_name="Admin 31", role="ADMIN", is_active=True))
+        db.add(UserModel(id=doc_uid, username=doc_uname, full_name="Doc 31", role="DOCTOR", is_active=True))
+        db.add(PatientModel(id=pt_id, anonymized_pid=f"ANON_31_{uuid.uuid4().hex[:6]}"))
+        db.add(StudyModel(id=study_id, patient_id=pt_id, study_date="2026-10-18", review_revision=1))
+        db.commit()
 
+    admin_token = create_access_token({"sub": admin_uname, "uid": admin_uid, "role": "ADMIN"})
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    doc_token = create_access_token({"sub": doc_uname, "uid": doc_uid, "role": "DOCTOR"})
+    doc_headers = {"Authorization": f"Bearer {doc_token}"}
 
+    entered_decode = threading.Event()
+    release_decode = threading.Event()
+    orig_decode = inference.decode_ultrasound_image
+
+    def pausing_decode(*args, **kwargs):
+        res = orig_decode(*args, **kwargs)
+        entered_decode.set()
+        if not release_decode.wait(timeout=10):
+            raise RuntimeError("Test synchronization timeout")
+        return res
+
+    monkeypatch.setattr(inference, "decode_ultrasound_image", pausing_decode)
+
+    raw_bytes = cv2.imencode(".png", np.full((100, 100, 3), 150, dtype=np.uint8))[1].tobytes()
+
+    with TestClient(app) as client, TestClient(app) as admin_client:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            upload_future = pool.submit(
+                lambda: client.post(
+                    "/api/upload",
+                    headers=doc_headers,
+                    data={"study_id": study_id},
+                    files={"file": ("race_test.png", raw_bytes, "image/png")},
+                )
+            )
+
+            assert entered_decode.wait(timeout=10), "Upload did not reach decode step"
+
+            del_resp = admin_client.delete(f"/api/cases/{study_id}", headers=admin_headers)
+            assert del_resp.status_code == 200, f"Delete case failed: {del_resp.text}"
+
+            release_decode.set()
+            upload_resp = upload_future.result(timeout=10)
+
+        assert upload_resp.status_code == 404, (
+            f"BE-31 VULNERABILITY: Upload returned {upload_resp.status_code} (expected 404) after target case was deleted! Response: {upload_resp.text}"
+        )
+
+        with SessionLocal() as db:
+            orphan_count = db.query(ImageModel).filter(ImageModel.study_id == study_id).count()
+            assert orphan_count == 0, f"BE-31 VULNERABILITY: Orphan image record created in DB! Count={orphan_count}"
