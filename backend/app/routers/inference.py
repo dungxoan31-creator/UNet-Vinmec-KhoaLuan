@@ -73,6 +73,9 @@ def decode_ultrasound_image(file_path: str, grayscale: bool = False):
             image = image[0]
         if image.dtype != "uint8":
             image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        photometric = str(getattr(dicom, "PhotometricInterpretation", "")).strip().upper()
+        if photometric == "MONOCHROME1":
+            image = cv2.bitwise_not(image)
         if grayscale and image.ndim == 3:
             image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         return image

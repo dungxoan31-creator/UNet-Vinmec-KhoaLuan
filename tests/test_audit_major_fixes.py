@@ -227,4 +227,52 @@ def test_ai_08_cannot_overwrite_serving_model_key(tmp_path, monkeypatch):
         engine.dispose()
 
 
+def test_ai_07_monochrome1_polarity_inversion(tmp_path):
+    """AI-07: MONOCHROME1 DICOM images must have their polarity inverted (0=White, 255=Black) to match ultrasound standards."""
+    from pydicom.dataset import FileDataset, FileMetaDataset
+    from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, generate_uid
+
+    from backend.app.routers.inference import decode_ultrasound_image
+
+    # Pixel array: [0] should be rendered as bright (255), [255] should be rendered as dark (0)
+    raw_pixels = np.array([[0, 255], [0, 255]], dtype=np.uint8)
+
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    dcm = FileDataset("test_mono1.dcm", {}, file_meta=meta, preamble=b"\0" * 128)
+    dcm.SOPClassUID = meta.MediaStorageSOPClassUID
+    dcm.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    dcm.Modality = "US"
+    dcm.StudyInstanceUID = generate_uid()
+    dcm.SeriesInstanceUID = generate_uid()
+    dcm.Rows = 2
+    dcm.Columns = 2
+    dcm.SamplesPerPixel = 1
+    dcm.PhotometricInterpretation = "MONOCHROME1"
+    dcm.BitsAllocated = 8
+    dcm.BitsStored = 8
+    dcm.HighBit = 7
+    dcm.PixelRepresentation = 0
+    dcm.NumberOfFrames = 1
+    dcm.PixelData = raw_pixels.tobytes()
+
+    dcm_path = tmp_path / "mono1.dcm"
+    dcm.save_as(str(dcm_path))
+
+    decoded = decode_ultrasound_image(str(dcm_path), grayscale=True)
+    assert decoded is not None, "Failed to decode valid MONOCHROME1 DICOM"
+
+    # In MONOCHROME1, minimum sample 0 is White (255) and maximum sample 255 is Black (0)
+    assert decoded[0, 0] == 255, (
+        f"AI-07 VULNERABILITY: MONOCHROME1 polarity was not inverted! Expected 255 at [0,0], got {decoded[0, 0]}"
+    )
+    assert decoded[0, 1] == 0, (
+        f"AI-07 VULNERABILITY: MONOCHROME1 polarity was not inverted! Expected 0 at [0,1], got {decoded[0, 1]}"
+    )
+
+
+
 

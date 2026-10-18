@@ -308,15 +308,14 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (request đăng ký trùng khóa bị từ chối 409 Conflict, adapter chính `attention_unet` giữ nguyên tham chiếu và trạng thái `is_loaded`).
   - Hồi quy: 316 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
-
-
-
-
-
-
-
-
-
-
-
-
+### [AI-07] Xử lý đảo cực tính (Polarity Inversion) cho ảnh DICOM MONOCHROME1
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/inference.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi giải mã ảnh siêu âm định dạng DICOM trong hàm `decode_ultrasound_image`, hệ thống chuẩn hóa mảng pixel sang kiểu uint8 nhưng hoàn toàn bỏ qua thẻ DICOM tiêu chuẩn `PhotometricInterpretation` (0028, 0004). Đối với ảnh có thuộc tính `MONOCHROME1`, giá trị pixel nhỏ nhất biểu thị màu trắng (sáng tối đa) và giá trị lớn nhất biểu thị màu đen (tối tối đa), ngược lại với chuẩn thông thường `MONOCHROME2` của siêu âm và quy ước huấn luyện mô hình học sâu. Do đó, ảnh giải mã bị đảo ngược toàn bộ mức xám (âm bản), làm sai lệch hoàn toàn hình thái hiển thị cho bác sĩ và gây lỗi suy luận trên mô hình.
+- **Giải pháp**:
+  - Trích xuất giá trị thẻ `PhotometricInterpretation` từ đối tượng DICOM đã đọc: `photometric = str(getattr(dicom, "PhotometricInterpretation", "")).strip().upper()`.
+  - Nếu `photometric == "MONOCHROME1"`, áp dụng phép toán đảo cực tính cấp độ bit `image = cv2.bitwise_not(image)` trên mảng uint8, chuyển đổi chính xác thang xám về chuẩn trực quan y tế thông thường (0 = đen, 255 = trắng) trước khi chuyển đổi kênh màu hoặc trả về cho các dịch vụ tiền xử lý và suy luận.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_07_monochrome1_polarity_inversion` (Fails với `AssertionError: AI-07 VULNERABILITY: MONOCHROME1 polarity was not inverted! Expected 255 at [0,0], got 0` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (pixel có giá trị thô 0 được ánh xạ sang 255 và pixel 255 được ánh xạ sang 0).
+  - Hồi quy: 317 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
