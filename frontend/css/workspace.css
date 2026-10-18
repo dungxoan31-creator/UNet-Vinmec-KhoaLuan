@@ -105,8 +105,9 @@ small {
   color: var(--on-accent);
 }
 .btn.primary:hover {
-  background: var(--accent-text, #0062a1);
-  border-color: var(--accent-text, #0062a1);
+  background: var(--accent-hover, #0062a1);
+  border-color: var(--accent-hover, #0062a1);
+  color: var(--on-accent);
 }
 .btn.danger {
   color: var(--danger);
@@ -529,7 +530,7 @@ textarea {
 }
 .banner.info {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   border-color: transparent;
 }
 .empty {

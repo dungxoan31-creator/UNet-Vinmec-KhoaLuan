@@ -40,6 +40,7 @@
   --muted: #475569;
   --accent: #0076c0;
   --accent-text: #0062a1;
+  --accent-hover: #0062a1;
   --accent-soft: #e8f4fc;
   --brand-blue-start: #008ca8;
   --brand-blue-end: #0068ab;
@@ -102,6 +103,7 @@
   --muted: #94a3b8;
   --accent: #0076c0;
   --accent-text: #38bdf8;
+  --accent-hover: #0062a1;
   --accent-soft: rgba(0, 118, 192, 0.18);
   --on-accent: #ffffff;
   --focus: #38bdf8;

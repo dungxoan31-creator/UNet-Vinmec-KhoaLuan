@@ -1674,3 +1674,26 @@ def test_ai_11_deidentification_boundary_separates_clinical_raw_from_research_ar
             assert "SYNTHETIC^PATIENT_SENTINEL" not in json.dumps(meta_json)
             assert "NOT-A-REAL-PID-9999" not in json.dumps(meta_json)
 
+
+def test_fe_05_and_06_css_contrast_compliance():
+    """FE-05 & FE-06: Primary hover button and info banner must achieve >= 4.5:1 WCAG AA contrast in dark and light themes."""
+    import re
+    from pathlib import Path
+
+    css_dir = Path("frontend/css")
+    tokens_css = (css_dir / "workspace-tokens.css").read_text(encoding="utf-8")
+    workspace_css = (css_dir / "workspace.css").read_text(encoding="utf-8")
+
+    # 1. FE-05: .btn.primary:hover must not use sky-blue accent-text for white text
+    assert "var(--accent-text" not in workspace_css.split(".btn.primary:hover")[1].split("}")[0], (
+        "FE-05 VULNERABILITY: .btn.primary:hover still uses --accent-text, failing 4.5:1 contrast in dark theme!"
+    )
+    assert "--accent-hover" in tokens_css, "FE-05: --accent-hover token not declared in workspace-tokens.css"
+
+    # 2. FE-06 & FE-07: .banner.info must use --accent-text, not --accent
+    banner_info_block = workspace_css.split(".banner.info")[1].split("}")[0]
+    assert "var(--accent-text)" in banner_info_block, (
+        "FE-06 VULNERABILITY: .banner.info does not use --accent-text, failing 4.5:1 contrast against accent-soft!"
+    )
+
+
