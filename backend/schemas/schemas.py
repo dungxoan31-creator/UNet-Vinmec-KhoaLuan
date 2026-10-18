@@ -107,7 +107,16 @@ class DoctorReviewRequest(BaseModel):
         shape = value.get("shape")
         counts = value.get("counts")
         first_val = value.get("first_val")
-        if shape != [512, 512] or type(first_val) is not int or first_val not in (0, 1):
+        if (
+            not isinstance(shape, (list, tuple))
+            or len(shape) != 2
+            or type(shape[0]) is not int
+            or type(shape[1]) is not int
+            or shape[0] != 512
+            or shape[1] != 512
+            or type(first_val) is not int
+            or first_val not in (0, 1)
+        ):
             raise ValueError("Mask must be binary RLE with shape 512 x 512")
         if not isinstance(counts, list) or not counts or any(type(n) is not int or n <= 0 for n in counts):
             raise ValueError("RLE counts must be positive integers")

@@ -1250,6 +1250,64 @@ def test_be_28_concurrent_event_append_idempotency(monkeypatch):
         )
 
 
+def test_be_29_rle_shape_rejects_floats_with_422(monkeypatch, tmp_path):
+    """BE-29: RLE shape using float values must fail validation with HTTP 422, not HTTP 500."""
+    import uuid
+
+    import cv2
+    import numpy as np
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import (
+        ImageModel,
+        PatientModel,
+        SessionLocal,
+        StudyModel,
+        UserModel,
+    )
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    doc_uname = f"doc_29_{uuid.uuid4().hex[:6]}"
+    doc_uid = f"u_doc_29_{uuid.uuid4().hex[:6]}"
+    study_id = f"st_29_{uuid.uuid4().hex[:6]}"
+    img_id = f"img_29_{uuid.uuid4().hex[:6]}"
+    pt_id = f"pt_29_{uuid.uuid4().hex[:6]}"
+
+    img_path = str(tmp_path / "test_29.png")
+    cv2.imwrite(img_path, np.zeros((512, 512), dtype=np.uint8))
+
+    with SessionLocal() as db:
+        db.add(UserModel(id=doc_uid, username=doc_uname, full_name="Doc 29", role="DOCTOR", is_active=True))
+        db.add(PatientModel(id=pt_id, anonymized_pid=f"ANON_29_{uuid.uuid4().hex[:6]}"))
+        db.add(StudyModel(id=study_id, patient_id=pt_id, study_date="2026-10-18"))
+        db.add(ImageModel(id=img_id, study_id=study_id, filename="test_29.png", raw_path=img_path))
+        db.commit()
+
+    with TestClient(app) as client:
+        doc_token = create_access_token({"sub": doc_uname, "uid": doc_uid, "role": "DOCTOR"})
+        doc_headers = {"Authorization": f"Bearer {doc_token}"}
+
+        # Float shape [512.0, 512.0]
+        float_mask = {
+            "shape": [512.0, 512.0],
+            "counts": [512 * 512],
+            "first_val": 0,
+        }
+
+        resp = client.post(
+            f"/api/images/{img_id}/measurements",
+            headers=doc_headers,
+            json={"rle_mask": float_mask},
+        )
+        assert resp.status_code == 422, (
+            f"BE-29 VULNERABILITY: Float shape passed validation and caused status {resp.status_code}!"
+        )
+
+
+
 
 
 
