@@ -519,3 +519,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (sự kiện đúng timing được nhận diện duplicate 200, sự kiện đột biến timing bị từ chối 409, định dạng intermediate replay thành công 200).
   - Hồi quy: 332 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+
+### [BE-28] Xử lý trùng lặp đồng thời (Concurrent Event Append) đảm bảo tính Idempotent thay vì trả lỗi HTTP 500
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/hitl.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi hai yêu cầu mạng hoặc tiến trình client gửi trùng lặp cùng một sự kiện HITL (cùng `event_id`) diễn ra đồng thời, cả hai request đều vượt qua bước kiểm tra trùng lặp ban đầu trong CSDL (`db.query(HITLEventModel)` trả về None do chưa commit). Khi gọi `db.flush()` / `db.commit()`, request về đích sau vi phạm ràng buộc duy nhất `UNIQUE constraint failed: hitl_events.event_id`. Do ngoại lệ `IntegrityError` không được bắt và xử lý cục bộ, nó bùng phát ra tầng FastAPI khiến client nhận lỗi máy chủ `HTTP 500 Internal Server Error`, làm gián đoạn pipeline thu thập dữ liệu và báo cáo sai trạng thái hệ thống.
+- **Giải pháp**:
+  - Đóng gói toàn bộ khối `db.flush()` và `db.commit()` trong khối `try ... except IntegrityError`.
+  - Khi bắt được `IntegrityError`, lập tức `db.rollback()` để giải phóng transaction bị xung đột, sau đó mở kiểm tra lại từng sự kiện trong batch đối với dữ liệu CSDL vừa được commit đồng thời.
+  - Nếu sự kiện trong CSDL trùng khớp danh tính (`_matches_existing_event`), hệ thống xử lý như một thao tác lặp lại idempotent (`status: SUCCESS`, `accepted_count: 0`, `duplicate_count: 1`) và phản hồi `HTTP 200 OK` thay vì 500.
+  - Nếu sự kiện trong CSDL xung đột sequence hoặc mang dữ liệu khác, hệ thống chủ động ném lỗi `HTTP 409 Conflict` đúng chuẩn nghiệp vụ REST.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_28_concurrent_event_append_idempotency` sử dụng `threading.Barrier` đồng bộ 2 thread gọi API đồng thời (Fails với `IntegrityError: UNIQUE constraint failed: hitl_events.event_id` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (cả hai request đồng thời đều nhận HTTP 200, kết quả `status_codes == [200, 200]`).
+  - Hồi quy: 333 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
