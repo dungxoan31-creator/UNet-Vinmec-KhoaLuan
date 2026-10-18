@@ -560,3 +560,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_30_research_export_detects_source_content_drift` (Fails với `AssertionError: BE-30 VULNERABILITY: source_sha256 missing` và `Export succeeded with HTTP 200 despite source content drift` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (export hợp lệ sinh `source_sha256` chuẩn xác; khi file trên đĩa bị thay đổi kích thước/nội dung, export bị từ chối chính xác với HTTP 409).
   - Hồi quy: 335 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [BE-31] Ngăn ngừa tranh chấp đồng thời giữa tải ảnh lên và xóa ca khám (Upload vs Case Deletion Race)
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/inference.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi một yêu cầu tải ảnh lên (`POST /api/upload`) đang giải mã ảnh hoặc tiền xử lý, một tiến trình quản trị viên khác gọi xóa ca khám (`DELETE /api/cases/{study_id}`). Khi request upload tiếp tục thực thi và gọi `db.commit()`, việc ca khám cha đã bị xóa khiến SQLite kích hoạt lỗi ràng buộc khóa ngoại `IntegrityError: FOREIGN KEY constraint failed`. Do lỗi này không được xử lý chuẩn xác thành mã phản hồi HTTP, ngoại lệ bùng phát ra tầng ngoài thành `HTTP 500 Internal Server Error`. Trước khi kích hoạt `PRAGMA foreign_keys = ON`, lỗi này thậm chí chèn thành công bản ghi ảnh mồ côi (`orphan ImageModel`) không có ca khám cha.
+- **Giải pháp**:
+  - Tại `upload_image`: Trước khi thêm bản ghi `ImageModel`, thực hiện làm mới và kiểm tra trạng thái thực tế của ca khám `StudyModel` trong CSDL (`db.expire(study)`). Nếu bản ghi đã bị xóa trong session khác, bắt `ObjectDeletedError` / `StaleDataError` và lập tức từ chối với `HTTP 404 Not Found` ("Mã ca khám không tồn tại hoặc đã bị xóa.").
+  - Tại khối xử lý ngoại lệ `IntegrityError`: Bổ sung nhận diện lỗi khóa ngoại (`FOREIGN KEY constraint failed`), chuyển đổi sang `HTTP 404 Not Found` thay vì để lọt lỗi 500.
+  - Tự động kích hoạt cơ chế dọn dẹp file tạm trên đĩa (`file_path`) trong khối `except Exception:`, bảo đảm không để lại bất kỳ file ảnh rác nào trên hệ thống tệp và không tạo bản ghi mồ côi trong CSDL.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_31_upload_case_deletion_race_prevents_orphan_image` (Fails với `ObjectDeletedError` và unhandled 500 trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (upload nhận đúng HTTP 404, file ảnh tạm trên đĩa bị xóa sạch và số lượng ảnh mồ côi trong CSDL bằng 0).
+  - Hồi quy: 336 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
