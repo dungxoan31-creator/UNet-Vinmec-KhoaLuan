@@ -436,3 +436,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Hồi quy: 326 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
 
+
+
+### [BE-20] Lưu trữ bền vững mô hình ứng viên (Candidate Models) và ghi vết kiểm toán
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/model_service.py`, `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi quản trị viên đăng ký một checkpoint hoặc kiến trúc mô hình ứng viên (`CandidateModelAdapter`) qua API `POST /api/admin/models/register`, adapter chỉ được thêm tạm thời vào từ điển bộ nhớ `model_registry.adapters`. Khi tiến trình uvicorn khởi động lại hoặc khi có tiến trình worker độc lập chạy, toàn bộ mô hình ứng viên đã đăng ký biến mất hoàn toàn. Đồng thời hành vi đăng ký mô hình AI vào registry hệ thống không được ghi nhận vào nhật ký kiểm toán bảo mật (`audit_logs`).
+- **Giải pháp**:
+  - Triển khai cơ chế lưu trữ bền vững `load_persisted_candidates` và `save_persisted_candidates` trong `ModelRegistry`, lưu metadata các mô hình ứng viên vào `candidate_models.json` trong thư mục dữ liệu cấu hình `DATA_DIR` (hỗ trợ phân giải biến môi trường `APP_DATA_DIR`).
+  - Trong hàm khởi tạo `ModelRegistry.__init__` và phương thức truy vấn `get_admin_overview`, tự động nạp lại các ứng viên đã lưu trữ để đồng bộ trạng thái xuyên suốt mọi worker và sau các lần restart.
+  - Trong `register_admin_model`, sau khi thêm adapter vào registry, tự động kích hoạt `model_registry.save_persisted_candidates()`, đồng thời ghi một bản ghi kiểm toán bảo mật `AuditLogModel(entity_name="model_candidate", action_type="REGISTER_CANDIDATE_MODEL")` ghi nhận danh tính quản trị viên thực hiện thao tác.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_20_admin_candidate_models_persist_across_restart` (Fails với `AssertionError: BE-20 VULNERABILITY: Candidate model lost across process restart! Output: ... PERSISTED:False` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (mô hình `candidate_resunet_v2` tồn tại bền vững trong registry sau khi tiến trình mới khởi động lại; endpoint overview hiển thị chính xác danh sách candidate).
+  - Hồi quy: 327 passed, 2 skipped, 0 regressions trên toàn bộ test suite.

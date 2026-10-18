@@ -2,7 +2,7 @@
 Model Abstraction Layer & Registry for Ovarian Ultrasound AI Segmentation.
 Supports Attention U-Net (Primary Production Model), S4M, UltraSAM, DS2Net, and SovaSeg.
 """
-
+import json
 import os
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
@@ -362,6 +362,16 @@ class CandidateModelAdapter(BaseModelAdapter):
         raise RuntimeError(f"Candidate model {self.name} is not loaded for inference.")
 
 
+def _get_candidate_models_file() -> str:
+    env_dir = os.environ.get("APP_DATA_DIR")
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    if env_dir:
+        data_dir = os.path.abspath(env_dir) if os.path.isabs(env_dir) else os.path.abspath(os.path.join(project_root, env_dir))
+    else:
+        data_dir = os.path.join(project_root, "data")
+    return os.path.join(data_dir, "candidate_models.json")
+
+
 class ModelRegistry:
     """
     Central Registry managing hot-swappable AI segmentation model adapters.
@@ -389,6 +399,45 @@ class ModelRegistry:
         self.register_adapter("ultrasam", UltraSAMAdapter(fallback_engine=primary_engine))
         self.register_adapter("ds2net", DS2NetAdapter(fallback_engine=primary_engine))
         self.register_adapter("sovaseg", SovaSegAdapter(fallback_engine=primary_engine))
+        self.load_persisted_candidates()
+
+    def load_persisted_candidates(self) -> None:
+        filepath = _get_candidate_models_file()
+        if os.path.isfile(filepath):
+            try:
+                with open(filepath, encoding="utf-8") as f:
+                    candidates = json.load(f)
+                    if isinstance(candidates, list):
+                        for c in candidates:
+                            k = c.get("key")
+                            if k and k not in self.adapters:
+                                self.adapters[k] = CandidateModelAdapter(
+                                    name=c.get("name", k),
+                                    version=c.get("version", "1.0.0"),
+                                    architecture=c.get("architecture", "Candidate Checkpoint"),
+                                    checkpoint=c.get("checkpoint"),
+                                )
+            except Exception:
+                pass
+
+    def save_persisted_candidates(self) -> None:
+        filepath = _get_candidate_models_file()
+        candidates = []
+        for k, v in self.adapters.items():
+            if isinstance(v, CandidateModelAdapter):
+                candidates.append({
+                    "key": k,
+                    "name": v.name,
+                    "version": v.version,
+                    "architecture": v.architecture,
+                    "checkpoint": getattr(v, "checkpoint", None),
+                })
+        try:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(candidates, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
     def register_adapter(self, key: str, adapter: BaseModelAdapter, allow_overwrite: bool = False):
         if not allow_overwrite and key in self.adapters:
@@ -431,6 +480,7 @@ class ModelRegistry:
 
     def get_admin_overview(self) -> dict[str, Any]:
         """Provides operational metrics for Admin / Engineering view."""
+        self.load_persisted_candidates()
         device_name = "CUDA (NVIDIA GPU)" if torch.cuda.is_available() else "CPU Execution Provider"
         models_info = [adapter.get_info() for adapter in self.adapters.values()]
         primary = self.adapters.get(self.primary_model_key)

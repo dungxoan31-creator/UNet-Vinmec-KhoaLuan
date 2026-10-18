@@ -762,6 +762,73 @@ def test_be_19_admin_departments_persist_across_restart(tmp_path, monkeypatch):
         )
 
 
+def test_be_20_admin_candidate_models_persist_across_restart(tmp_path, monkeypatch):
+    """BE-20: Candidate models registered via admin API must persist across process restart."""
+    import subprocess
+    import sys
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+
+    with SessionLocal() as db:
+        admin_user = db.query(UserModel).filter(UserModel.username == "admin").first()
+        if not admin_user:
+            admin_user = UserModel(id="u_admin", username="admin", full_name="Admin", role="ADMIN", is_active=True)
+            db.add(admin_user)
+            db.commit()
+        admin_uid = admin_user.id
+
+    with TestClient(app) as client:
+        token = create_access_token({"sub": "admin", "uid": admin_uid, "role": "ADMIN"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Register candidate model
+        reg_resp = client.post(
+            "/api/admin/models/register",
+            headers=headers,
+            json={
+                "model_id": "candidate_resunet_v2",
+                "name": "ResUNet Plus Plus Research",
+                "version": "2.1.0",
+                "architecture": "ResUNet++",
+                "checkpoint": "checkpoints/resunet_v2.pth",
+            },
+        )
+        assert reg_resp.status_code == 200, f"Registration failed: {reg_resp.text}"
+        assert reg_resp.json()["model_id"] == "candidate_resunet_v2"
+
+        # Verify it appears in GET /api/admin/models
+        overview_resp = client.get("/api/admin/models", headers=headers)
+        assert overview_resp.status_code == 200
+        overview = overview_resp.json()
+        registered_keys = [m.get("name") for m in overview.get("registered_models", [])]
+        assert any("ResUNet" in k for k in registered_keys)
+
+        # Simulate fresh process / restart
+        import os
+        child_env = os.environ.copy()
+        child_env["PYTHONIOENCODING"] = "utf-8"
+        child_env["APP_DATA_DIR"] = str(tmp_path)
+
+        code = (
+            "from backend.app.config import model_registry; "
+            "found = 'candidate_resunet_v2' in model_registry.adapters; "
+            "print('PERSISTED:' + str(found))"
+        )
+        child = subprocess.run([sys.executable, "-c", code], env=child_env, capture_output=True, encoding="utf-8", timeout=30)
+        assert child.returncode == 0, f"Child process failed: {child.stderr}"
+        output = child.stdout
+        assert "PERSISTED:True" in output, (
+            f"BE-20 VULNERABILITY: Candidate model lost across process restart! Output: {output}"
+        )
+
+
 
 
 

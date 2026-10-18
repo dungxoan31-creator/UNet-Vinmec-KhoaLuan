@@ -528,7 +528,11 @@ def delete_admin_user(user_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/api/admin/models/register")
-def register_admin_model(model_data: dict = Body(default={})):
+def register_admin_model(
+    model_data: dict = Body(default={}),
+    current_user: UserModel = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Register candidate model checkpoint for clinical review and update model registry."""
     name = model_data.get("name") or model_data.get("model_id") or "candidate_model"
     version = model_data.get("version") or "1.0.0"
@@ -543,6 +547,20 @@ def register_admin_model(model_data: dict = Body(default={})):
 
     adapter = CandidateModelAdapter(name=name, version=version, architecture=arch, checkpoint=ckpt)
     model_registry.register_adapter(key, adapter)
+    model_registry.save_persisted_candidates()
+
+    db.add(
+        AuditLogModel(
+            entity_name="model_candidate",
+            entity_id=key,
+            action_type="REGISTER_CANDIDATE_MODEL",
+            actor_id=current_user.username,
+            details={"name": name, "version": version, "architecture": arch, "checkpoint": ckpt},
+            timestamp=datetime.now(UTC),
+        )
+    )
+    db.commit()
+
     return {"status": "SUCCESS", "message": "Đăng ký mô hình thành công.", "model_id": key}
 
 
