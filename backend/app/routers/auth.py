@@ -140,14 +140,14 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         title=req.title or "BS",
         hospital=req.hospital or "Bệnh viện ĐKQT Vinmec Times City",
         avatar="doctor_avatar.png",
-        is_active=True,
+        is_active=False,
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
     return TokenResponse(
-        access_token=create_access_token({"sub": new_user.username, "uid": new_user.id}),
+        access_token="",
         user=UserProfile.model_validate(new_user, from_attributes=True),
     )
 

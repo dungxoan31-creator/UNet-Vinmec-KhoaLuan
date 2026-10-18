@@ -37,3 +37,57 @@ def test_be_02_reset_token_rejected_as_access_token(monkeypatch):
             f"Status: {response.status_code}, Body: {response.text}"
         )
 
+
+def test_be_04_self_registered_doctor_requires_admin_approval(tmp_path, monkeypatch):
+    """BE-04: Self-registered doctor must require admin approval (is_active=False) before receiving clinical access."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from backend.db.database import Base, UserModel, PatientModel, StudyModel, get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'be04.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add_all([
+            UserModel(id="admin-1", username="admin", full_name="Admin", role="ADMIN", is_active=True),
+            PatientModel(id="p1", anonymized_pid="PID-BE04"),
+            StudyModel(id="s1", patient_id="p1", study_code="STD-BE04", study_date="2026-10-18"),
+        ])
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            # External person self-registers as DOCTOR
+            reg_resp = client.post("/api/auth/register", json={
+                "username": "dr_external",
+                "password": "externalpassword123",
+                "full_name": "BS. External Person",
+                "role": "DOCTOR",
+            })
+            assert reg_resp.status_code == 200
+            reg_data = reg_resp.json()
+
+            # VULNERABILITY CHECK:
+            # 1. User must NOT be activated immediately
+            assert reg_data["user"]["is_active"] is False, (
+                "BE-04 VULNERABILITY DETECTED: Self-registered doctor was immediately marked active!"
+            )
+
+            # 2. Even if token was returned, clinical case access must be blocked with 401
+            token = reg_data.get("access_token")
+            if token:
+                case_resp = client.get("/api/cases/s1", headers={"Authorization": f"Bearer {token}"})
+                assert case_resp.status_code == 401, (
+                    f"BE-04 VULNERABILITY DETECTED: Inactive self-registered user accessed clinical case! "
+                    f"Status: {case_resp.status_code}"
+                )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+

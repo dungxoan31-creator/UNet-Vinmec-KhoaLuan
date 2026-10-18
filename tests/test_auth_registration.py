@@ -50,15 +50,26 @@ def test_user_registration_and_login_flow(tmp_path, monkeypatch):
             assert reg_data["user"]["full_name"] == "BS. Nguyễn Văn Hoàng"
             assert reg_data["user"]["role"] == "DOCTOR"
 
-            # 3. Verify user was stored with password_hash, not plain text
+            # 3. Verify user was stored with password_hash, not plain text, and pending approval (is_active=False)
             with Session(engine) as db:
                 user_in_db = db.query(UserModel).filter(UserModel.username == "dr_hoang").first()
                 assert user_in_db is not None
                 assert user_in_db.password_hash is not None
                 assert "securepassword123" not in user_in_db.password_hash
                 assert ":" in user_in_db.password_hash
+                assert user_in_db.is_active is False
 
-            # 4. Login with newly created credentials
+            # 4a. Login before admin approval must be rejected with 401
+            pre_approval_login = client.post("/api/auth/login", json={"username": "dr_hoang", "password": "securepassword123"})
+            assert pre_approval_login.status_code == 401
+
+            # 4b. Admin verifies identity and activates the clinical doctor account
+            with Session(engine) as db:
+                user_in_db = db.query(UserModel).filter(UserModel.username == "dr_hoang").first()
+                user_in_db.is_active = True
+                db.commit()
+
+            # 4c. Login succeeds after admin approval
             login_success = client.post("/api/auth/login", json={"username": "dr_hoang", "password": "securepassword123"})
             assert login_success.status_code == 200
             assert "access_token" in login_success.json()
