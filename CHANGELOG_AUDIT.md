@@ -764,3 +764,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_minor_fixes.py::test_demo_01_report_generator_removes_hardcoded_placeholders` (Fails với `Failed: DID NOT RAISE ValueError` do sử dụng PID hardcode trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (thiếu PID ném đúng `ValueError`; khi có PID nhưng thiếu trường lâm sàng, toàn bộ chuỗi giả mạo không còn xuất hiện).
   - Hồi quy: 346 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [FE-04] Áp dụng ràng buộc chỉ đọc (readonly) và rào chắn quyền sửa (lease guard) trên giao diện Viewer
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `frontend/app/viewer.js`
+- **Nguyên nhân gốc (Root Cause)**: Tại `frontend/app/viewer.js`, các bộ lắng nghe sự kiện thay đổi của các trường phân loại lâm sàng (`#iotaMorphology`, `#oradsScore`, `#notes`, `#morphology`) chỉ kiểm tra cờ `state.busy` hoặc `readonly` đơn lẻ mà không kiểm tra trạng thái quyền sửa của phiên làm việc (`!state.editing?.allowed`). Đồng thời khi mất quyền sửa qua sự kiện `ova:lease-lost`, hệ thống chỉ vô hiệu hóa `#notes` và `#morphology` nhưng bỏ quên `#iotaMorphology` và `#oradsScore`, cho phép người dùng chỉ đọc hoặc bị mất lease vẫn có thể thay đổi đánh giá rủi ro O-RADS và tạo draft cục bộ sai lệch.
+- **Giải pháp**:
+  - Tại các event handler của `#notes`, `#morphology`, `#iotaMorphology` và `#oradsScore`: Bổ sung kiểm tra toàn diện `if (state.busy || readonly || !state.editing?.allowed) return;` và hoàn nguyên giá trị ban đầu nếu không có quyền chỉnh sửa.
+  - Trong bộ lắng nghe sự kiện `ova:lease-lost`: Thiết lập rõ ràng `readonly = true`, `state.editing = { caseId: c.study_id, allowed: false }`, và vô hiệu hóa lập tức cả `#iotaMorphology` và `#oradsScore` (`disabled = true`).
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_fe_04_viewer_readonly_and_lease_loss_guard_blocks_clinical_mutation` (Fails trước khi sửa do thiếu guard `!state.editing?.allowed` và thiếu disable trên selector IOTA/O-RADS).
+  - Xác nhận: Test chuyển sang PASSED; kiểm thử Node JS `tests/frontend_review_logic.js` PASSED.
+  - Hồi quy: 347 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
