@@ -43,7 +43,13 @@ def _signing_key() -> str:
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     now = datetime.now(UTC)
-    payload = {**data, "exp": now + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)), "iat": now}
+    payload = {
+        "purpose": "access",
+        "type": "access",
+        **data,
+        "exp": now + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)),
+        "iat": now,
+    }
     return jwt.encode(payload, _signing_key(), algorithm=JWT_ALGORITHM)
 
 
@@ -54,6 +60,11 @@ def get_current_user(authorization: str | None = Header(None), db: Session = Dep
         payload = jwt.decode(authorization[7:], _signing_key(), algorithms=[JWT_ALGORITHM])
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired token.") from exc
+
+    # Enforce token purpose separation: reject tokens intended for reset_password or not marked for access
+    if payload.get("purpose") == "reset_password" or payload.get("type") == "reset":
+        raise HTTPException(status_code=401, detail="Invalid token type.")
+
     username = payload.get("sub")
     user = db.query(UserModel).filter(UserModel.username == username).first() if username else None
     if not user or not user.is_active:

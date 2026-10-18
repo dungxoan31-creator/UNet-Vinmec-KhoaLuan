@@ -18,3 +18,22 @@ def test_be_01_forgot_password_does_not_leak_reset_token(monkeypatch):
         assert "reset_token" not in data or data["reset_token"] is None, (
             f"BE-01 VULNERABILITY DETECTED: reset_token was publicly returned in response: {data.get('reset_token')}"
         )
+
+
+def test_be_02_reset_token_rejected_as_access_token(monkeypatch):
+    """BE-02: Reset password token must NOT be accepted as Bearer access token."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from backend.app.routers.auth import create_reset_token
+    reset_token = create_reset_token("admin")
+
+    with TestClient(app) as client:
+        # Attempt to access protected clinical/admin profile using a reset token
+        response = client.get(
+            "/api/auth/current-user",
+            headers={"Authorization": f"Bearer {reset_token}"},
+        )
+        assert response.status_code == 401, (
+            f"BE-02 VULNERABILITY DETECTED: Reset token was accepted as valid access token! "
+            f"Status: {response.status_code}, Body: {response.text}"
+        )
+
