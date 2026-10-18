@@ -23,6 +23,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     event,
+    func,
     text,
 )
 from sqlalchemy.engine import Engine
@@ -159,9 +160,19 @@ class AuditLogModel(Base):
 
 class UserModel(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        Index(
+            "uq_users_email_lower",
+            func.lower("email"),
+            unique=True,
+            sqlite_where=text("email IS NOT NULL"),
+        ),
+    )
 
     id = Column(String(36), primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
+    email = Column(String(254), nullable=True)
+    email_verified = Column(Boolean, default=False, server_default="0", nullable=False)
     password_hash = Column(String(255), nullable=True)
     full_name = Column(String(100), nullable=False)
     role = Column(String(20), default="DOCTOR")  # DOCTOR, ADMIN
@@ -174,6 +185,20 @@ class UserModel(Base):
     token_version = Column(Integer, default=1)
     tokens_revoked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class EmailVerificationChallengeModel(Base):
+    __tablename__ = "email_verification_challenges"
+    __table_args__ = (UniqueConstraint("email", name="uq_email_verification_challenge_email"),)
+
+    id = Column(String(36), primary_key=True)
+    email = Column(String(254), nullable=False)
+    code_digest = Column(String(64), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    resend_count = Column(Integer, default=0, nullable=False)
+    last_sent_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
 
 
 class ReviewBatchModel(Base):
@@ -242,6 +267,7 @@ def init_db():
 
     # Auto-migration check for SQLite columns in case existing DB was created with older schema
     try:
+        migrate_auth_email_schema(DB_PATH)
         conn = sqlite3.connect(DB_PATH)
         try:
             cursor = conn.cursor()
@@ -345,6 +371,32 @@ def init_db():
         print("[Database] SQLite DB initialized and verified.")
     except Exception:
         pass
+
+
+def migrate_auth_email_schema(db_path: str) -> None:
+    """Add registration email fields to existing SQLite databases without losing users."""
+    conn = sqlite3.connect(db_path)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(users);")
+        columns = {column[1] for column in cursor.fetchall()}
+        if columns:
+            if "email" not in columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(254);")
+            if "email_verified" not in columns:
+                cursor.execute(
+                    "ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT 0;"
+                )
+            cursor.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_lower "
+                "ON users(lower(email)) WHERE email IS NOT NULL;"
+            )
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        raise RuntimeError("SQLite auth email migration failed") from exc
+    finally:
+        conn.close()
 
 
 def get_db():
