@@ -806,4 +806,20 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (xác nhận tỷ lệ tương phản 5.76:1 và 7.01:1 >= 4.5:1).
   - Hồi quy: 349 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [DEP-06..12] Ghim phiên bản an toàn cho công cụ build (pip >= 26.2, setuptools >= 78.1.1)
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `Dockerfile`, `requirements-lock.txt`, `tests/test_audit_minor_fixes.py`
+- **Nguyên nhân gốc (Root Cause)**: Các cảnh báo bảo mật scanner phụ thuộc (pip-audit) phát hiện 7 advisory đối với công cụ đóng gói build môi trường:
+  - `DEP-06..11`: pip 25.0.1 (PYSEC-2026-1795, PYSEC-2026-1796, PYSEC-2026-2875, PYSEC-2026-2876, PYSEC-2026-196, PYSEC-2026-3721; CVE-2025-8869, CVE-2026-1703, CVE-2026-3219, CVE-2026-6357, CVE-2026-8643, CVE-2026-13346).
+  - `DEP-12`: setuptools 78.1.0 (PYSEC-2025-49, CVE-2025-47273, GHSA-5rjg-fvgr-3xxf).
+  Đây là các cảnh báo thuộc công cụ cài đặt/build, không có đường dẫn khai thác trực tiếp từ HTTP runtime tới backend API. Tuy nhiên khi build image mới, việc dùng công cụ chưa cập nhật tạo ra rủi ro chuỗi cung ứng (supply chain risks).
+- **Giải pháp**:
+  - Trong `requirements-lock.txt`: Ghim rõ ràng phiên bản an toàn đã sửa lỗi: `pip>=26.2` và `setuptools>=78.1.1`.
+  - Trong `Dockerfile`: Bổ sung bước nâng cấp trước khi cài đặt dependencies: `RUN pip install --no-cache-dir --upgrade "pip>=26.2" "setuptools>=78.1.1"`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_dep_06_to_12_build_toolchain_security_boundaries` (Fails với `DEP-06..11 VULNERABILITY: requirements-lock.txt missing safe pip>=26.2 pin!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (xác nhận phiên bản an toàn trong cả lockfile và Dockerfile).
+  - Hồi quy: 350 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
