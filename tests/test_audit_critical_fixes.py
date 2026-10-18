@@ -492,6 +492,57 @@ def test_be_25_secure_provisioning_and_no_shared_default_password(tmp_path, monk
         engine.dispose()
 
 
+def test_ops_01_enforce_tls_and_no_plaintext_exposure():
+    """OPS-01: Deployment configurations must terminate TLS, enforce HTTPS redirect, and restrict backend binding."""
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parent.parent
+    compose_file = root / "docker-compose.yml"
+    nginx_file = root / "nginx.conf"
+
+    assert compose_file.exists(), "docker-compose.yml not found"
+    assert nginx_file.exists(), "nginx.conf not found"
+
+    compose_text = compose_file.read_text(encoding="utf-8")
+    compose_data = yaml.safe_load(compose_text)
+
+    # 1. Backend app service must not expose raw 8000 on 0.0.0.0
+    app_svc = compose_data.get("services", {}).get("app", {})
+    app_ports = [str(p) for p in app_svc.get("ports", [])]
+    assert "8000:8000" not in app_ports, (
+        "OPS-01 VULNERABILITY: Backend port 8000 directly published on 0.0.0.0!"
+    )
+
+    # 2. Proxy service must publish port 443 for HTTPS
+    nginx_svc = compose_data.get("services", {}).get("nginx", {})
+    nginx_ports = [str(p) for p in nginx_svc.get("ports", [])]
+    has_443 = any("443:443" in p or "443" in p for p in nginx_ports)
+    assert has_443, "OPS-01 VULNERABILITY: Nginx proxy does not publish port 443!"
+
+    # 3. Proxy service must mount TLS certificate volume
+    nginx_volumes = [str(v) for v in nginx_svc.get("volumes", [])]
+    has_cert_mount = any("certs" in v for v in nginx_volumes)
+    assert has_cert_mount, "OPS-01 VULNERABILITY: Nginx proxy missing TLS certificate mount!"
+
+    # 4. Nginx configuration must enforce HTTPS redirect on port 80
+    nginx_text = nginx_file.read_text(encoding="utf-8")
+    assert "return 301 https://$host$request_uri;" in nginx_text or "rewrite ^(.*) https://$host$1 permanent;" in nginx_text, (
+        "OPS-01 VULNERABILITY: Nginx port 80 does not enforce redirect to HTTPS!"
+    )
+
+    # 5. Nginx configuration must listen on 443 ssl with TLSv1.2/1.3 and HSTS
+    assert "listen 443 ssl" in nginx_text, "OPS-01 VULNERABILITY: Nginx missing 'listen 443 ssl' server block!"
+    assert "ssl_protocols" in nginx_text and "TLSv1.2" in nginx_text and "TLSv1.3" in nginx_text, (
+        "OPS-01 VULNERABILITY: Nginx missing secure TLS protocol definition (TLSv1.2 TLSv1.3)!"
+    )
+    assert "Strict-Transport-Security" in nginx_text, (
+        "OPS-01 VULNERABILITY: Nginx missing HSTS security header!"
+    )
+
+
+
 
 
 

@@ -219,6 +219,27 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (tạo và reset tài khoản sinh mật khẩu ngẫu nhiên không trùng chuỗi mặc định, bật cờ `must_change_password`, và tự động tắt cờ khi đổi mật khẩu).
   - Hồi quy: 311 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [OPS-01] Thiết lập TLS Termination, chuyển hướng HTTPS-only và giới hạn truy cập mạng riêng cho backend
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `docker-compose.yml`, `nginx.conf`
+- **Nguyên nhân gốc (Root Cause)**: Trong file `docker-compose.yml`, container backend `app` mở trực tiếp cổng `8000:8000` ra toàn bộ các giao diện mạng công khai (0.0.0.0), cho phép truy cập HTTP không mã hóa bỏ qua reverse proxy. Đồng thời, dịch vụ `nginx` chỉ lắng nghe cổng 80 HTTP thông thường, không cấu hình cổng 443 HTTPS, không gắn chứng chỉ số TLS và không có cơ chế chuyển hướng HTTP sang HTTPS. Nếu triển khai cấu hình này lên hạ tầng bệnh viện, toàn bộ token xác thực y tế (Bearer JWT), thông tin bệnh án và ảnh siêu âm sẽ truyền tải dưới dạng bản rõ (plaintext).
+- **Giải pháp**:
+  - Trong `docker-compose.yml`:
+    1. Thay thế khai báo mở cổng công khai `ports: - "8000:8000"` của container `app` thành `expose: - "8000"`, chỉ cho phép Nginx trong mạng nội bộ Docker truy cập backend.
+    2. Bổ sung cổng `443:443` vào danh sách ports của `nginx`.
+    3. Bổ sung volume mount thư mục chứng chỉ TLS an toàn `./certs:/etc/nginx/certs:ro` vào container `nginx`.
+  - Trong `nginx.conf`:
+    1. Cấu hình server block trên cổng 80 chuyển hướng bắt buộc HTTP 301 toàn bộ request sang `https://$host$request_uri`.
+    2. Cấu hình server block chuyên dụng lắng nghe cổng 443 với `listen 443 ssl`, trỏ đến chứng chỉ `/etc/nginx/certs/tls.crt` và khóa bí mật `/etc/nginx/certs/tls.key`.
+    3. Giới hạn các giao thức mã hóa an toàn `ssl_protocols TLSv1.2 TLSv1.3;`, bật `ssl_prefer_server_ciphers on;` với bộ ciphers bảo mật cao `HIGH:!aNULL:!MD5`.
+    4. Bổ sung các header bảo mật y tế quan trọng: `Strict-Transport-Security` (HSTS thời hạn 1 năm), `X-Content-Type-Options: nosniff` và `X-Frame-Options: DENY`.
+    5. Thiết lập header `proxy_set_header X-Forwarded-Proto https;` để backend nhận diện đúng giao thức kết nối an toàn.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_ops_01_enforce_tls_and_no_plaintext_exposure` (Fails với `AssertionError: OPS-01 VULNERABILITY: Backend port 8000 directly published on 0.0.0.0!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (cổng 8000 không còn công khai 0.0.0.0, Nginx mở cổng 443 và mount certs, cổng 80 chuyển hướng 301 sang HTTPS, server block 443 cấu hình TLSv1.2/1.3 và HSTS đầy đủ).
+  - Hồi quy: 312 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
 

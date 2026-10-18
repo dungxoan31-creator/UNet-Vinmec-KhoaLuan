@@ -8,8 +8,8 @@ services:
     image: ovarian-ultrasound-ai:latest
     container_name: ovarian_ai_backend
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
       - PORT=8000
       - PYTHONUNBUFFERED=1
@@ -36,7 +36,9 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
       - app
