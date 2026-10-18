@@ -2,13 +2,12 @@
 Service for generating traceable research export ZIP bundles pinning exact review snapshots.
 """
 
-from datetime import UTC, datetime
 import hashlib
 import io
 import json
 import os
 import zipfile
-from typing import Any
+from datetime import UTC, datetime
 
 import cv2
 import numpy as np
@@ -126,6 +125,10 @@ def build_research_bundle(
             zf.writestr(rev_path, rev_png_bytes)
             zf.writestr(overlay_path, overlay_png_bytes)
 
+            fb = rev.hitl_feedback if isinstance(rev.hitl_feedback, dict) else {}
+            orads_val = fb.get("orads_score") or fb.get("orads")
+            morphology_val = fb.get("morphologyDesc") or fb.get("morphology_description")
+
             images_metadata.append({
                 "image_id": image.id,
                 "laterality": image.laterality,
@@ -134,6 +137,9 @@ def build_research_bundle(
                 "doctor_action": rev.doctor_action,
                 "doctor_id": rev.doctor_id,
                 "lesion_type": rev.lesion_type,
+                "orads": orads_val,
+                "orads_score": orads_val,
+                "morphology_description": morphology_val,
                 "clinical_notes": rev.clinical_notes,
                 "measurements": {
                     "max_diameter_mm": rev.max_diameter_mm,

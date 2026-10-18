@@ -239,6 +239,24 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (cổng 8000 không còn công khai 0.0.0.0, Nginx mở cổng 443 và mount certs, cổng 80 chuyển hướng 301 sang HTTPS, server block 443 cấu hình TLSv1.2/1.3 và HSTS đầy đủ).
   - Hồi quy: 312 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+---
+
+## Nhóm MAJOR
+
+### [FE-03] Bổ sung phân loại O-RADS và mô tả hình thái lâm sàng vào Metadata ZIP nghiên cứu
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/research_export.py`
+- **Nguyên nhân gốc (Root Cause)**: Trong quá trình đóng gói gói nghiên cứu `metadata.json` của tệp ZIP (`build_research_bundle`), danh sách trường trích xuất từ `ReviewModel` bỏ qua hoàn toàn thông tin phân loại nguy cơ `orads`/`orads_score` và mô tả hình thái siêu âm `morphology_description` được lưu trong `hitl_feedback`. Hậu quả là gói dữ liệu nghiên cứu xuất ra bị thiếu mất nhận định lâm sàng cốt lõi của bác sĩ, khiến các hệ thống hoặc nhà nghiên cứu tiếp nhận phía sau không thể tái cấu trúc trọn vẹn ca rà soát.
+- **Giải pháp**:
+  - Trong `build_research_bundle` (`backend/services/research_export.py`), trích xuất thông tin `hitl_feedback` từ phiên rà soát được ghim (`rev.hitl_feedback`).
+  - Lấy các giá trị `orads_score`/`orads` và `morphology_description`/`morphologyDesc`.
+  - Bổ sung tường minh các trường `"orads"`, `"orads_score"`, và `"morphology_description"` vào từng mục `images_metadata` trong `metadata.json`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_fe_03_research_export_metadata_includes_orads_and_morphology` (Fails với `AssertionError: FE-03 VULNERABILITY: 'orads' missing from exported image metadata!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (tệp metadata.json trong ZIP chứa đầy đủ `orads="O-RADS 3"` và `morphology_description="U nang đơn thùy, thành mỏng"`).
+  - Hồi quy: 313 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
 

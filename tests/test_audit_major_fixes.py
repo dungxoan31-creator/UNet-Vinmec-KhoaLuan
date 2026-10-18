@@ -1,0 +1,113 @@
+"""Regression tests for audit fixes - MAJOR issues."""
+import io
+import json
+
+import numpy as np
+from fastapi.testclient import TestClient
+
+from backend.app.main import app
+from backend.core.image_utils import cv2_imwrite_unicode
+
+
+def test_fe_03_research_export_metadata_includes_orads_and_morphology(tmp_path, monkeypatch):
+    """FE-03: Exported research bundle metadata.json must explicitly include orads and morphology_description from saved review."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import (
+        Base,
+        ImageModel,
+        PatientModel,
+        PredictionModel,
+        ReviewModel,
+        StudyModel,
+        UserModel,
+        get_db,
+    )
+    from backend.services.inference_engine import InferenceEngine
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'fe03.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+
+    img_path = tmp_path / "img1.png"
+    cv2_imwrite_unicode(str(img_path), np.zeros((100, 100, 3), dtype=np.uint8))
+
+    rle_512 = InferenceEngine.mask_to_rle(np.zeros((512, 512), dtype=np.uint8))
+
+    from datetime import UTC, datetime
+    with Session(engine) as db:
+        db.add(UserModel(id="u_doc", username="doctor1", full_name="BS. One", role="DOCTOR", is_active=True))
+        p = PatientModel(id="p1", anonymized_pid="PID-001")
+        s = StudyModel(id="s1", patient_id="p1", study_code="ST-001", study_date=datetime.now(UTC), review_revision=1)
+        im = ImageModel(
+            id="im1",
+            study_id="s1",
+            filename="img1.png",
+            raw_path=str(img_path),
+            laterality="R",
+            width=100,
+            height=100,
+        )
+        pred = PredictionModel(
+            id="pr1",
+            image_id="im1",
+            raw_mask_rle=rle_512,
+            measurements={},
+            provenance_json={"model_name": "U-Net"},
+        )
+        rev = ReviewModel(
+            id="rev1",
+            image_id="im1",
+            prediction_id="pr1",
+            doctor_id="doctor1",
+            doctor_action="MODIFIED",
+            verified_mask_rle=rle_512,
+            max_diameter_mm=25.0,
+            ortho_diameter_mm=18.0,
+            total_area_cm2=3.5,
+            lesion_type="CYST",
+            clinical_notes="Nang buồng trứng phải",
+            hitl_feedback={
+                "orads": "O-RADS 3",
+                "orads_score": "O-RADS 3",
+                "morphology_description": "U nang đơn thùy, thành mỏng",
+            },
+        )
+        db.add_all([p, s, im, pred, rev])
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        import zipfile
+        with TestClient(app) as client:
+            token = create_access_token({"sub": "doctor1", "uid": "u_doc"})
+            headers = {"Authorization": f"Bearer {token}"}
+
+            resp = client.post(
+                "/api/cases/s1/research-export",
+                headers=headers,
+                json={"review_ids": ["rev1"], "expected_revision": 1},
+            )
+            assert resp.status_code == 200
+
+            with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+                assert "metadata.json" in zf.namelist()
+                metadata = json.loads(zf.read("metadata.json").decode("utf-8"))
+                images = metadata.get("images", [])
+                assert len(images) == 1
+                img_meta = images[0]
+
+                # FE-03: Assert orads and morphology_description are present in exported metadata
+                assert "orads" in img_meta, "FE-03 VULNERABILITY: 'orads' missing from exported image metadata!"
+                assert img_meta["orads"] == "O-RADS 3"
+                assert "morphology_description" in img_meta, "FE-03 VULNERABILITY: 'morphology_description' missing from exported image metadata!"
+                assert img_meta["morphology_description"] == "U nang đơn thùy, thành mỏng"
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
