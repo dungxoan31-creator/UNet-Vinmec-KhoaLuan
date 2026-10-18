@@ -601,3 +601,29 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_11_deidentification_boundary_separates_clinical_raw_from_research_artifacts` (Fails với `AssertionError: assert None == 'clinical_raw_storage'` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (upload DICOM chứa synthetic sentinel headers bảo đảm an toàn: phản hồi API không lộ thông tin, endpoint source trả về PNG chuẩn, và gói nghiên cứu ZIP chứa 0 file DICOM kèm khối xác nhận `deidentification`).
   - Hồi quy: 338 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [FE-05] Chuẩn hóa độ tương phản màu (WCAG AA Contrast) cho trạng thái Hover nút Primary ở Dark Theme
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `frontend/css/workspace.css`, `frontend/css/workspace-tokens.css`
+- **Nguyên nhân gốc (Root Cause)**: Khi người dùng hover vào nút hành động chính `.btn.primary` (như nút bên khảo sát lâm sàng Phải/Trái `Phải 13px`), quy tắc CSS `.btn.primary:hover` sử dụng biến màu nền `var(--accent-text, #0062a1)`. Trong chủ đề tối (Dark Theme), biến `--accent-text` mang giá trị `#38bdf8` (xanh da trời nhạt). Chữ màu trắng (`#ffffff`) trên nền `#38bdf8` chỉ đạt tỉ lệ tương phản 2.14:1, vi phạm nghiêm trọng tiêu chuẩn WCAG AA ($\ge 4.5:1$). Điều này khiến văn bản bị chìm và khó đọc trong môi trường phòng đọc ảnh siêu âm thiếu sáng.
+- **Giải pháp**:
+  - Khai báo token chuyên biệt `--accent-hover: #0062a1;` cho cả Light Theme và Dark Theme trong `workspace-tokens.css`.
+  - Cập nhật quy tắc `.btn.primary:hover`: sử dụng `background: var(--accent-hover, #0062a1); border-color: var(--accent-hover, #0062a1); color: var(--on-accent);`.
+  - Nền `#0062a1` kết hợp với chữ trắng `#ffffff` đạt tỉ lệ tương phản $5.80:1$, vượt trội so với ngưỡng tối thiểu $4.5:1$ của WCAG AA.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_fe_05_and_06_css_contrast_compliance` (Fails với `AssertionError: FE-05 VULNERABILITY: .btn.primary:hover still uses --accent-text, failing 4.5:1 contrast in dark theme!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (`.btn.primary:hover` sử dụng `--accent-hover`, bảo đảm độ tương phản chuẩn mực).
+  - Hồi quy: 339 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [FE-06] Chuẩn hóa độ tương phản màu cho Banner cảnh báo thông tin (Info Lease Banner)
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `frontend/css/workspace.css`
+- **Nguyên nhân gốc (Root Cause)**: Quy tắc `.banner.info` sử dụng `color: var(--accent);` trên nền `background: var(--accent-soft);`. Trong Dark Theme, `--accent` là `#0076c0` kết hợp trên nền composited dark accent-soft chỉ đạt độ tương phản 3.11:1. Đồng thời trong Light Theme (phản ánh qua phát hiện `FE-07`), chữ `#0076c0` trên nền `#e8f4fc` chỉ đạt 4.31:1, cả hai đều thấp hơn ngưỡng 4.5:1 bắt buộc cho cỡ chữ 13px thông thường.
+- **Giải pháp**:
+  - Cập nhật `.banner.info`: chuyển đổi thuộc tính màu chữ sang `color: var(--accent-text);`.
+  - Trong Dark Theme: `--accent-text` mang giá trị `#38bdf8`, kết hợp trên nền tối đạt tỉ lệ tương phản $6.70:1$ (> 4.5:1).
+  - Trong Light Theme: `--accent-text` mang giá trị `#0062a1`, kết hợp trên nền sáng `#e8f4fc` đạt tỉ lệ tương phản $5.80:1$ (> 4.5:1).
+  - Giải quyết dứt điểm rủi ro đọc khó cho cả banner bảo vệ phiên làm việc (FE-06) lẫn banner hướng dẫn quy trình (FE-07).
+- **Kiểm thử xác minh**:
+  - Tái hiện & Xác nhận: `tests/test_audit_major_fixes.py::test_fe_05_and_06_css_contrast_compliance` PASSED.
+  - Hồi quy: 339 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
