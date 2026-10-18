@@ -793,3 +793,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (xác nhận đầy đủ CSP, nosniff, DENY trên mọi phản hồi HTTP).
   - Hồi quy: 348 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [FE-07] Khắc phục độ tương phản màu sắc đạt chuẩn WCAG AA (>= 4.5:1) cho Banner hướng dẫn
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `frontend/css/workspace.css`, `frontend/css/workspace-tokens.css`, `tests/test_audit_minor_fixes.py`
+- **Nguyên nhân gốc (Root Cause)**: Banner thông tin hướng dẫn lần đầu (`.banner.info`) trước đây sử dụng màu chữ `var(--accent)` (`#0076c0`) trên nền `var(--accent-soft)` (`#e8f4fc`), đo được tỷ lệ tương phản thực tế chỉ đạt 4.31:1 cho chữ kích thước nhỏ (13px), không đạt ngưỡng tiêu chuẩn tối thiểu 4.5:1 của W3C WCAG 2.2 AA.
+- **Giải pháp**:
+  - Chuẩn hóa token màu chữ thông tin: chuyển đổi thuộc tính `color` của `.banner.info` sang `var(--accent-text)`.
+  - Trong light theme: `--accent-text: #0062a1` trên nền `#e8f4fc` đạt tỷ lệ tương phản 5.76:1 (vượt ngưỡng 4.5:1).
+  - Trong dark theme: `--accent-text: #38bdf8` trên nền composited đạt tỷ lệ tương phản 7.01:1 (vượt ngưỡng 4.5:1 và đạt cấp AAA).
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_fe_07_banner_info_contrast_meets_wcag_aa` (Kiểm tra ánh xạ token và công thức đo độ sáng tương đối luminance).
+  - Xác nhận: Test chuyển sang PASSED (xác nhận tỷ lệ tương phản 5.76:1 và 7.01:1 >= 4.5:1).
+  - Hồi quy: 349 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
