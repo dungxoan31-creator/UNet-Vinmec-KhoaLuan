@@ -1798,5 +1798,41 @@ def test_ops_06_07_08_packaging_and_backup_boundaries(tmp_path):
     assert enc.get("at_rest_layer") == "filesystem_or_volume"
 
 
+def test_dep_01_through_05_and_ops_05_dependency_advisories_and_pinning():
+    """DEP-01..05 & OPS-05: Resolve MONAI CVEs by updating lower bound to fixed version >=1.6.1 and pin dependencies for reproducible Docker build."""
+    import re
+    from pathlib import Path
+
+    # 1. DEP-01 through DEP-05: requirements.txt must require monai >= 1.6.0 or >= 1.6.1, NOT 1.3.0 or 1.5.2
+    req_path = Path("requirements.txt")
+    assert req_path.exists()
+    req_text = req_path.read_text(encoding="utf-8")
+
+    monai_match = re.search(r"monai\s*([><=~]+)\s*([0-9\.]+)", req_text)
+    assert monai_match is not None, "monai must be declared in requirements.txt"
+    op, version = monai_match.groups()
+    v_parts = [int(p) for p in version.split(".") if p.isdigit()]
+    # Must be at least 1.6.0 to address CVE-2026-100840, 100842, 100843, 100844, 100845
+    assert v_parts >= [1, 6, 0], (
+        f"DEP-01..05 VULNERABILITY: monai declared as {op}{version}, must be >= 1.6.0 to fix security advisories!"
+    )
+
+    # 2. OPS-05: Pinned lockfile requirements-lock.txt must exist and lock versions for reproducible deployment
+    lock_path = Path("requirements-lock.txt")
+    assert lock_path.exists(), "OPS-05 VULNERABILITY: requirements-lock.txt missing! Docker builds rely on unpinned lower bounds."
+    lock_text = lock_path.read_text(encoding="utf-8")
+    assert "monai==" in lock_text or "monai>=" in lock_text
+    assert "torch==" in lock_text
+    assert "fastapi==" in lock_text
+
+    # 3. Dockerfile must copy and install from requirements-lock.txt
+    dockerfile_path = Path("Dockerfile")
+    dockerfile_text = dockerfile_path.read_text(encoding="utf-8")
+    assert "requirements-lock.txt" in dockerfile_text, (
+        "OPS-05 VULNERABILITY: Dockerfile does not install from requirements-lock.txt!"
+    )
+
+
+
 
 

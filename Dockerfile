@@ -18,9 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory
 WORKDIR /app
 
-# Install Python dependencies
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies using pinned lockfile for reproducibility (OPS-05)
+COPY requirements.txt requirements-lock.txt /app/
+RUN pip install --no-cache-dir -r requirements-lock.txt
 
 # Copy application source code
 COPY backend/ /app/backend/
