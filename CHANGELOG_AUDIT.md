@@ -535,3 +535,18 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Hồi quy: 333 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
 
+### [BE-29] Xác thực số nguyên nghiêm ngặt cho kích thước ma trận RLE (Shape Strict Int Validation)
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/schemas/schemas.py`
+- **Nguyên nhân gốc (Root Cause)**: Trong Pydantic validator `validate_mask_rle` của `DoctorReviewRequest` (được dùng chung bởi `MaskMeasurementsRequest`), điều kiện kiểm tra kích thước `shape != [512, 512]` dùng toán tử so sánh bằng của Python. Do trong Python `512.0 == 512` trả về `True`, một payload chứa số thực như `shape: [512.0, 512.0]` dễ dàng vượt qua tầng kiểm tra schema. Sau đó, khi hàm giải mã `InferenceEngine.rle_to_mask` khởi tạo mảng `np.zeros(shape[0] * shape[1])`, NumPy ném ngoại lệ `TypeError: expected a sequence of integers or a single integer, got '262144.0'`. Ngoại lệ này không được bắt, khiến endpoint bị sập và trả về `HTTP 500 Internal Server Error` thay vì mã lỗi dữ liệu đầu vào `HTTP 422 Unprocessable Entity`.
+- **Giải pháp**:
+  - Kiểm tra kiểu dữ liệu nghiêm ngặt cho từng phần tử kích thước: `type(shape[0]) is int and type(shape[1]) is int`, loại bỏ hoàn toàn các kiểu số thực (`float`), chuỗi, hay boolean.
+  - Kiểm tra chặt chẽ cấu trúc: `isinstance(shape, (list, tuple)) and len(shape) == 2 and shape[0] == 512 and shape[1] == 512`.
+  - Nếu bất kỳ điều kiện nào không thỏa mãn, ném `ValueError` để Pydantic tự động chuyển đổi thành lỗi chuẩn `HTTP 422 Unprocessable Entity` kèm thông báo chi tiết, không để lọt ngoại lệ xuống tầng xử lý ma trận.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_29_rle_shape_rejects_floats_with_422` (Fails với `TypeError: expected a sequence of integers or a single integer, got '262144.0'` tại `InferenceEngine.rle_to_mask` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (request gửi `[512.0, 512.0]` bị từ chối ngay tại biên API với mã trạng thái `HTTP 422`).
+  - Hồi quy: 334 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
+
