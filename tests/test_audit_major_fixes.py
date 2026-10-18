@@ -853,6 +853,63 @@ def test_be_21_consecutive_failed_logins_are_throttled_with_429():
         assert other_resp.status_code == 401, "Different user should not be locked out by attacker"
 
 
+def test_be_22_admin_create_user_canonicalizes_role_aliases(monkeypatch):
+    """BE-22: POST /api/admin/users must canonicalize role aliases BS->DOCTOR and QT->ADMIN."""
+    import uuid
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    with SessionLocal() as db:
+        admin_user = db.query(UserModel).filter(UserModel.username == "admin").first()
+        if not admin_user:
+            admin_user = UserModel(id="u_admin", username="admin", full_name="Admin", role="ADMIN", is_active=True)
+            db.add(admin_user)
+            db.commit()
+        admin_uid = admin_user.id
+
+    with TestClient(app) as client:
+        token = create_access_token({"sub": "admin", "uid": admin_uid, "role": "ADMIN"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Create doctor with alias 'BS'
+        bs_username = f"dr_bs_{uuid.uuid4().hex[:6]}"
+        resp_bs = client.post(
+            "/api/admin/users",
+            headers=headers,
+            json={"username": bs_username, "full_name": "BS Nguyen", "role": "BS", "password": "pass-doctor-123"},
+        )
+        assert resp_bs.status_code == 200, f"Create BS user failed: {resp_bs.text}"
+
+        # 2. Create admin with alias 'QT'
+        qt_username = f"admin_qt_{uuid.uuid4().hex[:6]}"
+        resp_qt = client.post(
+            "/api/admin/users",
+            headers=headers,
+            json={"username": qt_username, "full_name": "QT Tran", "role": "QT", "password": "pass-admin-123"},
+        )
+        assert resp_qt.status_code == 200, f"Create QT user failed: {resp_qt.text}"
+
+        # Check stored roles in database
+        with SessionLocal() as db:
+            user_bs = db.query(UserModel).filter(UserModel.username == bs_username).first()
+            assert user_bs is not None
+            assert user_bs.role == "DOCTOR", (
+                f"BE-22 VULNERABILITY: Stored role for BS is '{user_bs.role}', expected 'DOCTOR'!"
+            )
+
+            user_qt = db.query(UserModel).filter(UserModel.username == qt_username).first()
+            assert user_qt is not None
+            assert user_qt.role == "ADMIN", (
+                f"BE-22 VULNERABILITY: Stored role for QT is '{user_qt.role}', expected 'ADMIN'!"
+            )
+
+
 
 
 

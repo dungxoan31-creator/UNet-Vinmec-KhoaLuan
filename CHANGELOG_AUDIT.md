@@ -464,3 +464,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_21_consecutive_failed_logins_are_throttled_with_429` (Fails với danh sách 12 status code toàn bộ là 401 trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (5 lần đầu nhận 401, các lần tiếp theo nhận 429; các tài khoản khác vẫn hoạt động bình thường không bị ảnh hưởng chéo).
   - Hồi quy: 328 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
+### [BE-22] Chuẩn hóa danh xưng vai trò (Role Aliases: BS -> DOCTOR, QT -> ADMIN) khi quản trị viên tạo người dùng
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi tạo tài khoản người dùng qua API quản trị `POST /api/admin/users`, hệ thống lưu nguyên chuỗi `role` do frontend UI gửi lên (ví dụ `"BS"` thay vì `"DOCTOR"`, `"QT"` thay vì `"ADMIN"`). Mặc dù API tạo người dùng trả về HTTP 200, nhưng khi bác sĩ đăng nhập và truy cập hồ sơ ca bệnh (`require_clinical`) hoặc quản trị viên truy cập cài đặt (`require_admin`), hệ thống kiểm tra `user.role != "DOCTOR"` hoặc `user.role != "ADMIN"` và trả về lỗi `HTTP 403 Forbidden`, làm tê liệt quyền sử dụng của tài khoản.
+- **Giải pháp**:
+  - Định nghĩa bảng ánh xạ chuẩn `ROLE_ALIAS_MAP`: `"BS" -> "DOCTOR"`, `"QT" -> "ADMIN"`, `"TK" -> "SECRETARY"`.
+  - Xây dựng hàm chuẩn hóa `canonicalize_user_role` áp dụng tại biên server (Server Boundary) cho cả `create_admin_user` (`POST`) và `update_admin_user` (`PATCH`).
+  - Mọi giá trị alias tiếng Việt hoặc chữ thường/hoa đều được quy chuẩn hóa về role chuẩn backend (`DOCTOR`, `ADMIN`, `SECRETARY`) trước khi ghi vào cơ sở dữ liệu.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_22_admin_create_user_canonicalizes_role_aliases` (Fails với `AssertionError: BE-22 VULNERABILITY: Stored role for BS is 'BS', expected 'DOCTOR'!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (tài khoản tạo với role `BS` được lưu chính xác là `DOCTOR`, role `QT` được lưu là `ADMIN`).
+  - Hồi quy: 329 passed, 2 skipped, 0 regressions trên toàn bộ test suite.

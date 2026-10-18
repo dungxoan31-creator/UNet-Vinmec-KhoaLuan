@@ -400,6 +400,23 @@ def get_admin_cases(
     return {"items": items, "total": total}
 
 
+ROLE_ALIAS_MAP = {
+    "BS": "DOCTOR",
+    "DOCTOR": "DOCTOR",
+    "QT": "ADMIN",
+    "ADMIN": "ADMIN",
+    "TK": "SECRETARY",
+    "SECRETARY": "SECRETARY",
+}
+
+
+def canonicalize_user_role(role_val: str | None) -> str:
+    if not role_val:
+        return "DOCTOR"
+    raw_str = str(role_val).strip().upper()
+    return ROLE_ALIAS_MAP.get(raw_str, raw_str)
+
+
 @router.post("/api/admin/users")
 def create_admin_user(user_data: dict = Body(default={}), db: Session = Depends(get_db)):
     """Create a new user account administratively."""
@@ -417,11 +434,13 @@ def create_admin_user(user_data: dict = Body(default={}), db: Session = Depends(
         password = temp_password
         must_change = True
 
+    role = canonicalize_user_role(user_data.get("role", "DOCTOR"))
+
     user = UserModel(
         id=str(uuid.uuid4()),
         username=username,
         full_name=user_data.get("full_name", username),
-        role=user_data.get("role", "DOCTOR"),
+        role=role,
         department=user_data.get("department", "Khoa Chẩn đoán Hình ảnh"),
         password_hash=hash_password(password),
         must_change_password=must_change,
@@ -455,8 +474,7 @@ def update_admin_user(
         user.full_name = payload["full_name"]
         updated_fields["full_name"] = str(payload["full_name"])
     if "role" in payload:
-        role_map = {"BS": "DOCTOR", "TK": "SECRETARY", "QT": "ADMIN"}
-        user.role = role_map.get(payload["role"], payload["role"])
+        user.role = canonicalize_user_role(payload["role"])
         updated_fields["role"] = user.role
     if "department" in payload:
         user.department = payload["department"]
