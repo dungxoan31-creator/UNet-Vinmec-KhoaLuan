@@ -777,3 +777,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED; kiểm thử Node JS `tests/frontend_review_logic.js` PASSED.
   - Hồi quy: 347 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [OPS-04] Bổ sung Middleware thiết lập tiêu đề bảo mật HTTP (CSP, nosniff, frame guard)
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `backend/app/main.py`
+- **Nguyên nhân gốc (Root Cause)**: Các phản hồi HTTP và giao diện HTML trực tiếp từ backend FastAPI chỉ có `CORSMiddleware`, hoàn toàn thiếu các tiêu đề an toàn bảo vệ trình duyệt (Content-Security-Policy, X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Referrer-Policy). Điều này thiếu đi lớp phòng vệ theo chiều sâu (defense-in-depth) trước các nguy cơ MIME confusion, clickjacking hoặc tiêm mã độc script/style ngoài luồng trong môi trường xử lý dữ liệu hồ sơ y tế nhạy cảm.
+- **Giải pháp**:
+  - Bổ sung middleware HTTP toàn cục `add_security_headers` trong `backend/app/main.py`.
+  - Tự động chèn các tiêu đề phòng vệ nghiêm ngặt trên mọi phản hồi:
+    - `Content-Security-Policy`: Định nghĩa chính sách nguồn an toàn (`default-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, hỗ trợ script/style/blob nội bộ của ứng dụng y tế).
+    - `X-Content-Type-Options: nosniff`: Ngăn chặn trình duyệt tự ý suy diễn kiểu MIME.
+    - `X-Frame-Options: DENY`: Chống nhúng iframe từ bên ngoài (chống clickjacking).
+    - `Referrer-Policy: strict-origin-when-cross-origin`: Bảo vệ thông tin ranh giới nguồn.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_ops_04_security_headers_present` (Fails với `AssertionError: OPS-04 VULNERABILITY: Missing Content-Security-Policy header in response!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (xác nhận đầy đủ CSP, nosniff, DENY trên mọi phản hồi HTTP).
+  - Hồi quy: 348 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
