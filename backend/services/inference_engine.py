@@ -322,6 +322,15 @@ class InferenceEngine:
             # Convert contour points to simple polygon list of ints
             polygon = [[int(pt[0]), int(pt[1])] for pt in cnt.reshape(-1, 2)]
 
+            endpoints_outside = False
+            h_mask, w_mask = binary_mask.shape[:2]
+            for pt in caliper_dmax + caliper_dorth:
+                px_x = int(round(pt[0]))
+                px_y = int(round(pt[1]))
+                if px_x < 0 or px_x >= w_mask or px_y < 0 or px_y >= h_mask or binary_mask[px_y, px_x] == 0:
+                    endpoints_outside = True
+                    break
+
             lesion_entry = {
                 "lesion_id": int(idx + 1),
                 "center": [round(float(cx), 1), round(float(cy), 1)],
@@ -337,6 +346,9 @@ class InferenceEngine:
                 "caliper_dmax_points": caliper_dmax,
                 "caliper_dorth_points": caliper_dorth,
                 "polygon": polygon,
+                "measurement_method": "external_contour_min_area_rectangle",
+                "proxy_type": "oriented_bounding_box",
+                "endpoints_outside_mask": endpoints_outside,
             }
 
             if area_px < 50:
@@ -384,6 +396,12 @@ class InferenceEngine:
             "d3_mm": None,
             "total_volume_cm3": None,
             "total_area_cm2": round(total_area_cm2, 3),
+            "measurement_method": "external_contour_min_area_rectangle",
+            "proxy_type": "oriented_bounding_box",
+            "clinical_disclaimer": (
+                "Automated 2D bounding proxy. Measurement represents in-plane oriented bounding box axes (minAreaRect), "
+                "not full 3D clinical diameter. Caliper endpoints may extend outside concave lesion contours."
+            ),
         }
 
     def generate_overlay_base64(

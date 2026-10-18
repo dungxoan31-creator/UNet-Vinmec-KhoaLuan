@@ -1509,3 +1509,36 @@ def test_be_31_upload_case_deletion_race_prevents_orphan_image(monkeypatch, tmp_
         with SessionLocal() as db:
             orphan_count = db.query(ImageModel).filter(ImageModel.study_id == study_id).count()
             assert orphan_count == 0, f"BE-31 VULNERABILITY: Orphan image record created in DB! Count={orphan_count}"
+
+
+def test_ai_03_caliper_bounding_proxy_disclaimer_and_outside_mask_annotation():
+    """AI-03: Inference engine must disclose minAreaRect bounding proxy, clinical disclaimer, and annotate endpoints outside mask."""
+    import cv2
+    import numpy as np
+
+    from backend.services.inference_engine import InferenceEngine
+
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.default_pixel_spacing_mm = 0.2
+
+    # Triangular mask where orthogonal caliper endpoint falls outside the foreground mask
+    mask = np.zeros((512, 512), dtype=np.uint8)
+    cv2.fillPoly(mask, [np.array([[100, 100], [300, 100], [100, 200]], np.int32)], 1)
+
+    result = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=0.2)
+
+    assert result["measurement_method"] == "external_contour_min_area_rectangle", (
+        f"AI-03 VULNERABILITY: measurement_method not declared! {result.get('measurement_method')}"
+    )
+    assert result.get("proxy_type") == "oriented_bounding_box"
+    assert "clinical_disclaimer" in result and len(result["clinical_disclaimer"]) > 10, (
+        f"AI-03 VULNERABILITY: clinical_disclaimer missing or inadequate! {result.get('clinical_disclaimer')}"
+    )
+
+    lesions = result["lesions"]
+    assert len(lesions) == 1
+    dominant = lesions[0]
+
+    assert dominant.get("endpoints_outside_mask") is True, (
+        f"AI-03 VULNERABILITY: endpoints_outside_mask not flagged for triangular mask! {dominant.get('endpoints_outside_mask')}"
+    )

@@ -73,7 +73,12 @@ def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
         "ortho_diameter_mm": dominant.get("ortho_diameter_mm", 0.0) if spacing is not None else None,
         "total_area_cm2": round(total_area * spacing**2 / 100, 3) if spacing is not None else None,
         "measurement_method": "external_contour_min_area_rectangle",
+        "proxy_type": "oriented_bounding_box",
         "diameter_reference": "largest_area_contour",
         "min_contour_area_px": 50,
+        "clinical_disclaimer": (
+            "Automated 2D bounding proxy. Measurement represents in-plane oriented bounding box axes (minAreaRect), "
+            "not full 3D clinical diameter. Caliper endpoints may extend outside concave lesion contours."
+        ),
     })
     return measurements
