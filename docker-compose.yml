@@ -18,6 +18,11 @@ services:
       - APP_JWT_SECRET=${APP_JWT_SECRET:?APP_JWT_SECRET must be set in environment}
       - APP_ADMIN_PASSWORD=${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD must be set in environment}
       - APP_DOCTOR_PASSWORD=${APP_DOCTOR_PASSWORD:?APP_DOCTOR_PASSWORD must be set in environment}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-}
     volumes:
       - ./data:/app/data
       - ./backups:/app/backups

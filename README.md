@@ -313,3 +313,14 @@ Khi tiếp tục mở rộng và phát triển dự án, các nhà phát triển
 2. **Kỷ luật Kiểm soát Mô hình (Model Integrity)**: Khi cập nhật hoặc huấn luyện mô hình mới, bắt buộc phải cập nhật file `evaluation/selected_model.json` đi kèm mã băm SHA-256 hợp lệ; API Backend sẽ từ chối nạp mô hình nếu mã băm không trùng khớp.
 3. **Bảo toàn Dữ liệu Gốc**: Thư mục `dataset/` phải luôn được xem là nguồn dữ liệu chỉ đọc (read-only), không ghi đè hoặc can thiệp trực tiếp vào ảnh gốc.
 4. **Quy tắc Kiểm thử**: Luôn chạy `pytest` và `ruff check .` để đảm bảo hệ thống đạt trạng thái xanh (Pass) trước khi tạo commit mới.
+
+## Cấu hình gửi OTP đăng ký qua email
+
+Đăng ký bác sĩ công khai cần SMTP hoạt động. Cấu hình các biến môi trường sau trước khi sử dụng:
+
+- `SMTP_HOST`: tên máy chủ SMTP.
+- `SMTP_PORT`: cổng SMTP, mặc định `587` và kết nối bằng STARTTLS.
+- `SMTP_USERNAME` và `SMTP_PASSWORD`: thông tin xác thực tùy chọn; nếu dùng thì phải cấu hình cả hai.
+- `SMTP_FROM`: địa chỉ email gửi.
+
+Với Docker Compose, truyền các biến này vào môi trường chạy ứng dụng. Ứng dụng vẫn khởi động khi chưa có cấu hình SMTP, nhưng đăng ký sẽ báo lỗi cho đến khi gửi email được cấu hình. Tài khoản mới được kích hoạt và đăng nhập ngay sau khi xác minh OTP.
