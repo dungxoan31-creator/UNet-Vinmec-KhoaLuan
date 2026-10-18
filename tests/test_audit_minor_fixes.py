@@ -133,3 +133,37 @@ def test_be_11_audit_events_export_endpoint(tmp_path, monkeypatch):
     finally:
         app.dependency_overrides.pop(get_db, None)
 
+
+def test_demo_01_report_generator_removes_hardcoded_placeholders():
+    """DEMO-01: Report generator must require mandatory patient ID and must NOT fill fake patient identity, fake D1/D2/area measurements, or fake O-RADS 2 conclusions."""
+    import pytest
+
+    from backend.services.report_generator import MedicalReportGenerator
+
+    generator = MedicalReportGenerator()
+
+    # 1. Missing patient identifier must raise ValueError
+    with pytest.raises(ValueError, match="mã định danh bệnh nhân"):
+        generator._normalize_report_data({})
+
+    # 2. When patient ID is provided but other clinical fields are empty, no hardcoded clinical placeholders may appear
+    norm = generator._normalize_report_data({"patientId": "BN-TEST-001"})
+    assert norm["patientId"] == "BN-TEST-001"
+
+    # Must NOT contain hardcoded patient or doctor names
+    assert norm["patientName"] != "Nguyễn Thị Phượng", "DEMO-01 VULNERABILITY: Hardcoded patient name used as fallback!"
+    assert "Trương Thị Phượng" not in norm.get("doctorName", "")
+    assert "Lê Khắc Hiếu" not in norm.get("referringDoctor", "")
+
+    # Must NOT invent measurements D1=28.5, D2=21.0, area=4.62
+    conc1 = norm.get("conclusion_l1", "")
+    ovary_r3 = norm.get("ovary_r3", "")
+    assert "28.5" not in ovary_r3, "DEMO-01 VULNERABILITY: Hardcoded D1=28.5 used as fallback!"
+    assert "21" not in ovary_r3, "DEMO-01 VULNERABILITY: Hardcoded D2=21 used as fallback!"
+    assert "4.62" not in ovary_r3, "DEMO-01 VULNERABILITY: Hardcoded area=4.62 used as fallback!"
+
+    # Must NOT invent O-RADS 2 classification or 3-month follow-up without clinical input
+    assert "O-RADS 2" not in conc1, "DEMO-01 VULNERABILITY: Hardcoded O-RADS 2 conclusion used as fallback!"
+    assert "3 THÁNG" not in norm.get("conclusion_l2", ""), "DEMO-01 VULNERABILITY: Hardcoded 3-month recall used as fallback!"
+
+
