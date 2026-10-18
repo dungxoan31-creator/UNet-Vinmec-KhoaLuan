@@ -115,6 +115,9 @@ class DoctorReviewRequest(BaseModel):
         return value
     lesion_type: str = "UNSPECIFIED"
     clinical_notes: str = ""
+    orads: str | None = None
+    orads_score: str | None = None
+    morphology_description: str | None = None
     time_spent_seconds: int | None = Field(default=None, ge=0)
     hitl_feedback: HITLFeedback | None = None
     expected_revision: int | None = None
@@ -269,6 +272,16 @@ class DashboardStatsResponse(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str | None = None
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    full_name: str
+    role: Literal["DOCTOR", "ADMIN"] = "DOCTOR"
+    department: str = "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa"
+    title: str = "BS"
+    hospital: str = "Bệnh viện ĐKQT Vinmec Times City"
 
 
 class TokenResponse(BaseModel):

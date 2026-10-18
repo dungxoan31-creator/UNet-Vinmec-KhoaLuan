@@ -22,9 +22,7 @@ export async function renderEvaluation(root) {
     ) +
     `<div class="banner info">Kết quả lịch sử không đại diện tự động cho checkpoint đang chạy.</div><div id="evaluationData">${loading()}</div>`;
   try {
-    const data = state.demo
-      ? { splits: { train: {}, validation: {}, test: {} } }
-      : await request("/api/evaluation/metrics");
+    const data = await request("/api/evaluation/metrics");
     const splits = data.splits || data,
       metrics = ["dice", "iou", "recall", "precision"];
     const rows = ["train", "validation", "test"].map((key) => [
@@ -46,7 +44,12 @@ export async function renderEvaluation(root) {
     let currentRunSection = "";
     if (data.current_run) {
       const cr = data.current_run;
-      const fmt = (val) => typeof val === "number" ? val.toFixed(4) : (val?.mean != null ? Number(val.mean).toFixed(4) : "Chưa có / Không xác định");
+      const fmt = (val) =>
+        typeof val === "number"
+          ? val.toFixed(4)
+          : val?.mean != null
+            ? Number(val.mean).toFixed(4)
+            : "Chưa có / Không xác định";
       currentRunSection = `
         <section class="panel" style="margin-bottom:24px;">
           <div class="panel-header" style="padding:16px 20px;border-bottom:1px solid var(--border,#e2e8f0);">
@@ -137,13 +140,6 @@ export async function renderEvaluation(root) {
         version = ++generation;
       target.innerHTML = loading();
       try {
-        if (state.demo) {
-          target.innerHTML = empty(
-            "Demo không chứa kết quả thực nghiệm",
-            "Kết nối máy chủ để xem ground truth và kết quả thật.",
-          );
-          return;
-        }
         const result = await request(
           "/api/evaluation/samples?" +
             new URLSearchParams({

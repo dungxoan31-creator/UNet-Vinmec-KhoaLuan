@@ -15,14 +15,17 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.app.config import model_registry, preprocessor
+from backend.app.routers.auth import get_current_user
+from backend.app.routers.inference import validate_pixel_spacing
 from backend.app.routers.reviews import submit_doctor_review
 from backend.core.image_utils import cv2_imread_unicode
-from backend.db.database import ImageModel, get_db
+from backend.db.database import ImageModel, UserModel, get_db
 from backend.schemas.schemas import (
     CaseConfirmRequest,
     CDSSEvaluateRequest,
     SegmentAPIResponse,
 )
+from backend.services.source_measurements import calibration_metadata
 
 router = APIRouter(prefix="/api/v1", tags=["RESTful API v1 Core Endpoints"])
 
@@ -31,7 +34,7 @@ router = APIRouter(prefix="/api/v1", tags=["RESTful API v1 Core Endpoints"])
 async def segment_image_v1(
     file: UploadFile | None = File(None),
     image_id: str | None = None,
-    pixel_spacing_mm: float = 0.1,
+    pixel_spacing_mm: float | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -39,6 +42,7 @@ async def segment_image_v1(
     Accepts ultrasound image file or existing image_id -> Letterbox 512x512 Preprocessing (Bilinear for image) ->
     PyTorch Attention U-Net inference -> Binary Mask (RLE & Base64 PNG) + Caliper Measurements.
     """
+    validate_pixel_spacing(pixel_spacing_mm)
     img_np = None
     target_image_id = image_id or str(uuid.uuid4())
 
@@ -55,7 +59,7 @@ async def segment_image_v1(
         if not img_rec or not os.path.exists(img_rec.raw_path):
             raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế.")
         img_np = cv2_imread_unicode(img_rec.raw_path)
-        pixel_spacing_mm = getattr(img_rec, "pixel_spacing_mm", pixel_spacing_mm) or pixel_spacing_mm
+        pixel_spacing_mm = calibration_metadata(getattr(img_rec, "pixel_spacing_mm", None))["pixel_spacing_mm"]
     else:
         raise HTTPException(status_code=400, detail="Vui lòng cung cấp file ảnh (file) hoặc image_id.")
 
@@ -73,8 +77,9 @@ async def segment_image_v1(
 
     # 3. PyTorch Model Inference
     roi_mask = transform_params.get("roi_mask")
+    v1_scale = float(transform_params.get("scale", 1.0))
     inference_result = model_registry.predict(
-        tensor, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+        tensor, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=v1_scale
     )
 
     clean_mask = inference_result["binary_mask_np"]  # 512x512 uint8 binary mask (0 or 1)
@@ -100,38 +105,26 @@ async def segment_image_v1(
 @router.post("/cdss/evaluate")
 def evaluate_cdss_v1(req: CDSSEvaluateRequest):
     """
-    POST /api/v1/cdss/evaluate:
-    Accepts imaging findings & patient context -> Calls CDSS Reasoning Engine ->
-    Returns evidence-supported O-RADS risk category, IOTA Simple Rules verdict, management recommendation, and citations.
+    Research-only O-RADS rule probe for explicitly entered US descriptors.
     """
-    try:
-        from knowledge.retrieval.cdss_reasoning_layer import CDSSReasoningEngine
-    except ModuleNotFoundError as error:
-        raise HTTPException(status_code=503, detail="CDSS reasoning engine chưa được cài đặt.") from error
+    from backend.services.cdss_engine import CDSSReasoningEngine
 
-    try:
-        cdss_engine = CDSSReasoningEngine()
-        evaluation = cdss_engine.evaluate_case(
-            vision_findings=req.vision_findings,
-            patient_context=req.patient_context,
-        )
-        return {
-            "success": True,
-            "iota_evaluation": evaluation.get("iota_evaluation", {}),
-            "orads_stratification": evaluation.get("orads_stratification", {}),
-            "uncertainty_evaluation": evaluation.get("uncertainty_evaluation", {}),
-            "measurements_summary": evaluation.get("measurements_summary", {}),
-            "citations": evaluation.get("citations", []),
-            "evidence_status": evaluation.get("evidence_status", "EVIDENCE_SUPPORTED_TIER_1"),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi đánh giá CDSS: {e!s}")
+    # CDSSEvaluateRequest still has historical examples as schema defaults.
+    # Omitted request fields must not be interpreted as observed findings.
+    return CDSSReasoningEngine().evaluate_case(
+        vision_findings=req.vision_findings if "vision_findings" in req.model_fields_set else {},
+        patient_context=req.patient_context if "patient_context" in req.model_fields_set else {},
+    )
 
 
 @router.post("/cases/confirm")
-def confirm_case_v1(req: CaseConfirmRequest, db: Session = Depends(get_db)):
+def confirm_case_v1(
+    req: CaseConfirmRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """Use the same validation and audit flow as /api/review."""
-    review = submit_doctor_review(req, db)
+    review = submit_doctor_review(req, db, current_user)
     return {
         "success": True,
         "review_id": review["review_id"],

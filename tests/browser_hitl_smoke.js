@@ -1,27 +1,40 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_CORE_PATH || 'playwright-core');
 
 const root = path.resolve(__dirname, '..');
 const baseUrl = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-const validationCsv = process.env.SMOKE_VALIDATION_CSV || 'ai_training/splits/val.csv';
+const validationCsv = process.env.SMOKE_VALIDATION_CSV || 'ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv';
 const selectionManifest = process.env.MODEL_SELECTION_MANIFEST || 'evaluation/selected_model.json';
 const validationRows = fs.readFileSync(path.resolve(root, validationCsv), 'utf8').trim().split(/\r?\n/);
 const columns = validationRows[0].split(',');
 const imageColumn = columns.indexOf('image_path');
-const modalityColumn = columns.indexOf('modality');
-const emptyMaskColumn = columns.indexOf('is_empty_mask');
+const hashColumn = columns.indexOf('image_sha256');
 assert.ok(imageColumn >= 0, 'Validation CSV includes image_path');
+function resolveImage(recorded) {
+    const original = path.resolve(root, recorded);
+    if (fs.existsSync(original)) return original;
+    const normalized = recorded.replaceAll('\\', '/');
+    for (const [source, target] of [
+        ['dataset/Vinmec/Vinmec_2d/images/', 'dataset/2d/images/'],
+        ['dataset/Vinmec/Vinmec_3d/images/', 'dataset/3d/images/'],
+    ]) {
+        if (normalized.startsWith(source)) return path.resolve(root, target, normalized.slice(source.length));
+    }
+    return original;
+}
 const availableRows = validationRows.slice(1).map(row => row.split(',')).filter(row =>
-    row[imageColumn] && fs.existsSync(path.resolve(root, row[imageColumn]))
+    row[imageColumn] && fs.existsSync(resolveImage(row[imageColumn]))
 );
-const preferredRow = modalityColumn >= 0 && emptyMaskColumn >= 0
-    ? availableRows.find(row => row[emptyMaskColumn] === 'False' && row[modalityColumn].toLowerCase().includes('2d'))
-    : null;
-const selectedRow = preferredRow || availableRows[0];
+const selectedRow = availableRows.find(row => row[imageColumn].includes('Vinmec_2d/images/')) || availableRows[0];
 assert.ok(selectedRow, 'Validation contains at least one readable image');
-const imagePath = path.resolve(root, selectedRow[imageColumn]);
+const imagePath = resolveImage(selectedRow[imageColumn]);
+if (hashColumn >= 0) {
+    assert.equal(crypto.createHash('sha256').update(fs.readFileSync(imagePath)).digest('hex'),
+        selectedRow[hashColumn], 'Resolved image matches the frozen Validation record');
+}
 
 async function maskAlpha(page, point) {
     return page.evaluate(({ x, y }) => maskCtx.getImageData(x, y, 1, 1).data[3], point);
@@ -87,6 +100,11 @@ async function main() {
             await route.continue();
         });
         await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
+        assert.ok(process.env.APP_DOCTOR_PASSWORD, 'Set APP_DOCTOR_PASSWORD for the browser smoke test');
+        await page.locator('#loginUsername').fill('doctor');
+        await page.locator('#loginPassword').fill(process.env.APP_DOCTOR_PASSWORD);
+        await page.locator('#loginModal button[type="submit"]').click();
+        await page.waitForFunction(() => !document.getElementById('loginModal').classList.contains('active'));
         await page.waitForFunction(() => ['screenDashboard', 'screenDualUpload'].some(id =>
             document.getElementById(id)?.classList.contains('active')));
         await page.evaluate(() => navigateTo('upload'));

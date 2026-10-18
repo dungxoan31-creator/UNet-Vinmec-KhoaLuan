@@ -1,7 +1,7 @@
 # Báo cáo Đánh giá Định lượng và Thực nghiệm Mô hình Phân đoạn Buồng trứng
 
 > **Dự án**: Khóa luận Tốt nghiệp & Hệ thống Hỗ trợ Chẩn đoán Siêu âm Buồng trứng Human-in-the-Loop
-> **Thời điểm tạo**: 2026-10-17T03:41:19.929611+00:00
+> **Thời điểm tạo**: 2026-10-17T05:47:36.407783+00:00
 > **Trạng thái nguyên mẫu (Prototype Ready)**: PASS
 > **Trạng thái đánh giá khoa học (Evaluation Complete)**: PARTIAL / BLOCKED
 

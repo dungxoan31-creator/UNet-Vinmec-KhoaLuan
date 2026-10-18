@@ -40,7 +40,7 @@ async function loadAdminData() {
 
 async function loadAdminModelTelemetry() {
     try {
-        const resp = await fetch(`${API_BASE}/api/admin/models`);
+        const resp = await authenticatedFetch(`${API_BASE}/api/admin/models`);
         if (resp.ok) {
             const data = await resp.json();
             const elModelName = document.getElementById('adminModelPrimaryName');
@@ -50,9 +50,9 @@ async function loadAdminModelTelemetry() {
             const tbody = document.getElementById('adminModelRegistryTableBody');
 
             if (elModelName) elModelName.innerText = (data.active_primary_model || 'Standard U-Net (Baseline)').toUpperCase();
-            if (elDice) elDice.innerText = data.test_set_dsc ? data.test_set_dsc.toFixed(4) : '0.6051 (Val)';
-            if (elIoU) elIoU.innerText = data.test_set_iou ? data.test_set_iou.toFixed(4) : '0.4664 (Val)';
-            if (elLatency) elLatency.innerText = data.mean_inference_latency_ms ? `${data.mean_inference_latency_ms} ms` : '~95.6 ms';
+            if (elDice) elDice.innerText = data.test_set_dsc != null ? data.test_set_dsc.toFixed(4) : 'Chưa có';
+            if (elIoU) elIoU.innerText = data.test_set_iou != null ? data.test_set_iou.toFixed(4) : 'Chưa có';
+            if (elLatency) elLatency.innerText = data.mean_inference_latency_ms != null ? `${data.mean_inference_latency_ms} ms` : 'Chưa đo';
 
             if (tbody && data.registered_models && data.registered_models.length > 0) {
                 tbody.innerHTML = data.registered_models.map(m => {
@@ -63,7 +63,7 @@ async function loadAdminModelTelemetry() {
                     const deviceBadge = isLoaded
                         ? `<span class="badge badge-info">${data.execution_device || 'CUDA / CPU'}</span>`
                         : `<span class="badge" style="background: #f1f5f9; color: #64748b;">N/A</span>`;
-                    const latencyText = isLoaded ? `~95.6 ms` : `Chưa đo`;
+                    const latencyText = data.mean_inference_latency_ms != null && isLoaded ? `${data.mean_inference_latency_ms} ms` : `Chưa đo`;
 
                     return `
                         <tr style="${isLoaded ? 'background: #f0fdf4;' : ''}">
@@ -85,7 +85,7 @@ async function loadAdminModelTelemetry() {
 
 async function loadAuditLogs() {
             try {
-                const resp = await fetch(`${API_BASE}/api/admin/audit-logs`);
+                const resp = await authenticatedFetch(`${API_BASE}/api/admin/audit-logs`);
                 if (resp.ok) {
                     const logs = await resp.json();
                     const tbody = document.getElementById('adminAuditTableBody');
@@ -126,12 +126,12 @@ async function loadAuditLogs() {
 
 async function loadDoctorStats() {
             try {
-                const resp = await fetch(`${API_BASE}/api/admin/doctor-stats`);
+                const resp = await authenticatedFetch(`${API_BASE}/api/admin/doctor-stats`);
                 if (resp.ok) {
                     const doctors = await resp.json();
                     const container = document.getElementById('adminDoctorCardsContainer');
                     if (container) {
-                        container.innerHTML = doctors.map(d => `
+                        container.innerHTML = doctors.length ? doctors.map(d => `
                             <div class="doctor-card-item">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -158,7 +158,7 @@ async function loadDoctorStats() {
                                     <span>Hoạt động: <strong>${d.last_active}</strong></span>
                                 </div>
                             </div>
-                        `).join('');
+                        `).join('') : '<p>Chưa có đánh giá bác sĩ được xác thực.</p>';
                     }
                 }
             } catch (err) {
@@ -168,19 +168,19 @@ async function loadDoctorStats() {
 
 async function exportDatasetJson() {
             try {
-                showToast("Đang chuẩn bị tệp Ground Truth Dataset...", true);
-                const resp = await fetch(`${API_BASE}/api/admin/export-dataset`);
+                showToast("Đang chuẩn bị thống kê rà soát...", true);
+                const resp = await authenticatedFetch(`${API_BASE}/api/admin/export-dataset`);
                 if (!resp.ok) throw new Error("Lỗi khi xuất dữ liệu");
 
                 const blob = await resp.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `Vinmec_Ovarian_AI_GroundTruth_Dataset.json`;
+                a.download = `review_summary.json`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-                showToast("✓ Đã tải xuống tệp Vinmec_Ovarian_AI_GroundTruth_Dataset.json!");
+                showToast("Đã tải xuống thống kê rà soát.");
             } catch (err) {
                 showToast("Lỗi xuất dữ liệu: " + err.message, false);
             }
@@ -204,8 +204,8 @@ window.evaluationSamples = [];
 async function loadEvaluationData() {
     try {
         const [metricsResp, samplesResp] = await Promise.all([
-            fetch(`${API_BASE}/api/evaluation/metrics`),
-            fetch(`${API_BASE}/api/evaluation/samples`)
+            authenticatedFetch(`${API_BASE}/api/evaluation/metrics`),
+            authenticatedFetch(`${API_BASE}/api/evaluation/samples`)
         ]);
 
         if (metricsResp.ok) {
@@ -332,7 +332,7 @@ function renderEvaluationSamplesTable(samples) {
 async function loadBenchmarkSampleIntoWorkstation(caseId) {
     try {
         showToast(`Đang tải gói dữ liệu kiểm thử #${caseId}...`, true);
-        const resp = await fetch(`${API_BASE}/api/evaluation/samples/${caseId}/workstation-bundle`);
+        const resp = await authenticatedFetch(`${API_BASE}/api/evaluation/samples/${caseId}/workstation-bundle`);
         if (!resp.ok) throw new Error("Không thể tải gói kiểm nghiệm");
 
         const bundle = await resp.json();

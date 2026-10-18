@@ -1,702 +1,281 @@
-/**
- * MODULE: VIEWER.JS
- */
-
-const MAX_HISTORY = 20;
-const MAX_ZOOM = 5.0;
-const MIN_ZOOM = 0.2;
-const ZOOM_STEP = 0.25;
-
-function initResultsWorkspace(data) {
-    reviewStartedAt = performance.now();
-    const modelNameElement = document.getElementById('workstationModelName');
-    if (modelNameElement) modelNameElement.textContent = data.provenance?.model_name || 'U-Net';
-
-    // Populate Case Context Strip
-    const elPid = document.getElementById('viewerPatientId');
-    const elCode = document.getElementById('viewerStudyCode');
-    const elDate = document.getElementById('viewerStudyDate');
-    const elInd = document.getElementById('viewerIndication');
-    const elMod = document.getElementById('viewerModality');
-
-    if (elPid) elPid.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.patient_id) ? currentCase.patient_id : 'BN-VINMEC-9284';
-    if (elCode) elCode.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.study_code) ? currentCase.study_code : (data.study_id ? data.study_id.substring(0, 14) : 'STD-260829-A1B2');
-    if (elDate) elDate.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.study_date) ? currentCase.study_date : new Date().toISOString().split('T')[0];
-    if (elInd) elInd.innerText = (typeof currentCase !== 'undefined' && currentCase && (currentCase.clinical_indication || currentCase.clinical_notes)) ? (currentCase.clinical_indication || currentCase.clinical_notes) : 'Theo dõi u nang buồng trứng';
-    if (elMod) elMod.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.probe_type) ? (currentCase.probe_type === 'TRANSVAGINAL_2D' ? 'Siêu âm đầu dò âm đạo (TVUS 2D)' : currentCase.probe_type) : 'Siêu âm đầu dò âm đạo (TVUS 2D)';
-
-    const elOvarySide = document.getElementById('viewerOvarySideBadge');
-    const elContralateral = document.getElementById('viewerContralateralBadge');
-
-    const ovarySide = (typeof currentCase !== 'undefined' && currentCase && currentCase.ovary_side) ? currentCase.ovary_side : 'RIGHT';
-    const contraStatus = (typeof currentCase !== 'undefined' && currentCase && currentCase.contralateral_status) ? currentCase.contralateral_status : 'NOT_VISUALIZED';
-
-    if (elOvarySide) {
-        elOvarySide.innerText = ovarySide === 'LEFT' ? 'Buồng Trứng Trái (LO)' : 'Buồng Trứng Phải (RO)';
-        elOvarySide.className = 'badge badge-cyan';
-    }
-
-    if (elContralateral) {
-        if (contraStatus === 'NORMAL') {
-            elContralateral.innerText = 'Đối bên: Bình thường';
-            elContralateral.className = 'badge badge-success';
-        } else if (contraStatus === 'SUSPECTED') {
-            elContralateral.innerText = 'Đối bên: Nghi ngờ u';
-            elContralateral.className = 'badge badge-danger';
-        } else {
-            elContralateral.innerText = 'Đối bên: Chưa quan sát';
-            elContralateral.className = 'badge badge-warning';
-        }
-    }
-
-    const meas = data.measurements || {};
-    const calibrated = meas.calibrated === true;
-    const dmax = calibrated && typeof meas.max_diameter_mm === 'number' ? meas.max_diameter_mm.toFixed(1) : null;
-    const dorth = calibrated && typeof meas.ortho_diameter_mm === 'number' ? meas.ortho_diameter_mm.toFixed(1) : null;
-    const dmaxNum = parseFloat(dmax) || 0;
-    const dorthNum = parseFloat(dorth) || 0;
-    const d3Default = calibrated && meas.d3_mm ? (typeof meas.d3_mm === 'number' ? meas.d3_mm.toFixed(1) : meas.d3_mm) : (calibrated && dmaxNum > 0 ? parseFloat(((dmaxNum + dorthNum) / 2.0).toFixed(1)) : "");
-    const areaVal = calibrated && typeof meas.total_area_cm2 === 'number' ? meas.total_area_cm2.toFixed(2) : null;
-
-    document.getElementById('resDmax').innerText = dmax === null ? 'Chưa hiệu chuẩn' : `${dmax} mm`;
-    document.getElementById('resDorth').innerText = dorth === null ? 'Chưa hiệu chuẩn' : `${dorth} mm`;
-    document.getElementById('inputD3').value = d3Default;
-    document.getElementById('resArea').innerText = areaVal === null ? 'Chưa hiệu chuẩn' : `${areaVal} cm²`;
-    
-    currentCase.d3_mm = d3Default ? parseFloat(d3Default) : null;
-    recalculateVolume();
-
-    // Display AI Confidence & Quality Gate
-    const badgeConf = document.getElementById('badgeConfidence');
-    const isQualityPassed = data.quality_gate ? data.quality_gate.passed : (data.confidence_score >= 0.70);
-    
-    if (badgeConf) {
-        badgeConf.innerText = `Độ tin cậy AI: ${(data.confidence_score * 100).toFixed(1)}%`;
-        if (!isQualityPassed) {
-            badgeConf.style.background = '#fef2f2';
-            badgeConf.style.color = '#dc2626';
-            badgeConf.style.border = '1px solid #fecaca';
-        } else {
-            badgeConf.style.background = '#e0f2fe';
-            badgeConf.style.color = '#0369a1';
-            badgeConf.style.border = '1px solid #bae6fd';
-        }
-    }
-
-    // Display Uncertainty & Quality Gate Clinical Alert
-    const uncertEl = document.getElementById('hudUncertaintyBadge');
-    if (uncertEl) {
-        if (data.quality_gate && !data.quality_gate.passed) {
-            const failReason = (data.confidence_score < 0.70) ? '< 70%' : 'Bất định';
-            uncertEl.innerText = `Quality Gate: ${failReason}`;
-            uncertEl.style.background = '#fef2f2';
-            uncertEl.style.color = '#991b1b';
-            uncertEl.style.border = '1px solid #fecaca';
-            uncertEl.style.display = 'inline-block';
-        } else if (data.uncertainty) {
-            uncertEl.innerText = `Bất định: ${data.uncertainty.uncertainty_level}`;
-            uncertEl.style.background = '#fef3c7';
-            uncertEl.style.color = '#92400e';
-            uncertEl.style.border = '1px solid #fde68a';
-            uncertEl.style.display = 'inline-block';
-        }
-    }
-
-    const alertEl = document.getElementById('clinicalUncertaintyAlert');
-    if (alertEl) {
-        if (data.quality_gate && !data.quality_gate.passed) {
-            alertEl.innerHTML = `<strong>⚠️ Chú ý Quality Gate:</strong> ${data.quality_gate.alert}`;
-            alertEl.style.display = 'block';
-            alertEl.style.background = '#fef2f2';
-            alertEl.style.borderLeftColor = '#ef4444';
-            alertEl.style.color = '#991b1b';
-        } else if (data.uncertainty && data.uncertainty.is_uncertain) {
-            alertEl.innerHTML = `<strong>⚠️ Lưu ý Bác sĩ:</strong> ${data.uncertainty.clinical_alert}`;
-            alertEl.style.display = 'block';
-            alertEl.style.background = '#fff7ed';
-            alertEl.style.borderLeftColor = '#f97316';
-            alertEl.style.color = '#9a3412';
-        } else {
-            alertEl.style.display = 'none';
-        }
-    }
-
-    // Display Model Provenance (Compact string to avoid line breaking)
-    if (data.provenance) {
-        const provEl = document.getElementById('hudProvenanceTag');
-        if (provEl) {
-            const shortSum = data.provenance.model_checksum ? data.provenance.model_checksum.substring(0, 8) : 'v1.2';
-            provEl.innerText = `U-Net • ${shortSum}`;
-            provEl.title = `${data.provenance.model_name || 'Standard U-Net (Baseline)'} (SHA256: ${data.provenance.model_checksum || ''})`;
-        }
-    }
-
-    const badgeSpacing = document.getElementById('badgePixelSpacing');
-    if (badgeSpacing) {
-        badgeSpacing.innerText = calibrated ? '📐 Đã hiệu chuẩn mm' : '📐 Chưa hiệu chuẩn mm';
-    }
-
-    // This model predicts a binary mask only; no pathology or O-RADS inference is available.
-    const selectElem = document.getElementById('selectPathology');
-    if (selectElem) selectElem.value = '';
-    resetZoomCanvas();
-    setCanvasViewMode(currentViewMode);
-
-    // Load Background & Mask
-    const onBgImageLoaded = () => {
-        renderMask(data);
-        saveLocalDraft();
-    };
-
-    bgImage.onload = onBgImageLoaded;
-    bgImage.src = data.original_image_base64 || (typeof currentCase !== 'undefined' && currentCase && (currentCase.original_image_base64 || currentCase.image_base64)) || '';
-    if (bgImage.complete && bgImage.naturalWidth > 0) {
-        onBgImageLoaded();
-    }
+/** Canvas edits stay in 512×512 model coordinates; measurements use source coordinates. */
+const MAX_HISTORY=20, MAX_ZOOM=5, MIN_ZOOM=.2, ZOOM_STEP=.25;
+let imageViewMode='overlay', comparisonMode='single', contourOnly=false, curtainPosition=50;
+let brightness=100, contrast=100, measurementSerial=0, measurementTimer, currentMeasurements=null;
+function loadViewerImage(src) {
+    return new Promise((resolve,reject)=>{
+        if(!src) return reject(new Error('Không có ảnh nguồn để hiển thị.'));
+        const image=new Image();image.onload=()=>resolve(image);
+        image.onerror=()=>reject(new Error('Không thể hiển thị ảnh. Hãy mở lại ca hoặc chọn ảnh khác.'));
+        image.src=src;
+    });
 }
 
-function setCanvasViewMode(mode) {
-            currentViewMode = mode;
-            const btnSingle = document.getElementById('btnModeSingle');
-            const btnSplit = document.getElementById('btnModeSplit');
-            const btnCurtain = document.getElementById('btnModeCurtain');
-
-            if (btnSingle) btnSingle.classList.toggle('active', mode === 'single');
-            if (btnSplit) btnSplit.classList.toggle('active', mode === 'split');
-            if (btnCurtain) btnCurtain.classList.toggle('active', mode === 'curtain');
-
-            const singleContainer = document.getElementById('canvasContainer');
-            const splitContainer = document.getElementById('splitCanvasContainer');
-            const curtainDiv = document.getElementById('curtainDivider');
-
-            if (mode === 'single') {
-                if (singleContainer) singleContainer.style.display = 'flex';
-                if (splitContainer) splitContainer.style.display = 'none';
-                if (curtainDiv) curtainDiv.style.display = 'none';
-            } else if (mode === 'split') {
-                if (singleContainer) singleContainer.style.display = 'none';
-                if (splitContainer) splitContainer.style.display = 'grid';
-                if (curtainDiv) curtainDiv.style.display = 'none';
-            } else if (mode === 'curtain') {
-                if (singleContainer) singleContainer.style.display = 'flex';
-                if (splitContainer) splitContainer.style.display = 'none';
-                if (curtainDiv) curtainDiv.style.display = 'block';
-                updateCurtainPosition();
-            }
-
-            redrawMainCanvas();
-            showToast(`Chế độ xem: ${mode === 'single' ? 'Khung đơn 1 màn hình' : (mode === 'split' ? 'Song song 2 màn hình (Side-by-Side)' : 'Thanh trượt so sánh rèm kéo (Curtain)')}`);
-        }
-
-function setupCurtainDrag() {
-            const divider = document.getElementById('curtainDivider');
-            const container = document.getElementById('canvasContainer');
-            if (!divider || !container) return;
-
-            divider.addEventListener('mousedown', (e) => {
-                if (currentViewMode !== 'curtain') return;
-                isDraggingCurtain = true;
-                e.preventDefault();
-            });
-
-            window.addEventListener('mousemove', (e) => {
-                if (!isDraggingCurtain || currentViewMode !== 'curtain') return;
-                const rect = container.getBoundingClientRect();
-                const clientX = Math.max(rect.left, Math.min(e.clientX, rect.right));
-                curtainSplitPercent = Math.max(5, Math.min(95, ((clientX - rect.left) / rect.width) * 100));
-                updateCurtainPosition();
-                redrawMainCanvas();
-            });
-
-            window.addEventListener('mouseup', () => {
-                if (isDraggingCurtain) {
-                    isDraggingCurtain = false;
-                }
-            });
-        }
-
-function updateCurtainPosition() {
-            const divider = document.getElementById('curtainDivider');
-            if (divider) {
-                divider.style.left = `${curtainSplitPercent}%`;
-            }
-        }
-
-function zoomInCanvas() {
-            if (currentZoom < MAX_ZOOM) {
-                currentZoom = Math.min(MAX_ZOOM, parseFloat((currentZoom + ZOOM_STEP).toFixed(2)));
-                applyCanvasZoom();
-            }
-        }
-
-function zoomOutCanvas() {
-            if (currentZoom > MIN_ZOOM) {
-                currentZoom = Math.max(MIN_ZOOM, parseFloat((currentZoom - ZOOM_STEP).toFixed(2)));
-                applyCanvasZoom();
-            }
-        }
-
-function resetZoomCanvas() {
-            currentZoom = 1.0;
-            panOffsetX = 0;
-            panOffsetY = 0;
-            applyCanvasZoom();
-        }
-
-function applyCanvasZoom() {
-            canvas.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px) scale(${currentZoom})`;
-            document.getElementById('zoomLevelDisplay').innerText = `${Math.round(currentZoom * 100)}%`;
-            document.getElementById('hudZoom').innerText = `${currentZoom.toFixed(1)}x`;
-            showToast(`Tỉ lệ phóng to Canvas: ${Math.round(currentZoom * 100)}%`);
-        }
-
-function setupCanvasZoomAndPan() {
-            const container = document.getElementById('canvasContainer');
-            if (container) {
-                container.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    if (e.deltaY < 0) {
-                        zoomInCanvas();
-                    } else {
-                        zoomOutCanvas();
-                    }
-                }, { passive: false });
-            }
-        }
-
-function renderMask(data) {
-    if (!data) return;
-    maskCtx.clearRect(0, 0, 512, 512);
-
-    if (data.prediction_mask_base64 || data.mask_base64) {
-        const maskImg = new Image();
-        maskImg.onload = () => {
-            const tempC = document.createElement('canvas');
-            tempC.width = 512;
-            tempC.height = 512;
-            const tCtx = tempC.getContext('2d');
-            tCtx.drawImage(maskImg, 0, 0, 512, 512);
-            const idata = tCtx.getImageData(0, 0, 512, 512);
-            for (let i = 0; i < idata.data.length; i += 4) {
-                if (idata.data[i] > 20 || idata.data[i + 1] > 20 || idata.data[i + 2] > 20) {
-                    idata.data[i] = 6;       // Cyan R
-                    idata.data[i + 1] = 182; // Cyan G
-                    idata.data[i + 2] = 212; // Cyan B
-                    idata.data[i + 3] = 255; // Alpha
-                } else {
-                    idata.data[i + 3] = 0;
-                }
-            }
-            maskCtx.putImageData(idata, 0, 0);
-            saveCanvasHistory();
-            redrawMainCanvas();
-            calculateLiveMetrics();
-        };
-        maskImg.src = data.prediction_mask_base64 || data.mask_base64;
-    } else if (data.rle_mask) {
-        renderMaskFromRLE(data.rle_mask);
-        saveCanvasHistory();
-        redrawMainCanvas();
-        calculateLiveMetrics();
-    }
-}
-
-function renderMaskFromRLE(rle) {
-            maskCtx.clearRect(0, 0, 512, 512);
-            if (!rle || !rle.counts || rle.counts.length === 0) return;
-
-            const counts = rle.counts;
-            const imgData = maskCtx.createImageData(512, 512);
-            let pIdx = 0;
-            let val = rle.first_val || 0;
-
-            for (let c of counts) {
-                for (let i = 0; i < c; i++) {
-                    if (val === 1) {
-                        const idx = pIdx * 4;
-                        imgData.data[idx] = 6;        // Cyan R
-                        imgData.data[idx + 1] = 182;  // G
-                        imgData.data[idx + 2] = 212;  // B
-                        imgData.data[idx + 3] = 255;  // Alpha
-                    }
-                    pIdx++;
-                }
-                val = 1 - val;
-            }
-            maskCtx.putImageData(imgData, 0, 0);
-        }
-
-window.activeLayers = { original: true, gt: false, ai: true, doc: true };
-window.groundTruthCanvas = null;
-
-function toggleLayer(layerName) {
-    const key = layerName.toLowerCase();
-    if (window.activeLayers[key] !== undefined) {
-        window.activeLayers[key] = !window.activeLayers[key];
-    }
-    const btn = document.getElementById(`btnLayer${layerName}`);
-    if (btn) {
-        btn.classList.toggle('active', !!window.activeLayers[key]);
-    }
-    redrawMainCanvas();
-}
-
-function calculateLiveMetrics() {
-    if (!window.groundTruthCanvas) {
-        const elPill = document.getElementById('liveMetricsPill');
-        if (elPill) elPill.style.display = 'none';
-        return;
-    }
+async function initResultsWorkspace(data,review=null) {
+    currentCase.maskReady=false; $('viewerLoading').hidden=false; $('editorCanvas').hidden=true;
+    ctx.clearRect(0,0,512,512);maskCtx.clearRect(0,0,512,512);
+    undoStack=[];redoStack=[];window.groundTruthCanvas=null;reviewStartedAt=performance.now();
+    currentCase.confirmed=false;currentCase.dirty=false;
+    $('textDoctorNotes').value=review?.clinical_notes||'';
+    $('reviewMorphology').value=['UNSPECIFIED','Chưa đánh giá bệnh học'].includes(review?.lesion_type)?'':review?.lesion_type||'';
+    setSurveyFeedback(review?.hitl_feedback||null);
+    $('viewerStudyCode').textContent=currentCase.study_code||currentCase.study_id||'Case';
+    $('viewerFilename').textContent=currentCase.image_filename||data.filename||'';
+    $('workstationModelName').textContent=data.provenance?.model_name||data.provenance?.model_version||data.model_version||'Không có thông tin trong bản ghi';
+    $('inferenceTime').textContent=typeof data.inference_time_ms==='number'?data.inference_time_ms.toFixed(0)+' ms':'Không có dữ liệu';
+    $('modelProvenance').textContent=data.provenance?.model_checksum||data.provenance?.checkpoint_sha256||'Bản ghi chưa cung cấp checksum/version mô hình.';
+    $('confidenceInfo').textContent=typeof data.confidence_score==='number'?'Điểm pixel AI (chưa hiệu chuẩn): '+(data.confidence_score*100).toFixed(1)+'%. Không phải độ chính xác lâm sàng.':'Không có confidence từ backend.';
+    showError('reviewSaveError','');
     try {
-        const mCtx = maskCanvas.getContext('2d');
-        const gtCtx = window.groundTruthCanvas.getContext('2d');
-        const mData = mCtx.getImageData(0, 0, 512, 512).data;
-        const gtData = gtCtx.getImageData(0, 0, 512, 512).data;
-
-        let tp = 0, fp = 0, fn = 0;
-        for (let i = 3; i < mData.length; i += 4) {
-            const mVal = mData[i] > 20 ? 1 : 0;
-            const gtVal = gtData[i] > 20 ? 1 : 0;
-            if (mVal && gtVal) tp++;
-            else if (mVal && !gtVal) fp++;
-            else if (!mVal && gtVal) fn++;
-        }
-
-        let dice = 0.0, iou = 0.0;
-        if (tp + fp + fn === 0) {
-            dice = 1.0;
-            iou = 1.0;
-        } else {
-            dice = (2.0 * tp) / (2.0 * tp + fp + fn);
-            iou = tp / (tp + fp + fn);
-        }
-
-        const elPill = document.getElementById('liveMetricsPill');
-        const elDice = document.getElementById('liveDiceVal');
-        const elIou = document.getElementById('liveIouVal');
-        if (elPill && elDice && elIou) {
-            elPill.style.display = 'inline-flex';
-            elDice.innerText = dice.toFixed(3);
-            elIou.innerText = iou.toFixed(3);
-        }
-    } catch (e) {
-        console.warn("Live metrics calculation note:", e);
-    }
+        bgImage=await loadViewerImage(data.original_image_base64);
+        dualMaskFromRle(data.rle_mask);renderMaskFromRLE(review?.verified_mask_rle||data.rle_mask);
+        undoStack=[maskCtx.getImageData(0,0,512,512)];
+        currentCase.maskReady=true;currentCase.confirmed=Boolean(review);currentCase.review_id=review?.review_id||null;
+        currentCase.savedMask=review?encodeCurrentMask():null;currentCase.savedNotes=review?.clinical_notes||'';
+        currentCase.savedMorphology=$('reviewMorphology').value.trim();
+        currentCase.savedFeedback=getSurveyFeedback();currentCase.reviewing=false;
+        contourOnly=false;curtainPosition=50;$('curtainSlider').value=50;
+        $('contourToggle').setAttribute('aria-pressed','false');
+        setComparisonMode('single');setViewMode('overlay');setCanvasTool('brush');resetZoomCanvas();resetImageAdjustments();
+        updateHistoryButtons();syncReviewUI();fitCanvasToViewport();queueMeasurements();
+        $('reviewPanel').scrollTop=0;document.querySelector('.annotation-tools').scrollTop=0;
+    } finally {$('viewerLoading').hidden=true;$('editorCanvas').hidden=!currentCase.maskReady;}
 }
-
+function renderMaskFromRLE(rle){const validated=dualMaskFromRle(rle);maskCtx.clearRect(0,0,512,512);maskCtx.drawImage(validated,0,0);}
+function drawUltrasound(context) {
+    context.fillStyle='#000';context.fillRect(0,0,512,512);
+    if(bgImage?.naturalWidth){context.save();context.filter='brightness('+brightness+'%) contrast('+contrast+'%)';context.drawImage(bgImage,0,0,512,512);context.restore();}
+}
+function outlineMask() {
+    const source=maskCtx.getImageData(0,0,512,512).data;
+    const result=ctx.createImageData(512,512);
+    for(let y=0;y<512;y++)for(let x=0;x<512;x++){
+        const i=(y*512+x)*4;
+        if(source[i+3]&&(x===0||y===0||x===511||y===511||!source[i-1]||!source[i+7]||!source[i-2045]||!source[i+2051])){
+            result.data[i]=6;result.data[i+1]=182;result.data[i+2]=212;result.data[i+3]=255;
+        }
+    }
+    const outline=document.createElement('canvas');outline.width=outline.height=512;outline.getContext('2d').putImageData(result,0,0);return outline;
+}
 function redrawMainCanvas() {
-    // 1. Redraw Single/Main Canvas
-    ctx.clearRect(0, 0, 512, 512);
-
-    // 1.1 Draw base ultrasound image
-    if (window.activeLayers.original && bgImage && bgImage.src && (bgImage.naturalWidth > 0 || bgImage.complete)) {
-        try {
-            ctx.drawImage(bgImage, 0, 0, 512, 512);
-        } catch (e) {
-            console.error("Canvas drawImage notice:", e);
-        }
-    }
-
-    // 1.2 Draw Ground Truth layer (if active and available)
-    if (window.activeLayers.gt && window.groundTruthCanvas) {
-        ctx.save();
-        ctx.globalAlpha = maskOpacity * 0.85;
-        ctx.drawImage(window.groundTruthCanvas, 0, 0);
-        ctx.restore();
-    }
-
-    // 1.3 Draw mask layer (AI or Doctor Canvas)
-    const showMask = isMaskVisible && (window.activeLayers.ai || window.activeLayers.doc);
-    if (currentViewMode === 'curtain') {
-        // Curtain clip on the right side of curtainSplitPercent
-        const splitPx = (curtainSplitPercent / 100.0) * 512;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(splitPx, 0, 512 - splitPx, 512);
-        ctx.clip();
-
-        if (showMask) {
-            ctx.globalAlpha = maskOpacity;
-            ctx.drawImage(maskCanvas, 0, 0);
-        }
-        drawCalipersOnContext(ctx);
-        ctx.restore();
-
-        // Draw hairline on canvas
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(splitPx, 0);
-        ctx.lineTo(splitPx, 512);
-        ctx.stroke();
-
-    } else {
-        if (showMask) {
+    if(!ctx)return;
+    ctx.clearRect(0,0,512,512);
+    if(imageViewMode==='mask'&&comparisonMode==='single'){
+        const binary=maskCtx.getImageData(0,0,512,512);
+        for(let i=0;i<binary.data.length;i+=4){const v=binary.data[i+3]>0?255:0;binary.data[i]=binary.data[i+1]=binary.data[i+2]=v;binary.data[i+3]=255;}
+        ctx.putImageData(binary,0,0);
+    }else{
+        drawUltrasound(ctx);
+        if(imageViewMode!=='original'||comparisonMode!=='single'){
             ctx.save();
-            ctx.globalAlpha = maskOpacity;
-            ctx.drawImage(maskCanvas, 0, 0);
-            ctx.restore();
+            if(comparisonMode==='curtain'){ctx.beginPath();ctx.rect(512*curtainPosition/100,0,512,512);ctx.clip();}
+            ctx.globalAlpha=contourOnly?1:maskOpacity;ctx.drawImage(contourOnly?outlineMask():maskCanvas,0,0);ctx.restore();
+            if(currentMeasurements&&maskOpacity>0&&comparisonMode!=='curtain'){
+                ctx.save();ctx.strokeStyle='#efc867';ctx.lineWidth=1.5;
+                for(const lesion of currentMeasurements.lesions||[])for(const points of [lesion.viewer_caliper_dmax_points,lesion.viewer_caliper_dorth_points]){
+                    if(!points?.length)continue;ctx.beginPath();ctx.moveTo(...points[0]);ctx.lineTo(...points[1]);ctx.stroke();
+                }
+                ctx.restore();
+            }
         }
-        drawCalipersOnContext(ctx);
+        if(comparisonMode==='curtain'){ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(512*curtainPosition/100,0);ctx.lineTo(512*curtainPosition/100,512);ctx.stroke();ctx.restore();}
     }
-
-    // 2. Split-Screen Mode Dual Rendering
-    const origCanvas = document.getElementById('originalCanvas');
-    const splitEditCanvas = document.getElementById('splitEditorCanvas');
-    if (origCanvas && splitEditCanvas && bgImage && bgImage.src) {
-        const oCtx = origCanvas.getContext('2d');
-        oCtx.clearRect(0, 0, 512, 512);
-        if (window.activeLayers.original) {
-            oCtx.drawImage(bgImage, 0, 0, 512, 512);
+    const original=$('comparisonOriginalCanvas');
+    if(original&&comparisonMode==='side')drawUltrasound(original.getContext('2d'));
+    positionCurtainHandle();
+    if(isCalibratingTwoPoints||(calibPoints&&calibPoints.length>0)){
+        ctx.save();ctx.strokeStyle='#22c55e';ctx.fillStyle='#22c55e';ctx.lineWidth=2;
+        for(const p of calibPoints){
+            ctx.beginPath();ctx.arc(p[0],p[1],4,0,Math.PI*2);ctx.fill();
+            ctx.beginPath();ctx.moveTo(p[0]-8,p[1]);ctx.lineTo(p[0]+8,p[1]);
+            ctx.moveTo(p[0],p[1]-8);ctx.lineTo(p[0],p[1]+8);ctx.stroke();
         }
-        if (window.activeLayers.gt && window.groundTruthCanvas) {
-            oCtx.save();
-            oCtx.globalAlpha = maskOpacity * 0.85;
-            oCtx.drawImage(window.groundTruthCanvas, 0, 0);
-            oCtx.restore();
+        if(calibPoints.length===2){
+            ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(calibPoints[0][0],calibPoints[0][1]);ctx.lineTo(calibPoints[1][0],calibPoints[1][1]);ctx.stroke();
         }
-
-        const seCtx = splitEditCanvas.getContext('2d');
-        seCtx.clearRect(0, 0, 512, 512);
-        if (window.activeLayers.original) {
-            seCtx.drawImage(bgImage, 0, 0, 512, 512);
-        }
-        if (showMask) {
-            seCtx.save();
-            seCtx.globalAlpha = maskOpacity;
-            seCtx.drawImage(maskCanvas, 0, 0);
-            seCtx.restore();
-        }
-        drawCalipersOnContext(seCtx);
+        ctx.restore();
     }
 }
-
-function drawCalipersOnContext(targetCtx) {
-    // Physical calipers are unavailable without verified pixel spacing.
-    if (!currentPrediction?.pixel_spacing_mm) return;
-    if (currentPrediction && currentPrediction.measurements) {
-        const lesions = currentPrediction.measurements.lesions || [];
-        if (lesions.length === 0) return;
-
-        targetCtx.save();
-        targetCtx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-        targetCtx.shadowBlur = 4;
-        targetCtx.shadowOffsetX = 1;
-        targetCtx.shadowOffsetY = 1;
-
-        // Clinical standard: Draw calipers on the primary (dominant) lesion
-        const primaryLesion = lesions.reduce((maxL, l) => (l.area_cm2 > maxL.area_cm2 ? l : maxL), lesions[0]);
-
-        // Draw D1 (Max Diameter) in Yellow
-        if (primaryLesion.caliper_dmax_points && primaryLesion.caliper_dmax_points.length === 2) {
-            const [p1, p2] = primaryLesion.caliper_dmax_points;
-            targetCtx.strokeStyle = '#facc15';
-            targetCtx.lineWidth = 2;
-            targetCtx.beginPath();
-            targetCtx.moveTo(p1[0], p1[1]);
-            targetCtx.lineTo(p2[0], p2[1]);
-            targetCtx.stroke();
-
-            drawCrosshair(targetCtx, p1[0], p1[1], '#facc15');
-            drawCrosshair(targetCtx, p2[0], p2[1], '#facc15');
-
-            const d1Val = typeof primaryLesion.max_diameter_mm === 'number' ? primaryLesion.max_diameter_mm.toFixed(1) : primaryLesion.max_diameter_mm;
-            targetCtx.fillStyle = '#facc15';
-            targetCtx.font = 'bold 11px JetBrains Mono, monospace';
-            const labelX = Math.max(10, Math.min(460, (primaryLesion.center ? primaryLesion.center[0] : (p1[0] + p2[0])/2) - 25));
-            const labelY = Math.max(15, Math.min(495, (primaryLesion.center ? primaryLesion.center[1] : (p1[1] + p2[1])/2) - 8));
-            targetCtx.fillText(`D1: ${d1Val}mm`, labelX, labelY);
-        }
-
-        // Draw D2 (Orthogonal Diameter) in Cyan
-        if (primaryLesion.caliper_dorth_points && primaryLesion.caliper_dorth_points.length === 2) {
-            const [p1, p2] = primaryLesion.caliper_dorth_points;
-            targetCtx.strokeStyle = '#38bdf8';
-            targetCtx.lineWidth = 1.5;
-            targetCtx.beginPath();
-            targetCtx.moveTo(p1[0], p1[1]);
-            targetCtx.lineTo(p2[0], p2[1]);
-            targetCtx.stroke();
-
-            drawCrosshair(targetCtx, p1[0], p1[1], '#38bdf8');
-            drawCrosshair(targetCtx, p2[0], p2[1], '#38bdf8');
-
-            const d2Val = typeof primaryLesion.ortho_diameter_mm === 'number' ? primaryLesion.ortho_diameter_mm.toFixed(1) : primaryLesion.ortho_diameter_mm;
-            targetCtx.fillStyle = '#38bdf8';
-            targetCtx.font = 'bold 10.5px JetBrains Mono, monospace';
-            const d2LabelX = Math.max(10, Math.min(460, p2[0] + 5));
-            const d2LabelY = Math.max(15, Math.min(495, p2[1] + 12));
-            targetCtx.fillText(`D2: ${d2Val}mm`, d2LabelX, d2LabelY);
-        }
-
-        targetCtx.restore();
+function setViewMode(mode) {
+    imageViewMode=mode;
+    if(comparisonMode!=='single'&&mode!=='overlay')setComparisonMode('single');
+    document.querySelectorAll('[data-view]').forEach(b=>{const active=b.dataset.view===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+    $('opacitySlider').disabled=mode!=='overlay'||contourOnly;redrawMainCanvas();
+}
+function setComparisonMode(mode) {
+    comparisonMode=mode;
+    $('canvasContainer').classList.toggle('side-by-side',mode==='side');
+    $('originalPane').hidden=mode!=='side';$('editablePaneLabel').hidden=mode!=='side';
+    $('curtainControl').hidden=mode!=='curtain';
+    document.querySelectorAll('[data-comparison]').forEach(b=>{const active=b.dataset.comparison===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
+    if(mode!=='single')setViewMode('overlay');else redrawMainCanvas();
+    $('brushCursor').hidden=true;applyCanvasZoom();requestAnimationFrame(positionCurtainHandle);
+}
+function toggleContour(){contourOnly=!contourOnly;$('contourToggle').setAttribute('aria-pressed',String(contourOnly));$('contourToggle').textContent=contourOnly?'Mặt nạ phủ màu':'Đường viền';$('opacitySlider').disabled=contourOnly||imageViewMode!=='overlay';redrawMainCanvas();}
+function updateCurtain(value){curtainPosition=Math.max(0,Math.min(100,Number(value)));$('curtainSlider').value=curtainPosition;redrawMainCanvas();}
+function updateImageAdjustments(){brightness=Number($('brightnessSlider').value);contrast=Number($('contrastSlider').value);$('brightnessValue').value=brightness+'%';$('contrastValue').value=contrast+'%';redrawMainCanvas();}
+function resetImageAdjustments(){$('brightnessSlider').value=$('contrastSlider').value=100;updateImageAdjustments();}
+function updateOverlayOpacity(value){maskOpacity=Number(value)/100;$('opacityValue').value=value+'%';redrawMainCanvas();}
+function applyCanvasZoom() {
+    if(!canvas)return;
+    const transform='translate('+panOffsetX+'px,'+panOffsetY+'px) scale('+currentZoom+')';
+    canvas.style.transform=transform;$('comparisonOriginalCanvas').style.transform=transform;
+    $('zoomLevelDisplay').textContent=Math.round(currentZoom*100)+'%';$('brushCursor').hidden=true;positionCurtainHandle();
+}
+function zoomAtPoint(deltaZoom, clientX, clientY) {
+    if(!canvas||!currentCase.maskReady) return;
+    const oldZoom=currentZoom;
+    const newZoom=Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,Math.round((currentZoom+deltaZoom)*100)/100));
+    if(newZoom===oldZoom) return;
+    const container=$('canvasContainer');
+    const r=container.getBoundingClientRect();
+    const cx=clientX-r.left-r.width/2;
+    const cy=clientY-r.top-r.height/2;
+    const scaleRatio=newZoom/oldZoom;
+    panOffsetX=Math.round(cx-(cx-panOffsetX)*scaleRatio);
+    panOffsetY=Math.round(cy-(cy-panOffsetY)*scaleRatio);
+    currentZoom=newZoom;
+    applyCanvasZoom();
+}
+function zoomInCanvas(){if(!canvas)return;const r=$('canvasContainer').getBoundingClientRect();zoomAtPoint(ZOOM_STEP,r.left+r.width/2,r.top+r.height/2);}
+function zoomOutCanvas(){if(!canvas)return;const r=$('canvasContainer').getBoundingClientRect();zoomAtPoint(-ZOOM_STEP,r.left+r.width/2,r.top+r.height/2);}
+function resetZoomCanvas(){currentZoom=1;panOffsetX=panOffsetY=0;applyCanvasZoom();}
+function setBrushSize(value){brushSize=Math.max(2,Math.min(64,Number(value)));$('brushSizeSlider').value=brushSize;$('brushSizeValue').value=brushSize+' px';$('brushCursor').hidden=true;}
+function setCanvasTool(tool) {
+    currentTool=tool;
+    for(const name of ['brush','eraser','pan']){const b=$('tool'+name[0].toUpperCase()+name.slice(1));b.classList.toggle('active',name===tool);b.setAttribute('aria-pressed',String(name===tool));}
+    if(canvas)canvas.style.cursor=tool==='pan'?'grab':'none';$('brushCursor').hidden=true;
+}
+function showBrushCursor(event) {
+    const ring=$('brushCursor');
+    if(currentTool==='pan'||event.shiftKey||!currentCase.maskReady||currentCase.saving){ring.hidden=true;return;}
+    const imageRect=canvas.getBoundingClientRect(),paneRect=$('editablePane').getBoundingClientRect();
+    const size=brushSize*imageRect.width/512;
+    ring.style.width=ring.style.height=size+'px';ring.style.left=(event.clientX-paneRect.left)+'px';ring.style.top=(event.clientY-paneRect.top)+'px';ring.hidden=false;
+    ring.classList.toggle('eraser',currentTool==='eraser');
+}
+function positionCurtainHandle(){
+    const handle=$('curtainHandle');if(!handle||!canvas)return;
+    handle.hidden=comparisonMode!=='curtain';if(handle.hidden)return;
+    const rect=canvas.getBoundingClientRect(),pane=$('editablePane').getBoundingClientRect();
+    handle.style.left=(rect.left-pane.left+rect.width*curtainPosition/100)+'px';handle.style.top=(rect.top-pane.top)+'px';handle.style.height=rect.height+'px';
+    handle.setAttribute('aria-valuenow',String(Math.round(curtainPosition)));
+}
+function fitCanvasToViewport(){
+    if(!canvas)return;
+    const pane=$('editablePane'),dims=currentCase.sourceDimensions;
+    let contentWidth=512,contentHeight=512;
+    if(Array.isArray(dims)&&dims.length===2&&dims.every(n=>Number.isFinite(n)&&n>0)){
+        const scale=Math.min(512/dims[0],512/dims[1]);
+        contentWidth=Math.max(1,Math.floor(dims[0]*scale));contentHeight=Math.max(1,Math.floor(dims[1]*scale));
     }
+    // Fit the image content, allowing only letterbox padding to be clipped.
+    const size=Math.max(1,Math.min(512,pane.clientWidth*512/contentWidth,(pane.clientHeight||512)*512/contentHeight));
+    for(const item of [canvas,$('comparisonOriginalCanvas')])item.style.width=item.style.height=size+'px';
+    positionCurtainHandle();$('brushCursor').hidden=true;
 }
-
-function drawCrosshair(c, x, y, color = '#facc15') {
-    c.strokeStyle = color;
-    c.lineWidth = 2;
-    c.beginPath();
-    c.moveTo(x - 4, y); c.lineTo(x + 4, y);
-    c.moveTo(x, y - 4); c.lineTo(x, y + 4);
-    c.stroke();
-}
-
 function setupCanvasEngine() {
-    canvas = document.getElementById('editorCanvas');
-    if (canvas) {
-        ctx = canvas.getContext('2d');
+    canvas=$('editorCanvas');ctx=canvas.getContext('2d');
+    const point=e=>{const r=canvas.getBoundingClientRect();return[(e.clientX-r.left)*512/r.width,(e.clientY-r.top)*512/r.height];};
+    const handle=document.createElement('div');handle.id='curtainHandle';handle.className='curtain-handle';handle.hidden=true;handle.tabIndex=0;
+    handle.setAttribute('role','slider');handle.setAttribute('aria-label','Ranh giới ảnh gốc và mask');handle.setAttribute('aria-valuemin','0');handle.setAttribute('aria-valuemax','100');
+    $('editablePane').append(handle);
+    let draggingCurtain=false;
+    handle.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();draggingCurtain=true;handle.setPointerCapture(e.pointerId);$('brushCursor').hidden=true;});
+    handle.addEventListener('pointermove',e=>{if(draggingCurtain){const r=canvas.getBoundingClientRect();updateCurtain((e.clientX-r.left)*100/r.width);}});
+    ['pointerup','pointercancel','lostpointercapture'].forEach(type=>handle.addEventListener(type,()=>draggingCurtain=false));
+    handle.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();e.stopPropagation();updateCurtain(e.key==='Home'?0:e.key==='End'?100:curtainPosition+(e.key==='ArrowLeft'?-2:2));}});
+    canvas.addEventListener('pointerdown',e=>{
+        if(!currentCase.maskReady||currentCase.saving||document.querySelector('dialog[open]'))return;
+        const isPanTrigger=(e.button===1||e.button===2||currentTool==='pan'||e.shiftKey||isSpacePressed);
+        if(!isPanTrigger&&e.button!==0)return;
+        e.preventDefault();canvas.setPointerCapture(e.pointerId);
+        if(isPanTrigger){isPanning=true;startPanX=e.clientX-panOffsetX;startPanY=e.clientY-panOffsetY;canvas.style.cursor='grabbing';return;}
+        if(isCalibratingTwoPoints){handleCalibrationClick(e);return;}
+        if(imageViewMode==='original')setViewMode('overlay');
+        const initialPoint=point(e);
+        clearMeasurements('Mask đang chỉnh sửa; chờ tính lại số đo.');
+        [lastX,lastY]=initialPoint;isDrawing=true;paintOnMask(lastX,lastY);currentCase.reviewing=true;currentCase.confirmed=false;syncReviewUI();
+    });
+    canvas.addEventListener('pointermove',e=>{
+        showBrushCursor(e);
+        if(isPanning){panOffsetX=e.clientX-startPanX;panOffsetY=e.clientY-startPanY;applyCanvasZoom();return;}
+        if(!isDrawing)return;const[x,y]=point(e);paintOnMask(x,y,lastX,lastY);lastX=x;lastY=y;
+    });
+    canvas.addEventListener('pointerleave',()=>{$('brushCursor').hidden=true;});
+    const finish=()=>{if(isDrawing){isDrawing=false;saveCanvasHistory();markReviewDirty();}isPanning=false;canvas.style.cursor=currentTool==='pan'?'grab':'none';};
+    ['pointerup','pointercancel','lostpointercapture'].forEach(type=>canvas.addEventListener(type,finish));
+    const original=$('comparisonOriginalCanvas');
+    original.addEventListener('pointerdown',e=>{if(e.button!==0||!currentCase.maskReady)return;e.preventDefault();original.setPointerCapture(e.pointerId);isPanning=true;startPanX=e.clientX-panOffsetX;startPanY=e.clientY-panOffsetY;});
+    original.addEventListener('pointermove',e=>{if(isPanning){panOffsetX=e.clientX-startPanX;panOffsetY=e.clientY-startPanY;applyCanvasZoom();}});
+    ['pointerup','pointercancel','lostpointercapture'].forEach(type=>original.addEventListener(type,()=>{isPanning=false;}));
+    canvas.addEventListener('contextmenu',e=>e.preventDefault());
+    original.addEventListener('contextmenu',e=>e.preventDefault());
+    $('canvasContainer').addEventListener('wheel',e=>{if(!currentCase.maskReady)return;e.preventDefault();const delta=e.deltaY<0?ZOOM_STEP:-ZOOM_STEP;zoomAtPoint(delta,e.clientX,e.clientY);},{passive:false});
+    new ResizeObserver(fitCanvasToViewport).observe($('editablePane'));
+    let resizeTimer;
+    window.addEventListener('resize',()=>{
+        clearTimeout(resizeTimer);
+        resizeTimer=setTimeout(()=>{fitCanvasToViewport();applyCanvasZoom();},150);
+    });
+}
+function paintOnMask(x,y,prevX=null,prevY=null) {
+    maskCtx.save();maskCtx.lineCap='round';maskCtx.lineJoin='round';maskCtx.lineWidth=brushSize;
+    maskCtx.strokeStyle=maskCtx.fillStyle='rgb(6,182,212)';maskCtx.globalCompositeOperation=currentTool==='eraser'?'destination-out':'source-over';
+    if(typeof prevX==='number'){maskCtx.beginPath();maskCtx.moveTo(prevX,prevY);maskCtx.lineTo(x,y);maskCtx.stroke();}
+    else{maskCtx.beginPath();maskCtx.arc(x,y,brushSize/2,0,Math.PI*2);maskCtx.fill();}
+    maskCtx.restore();redrawMainCanvas();
+}
+function clearMeasurements(message='Chưa có số đo.'){
+    currentCase.measurementMask=null;
+    ++measurementSerial;clearTimeout(measurementTimer);currentMeasurements=null;
+    for(const id of ['measurementDmax','measurementDortho','measurementArea'])$(id).textContent='—';
+    $('calibrationBadge').textContent='Chưa có số đo';$('calibrationBadge').className='status-badge';$('measurementStatus').textContent=message;
+}
+function updateMeasurementDisplay() {
+    if (!currentMeasurements) return;
+    const m = currentMeasurements;
+    const manualSpacing = currentCase.manualSpacingMm;
+    const isCalibrated = m.calibrated || Boolean(manualSpacing && manualSpacing > 0);
+    const spacing = m.calibrated ? m.pixel_spacing_mm : (manualSpacing || null);
 
-        // Main editor canvas listener
-        canvas.addEventListener('mousedown', (e) => {
-            if (e.shiftKey && currentZoom > 1) {
-                e.preventDefault();
-                isPanning = true;
-                startPanX = e.clientX - panOffsetX;
-                startPanY = e.clientY - panOffsetY;
-                canvas.style.cursor = 'grabbing';
-                return;
-            }
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            lastX = (e.clientX - rect.left) * scaleX;
-            lastY = (e.clientY - rect.top) * scaleY;
-            isDrawing = true;
-            paintOnMask(lastX, lastY);
-        });
+    if (isCalibrated && spacing) {
+        const dmax = m.calibrated && m.max_diameter_mm !== null ? m.max_diameter_mm : (m.max_diameter_px * spacing);
+        const dorth = m.calibrated && m.ortho_diameter_mm !== null ? m.ortho_diameter_mm : (m.ortho_diameter_px * spacing);
+        const area = m.calibrated && m.total_area_cm2 !== null ? m.total_area_cm2 : (m.total_area_px * spacing * spacing / 100);
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (isPanning) {
-                panOffsetX = e.clientX - startPanX;
-                panOffsetY = e.clientY - startPanY;
-                applyCanvasZoom();
-                return;
-            }
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const curX = (e.clientX - rect.left) * scaleX;
-            const curY = (e.clientY - rect.top) * scaleY;
-
-            const hud = document.getElementById('hudCoords');
-            if (hud) hud.innerText = `X: ${Math.round(curX)} Y: ${Math.round(curY)}`;
-
-            if (isDrawing) {
-                paintOnMask(curX, curY, lastX, lastY);
-                lastX = curX;
-                lastY = curY;
-            }
-        });
+        $('measurementDmax').textContent = dmax.toFixed(1) + ' mm';
+        $('measurementDortho').textContent = dorth.toFixed(1) + ' mm';
+        $('measurementArea').textContent = area.toFixed(2) + ' cm²';
+        $('calibrationBadge').textContent = m.calibrated ? (m.calibration_source === 'DICOM' ? 'Hiệu chuẩn DICOM' : 'Đã hiệu chuẩn mm') : `Thủ công: ${(1/spacing).toFixed(1)} px/mm`;
+        $('calibrationBadge').className = 'status-badge success';
+        $('measurementStatus').textContent = `Độ phân giải: 1 px ≈ ${spacing.toFixed(4)} mm`;
+    } else {
+        $('measurementDmax').textContent = (m.max_diameter_px || 0).toFixed(1) + ' px';
+        $('measurementDortho').textContent = (m.ortho_diameter_px || 0).toFixed(1) + ' px';
+        $('measurementArea').textContent = Math.round(m.total_area_px || 0) + ' px²';
+        $('calibrationBadge').textContent = 'Chưa hiệu chuẩn (pixel)';
+        $('calibrationBadge').className = 'status-badge';
+        $('measurementStatus').textContent = 'Số đo hiển thị đơn vị pixel trên ảnh nguồn. Nhấn "Hiệu chuẩn thước" để đổi sang mm.';
     }
-
-            // Split editor canvas listener (allows drawing in split mode)
-            const splitEditCanvas = document.getElementById('splitEditorCanvas');
-            if (splitEditCanvas) {
-                splitEditCanvas.addEventListener('mousedown', (e) => {
-                    const rect = splitEditCanvas.getBoundingClientRect();
-                    const scaleX = splitEditCanvas.width / rect.width;
-                    const scaleY = splitEditCanvas.height / rect.height;
-                    lastX = (e.clientX - rect.left) * scaleX;
-                    lastY = (e.clientY - rect.top) * scaleY;
-                    isDrawing = true;
-                    paintOnMask(lastX, lastY);
-                });
-
-                splitEditCanvas.addEventListener('mousemove', (e) => {
-                    const rect = splitEditCanvas.getBoundingClientRect();
-                    const scaleX = splitEditCanvas.width / rect.width;
-                    const scaleY = splitEditCanvas.height / rect.height;
-                    const curX = (e.clientX - rect.left) * scaleX;
-                    const curY = (e.clientY - rect.top) * scaleY;
-
-                    document.getElementById('hudCoords').innerText = `X: ${Math.round(curX)} Y: ${Math.round(curY)}`;
-
-                    if (isDrawing) {
-                        paintOnMask(curX, curY, lastX, lastY);
-                        lastX = curX;
-                        lastY = curY;
-                    }
-                });
-            }
-
-            window.addEventListener('mouseup', () => {
-                if (isPanning) {
-                    isPanning = false;
-                    canvas.style.cursor = '';
-                    return;
-                }
-                if (isDrawing) {
-                    isDrawing = false;
-                    saveCanvasHistory();
-                    chooseDoctorAction('MODIFIED');
-                    document.getElementById('hudStatus').innerText = 'Đã chỉnh sửa';
-                    document.getElementById('hudStatus').style.color = 'var(--vm-accent-amber)';
-                    recalculateClientCalipersFromMask();
-                    saveLocalDraft();
-                }
-            });
-        }
-
-function paintOnMask(x, y, prevX = null, prevY = null) {
-            maskCtx.save();
-            maskCtx.lineCap = 'round';
-            maskCtx.lineJoin = 'round';
-            maskCtx.lineWidth = brushSize;
-
-            if (currentTool === 'brush') {
-                maskCtx.strokeStyle = 'rgb(6, 182, 212)';
-                maskCtx.fillStyle = 'rgb(6, 182, 212)';
-                maskCtx.globalCompositeOperation = 'source-over';
-            } else if (currentTool === 'eraser') {
-                maskCtx.strokeStyle = 'rgba(0, 0, 0, 1)';
-                maskCtx.fillStyle = 'rgba(0, 0, 0, 1)';
-                maskCtx.globalCompositeOperation = 'destination-out';
-            }
-
-            if (typeof prevX === 'number' && typeof prevY === 'number') {
-                maskCtx.beginPath();
-                maskCtx.moveTo(prevX, prevY);
-                maskCtx.lineTo(x, y);
-                maskCtx.stroke();
-            } else {
-                maskCtx.beginPath();
-                maskCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-                maskCtx.fill();
-            }
-            maskCtx.restore();
-
+}
+function queueMeasurements(){
+    if(!currentCase.maskReady||!currentCase.image_id)return;
+    const id=currentCase.image_id,rle=encodeCurrentMask();
+    clearMeasurements('Đang tính số đo trên mask hiện tại…');const serial=measurementSerial;currentCase.measurementMask=rle;
+    redrawMainCanvas();
+    measurementTimer=setTimeout(async()=>{
+        try{
+            const m=await apiJson('/api/images/'+encodeURIComponent(id)+'/measurements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rle_mask:rle})});
+            if(serial!==measurementSerial||id!==currentCase.image_id||!sameMask(rle,encodeCurrentMask()))return;
+            currentMeasurements=m;
+            currentCase.sourceDimensions=m.source_dimensions;fitCanvasToViewport();
+            updateMeasurementDisplay();
             redrawMainCanvas();
-        }
-
-function recalculateClientCalipersFromMask() {
-    // Preserve the edited binary mask. MMOTU does not include physical pixel spacing.
+        }catch(error){if(serial===measurementSerial){clearMeasurements('Không lấy được số đo. '+error.message);redrawMainCanvas();}}
+    },180);
 }
-
-function recalculateVolume() {
-            const meas = currentPrediction ? (currentPrediction.measurements || {}) : {};
-            const dmax = meas.max_diameter_mm || 0;
-            const dorth = meas.ortho_diameter_mm || 0;
-            const d3 = currentCase.d3_mm || (document.getElementById('inputD3') ? parseFloat(document.getElementById('inputD3').value) || 0 : 0);
-
-            if (dmax > 0 && dorth > 0 && d3 > 0) {
-                // ISUOG Ellipsoid formula: V = 0.523 * D1 * D2 * D3 / 1000 mL
-                const vol = parseFloat((0.523 * (dmax * dorth * d3) / 1000.0).toFixed(2));
-                document.getElementById('resVolume').innerText = `${vol} mL`;
-                currentCase.volume_cm3 = vol;
-            } else {
-                document.getElementById('resVolume').innerText = 'Chưa hiệu chuẩn';
-                currentCase.volume_cm3 = null;
-            }
-        }
-
-function onD3Changed(val) {
-            const d3 = parseFloat(val) || 0;
-            currentCase.d3_mm = d3;
-            recalculateVolume();
-            saveLocalDraft();
-}
-
+// Existing two-image engine retained for historical integrations; not mounted in the primary UI.
 function setupDualViewer() {
     for (const side of ['R', 'L']) {
         const viewport = document.getElementById(`dualViewport${side}`);
@@ -716,7 +295,7 @@ function setupDualViewer() {
         });
     }
     window.addEventListener('keydown', event => {
-        if (!document.getElementById('screenDualResults').classList.contains('active')) return;
+        if (!document.getElementById('screenDualResults')?.classList?.contains('active')) return;
         const tag = event.target.tagName;
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
         if (event.key === 'Tab') {
@@ -824,12 +403,36 @@ function renderDualComparison() {
         const calibrated = metrics.calibrated === true;
         document.getElementById(`dualLesions${side}`).textContent = Number.isInteger(metrics.total_lesions) ? String(metrics.total_lesions) : '—';
         document.getElementById(`dualDiameters${side}`).textContent = calibrated && Number.isFinite(metrics.max_diameter_mm) && Number.isFinite(metrics.ortho_diameter_mm)
-            ? `${metrics.max_diameter_mm.toFixed(1)} × ${metrics.ortho_diameter_mm.toFixed(1)} × ${Number.isFinite(metrics.d3_mm) ? metrics.d3_mm.toFixed(1) : '—'}` : 'Chưa hiệu chuẩn';
-        document.getElementById(`dualVolume${side}`).textContent = calibrated && Number.isFinite(metrics.total_volume_cm3)
-            ? metrics.total_volume_cm3.toFixed(2) : '—';
+            ? `${metrics.max_diameter_mm.toFixed(1)} × ${metrics.ortho_diameter_mm.toFixed(1)}` : 'Chưa hiệu chuẩn';
+        document.getElementById(`dualVolume${side}`).textContent = 'Không đo từ ảnh 2D';
         document.getElementById(`dualConfidence${side}`).textContent = Number.isFinite(prediction.confidence_score)
-            ? `${(prediction.confidence_score * 100).toFixed(1)}%` : '—';
+            ? `${(prediction.confidence_score * 100).toFixed(1)}% (chưa hiệu chuẩn)` : '—';
         document.getElementById(`dualClinical${side}`).textContent = 'Chờ đánh giá chuyên môn';
+    }
+}
+
+async function downloadDualMask(side) {
+    const item = dualCase.sides[side];
+    if (!item || !item.imageId) {
+        showToast('Chưa có ảnh để xuất mask.', false);
+        return;
+    }
+    if (!item.approved) {
+        showToast('Hãy xác nhận và lưu mask trước khi tải.', false);
+        return;
+    }
+    const kind = 'reviewed';
+    try {
+        const response = await authenticatedFetch(`${API_BASE}/api/images/${encodeURIComponent(item.imageId)}/mask.png?kind=${kind}`);
+        if (!response.ok) throw new Error('Chưa có mask đã lưu.');
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${item.imageId}_${kind}_mask.png`;
+        link.click();
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        showToast(error.message, false);
     }
 }
 
@@ -1007,79 +610,150 @@ function redoDualMask() {
     renderDualSide(dualCase.active);
 }
 
+
+function updateHistoryButtons() {
+    $('undoBtn').disabled=currentCase.saving||undoStack.length<2;
+    $('redoBtn').disabled=currentCase.saving||redoStack.length===0;
+}
 function saveCanvasHistory() {
-            const imgData = maskCtx.getImageData(0, 0, 512, 512);
-            undoStack.push(imgData);
-            if (undoStack.length > MAX_HISTORY) undoStack.shift();
-            redoStack.length = 0; // Clear redo on new action
-            calculateLiveMetrics();
-        }
-
+    undoStack.push(maskCtx.getImageData(0,0,512,512));
+    if(undoStack.length>MAX_HISTORY) undoStack.shift();
+    redoStack=[]; updateHistoryButtons();
+}
 function undoCanvas() {
-            if (undoStack.length > 1) {
-                const current = undoStack.pop();
-                redoStack.push(current);
-                const prev = undoStack[undoStack.length - 1];
-                maskCtx.putImageData(prev, 0, 0);
-                chooseDoctorAction('MODIFIED');
-                redrawMainCanvas();
-                recalculateClientCalipersFromMask();
-                calculateLiveMetrics();
-                saveLocalDraft();
-                showToast("↶ Đã hoàn tác");
-            }
-        }
-
+    if(currentCase.saving||isDrawing||undoStack.length<2) return;
+    redoStack.push(undoStack.pop());maskCtx.putImageData(undoStack[undoStack.length-1],0,0);
+    redrawMainCanvas();markReviewDirty();updateHistoryButtons();
+}
 function redoCanvas() {
-            if (redoStack.length > 0) {
-                const next = redoStack.pop();
-                undoStack.push(next);
-                maskCtx.putImageData(next, 0, 0);
-                chooseDoctorAction('MODIFIED');
-                redrawMainCanvas();
-                recalculateClientCalipersFromMask();
-                calculateLiveMetrics();
-                saveLocalDraft();
-                showToast("↷ Đã làm lại");
-            }
-        }
-
+    if(currentCase.saving||isDrawing||!redoStack.length) return;
+    const next=redoStack.pop();undoStack.push(next);maskCtx.putImageData(next,0,0);
+    redrawMainCanvas();markReviewDirty();updateHistoryButtons();
+}
 function resetMaskToAI() {
-            if (currentPrediction) {
-                chooseDoctorAction('ACCEPTED_RAW');
-                document.getElementById('hudStatus').innerText = 'Khớp AI';
-                document.getElementById('hudStatus').style.color = 'var(--vm-green)';
-                
-                // Restore original measurements
-                const meas = currentPrediction.measurements || {};
-                document.getElementById('resDmax').innerText = meas.calibrated ? `${meas.max_diameter_mm} mm` : 'Chưa hiệu chuẩn';
-                document.getElementById('resDorth').innerText = meas.calibrated ? `${meas.ortho_diameter_mm} mm` : 'Chưa hiệu chuẩn';
-                document.getElementById('resArea').innerText = meas.calibrated ? `${meas.total_area_cm2} cm²` : 'Chưa hiệu chuẩn';
-                if (!currentPrediction.rle_mask) renderMask(currentPrediction);
-                saveLocalDraft();
-                showToast("🔄 Đã phục hồi mask AI ban đầu");
-            }
-        }
+    if(!currentCase.maskReady||currentCase.saving||isDrawing) return;
+    renderMaskFromRLE(currentPrediction.rle_mask);saveCanvasHistory();redrawMainCanvas();markReviewDirty();
+    showToast('Đã khôi phục mask AI. Có thể Undo để trở lại bản chỉnh sửa.');
+}
 
-function setCanvasTool(tool) {
-            currentTool = tool;
-            document.getElementById('btnToolBrush').classList.toggle('active', tool === 'brush');
-            document.getElementById('btnToolEraser').classList.toggle('active', tool === 'eraser');
-        }
+/* PACS Ergonomics & Modal Controllers */
+function openShortcutModal() {
+    const el = $('shortcutModal');
+    if (el && !el.open) el.showModal();
+}
+function closeShortcutModal() {
+    const el = $('shortcutModal');
+    if (el && el.open) el.close();
+}
 
-function onBrushSizeChange(val) {
-            brushSize = parseInt(val);
-            document.getElementById('valBrushSize').innerText = `${val}px`;
-        }
+function toggleToolsSidebar() {
+    const ws = $('workstation');
+    if (!ws) return;
+    toolsSidebarCollapsed = !toolsSidebarCollapsed;
+    ws.classList.toggle('tools-collapsed', toolsSidebarCollapsed);
+    const btn = $('toggleToolsBtn');
+    if (btn) btn.textContent = toolsSidebarCollapsed ? '▶' : '◀';
+}
 
-function onOpacityChange(val) {
-            maskOpacity = parseInt(val) / 100.0;
-            document.getElementById('valOpacity').innerText = `${val}%`;
-            redrawMainCanvas();
-        }
+function toggleReviewSidebar() {
+    const ws = $('workstation');
+    if (!ws) return;
+    reviewSidebarCollapsed = !reviewSidebarCollapsed;
+    ws.classList.toggle('review-collapsed', reviewSidebarCollapsed);
+    const btn = $('toggleReviewBtn');
+    if (btn) btn.textContent = reviewSidebarCollapsed ? '◀' : '▶';
+}
 
-function toggleMaskOverlay() {
-            isMaskVisible = !isMaskVisible;
-            redrawMainCanvas();
-            showToast(isMaskVisible ? "Đã hiển thị Mask" : "Đã ẩn Mask");
-        }
+function openCalibrationModal() {
+    const el = $('calibrationModal');
+    if (el && !el.open) {
+        el.showModal();
+        updateCalibRatioPreview();
+    }
+}
+function closeCalibrationModal() {
+    const el = $('calibrationModal');
+    if (el && el.open) el.close();
+    isCalibratingTwoPoints = false;
+    const inst = $('calibInstruction');
+    if (inst) inst.hidden = true;
+    const btn = $('start2PointCalibBtn');
+    if (btn) btn.textContent = '📍 Bắt đầu chấm 2 điểm trên ảnh';
+    redrawMainCanvas();
+}
+function startTwoPointCalibration() {
+    closeCalibrationModal();
+    isCalibratingTwoPoints = true;
+    calibPoints = [];
+    showToast('Nhấp điểm 1, sau đó nhấp điểm 2 trên vạch thước ảnh siêu âm.');
+}
+function updateCalibRatioPreview() {
+    const pxInput = $('calibPxDist');
+    const mmInput = $('calibMmDist');
+    const textEl = $('calibResultRatio');
+    if (!pxInput || !mmInput || !textEl) return;
+    const px = parseFloat(pxInput.value);
+    const mm = parseFloat(mmInput.value);
+    if (px > 0 && mm > 0) {
+        const ratio = mm / px;
+        textEl.textContent = `Tỷ lệ: 1 px ≈ ${ratio.toFixed(4)} mm (${(px/mm).toFixed(2)} px/mm)`;
+    } else {
+        textEl.textContent = 'Tỷ lệ: Chưa xác định';
+    }
+}
+function applyManualCalibration() {
+    const pxInput = $('calibPxDist');
+    const mmInput = $('calibMmDist');
+    if (!pxInput || !mmInput) return;
+    const px = parseFloat(pxInput.value);
+    const mm = parseFloat(mmInput.value);
+    if (!px || px <= 0 || !mm || mm <= 0) {
+        showToast('Vui lòng nhập khoảng cách pixel và mm hợp lệ.', false);
+        return;
+    }
+    const ratio = mm / px;
+    currentCase.manualSpacingMm = ratio;
+    const badge = $('calibrationBadge');
+    if (badge) {
+        badge.textContent = `Thủ công: ${(px/mm).toFixed(1)} px/mm`;
+        badge.className = 'status-badge success';
+    }
+    closeCalibrationModal();
+    showToast(`Đã áp dụng hiệu chuẩn tỷ lệ: 1 px = ${ratio.toFixed(4)} mm`);
+    queueMeasurements();
+}
+function resetManualCalibration() {
+    currentCase.manualSpacingMm = null;
+    calibPoints = [];
+    const pxInput = $('calibPxDist');
+    const mmInput = $('calibMmDist');
+    if (pxInput) pxInput.value = '';
+    if (mmInput) mmInput.value = '10';
+    const badge = $('calibrationBadge');
+    if (badge) {
+        badge.textContent = 'Chưa hiệu chuẩn';
+        badge.className = 'status-badge';
+    }
+    closeCalibrationModal();
+    showToast('Đã xóa hiệu chuẩn thủ công.');
+    queueMeasurements();
+}
+function handleCalibrationClick(e) {
+    if (!canvas) return;
+    const r = canvas.getBoundingClientRect();
+    const x = (e.clientX - r.left) * 512 / r.width;
+    const y = (e.clientY - r.top) * 512 / r.height;
+    calibPoints.push([x, y]);
+    redrawMainCanvas();
+    if (calibPoints.length === 2) {
+        const dx = calibPoints[1][0] - calibPoints[0][0];
+        const dy = calibPoints[1][1] - calibPoints[0][1];
+        const distPx = Math.sqrt(dx * dx + dy * dy);
+        const pxInput = $('calibPxDist');
+        if (pxInput) pxInput.value = distPx.toFixed(1);
+        updateCalibRatioPreview();
+        isCalibratingTwoPoints = false;
+        openCalibrationModal();
+        showToast(`Đã ghi nhận 2 điểm (${distPx.toFixed(1)} px). Nhập số mm tương ứng để hoàn tất.`);
+    }
+}

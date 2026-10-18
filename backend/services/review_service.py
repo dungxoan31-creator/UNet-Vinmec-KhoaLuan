@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from backend.app.config import model_registry, preprocessor
@@ -48,6 +49,8 @@ def compute_request_hash(request: BatchReviewRequest) -> str:
     canonical = {
         "study_id": request.study_id,
         "expected_revision": request.expected_revision,
+        "hitl_session_id": getattr(request, "hitl_session_id", None),
+        "telemetry_tasks": getattr(request, "telemetry_tasks", None),
         "reviews": reviews_data,
     }
     raw = json.dumps(canonical, sort_keys=True)
@@ -151,7 +154,15 @@ def persist_review_batch(
             else:
                 meas = {"max_diameter_mm": None, "ortho_diameter_mm": None, "total_area_cm2": None}
 
-            feedback = r.hitl_feedback.model_dump() if r.hitl_feedback is not None else None
+            feedback = r.hitl_feedback.model_dump() if r.hitl_feedback is not None else {}
+            orads_val = getattr(r, "orads", None) or getattr(r, "orads_score", None)
+            morph_desc = getattr(r, "morphology_description", None)
+            if orads_val:
+                feedback["orads"] = orads_val
+                feedback["orads_score"] = orads_val
+            if morph_desc:
+                feedback["morphologyDesc"] = morph_desc
+                feedback["morphology_description"] = morph_desc
             review_id = str(uuid.uuid4())
 
             review_record = ReviewModel(
@@ -167,7 +178,7 @@ def persist_review_batch(
                 lesion_type=r.lesion_type,
                 clinical_notes=r.clinical_notes,
                 time_spent_seconds=r.time_spent_seconds,
-                hitl_feedback=feedback,
+                hitl_feedback=feedback if feedback else None,
                 is_official_ground_truth=False,
                 created_at=now_utc,
             )
@@ -183,7 +194,7 @@ def persist_review_batch(
                     "time_spent_s": r.time_spent_seconds,
                     "lesion_type": r.lesion_type,
                     "dmax_mm": meas["max_diameter_mm"],
-                    "hitl_feedback": feedback,
+                    "hitl_feedback": feedback if feedback else None,
                     "study_id": study.id,
                     "prediction_id": r.prediction_id,
                     "batch_request_id": req_id_str,
@@ -200,17 +211,36 @@ def persist_review_batch(
                 "reviewed_at": now_utc.isoformat(),
             })
 
-        new_revision = study.review_revision + 1
-        study.review_revision = new_revision
+        new_revision = request.expected_revision + 1
 
+        all_reviewed_lateralities = set()
         if study.ovary_side == "BOTH":
             all_reviewed_lateralities = {
                 img.laterality for img in study.images
                 if img.reviews or img.id in {r.image_id for r in request.reviews}
             }
-            study.status = "REVIEWED" if {"L", "R"}.issubset(all_reviewed_lateralities) else "PARTIALLY_REVIEWED"
+            new_status = "REVIEWED" if {"L", "R"}.issubset(all_reviewed_lateralities) else "PARTIALLY_REVIEWED"
         else:
-            study.status = "REVIEWED"
+            new_status = "REVIEWED"
+
+        # Atomic conditional update claiming the expected revision
+        rows_updated = db.query(StudyModel).filter(
+            StudyModel.id == study.id,
+            StudyModel.review_revision == request.expected_revision,
+        ).update(
+            {
+                StudyModel.review_revision: new_revision,
+                StudyModel.status: new_status,
+            },
+            synchronize_session=False,
+        )
+
+        if rows_updated == 0:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"Xung đột phiên bản rà soát: ca đã được chỉnh sửa bởi phiên khác (kỳ vọng bản {request.expected_revision}).",
+            )
 
         response_data = {
             "status": "SUCCESS",
@@ -233,23 +263,32 @@ def persist_review_batch(
 
         if hitl_sess:
             hitl_sess.review_batch_id = batch_record.id
-            if hitl_sess.status != "COMPLETED":
-                hitl_sess.status = "INCOMPLETE"
+            hitl_sess.status = "INCOMPLETE"
 
             session_tasks = (
-                db.query(HITLEventModel.task_id, HITLEventModel.image_id, func.max(HITLEventModel.seq))
+                db.query(HITLEventModel.task_id, HITLEventModel.image_id)
                 .filter(HITLEventModel.session_id == hitl_sess.id)
-                .group_by(HITLEventModel.task_id, HITLEventModel.image_id)
+                .distinct()
                 .all()
             )
-            for t_id, img_id, _ in session_tasks:
+            for t_id, img_id in session_tasks:
+                prior_confirms = (
+                    db.query(func.count(HITLEventModel.id))
+                    .filter(
+                        HITLEventModel.session_id == hitl_sess.id,
+                        HITLEventModel.task_id == t_id,
+                        HITLEventModel.seq <= 0,
+                    )
+                    .scalar()
+                    or 0
+                )
                 ev = HITLEventModel(
                     id=str(uuid.uuid4()),
                     event_id=str(uuid.uuid4()),
                     session_id=hitl_sess.id,
                     task_id=t_id,
                     image_id=img_id,
-                    seq=0,
+                    seq=-prior_confirms,
                     event_type="CONFIRM_SUCCEEDED",
                     client_utc=now_utc.isoformat(),
                     elapsed_ms=0.0,
@@ -271,6 +310,15 @@ def persist_review_batch(
 
         db.commit()
         return response_data
+    except HTTPException:
+        db.rollback()
+        raise
+    except (IntegrityError, OperationalError) as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Xung đột phiên bản rà soát hoặc xung đột khóa dữ liệu đồng thời.",
+        ) from exc
     except Exception:
         db.rollback()
         raise

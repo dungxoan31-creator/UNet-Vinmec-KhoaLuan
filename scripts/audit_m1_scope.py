@@ -55,8 +55,9 @@ def audit_m1_scope(root: Path) -> dict:
     all_rows = [row for rows in active.values() for row in rows]
     empty = [row for row in all_rows if row["is_empty_mask"].lower() == "true"]
     native_masks = [_native_mask(root, row["image_path"]) for row in empty]
-    native_arrays = [cv2.imread(str(path), cv2.IMREAD_GRAYSCALE) for path in native_masks]
-    derived_masks = [cv2.imread(str(root / row["mask_path"]), cv2.IMREAD_GRAYSCALE) for row in empty]
+    native_arrays = [cv2.imread(str(path), cv2.IMREAD_GRAYSCALE) if path.is_file() else None for path in native_masks]
+    derived_paths = [root / row["mask_path"] for row in empty]
+    derived_masks = [cv2.imread(str(path), cv2.IMREAD_GRAYSCALE) if path.is_file() else None for path in derived_paths]
 
     return {
         "reference": "Milestone 1, 307 records; not the 2026-10-03 retraining split",
@@ -93,7 +94,9 @@ def audit_m1_scope(root: Path) -> dict:
         ),
         "missing_image_files": sum(not (root / row["image_path"]).is_file() for row in all_rows),
         "unreadable_image_mask_pairs": sum(
-            cv2.imread(str(root / row["image_path"]), cv2.IMREAD_GRAYSCALE) is None
+            not (root / row["image_path"]).is_file()
+            or not (root / row["mask_path"]).is_file()
+            or cv2.imread(str(root / row["image_path"]), cv2.IMREAD_GRAYSCALE) is None
             or cv2.imread(str(root / row["mask_path"]), cv2.IMREAD_GRAYSCALE) is None
             for row in all_rows
         ),
@@ -101,7 +104,7 @@ def audit_m1_scope(root: Path) -> dict:
             mask is not None and bool(mask.max() > 0) for mask in native_arrays
         ),
         "native_masks_missing_for_empty_records": sum(mask is None for mask in native_arrays),
-        "note": "Declared empty controls are derived zero masks for pipeline compatibility, not verified clinical negatives. Native labels of those same images contain positive pixels.",
+        "note": "Declared empty controls are derived zero masks for pipeline compatibility, not verified clinical negatives. The current audit reports native positive masks only where native labels are available; historical positive-label evidence requires separate records.",
     }
 
 

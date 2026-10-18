@@ -6,8 +6,8 @@ const AppState = {
     currentUser: null,
     currentStudyId: null,
     currentImageId: null,
-    currentPatientId: "ANON-VINMEC-185",
-    currentPatientAge: "32",
+    currentPatientId: null,
+    currentPatientAge: null,
     
     // File & Sample Selection
     uploadedFileObj: null,
@@ -70,9 +70,9 @@ const dualCase = {
 // Global clinical case object
 let currentCase = {
     study_id: null,
-    study_code: "STD-" + Math.floor(1000 + Math.random() * 9000),
-    patient_id: "BN-VINMEC-185",
-    patient_age: "32 (Tuổi sinh sản)",
+    study_code: null,
+    patient_id: null,
+    patient_age: null,
     study_date: new Date().toISOString().split('T')[0],
     clinical_notes: "",
     image_id: null,
@@ -81,7 +81,7 @@ let currentCase = {
     volume_cm3: 0.0,
     volume_ml: 0.0,
     doctor_action: "ACCEPTED_RAW",
-    selectedPathology: "U nang thanh dịch buồng trứng (Simple Serous Cyst)",
+    selectedPathology: null,
     doctorNotes: ""
 };
 
@@ -90,11 +90,11 @@ let currentPrediction = null;
 let reviewStartedAt = null;
 let currentActiveUser = null;
 let currentUser = {
-    full_name: "BS.CKII. Trương Thị Phượng",
+    full_name: "Chưa đăng nhập",
     role: "DOCTOR",
-    title: "Bác sĩ chuyên khoa Chẩn đoán hình ảnh",
-    department: "Khoa Chẩn đoán Hình ảnh & Đơn nguyên Siêu âm Phụ khoa",
-    hospital: "Vinmec Times City (Hà Nội)",
+    title: "Chưa đăng nhập",
+    department: "Hỗ trợ phân đoạn siêu âm",
+    hospital: "Hỗ trợ phân đoạn siêu âm",
     avatar: "BS"
 };
 let currentRole = "DOCTOR";
@@ -151,3 +151,10 @@ let allCases = [];
 let filteredCases = [];
 let currentCasePage = 1;
 const CASE_PAGE_SIZE = 10;
+
+// PACS Ergonomics & Manual Scale Calibration Globals
+let isSpacePressed = false;
+let isCalibratingTwoPoints = false;
+let calibPoints = [];
+let toolsSidebarCollapsed = false;
+let reviewSidebarCollapsed = false;

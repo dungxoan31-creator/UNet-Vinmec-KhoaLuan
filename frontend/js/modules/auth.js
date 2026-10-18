@@ -1,150 +1,76 @@
-/**
- * MODULE: AUTH.JS
- */
-
-
+/** Existing bearer-token authentication, without hospital role switching. */
+let pendingRoute = 'home';
+async function authenticatedFetch(url, options={}) {
+    const headers = new Headers(options.headers);
+    const token = sessionStorage.getItem('ovarian_ai_access_token');
+    if (token) headers.set('Authorization','Bearer '+token);
+    const response = await fetch(url,{...options,headers});
+    if (response.status===401 && token) {
+        sessionStorage.removeItem('ovarian_ai_access_token');
+        currentUser = null;
+        updateHeaderUserUI();
+        openLogin(activeRoute);
+    }
+    return response;
+}
+function openLogin(route=activeRoute) {
+    pendingRoute = route;
+    showError('loginError','');
+    $('loginPassword').type='password';
+    $('loginPasswordToggle').textContent='Hiện';
+    $('loginPasswordToggle').setAttribute('aria-label','Hiện mật khẩu');
+    $('loginPasswordToggle').setAttribute('aria-pressed','false');
+    $('logoutButton').hidden = !currentUser;
+    if (!$('loginModal').open) $('loginModal').showModal();
+    $('loginUsername').focus();
+}
+function toggleLoginPassword() {
+    const show=$('loginPassword').type==='password';
+    $('loginPassword').type=show?'text':'password';
+    $('loginPasswordToggle').textContent=show?'Ẩn':'Hiện';
+    $('loginPasswordToggle').setAttribute('aria-label',show?'Ẩn mật khẩu':'Hiện mật khẩu');
+    $('loginPasswordToggle').setAttribute('aria-pressed',String(show));
+}
 async function loadCurrentUser() {
-            try {
-                const resp = await fetch(`${API_BASE}/api/auth/current-user`);
-                if (resp.ok) {
-                    const u = await resp.json();
-                    currentUser = u;
-                    currentRole = u.role;
-                    updateHeaderUserUI();
-                }
-            } catch (err) {
-                console.error("Auth profile error:", err);
-            }
-        }
-
-function applyRoleRBAC() {
-    const dashNavBtn = document.getElementById('navDashboard');
-    const dashDrawerBtn = document.getElementById('drawerNavDashboard');
-    const adminNavBtn = document.getElementById('navAdminPortal');
-    const adminDrawerBtn = document.getElementById('drawerNavAdmin');
-
-    if (currentRole === 'ADMIN') {
-        if (dashNavBtn) dashNavBtn.style.display = 'inline-flex';
-        if (dashDrawerBtn) dashDrawerBtn.style.display = 'flex';
-        if (adminNavBtn) adminNavBtn.style.display = 'inline-flex';
-        if (adminDrawerBtn) adminDrawerBtn.style.display = 'flex';
-    } else {
-        // DOCTOR role: only allowed to view patients (Hồ Sơ Bệnh Án) & examine (Khám & Phân Tích)
-        if (dashNavBtn) dashNavBtn.style.display = 'none';
-        if (dashDrawerBtn) dashDrawerBtn.style.display = 'none';
-        if (adminNavBtn) adminNavBtn.style.display = 'none';
-        if (adminDrawerBtn) adminDrawerBtn.style.display = 'none';
-    }
+    if (!sessionStorage.getItem('ovarian_ai_access_token')) { currentUser=null; updateHeaderUserUI(); return false; }
+    try {
+        currentUser = await apiJson('/api/auth/current-user');
+        currentRole = currentUser.role;
+        updateHeaderUserUI();
+        return true;
+    } catch { currentUser=null; updateHeaderUserUI(); return false; }
 }
-
-function handleBrandClick() {
-    if (currentRole === 'ADMIN') {
-        navigateTo('dashboard');
-    } else {
-        navigateTo('dual_upload');
-    }
-}
-
 function updateHeaderUserUI() {
-    const avatarEl = document.getElementById('headerUserAvatar');
-    const nameEl = document.getElementById('headerUserName');
-    const deptEl = document.getElementById('headerUserDept');
-    const badgeEl = document.getElementById('headerRoleBadge');
-
-    if (nameEl) nameEl.innerText = currentUser.full_name || (currentRole === 'ADMIN' ? 'BS.CKII Trần Quản Trị' : 'BS.CKI Nguyễn Văn A');
-    if (deptEl) deptEl.innerText = currentUser.hospital || (currentRole === 'ADMIN' ? 'Ban Quản Trị AI Vinmec' : 'Vinmec Times City');
-
-    if (badgeEl) {
-        if (currentRole === 'ADMIN') {
-            badgeEl.className = 'role-pill-badge role-pill-admin';
-            badgeEl.innerText = 'ADMIN AI';
-            if (avatarEl) {
-                avatarEl.innerText = 'AD';
-                avatarEl.style.background = 'linear-gradient(135deg, #7c3aed, #4f46e5)';
-            }
-        } else {
-            badgeEl.className = 'role-pill-badge role-pill-doctor';
-            badgeEl.innerText = 'BÁC SĨ';
-            if (avatarEl) {
-                avatarEl.innerText = 'BS';
-                avatarEl.style.background = 'linear-gradient(135deg, var(--vm-blue-start), var(--vm-blue-end))';
-            }
-        }
-    }
-
-    applyRoleRBAC();
+    $('adminNav').hidden = currentUser?.role !== 'ADMIN';
+    $('headerUserName').textContent = currentUser ? (currentUser.username || currentUser.full_name) : 'Đăng nhập';
+    document.querySelector('.avatar').textContent = currentUser ? (currentUser.username || 'U').slice(0,1).toUpperCase() : 'U';
 }
-
-async function switchRole(role, showNotification = true) {
-            try {
-                const resp = await fetch(`${API_BASE}/api/auth/switch-role`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ role: role })
-                });
-
-                if (resp.ok) {
-                    const data = await resp.json();
-                    if (data.user) {
-                        currentUser = data.user;
-                    }
-                }
-            } catch (e) {
-                console.warn("Switch role local fallback:", e);
-            }
-
-            currentRole = role.toUpperCase();
-            if (currentRole === 'ADMIN') {
-                currentUser.full_name = "BS.CKII Trần Quản Trị";
-                currentUser.role = "ADMIN";
-                currentUser.department = "Ban Giám Đốc & Trung Tâm AI Y Tế";
-                currentUser.hospital = "Vinmec Healthcare System";
-                currentUser.avatar = "AD";
-            } else {
-                currentUser.full_name = "BS.CKI Nguyễn Văn A";
-                currentUser.role = "DOCTOR";
-                currentUser.department = "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa";
-                currentUser.hospital = "Vinmec Times City (Hà Nội)";
-                currentUser.avatar = "BS";
-            }
-
-            updateHeaderUserUI();
-
-            if (showNotification) {
-                if (currentRole === 'ADMIN') {
-                    showToast("🛡️ Đã chuyển sang phân hệ Quản Trị Viên (Admin Portal)");
-                    navigateTo('dashboard');
-                } else {
-                    showToast("🩺 Đã chuyển sang phân hệ Bác Sĩ Lâm Sàng (Khám & Phân Tích)");
-                    navigateTo('dual_upload');
-                }
-            }
-        }
-
-function openRoleSwitchModal() {
-            const cardDoc = document.getElementById('cardRoleDoctor');
-            const cardAdm = document.getElementById('cardRoleAdmin');
-            if (cardDoc && cardAdm) {
-                if (currentRole === 'ADMIN') {
-                    cardAdm.style.border = '2px solid #7c3aed';
-                    cardAdm.style.background = '#faf5ff';
-                    cardDoc.style.border = '1px solid var(--vm-border)';
-                    cardDoc.style.background = 'var(--vm-card-white)';
-                } else {
-                    cardDoc.style.border = '2px solid var(--vm-primary-blue)';
-                    cardDoc.style.background = '#f0f9ff';
-                    cardAdm.style.border = '1px solid var(--vm-border)';
-                    cardAdm.style.background = 'var(--vm-card-white)';
-                }
-            }
-            document.getElementById('roleSwitchModal').classList.add('active');
-        }
-
-function closeRoleSwitchModal() {
-            document.getElementById('roleSwitchModal').classList.remove('active');
-        }
-
-function handleSelectRoleChoice(role) {
-            closeRoleSwitchModal();
-            switchRole(role, true);
-        }
+async function submitLogin(event) {
+    event.preventDefault();
+    $('loginSubmit').disabled=true;
+    $('loginSubmit').textContent='Đang đăng nhập…';
+    showError('loginError','');
+    try {
+        const response = await fetch(API_BASE+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('loginUsername').value.trim(),password:$('loginPassword').value})});
+        if (!response.ok) throw new Error(response.status===401 ? 'Tên tài khoản hoặc mật khẩu không đúng.' : 'Dịch vụ đăng nhập chưa sẵn sàng. Hãy thử lại.');
+        const data = await response.json();
+        sessionStorage.setItem('ovarian_ai_access_token',data.access_token);
+        currentUser=data.user; currentRole=data.user.role;
+        $('loginPassword').value='';
+        $('loginModal').close();
+        updateHeaderUserUI();
+        navigateTo(pendingRoute);
+    } catch (error) { showError('loginError', error.message || 'Không thể đăng nhập. Kiểm tra kết nối và thử lại.'); }
+    finally { $('loginSubmit').disabled=false; $('loginSubmit').textContent='Đăng nhập'; }
+}
+function logout() {
+    if (currentCase.processing || currentCase.saving) return showToast('Chờ thao tác hoàn tất trước khi đăng xuất.');
+    if (currentCase.dirty && !window.confirm('Mask hoặc ghi chú chưa lưu. Đăng xuất và bỏ thay đổi?')) return;
+    sessionStorage.removeItem('ovarian_ai_access_token'); currentUser=null;
+    resetSingleCase();
+    $('adminModels').replaceChildren(); $('adminLogsBody').replaceChildren();
+    $('reportPreviewModal').close();
+    caseRequest++; evaluationRequest++; sampleRequest++; comparisonRequest++;
+    allCases=[]; $('casesTableBody').replaceChildren(); $('evaluationRows').replaceChildren(); $('evaluationSplits').replaceChildren(); $('comparisonGrid').replaceChildren();
+    $('loginPassword').value=''; $('loginModal').close(); updateHeaderUserUI(); navigateTo('home');
+}

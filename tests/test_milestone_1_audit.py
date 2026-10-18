@@ -1,9 +1,15 @@
 """
-Milestone 1 Full Implementation & Audit Test Suite (Sept 6 - Sept 20).
-Formally verifies all 16 mandatory milestone requirements:
+Software regression tests inherited from the Milestone 1 audit.
+
+The original 307 source pairs are currently unavailable. Discovery and identity
+checks below cover only their historical CSV metadata; image-loading checks use
+the current unified split. Passing this module does not replay the M1 audit or
+establish patient-level identity from the source provider.
+
+The 16 technical checks retained here are:
 1. Dataset discovery test
 2. Image-mask matching test
-3. Patient-level split leakage test
+3. Recorded group label overlap test (source patient identity unverified)
 4. Preprocessing shape consistency test
 5. Mask label integrity test
 6. Post-preprocessing image-mask pair test
@@ -21,6 +27,7 @@ Formally verifies all 16 mandatory milestone requirements:
 
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -32,8 +39,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from ai_training.dataset_loader import OvarianUltrasoundDataset, get_dataloaders
 from ai_training.metrics_clinical import compute_sample_clinical_metrics
+from backend.core.dataset_paths import resolve_dataset_path
 from backend.models.unet import StandardUNet
 from backend.services.preprocessor import UltrasoundPreprocessor
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ACTIVE_SPLITS = "ai_training/splits/unified_vinmec_clean_2026-10-06"
 
 
 # =========================================================================
@@ -54,22 +65,22 @@ def test_dataset_discovery():
 # 2. Image-Mask Matching Test
 # =========================================================================
 def test_image_mask_matching():
-    """Verify that each image path maps to an existing file and corresponding mask file."""
+    """Verify the current split resolves to the retained source pairs."""
     for split in ["train.csv", "val.csv", "test.csv"]:
-        df = pd.read_csv(f"ai_training/splits/{split}")
+        df = pd.read_csv(f"{ACTIVE_SPLITS}/{split}")
         for idx in range(min(10, len(df))):
             row = df.iloc[idx]
             img_p = row["image_path"].replace("\\", "/")
             mask_p = row["mask_path"].replace("\\", "/")
-            assert os.path.exists(img_p), f"Image missing on disk: {img_p}"
-            assert os.path.exists(mask_p), f"Mask missing on disk: {mask_p}"
+            assert resolve_dataset_path(Path(ROOT), img_p).is_file(), f"Image missing on disk: {img_p}"
+            assert resolve_dataset_path(Path(ROOT), mask_p).is_file(), f"Mask missing on disk: {mask_p}"
 
 
 # =========================================================================
 # 3. Patient-Level Split Leakage Test
 # =========================================================================
-def test_patient_level_split_leakage():
-    """Verify strictly ZERO overlap between train, validation, and test sets."""
+def test_recorded_group_label_split_overlap():
+    """Check disjoint recorded labels; source patient identities remain unverified."""
     train_df = pd.read_csv("ai_training/splits/train.csv")
     val_df = pd.read_csv("ai_training/splits/val.csv")
     test_df = pd.read_csv("ai_training/splits/test.csv")
@@ -124,7 +135,7 @@ def test_mask_label_integrity():
 # =========================================================================
 def test_post_preprocessing_image_mask_pair():
     """Verify image-mask correspondence and spatial alignment after preprocessing."""
-    dataset = OvarianUltrasoundDataset("ai_training/splits/train.csv", target_size=(512, 512), is_train=False)
+    dataset = OvarianUltrasoundDataset(f"{ACTIVE_SPLITS}/train.csv", target_size=(512, 512), is_train=False)
     sample = dataset[0]
 
     img_tensor = sample["image"]
@@ -143,7 +154,7 @@ def test_post_preprocessing_image_mask_pair():
 # =========================================================================
 def test_dataloader_batch():
     """Verify batching mechanism with DataLoader."""
-    train_loader, val_loader, test_loader = get_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0)
+    train_loader, val_loader, test_loader = get_dataloaders(splits_dir=ACTIVE_SPLITS, batch_size=4, num_workers=0)
     batch = next(iter(train_loader))
 
     assert batch["image"].shape == (4, 1, 512, 512), f"Unexpected batch img: {batch['image'].shape}"

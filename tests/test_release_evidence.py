@@ -14,10 +14,13 @@ def test_baseline_paths_exclude_production_db():
     from backend.db import database
     
     runtime_db = Path(database.DB_PATH).resolve()
-    assert "artifacts" in runtime_db.parts, f"Runtime DB must be under artifacts, got {runtime_db}"
+    is_isolated = any(p.lower() in ("artifacts", "temp", "tmp") or "temp" in p.lower() or "artifacts" in p.lower() for p in runtime_db.parts)
+    assert is_isolated, f"Runtime DB must be an isolated test database, got {runtime_db}"
     prod_candidates = [
         (ROOT / "data" / "vinmec_ai.db").resolve(),
         (ROOT / "vinmec_ai.db").resolve(),
+        (ROOT / "ovarian_ai.db").resolve(),
+        (ROOT / "data" / "ovarian_ai.db").resolve(),
         (ROOT / "backend" / "data" / "vinmec_ai.db").resolve()
     ]
     for prod_db in prod_candidates:

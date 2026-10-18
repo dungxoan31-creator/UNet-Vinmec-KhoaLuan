@@ -96,9 +96,9 @@ class PredictionModel(Base):
     id = Column(String(36), primary_key=True)
     image_id = Column(String(36), ForeignKey("images.id"), nullable=False)
     model_version = Column(String(50), nullable=True)
-    inference_time_ms = Column(Integer, default=450)
-    confidence_score = Column(Float, default=0.85)
-    iqa_score = Column(Float, default=0.90)
+    inference_time_ms = Column(Integer, nullable=True)
+    confidence_score = Column(Float, nullable=True)
+    iqa_score = Column(Float, nullable=True)
     raw_mask_rle = Column(JSON, nullable=False)
     measurements = Column(JSON, nullable=False)
     provenance_json = Column(JSON, nullable=True)
@@ -146,10 +146,11 @@ class UserModel(Base):
 
     id = Column(String(36), primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=True)
     full_name = Column(String(100), nullable=False)
     role = Column(String(20), default="DOCTOR")  # DOCTOR, ADMIN
     department = Column(String(100), default="Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa")
-    title = Column(String(50), default="BS.CKI")
+    title = Column(String(50), default="")
     hospital = Column(String(100), default="Bệnh viện ĐKQT Vinmec Times City")
     avatar = Column(String(255), default="doctor_avatar.png")
     is_active = Column(Boolean, default=True)
@@ -274,56 +275,33 @@ def init_db():
             pred_columns = [col[1] for col in cursor.fetchall()]
             if "provenance_json" not in pred_columns:
                 cursor.execute("ALTER TABLE predictions ADD COLUMN provenance_json JSON;")
+            cursor.execute("PRAGMA table_info(users);")
+            user_columns = [col[1] for col in cursor.fetchall()]
+            if user_columns and "password_hash" not in user_columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255);")
             conn.commit()
         finally:
             conn.close()
     except Exception as exc:
         raise RuntimeError("SQLite schema migration failed") from exc
 
-    # Seed default user accounts if not exist
-    try:
-        db = SessionLocal()
-        if not db.query(UserModel).filter(UserModel.username == "doctor").first():
-            doc_user_alt = UserModel(
-                id=str(uuid.uuid4()),
-                username="doctor",
-                full_name="BS.CKI Nguyễn Văn A",
-                role="DOCTOR",
-                department="Khoa Chẩn đoán Hình ảnh & Phụ sản",
-                title="Bác Sĩ Khám & Ký Duyệt",
-                hospital="Vinmec Times City (Hà Nội)",
-                avatar="doctor_a",
-            )
-            db.add(doc_user_alt)
-        if not db.query(UserModel).filter(UserModel.username == "bacsi").first():
-            doc_user = UserModel(
-                id=str(uuid.uuid4()),
-                username="bacsi",
-                full_name="BS.CKI Nguyễn Văn A",
-                role="DOCTOR",
-                department="Khoa Chẩn đoán Hình ảnh & Phụ sản",
-                title="Bác Sĩ Khám & Ký Duyệt",
-                hospital="Vinmec Times City (Hà Nội)",
-                avatar="doctor_a",
-            )
-            db.add(doc_user)
-        if not db.query(UserModel).filter(UserModel.username == "admin").first():
-            admin_user = UserModel(
-                id=str(uuid.uuid4()),
-                username="admin",
-                full_name="BS.CKII Trần Quản Trị",
-                role="ADMIN",
-                department="Ban Giám Đốc & Trung Tâm AI Y Tế",
-                title="Quản Trị Viên Hệ Thống AI",
-                hospital="Vinmec Healthcare System",
-                avatar="admin_avatar",
-            )
-            db.add(admin_user)
+    # Bootstrap only accounts whose credentials have been configured by the operator.
+    with SessionLocal() as db:
+        for username, role, password_key, name_key, label in [
+            ("doctor", "DOCTOR", "APP_DOCTOR_PASSWORD", "APP_DOCTOR_FULL_NAME", "Bác sĩ"),
+            ("bacsi", "DOCTOR", "APP_DOCTOR_PASSWORD", "APP_DOCTOR_FULL_NAME", "Bác sĩ"),
+            ("admin", "ADMIN", "APP_ADMIN_PASSWORD", "APP_ADMIN_FULL_NAME", "Quản trị viên"),
+        ]:
+            user = db.query(UserModel).filter(UserModel.username == username).first()
+            if user and user.full_name in ("BS.CKI Nguyễn Văn A", "BS.CKII Trần Quản Trị"):
+                user.full_name = os.environ.get(name_key) or label
+                user.title = ""
+            elif not user and os.environ.get(password_key):
+                db.add(UserModel(
+                    id=str(uuid.uuid4()), username=username, role=role,
+                    full_name=os.environ.get(name_key) or label, title="",
+                ))
         db.commit()
-        db.close()
-
-    except Exception as e:
-        print("[Database] Seed users notice:", e)
 
     try:
         print("[Database] SQLite DB initialized and verified.")

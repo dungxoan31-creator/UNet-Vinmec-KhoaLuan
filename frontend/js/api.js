@@ -5,38 +5,29 @@
 const ApiClient = {
     // Health & System
     async getHealth() {
-        const res = await fetch(`${API_BASE_URL}/api/health`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/health`);
         return await res.json();
     },
 
     async getDashboardStats() {
-        const res = await fetch(`${API_BASE_URL}/api/stats`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/stats`);
         return await res.json();
     },
 
     // Auth & Users
     async getUsers() {
-        const res = await fetch(`${API_BASE_URL}/api/auth/users`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/auth/users`);
         return await res.json();
     },
 
     async getCurrentUser() {
-        const res = await fetch(`${API_BASE_URL}/api/auth/current-user`);
-        return await res.json();
-    },
-
-    async switchRole(role) {
-        const res = await fetch(`${API_BASE_URL}/api/auth/switch-role`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ role: role })
-        });
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/auth/current-user`);
         return await res.json();
     },
 
     // Clinical Cases
     async getSamples() {
-        const res = await fetch(`${API_BASE_URL}/api/samples`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/samples`);
         return await res.json();
     },
 
@@ -47,17 +38,17 @@ const ApiClient = {
         if (params.date) query.append("date", params.date);
         
         const url = `${API_BASE_URL}/api/cases${query.toString() ? '?' + query.toString() : ''}`;
-        const res = await fetch(url);
+        const res = await authenticatedFetch(url);
         return await res.json();
     },
 
     async getCaseDetail(studyId) {
-        const res = await fetch(`${API_BASE_URL}/api/cases/${studyId}`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/cases/${studyId}`);
         return await res.json();
     },
 
     async createCase(caseData) {
-        const res = await fetch(`${API_BASE_URL}/api/cases`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/cases`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(caseData)
@@ -66,7 +57,7 @@ const ApiClient = {
     },
 
     async deleteCase(studyId) {
-        const res = await fetch(`${API_BASE_URL}/api/cases/${studyId}`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/cases/${studyId}`, {
             method: "DELETE"
         });
         return await res.json();
@@ -74,7 +65,7 @@ const ApiClient = {
 
     // Upload, IQA & Inference
     async uploadImage(formData) {
-        const res = await fetch(`${API_BASE_URL}/api/upload`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/upload`, {
             method: "POST",
             body: formData
         });
@@ -82,22 +73,40 @@ const ApiClient = {
     },
 
     async validateImage(imageId) {
-        const res = await fetch(`${API_BASE_URL}/api/validate-image?image_id=${encodeURIComponent(imageId)}`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/validate-image?image_id=${encodeURIComponent(imageId)}`, {
             method: "POST"
         });
         return await res.json();
     },
 
     async runPrediction(imageId) {
-        const res = await fetch(`${API_BASE_URL}/api/predict/${encodeURIComponent(imageId)}`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/predict/${encodeURIComponent(imageId)}`, {
             method: "POST"
         });
         return await res.json();
     },
 
+    async calibrateSpacing(imageId, spacingMm) {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/images/${encodeURIComponent(imageId)}/calibrate?pixel_spacing_mm=${encodeURIComponent(spacingMm)}`, {
+            method: "POST"
+        });
+        if (!res.ok) throw new Error("Không thể hiệu chuẩn tỉ lệ pixel.");
+        return await res.json();
+    },
+
+    async evaluateCdss(cdssPayload) {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/v1/cdss/evaluate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(cdssPayload)
+        });
+        if (!res.ok) throw new Error("Không thể đánh giá CDSS.");
+        return await res.json();
+    },
+
     // Review & Reports
     async submitReview(reviewData) {
-        const res = await fetch(`${API_BASE_URL}/api/review`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/review`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(reviewData)
@@ -106,7 +115,7 @@ const ApiClient = {
     },
 
     async generateReportPdf(reportPayload) {
-        const res = await fetch(`${API_BASE_URL}/api/generate-report`, {
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/generate-report`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(reportPayload)
@@ -117,21 +126,28 @@ const ApiClient = {
 
     // Admin Portal
     async getAdminModels() {
-        const res = await fetch(`${API_BASE_URL}/api/admin/models`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/admin/models`);
         return await res.json();
     },
 
     async getAuditLogs(limit = 50) {
-        const res = await fetch(`${API_BASE_URL}/api/admin/audit-logs?limit=${limit}`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/admin/audit-logs?limit=${limit}`);
         return await res.json();
     },
 
     async getDoctorStats() {
-        const res = await fetch(`${API_BASE_URL}/api/admin/doctor-stats`);
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/admin/doctor-stats`);
         return await res.json();
     },
 
     async exportDataset() {
-        window.open(`${API_BASE_URL}/api/admin/export-dataset`, "_blank");
+        const res = await authenticatedFetch(`${API_BASE_URL}/api/admin/export-dataset`);
+        if (!res.ok) throw new Error('Không có quyền xuất dữ liệu.');
+        const url = URL.createObjectURL(await res.blob());
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'review_summary.json';
+        link.click();
+        URL.revokeObjectURL(url);
     }
 };

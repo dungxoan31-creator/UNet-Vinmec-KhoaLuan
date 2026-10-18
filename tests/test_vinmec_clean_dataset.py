@@ -1,15 +1,14 @@
-"""Unit test for Vinmec_clean dataset integrity and deduplication audit."""
+"""Check the retained source files after the dataset directory reorganization."""
 
-import csv
 import hashlib
 import json
 import os
 from pathlib import Path
-import pytest
+
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-CLEAN_DIR = ROOT / "dataset" / "Vinmec_clean"
+CLEAN_DIR = ROOT / "dataset"
 REPORTS_DIR = ROOT / "reports"
 
 
@@ -31,7 +30,7 @@ def test_clean_dataset_structure():
 
 def test_exact_pair_counts_and_equality():
     imgs_2d = os.listdir(CLEAN_DIR / "2d" / "images")
-    masks_2d = os.listdir(CLEAN_DIR / "2d" / "masks")
+    masks_2d = [name for name in os.listdir(CLEAN_DIR / "2d" / "masks") if name.endswith("_binary.PNG")]
     imgs_3d = os.listdir(CLEAN_DIR / "3d" / "images")
     masks_3d = os.listdir(CLEAN_DIR / "3d" / "masks")
 
@@ -51,7 +50,7 @@ def test_exact_pair_counts_and_equality():
 def test_stem_mapping_one_to_one():
     for mod in ["2d", "3d"]:
         img_stems = {Path(f).stem for f in os.listdir(CLEAN_DIR / mod / "images")}
-        mask_stems = {Path(f).stem for f in os.listdir(CLEAN_DIR / mod / "masks")}
+        mask_stems = {Path(f).stem.removesuffix("_binary") for f in os.listdir(CLEAN_DIR / mod / "masks")}
         assert img_stems == mask_stems, f"Mismatch in stems for {mod}"
 
 
@@ -73,7 +72,7 @@ def test_image_mask_dimension_matches():
         for f in imgs:
             stem = Path(f).stem
             p_img = CLEAN_DIR / mod / "images" / f
-            p_mask = CLEAN_DIR / mod / "masks" / f"{stem}.PNG"
+            p_mask = CLEAN_DIR / mod / "masks" / (f"{stem}_binary.PNG" if mod == "2d" else f"{stem}.PNG")
             with Image.open(p_img) as im, Image.open(p_mask) as m:
                 assert im.size == m.size, f"Size mismatch for {p_img} and {p_mask}"
 

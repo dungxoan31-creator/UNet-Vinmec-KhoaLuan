@@ -34,15 +34,19 @@ class BaseModelAdapter(ABC):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict[str, Any]:
         pass
 
     def get_info(self) -> dict[str, Any]:
+        engine = getattr(self, "engine", None) if self.is_loaded else None
         return {
             "name": self.name,
             "version": self.version,
             "architecture": self.architecture,
             "is_loaded": self.is_loaded,
+            "checksum": getattr(engine, "model_checksum", None),
+            "threshold": getattr(engine, "threshold", None),
         }
 
 
@@ -58,6 +62,7 @@ class AttentionUNetAdapter(BaseModelAdapter):
         device: str | None = None,
         architecture: str = "auto",
         input_normalization: dict | None = None,
+        threshold: float | None = None,
     ):
         super().__init__(
             name="Attention U-Net Ovarian Engine",
@@ -68,13 +73,17 @@ class AttentionUNetAdapter(BaseModelAdapter):
         self.weights_path = weights_path
         self.model_architecture = architecture
         self.input_normalization = input_normalization
-        self.engine = InferenceEngine(
+        self.threshold = threshold
+        engine_kwargs = dict(
             model_weights_path=weights_path,
             device=self.device,
             default_pixel_spacing_mm=0.1,
             architecture=architecture,
             input_normalization=input_normalization,
         )
+        if threshold is not None:
+            engine_kwargs["threshold"] = threshold
+        self.engine = InferenceEngine(**engine_kwargs)
         self.name = self.engine.model_name
         self.architecture = self.engine.architecture_name
         self.is_loaded = self.engine.is_model_ready
@@ -82,12 +91,17 @@ class AttentionUNetAdapter(BaseModelAdapter):
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
         self.weights_path = weights_path
         self.device = device
-        self.engine = InferenceEngine(
+        engine_kwargs = dict(
             model_weights_path=weights_path,
             device=device,
             architecture=self.model_architecture,
             input_normalization=self.input_normalization,
         )
+        if getattr(self, "threshold", None) is not None:
+            engine_kwargs["threshold"] = self.threshold
+        elif hasattr(self, "engine") and getattr(self.engine, "threshold", None) is not None:
+            engine_kwargs["threshold"] = self.engine.threshold
+        self.engine = InferenceEngine(**engine_kwargs)
         self.name = self.engine.model_name
         self.architecture = self.engine.architecture_name
         self.is_loaded = self.engine.is_model_ready
@@ -99,9 +113,10 @@ class AttentionUNetAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict[str, Any]:
         return self.engine.run_inference(
-            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
         )
 
 
@@ -143,10 +158,11 @@ class S4MAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
             )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
@@ -194,10 +210,11 @@ class UltraSAMAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
             )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
@@ -248,10 +265,11 @@ class DS2NetAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
             )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
@@ -301,10 +319,11 @@ class SovaSegAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
             )
             res["provenance"]["model_name"] = self.name
             res["provenance"]["model_version"] = self.version
@@ -315,6 +334,32 @@ class SovaSegAdapter(BaseModelAdapter):
             "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
             "with a valid SovaSeg checkpoint path."
         )
+
+
+class CandidateModelAdapter(BaseModelAdapter):
+    """
+    Adapter representing candidate or external model checkpoints registered for clinical validation.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        version: str = "1.0.0",
+        architecture: str = "Candidate Checkpoint",
+        checkpoint: str | None = None,
+    ):
+        super().__init__(name=name, version=version, architecture=architecture)
+        self.checkpoint = checkpoint
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        if weights_path and os.path.exists(weights_path):
+            self.is_loaded = True
+            return True
+        return False
+
+    def predict(self, *args, **kwargs):
+        raise RuntimeError(f"Candidate model {self.name} is not loaded for inference.")
 
 
 class ModelRegistry:
@@ -329,11 +374,13 @@ class ModelRegistry:
         self.ensemble_enabled = False
 
         # Register all supported model architectures
-        model_selection = model_selection or {}
+        self.model_selection = model_selection or {}
+        model_selection = self.model_selection
         primary_adapter = AttentionUNetAdapter(
             weights_path=checkpoint_path,
             architecture=model_selection.get("architecture", "auto"),
             input_normalization=model_selection.get("input_normalization"),
+            threshold=model_selection.get("threshold"),
         )
         primary_engine = primary_adapter.engine
 
@@ -362,6 +409,7 @@ class ModelRegistry:
         pixel_spacing_mm: float = 0.1,
         model_key: str | None = None,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict[str, Any]:
         target_key = model_key or self.primary_model_key
         adapter = self.adapters.get(target_key)
@@ -369,12 +417,12 @@ class ModelRegistry:
         if adapter is None or not adapter.is_loaded:
             adapter = self.get_primary_adapter()
 
-        result = adapter.predict(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask)
+        result = adapter.predict(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale)
         if not result and target_key != "attention_unet":
             # Fallback to primary Attention U-Net
             fallback = self.get_primary_adapter()
             result = fallback.predict(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
             )
 
         return result

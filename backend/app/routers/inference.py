@@ -24,7 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.config import UPLOAD_DIR, model_registry, preprocessor
-from backend.app.routers.auth import get_current_user
+from backend.app.routers.auth import get_current_user, require_clinical
 from backend.core.image_utils import cv2_imread_unicode
 from backend.db.database import (
     AuditLogModel,
@@ -299,7 +299,7 @@ async def upload_image(
     }
 
 
-@router.get("/api/images/{image_id}/viewer-source")
+@router.get("/api/images/{image_id}/viewer-source", dependencies=[Depends(require_clinical)])
 def get_viewer_source(image_id: str, db: Session = Depends(get_db)):
     """Return the same preprocessed pixels used for inference when reopening a case."""
     image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
@@ -317,7 +317,7 @@ def get_viewer_source(image_id: str, db: Session = Depends(get_db)):
     return {"image_id": image_id, "original_image_base64": f"data:image/png;base64,{base64.b64encode(buffer).decode('ascii')}"}
 
 
-@router.get("/api/images/{image_id}/mask.png")
+@router.get("/api/images/{image_id}/mask.png", dependencies=[Depends(require_clinical)])
 def export_source_mask(
     image_id: str,
     kind: Literal["ai", "reviewed"] = "reviewed",
@@ -393,7 +393,7 @@ def load_decoded_source(image_record):
     return decoded
 
 
-@router.get("/api/images/{image_id}/source.png")
+@router.get("/api/images/{image_id}/source.png", dependencies=[Depends(require_clinical)])
 def export_decoded_source(image_id: str, db: Session = Depends(get_db)):
     """Return the full decoded raster, without CLAHE, letterboxing or viewer filters."""
     record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
@@ -409,7 +409,7 @@ def export_decoded_source(image_id: str, db: Session = Depends(get_db)):
     })
 
 
-@router.post("/api/images/{image_id}/measurements")
+@router.post("/api/images/{image_id}/measurements", dependencies=[Depends(require_clinical)])
 def source_mask_measurements(image_id: str, req: MaskMeasurementsRequest, db: Session = Depends(get_db)):
     """Measure the supplied editable mask in actual source pixels; do not persist it."""
     record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
@@ -509,8 +509,9 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
     if pixel_spacing_mm is not None:
         img_record.pixel_spacing_mm = pixel_spacing_mm
     roi_mask = transform_params.get("roi_mask")
+    scale = float(transform_params.get("scale", 1.0))
     inference_result = model_registry.predict(
-        tensor, padded_gray, pixel_spacing_mm=pixel_spacing, roi_mask=roi_mask
+        tensor, padded_gray, pixel_spacing_mm=pixel_spacing, roi_mask=roi_mask, scale=scale
     )
 
     inference_duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
@@ -521,8 +522,8 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
 
     clean_transform = {
         "scale": float(transform_params.get("scale", 1.0)),
-        "pad_w": int(transform_params.get("pad_w", 0)),
-        "pad_h": int(transform_params.get("pad_h", 0)),
+        "pad_w": int(transform_params.get("pad_w", transform_params.get("pad_x", 0))),
+        "pad_h": int(transform_params.get("pad_h", transform_params.get("pad_y", 0))),
         "new_w": int(transform_params.get("new_w", 512)),
         "new_h": int(transform_params.get("new_h", 512)),
         "orig_w": int(img_np.shape[1]),
@@ -538,10 +539,14 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
     primary_ad = model_registry.get_primary_adapter()
     engine_obj = getattr(primary_ad, "engine", None)
 
+    chk_sum = inference_result.get("provenance", {}).get("model_checksum") or getattr(engine_obj, "model_checksum", None)
+    arch_name = inference_result.get("provenance", {}).get("architecture") or getattr(primary_ad, "architecture", "Standard U-Net")
     provenance_payload = {
-        "checkpoint_sha256": inference_result.get("provenance", {}).get("model_checksum") or getattr(engine_obj, "model_checksum", None),
+        "checkpoint_sha256": chk_sum,
+        "model_checksum": chk_sum,
         "serving_config_sha256": serving_config_sha256,
-        "architecture": inference_result.get("provenance", {}).get("architecture") or getattr(primary_ad, "architecture", "Standard U-Net"),
+        "architecture": arch_name,
+        "model_name": arch_name,
         "threshold": float(getattr(engine_obj, "threshold", 0.5)),
         "native_shape": [int(img_np.shape[0]), int(img_np.shape[1])],
         "transform": clean_transform,
@@ -629,7 +634,7 @@ def calibrate_image_spacing(
     distance_mm: float | None = None,
     distance_pixels: float | None = None,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(require_clinical),
 ):
     """
     Calibrate physical scale (mm/pixel) for an ultrasound image.
@@ -665,7 +670,11 @@ def calibrate_image_spacing(
     if prediction and prediction.raw_mask_rle:
         engine = model_registry.get_primary_adapter().engine
         mask = engine.rle_to_mask(prediction.raw_mask_rle)
-        updated_measurements = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=spacing)
+        prov = prediction.provenance_json or {}
+        transform = prov.get("transform") or {}
+        calib_scale = float(transform.get("scale", 1.0))
+        effective_spacing = (spacing / calib_scale) if calib_scale > 0 else spacing
+        updated_measurements = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=effective_spacing)
         updated_measurements["calibrated"] = True
         prediction.measurements = updated_measurements
 

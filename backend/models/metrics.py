@@ -68,14 +68,11 @@ def compute_hausdorff_95(pred_mask, gt_mask, pixel_spacing_mm=0.1):
     if pred_mask.sum() == 0 or gt_mask.sum() == 0:
         return 0.0 if pred_mask.sum() == gt_mask.sum() else 999.0
 
-    pred_pts = np.argwhere(pred_mask > 0)
-    gt_pts = np.argwhere(gt_mask > 0)
-
-    # Directed Hausdorff distances
-    d_fwd = directed_hausdorff(pred_pts, gt_pts)[0]
-    d_bwd = directed_hausdorff(gt_pts, pred_pts)[0]
-    hd = max(d_fwd, d_bwd) * pixel_spacing_mm
-    return float(hd)
+    from ai_training.metrics_clinical import compute_hd95_and_asd
+    res = compute_hd95_and_asd(pred_mask, gt_mask, voxelspacing=pixel_spacing_mm)
+    if res["hd95"] is None:
+        return 999.0
+    return float(res["hd95"])
 
 
 def evaluate_batch(predictions, targets, pixel_spacing_mm=0.1):

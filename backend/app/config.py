@@ -62,17 +62,13 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
 os.makedirs(FRONTEND_DIR, exist_ok=True)
 
-# Active session memory
-CURRENT_ACTIVE_USER = {"username": "bacsi", "role": "DOCTOR"}
-
-# System Environment & Thesis Positioning
-SYSTEM_NAME = "Hệ thống Thử nghiệm Hỗ trợ Phân đoạn Siêu âm Buồng trứng Human-in-the-Loop"
-SYSTEM_ENVIRONMENT = "EXPERIMENTAL_RESEARCH_PROTOTYPE"
+# Product identity
+SYSTEM_NAME = "Hệ thống Hỗ trợ Phân đoạn Siêu âm Buồng trứng Human-in-the-Loop"
+SYSTEM_ENVIRONMENT = os.environ.get("APP_ENVIRONMENT", "LOCAL")
 CLINICAL_FACILITY = "Bệnh viện Đa khoa Quốc tế Vinmec Times City"
 DISCLAIMER = (
-    "Hệ thống là bản mẫu nghiên cứu thực nghiệm trong khuôn khổ Khóa luận Tốt nghiệp (MIS / ITBA - NEU). "
     "Hệ thống hỗ trợ phân đoạn đường viền và đo lường kích thước tổn thương buồng trứng (Caliper/Area), "
-    "không thay thế chẩn đoán chuyên môn của bác sĩ và không phải phần mềm thương mại triển khai chính thức của Vinmec."
+    "không thay thế chẩn đoán chuyên môn của bác sĩ. Kết quả cần được bác sĩ rà soát và xác nhận."
 )
 
 # Shared Service Instances

@@ -1,6 +1,6 @@
 import { state, role, restoreDraft } from "./state.js";
 import { request } from "./api.js";
-import { demoDB } from "./demo.js";
+
 import { decode } from "./coordinates.js";
 import {
   $,
@@ -18,16 +18,14 @@ import {
   field,
 } from "./ui.js";
 import { statusLabels } from "./i18n.js";
-export async function getCases() {
-  if (state.demo)
-    return demoDB.cases.filter((c) =>
-      role() === "TK"
-        ? !c.department || c.department === state.user.department
-        : c.owner_id === state.user.id,
-    );
+export async function getCases(params = {}) {
   if (state.capabilities?.case_workflow !== true) {
-    const raw = await request("/api/cases");
-    const items = Array.isArray(raw) ? raw : (raw.items || []);
+    const q = new URLSearchParams();
+    if (params.search) q.set("search", params.search);
+    if (params.status && params.status !== "ALL") q.set("status", params.status);
+    if (params.date) q.set("date", params.date);
+    const raw = await request("/api/cases" + (q.toString() ? "?" + q.toString() : ""));
+    const items = Array.isArray(raw) ? raw : raw.items || [];
     return items.map((c) => ({
       ...c,
       study_id: c.study_id || c.id,
@@ -36,7 +34,11 @@ export async function getCases() {
       study_date: c.study_date,
       status: c.status,
       owner_id: null,
-      images: Array.isArray(c.images) ? c.images : (c.image_id ? [{ id: c.image_id, laterality: null }] : []),
+      images: Array.isArray(c.images)
+        ? c.images
+        : c.image_id
+          ? [{ id: c.image_id, laterality: null }]
+          : [],
     }));
   }
   const rows = [],
@@ -67,18 +69,6 @@ export async function getCases() {
   return rows;
 }
 export async function getCase(id) {
-  if (state.demo) {
-    const c = demoDB.cases.find((c) => c.study_id === id);
-    if (!c) throw Error("Không tìm thấy ca.");
-    if (
-      (role() === "BS" && c.owner_id !== state.user.id) ||
-      (role() === "TK" &&
-        c.department &&
-        c.department !== state.user.department)
-    )
-      throw Error("Ca không thuộc phạm vi được cấp.");
-    return c;
-  }
   const c = await request(
     (state.capabilities.case_workflow === true
       ? "/api/workspace/cases/"
@@ -102,6 +92,8 @@ export async function getCase(id) {
     );
     image.notes = image.review?.clinical_notes || "";
     image.morphology = image.review?.lesion_type || "";
+    image.morphologyDesc = image.review?.morphology_description || image.review?.hitl_feedback?.morphologyDesc || "";
+    image.orads = image.review?.orads || image.review?.orads_score || image.review?.hitl_feedback?.orads || "";
     image.history = [];
     image.redo = [];
   }
@@ -109,16 +101,10 @@ export async function getCase(id) {
 }
 let caseRequest = 0;
 export async function openCase(id) {
-  const identity = state.user?.id,
-    mode = state.demo;
+  const identity = state.user?.id;
   const requestId = ++caseRequest;
-  if (state.case?.study_id === id) return state.case;
   const c = await getCase(id);
-  if (
-    requestId !== caseRequest ||
-    identity !== state.user?.id ||
-    mode !== state.demo
-  )
+  if (requestId !== caseRequest || identity !== state.user?.id)
     throw new DOMException("Đã chuyển ca hoặc phiên", "AbortError");
   state.case = c;
   state.dirty = restoreDraft(c);
@@ -138,7 +124,7 @@ export async function renderDashboard(root) {
   root.innerHTML =
     pageHead(
       "Tổng quan",
-      `${{ BS: "Bác sĩ", TK: "Chuyên gia duyệt", QT: "Quản trị hệ thống" }[r]} · ${state.user.department || "Đơn vị nghiên cứu"}`,
+      `${{ BS: "Bác sĩ", TK: "Chuyên gia duyệt", QT: "Quản trị hệ thống" }[r]} · ${state.user.department || "Đơn vị công tác"}`,
       r === "BS"
         ? `<a class="btn primary" href="#intake">Tải ảnh mới</a>`
         : r === "TK"
@@ -147,24 +133,28 @@ export async function renderDashboard(root) {
     ) + `<div id="dashData">${loading()}</div>`;
   try {
     if (r === "QT") {
-      const health = state.demo
-        ? { status: "Demo" }
-        : await request("/api/health");
+      const health = await request("/api/health");
       $("#dashData").innerHTML =
         `<div class="metrics"><div class="metric"><span>Máy chủ</span><strong>${esc(health.status || "Đã kết nối")}</strong><small>Trạng thái phản hồi hiện tại</small></div><div class="metric"><span>Quyền truy cập</span><strong>QT</strong><small>Không tải ảnh lâm sàng</small></div><div class="metric"><span>Nhật ký</span><strong>Kiểm tra</strong><small><a href="#admin/audit">Mở Audit Trail</a></small></div><div class="metric"><span>Vận hành</span><strong>Hệ thống</strong><small><a href="#admin/system">Mở kiểm tra và sao lưu</a></small></div></div><div class="grid-2"><section class="panel"><div class="panel-head"><h2>Quản trị truy cập</h2></div><div class="panel-body"><p>Kiểm tra tài khoản mới, trạng thái khóa và quyền được cấp.</p><a class="btn" href="#admin/users">Quản lý tài khoản</a></div></section><section class="panel"><div class="panel-head"><h2>Mô hình đang phục vụ</h2></div><div class="panel-body"><p>Xác minh checkpoint, phiên bản và trạng thái nạp.</p><a class="btn" href="#admin/models">Danh mục mô hình</a></div></section></div>`;
       return;
     }
     const rows = await getCases();
+    const localToday = (() => {
+      const d = new Date();
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, "0"),
+        String(d.getDate()).padStart(2, "0"),
+      ].join("-");
+    })();
     const pending = rows.filter((c) =>
-        ["IN_REVIEW", "AI_DONE", "REJECTED"].includes(c.status),
+        ["IN_REVIEW", "AI_DONE", "REJECTED", "ANALYZED", "PENDING"].includes(c.status),
       ),
       waiting = rows.filter((c) => c.status === "SIGNED_PRELIM");
     $("#dashData").innerHTML = `<div class="metrics">${[
       [
         "Ca hôm nay",
-        rows.filter(
-          (c) => c.study_date === new Date().toISOString().slice(0, 10),
-        ).length,
+        rows.filter((c) => c.study_date === localToday).length,
         "Theo ngày khảo sát",
       ],
       ["Đang rà soát", pending.length, "Cần tiếp tục xử lý"],

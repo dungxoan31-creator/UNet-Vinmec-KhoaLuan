@@ -8,12 +8,11 @@ const API_BASE = API_BASE_URL;
 // System Information & Academic Positioning
 const SYSTEM_INFO = {
     name: "Hệ thống Hỗ trợ Phân đoạn Tổn thương Siêu âm Buồng trứng Human-in-the-Loop",
-    nature: "Bản mẫu nghiên cứu thực nghiệm (Research Prototype - Không phải hệ thống thương mại chính thức của Vinmec)",
+    nature: "Hệ thống hỗ trợ phân đoạn siêu âm buồng trứng",
     academic_context: "Khóa luận Tốt nghiệp MIS 65A - Đại học Kinh tế Quốc dân (NEU)",
     clinical_data_source: "Bệnh viện Đa khoa Quốc tế Vinmec Times City",
     core_functionality: "Hỗ trợ phân đoạn viền tổn thương và đo đạc kích thước khách quan (Segmentation & Measurement Assist)"
 };
-
 // Vinmec 7-Hospital Facility Metadata
 const FACILITIES_METADATA = {
     "times_city": {
@@ -152,23 +151,4 @@ const VINMEC_FACILITIES = {
         hospitalContact: "Tel: +84 (297) 398 5588 | Hotline: +84 (297) 398 5590 | Cấp cứu: +84 (297) 398 5115",
         code: "VM-PQ"
     }
-};
-
-// Standard Clinical Ultrasound Macro Templates
-const MACROS = {
-    "normal": "Hình ảnh buồng trứng kích thước và hồi âm bình thường. Không phát hiện khối u hoặc nang bất thường. Dịch cùng đồ Douglas tự do (-).",
-    "simple_cyst": "Phát hiện tổn thương dạng nang dịch trong đồng nhất buồng trứng. Vách mỏng < 3mm, bờ đều rõ nét, không chồi nhú, không vách hóa, tăng âm thành sau điển hình. Đánh giá O-RADS 2 (Lành tính cao).",
-    "dermoid": "Khối u buồng trứng kích thước trung bình, hồi âm hỗn hợp kèm nốt Rokitansky tăng âm sáng và bóng cản âm lưng điển hình của u bì (Teratoma). Không tăng sinh mạch trên Doppler màu. Đánh giá O-RADS 2.",
-    "endometrioma": "Tổn thương dạng nang buồng trứng chứa hồi âm hạt mịn đồng nhất dạng kính mờ (Ground-glass echogenicity), thành nang dày đều, không chồi nhú mạch máu. Hình ảnh điển hình của u lạc nội mạc tử cung (Chocolate cyst). Đánh giá O-RADS 3.",
-    "mucinous": "Khối u nang đa thùy buồng trứng, chứa nhiều vách ngăn mỏng < 3mm, hồi âm dịch nhầy lợn cợn nhẹ, không có thành phần đặc hoặc nốt nhú tăng sinh mạch. Đánh giá O-RADS 3."
-};
-
-// O-RADS Classification Risk Mapping
-const ORADS_MAP = {
-    "NORMAL": { category: "O-RADS 1", label: "Sinh lý bình thường (< 1% ác tính)", badgeClass: "badge-success", color: "#10b981" },
-    "CYSTIC": { category: "O-RADS 2", label: "Gần như chắc chắn lành tính (< 1% ác tính)", badgeClass: "badge-success", color: "#10b981" },
-    "DERMOID": { category: "O-RADS 2", label: "U bì điển hình lành tính (< 1% ác tính)", badgeClass: "badge-success", color: "#10b981" },
-    "ENDOMETRIOMA": { category: "O-RADS 3", label: "Nguy cơ ác tính thấp (1% - 10%)", badgeClass: "badge-warning", color: "#f59e0b" },
-    "MUCINOUS": { category: "O-RADS 3", label: "Nguy cơ ác tính thấp (1% - 10%)", badgeClass: "badge-warning", color: "#f59e0b" },
-    "SOLID": { category: "O-RADS 4", label: "Nguy cơ ác tính trung bình (10% - 50%)", badgeClass: "badge-danger", color: "#ef4444" }
 };

@@ -1,15 +1,19 @@
 import { encode, decode } from "./coordinates.js";
 const read = (key, fallback) => {
   try {
-    return typeof localStorage !== "undefined" ? JSON.parse(localStorage.getItem(key)) ?? fallback : fallback;
+    return typeof localStorage !== "undefined"
+      ? (JSON.parse(localStorage.getItem(key)) ?? fallback)
+      : fallback;
   } catch {
     return fallback;
   }
 };
 export const state = {
   user: null,
-  token: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("ova.token") : null,
-  demo: false,
+  token:
+    typeof sessionStorage !== "undefined"
+      ? sessionStorage.getItem("ova.token")
+      : null,
   route: "",
   online: typeof navigator !== "undefined" ? navigator.onLine : true,
   case: null,
@@ -74,7 +78,7 @@ export function preferences(value) {
   localStorage.setItem("ova.preferences", JSON.stringify(state.preferences));
 }
 export function draftKey(id) {
-  return `ova.draft.${state.demo ? "demo" : "live"}.${state.user?.id}.${id}`;
+  return `ova.draft.live.${state.user?.id}.${id}`;
 }
 export function saveDraft() {
   if (!state.case || state.draftConflict) return;
@@ -94,6 +98,8 @@ export function saveDraft() {
           mask: i.mask ? encode(i.mask) : null,
           notes: i.notes || "",
           morphology: i.morphology || "",
+          morphologyDesc: i.morphologyDesc || "",
+          orads: i.orads || "",
         })),
       }),
     );
@@ -131,6 +137,8 @@ export function restoreDraft(c) {
         : i.mask;
       i.notes = saved.notes;
       i.morphology = saved.morphology;
+      i.morphologyDesc = saved.morphologyDesc || "";
+      i.orads = saved.orads || "";
     }
   }
   return true;

@@ -66,19 +66,9 @@ fs.mkdirSync(artifactDir, { recursive: true });
     assert.ok(token, 'Session token missing');
     const authHeaders = { Authorization: `Bearer ${token}` };
 
-    // 3. Obtain 2 Sample Images for Bilateral Case
-    const samplesResp = await page.request.get(`${base}/api/samples`, { headers: authHeaders });
-    const samples = await samplesResp.json();
-    assert.ok(samples.length >= 2, 'Need at least 2 sample images');
-    const files = [];
-    for (const s of samples.slice(0, 2)) {
-      const imgResp = await page.request.get(`${base}${s.image_url}`, { headers: authHeaders });
-      files.push({
-        name: s.image_filename,
-        mimeType: imgResp.headers()['content-type'] || 'image/png',
-        buffer: await imgResp.body(),
-      });
-    }
+    // 3. Read test images locally; the application exposes no sample catalog.
+    const files = require('./validation_files.cjs');
+    assert.equal(files.length, 2, 'Need two readable Validation images');
 
     // 4. Create Bilateral Case 1 & Upload Dual Images
     await page.evaluate(() => { location.hash = '#intake'; });
@@ -86,6 +76,7 @@ fs.mkdirSync(artifactDir, { recursive: true });
     await page.waitForTimeout(400);
     assert.equal(await page.locator('#stage-R').textContent(), 'Chờ ảnh');
     await page.locator('[data-file=R]').setInputFiles(files[1]);
+    await page.locator('#startSegmentationBtn').click();
 
     // Wait for bilateral inference to finish and viewport to appear
     await page.locator('#viewport').waitFor({ timeout: 120000 });
@@ -180,7 +171,7 @@ fs.mkdirSync(artifactDir, { recursive: true });
 
     // 6. Atomic Batch Review Save
     await page.locator('[data-action=save-review]').click();
-    await page.locator('#toasts .toast').filter({ hasText: 'Đã lưu rà soát nghiên cứu của hai bên' }).waitFor({ timeout: 10000 });
+    await page.locator('#toasts .toast').filter({ hasText: 'Đã lưu rà soát của hai bên' }).waitFor({ timeout: 10000 });
     console.log('[E2E] Atomic batch review confirmed.');
 
     // Verify DB state after save
@@ -216,7 +207,7 @@ fs.mkdirSync(artifactDir, { recursive: true });
     // 8. Unsupported Clinical Sign-off Guard (501 / explicit UI refusal)
     await page.locator('[data-action=sign]').click();
     await page.locator('#modal button[type=submit]').click();
-    await page.locator('#signError').filter({ hasText: 'chưa hỗ trợ' }).waitFor({ timeout: 5000 });
+    await page.locator('#signError').filter({ hasText: 'chưa khả dụng' }).waitFor({ timeout: 5000 });
     const caseAfterSignAttempt = await (await page.request.get(`${base}/api/cases/${studyId1}`, { headers: authHeaders })).json();
     assert.equal(caseAfterSignAttempt.status, 'REVIEWED', 'Status must remain REVIEWED after rejected signoff');
     await page.locator('#modal button[value=cancel]').last().click();
@@ -246,6 +237,7 @@ fs.mkdirSync(artifactDir, { recursive: true });
     await page.locator('[data-file=L]').setInputFiles(files[0]);
     await page.waitForTimeout(400);
     await page.locator('[data-file=R]').setInputFiles(files[1]);
+    await page.locator('#startSegmentationBtn').click();
     await page.locator('#viewport').waitFor({ timeout: 120000 });
     await page.waitForTimeout(800);
 

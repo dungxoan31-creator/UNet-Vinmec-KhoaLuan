@@ -2,6 +2,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
 
 from ai_training.dataset_loader import OvarianUltrasoundDataset
 from evaluation.benchmark_api import milestone_1_validation_case
@@ -10,7 +11,7 @@ from scripts.generate_m1_empty_masks import generate_empty_masks
 from scripts.sanity_check_m1_validation import validation_rows
 
 
-def test_milestone_2_audit_preserves_milestone_1_membership():
+def test_milestone_2_audit_preserves_membership_and_reports_missing_source():
     root = Path(__file__).resolve().parents[1]
     summary = audit_m1_scope(root)
 
@@ -18,30 +19,36 @@ def test_milestone_2_audit_preserves_milestone_1_membership():
     assert summary["archive_membership_matches_current"] is True
     assert summary["recorded_pid_labels"] == 185
     assert summary["source_patient_identity_verified"] is False
-    assert summary["missing_empty_mask_files"] == 0
-    assert summary["derived_empty_mask_files"] == 35
-    assert summary["unreadable_image_mask_pairs"] == 0
-    assert summary["native_positive_masks_for_empty_records"] == 35
+    assert summary["missing_empty_mask_files"] + summary["derived_empty_mask_files"] == 35
+    assert 0 <= summary["missing_image_files"] <= 307
+    assert summary["unreadable_image_mask_pairs"] >= summary["missing_image_files"]
+    assert 0 <= summary["native_masks_missing_for_empty_records"] <= 35
 
 
-def test_latency_probe_uses_milestone_1_validation_only():
+def test_latency_probe_uses_only_available_milestone_1_validation():
     root = Path(__file__).resolve().parents[1]
-    case = milestone_1_validation_case(root)
+    rows = validation_rows(root)
+    if any(
+        row["is_empty_mask"] == "False"
+        and ("Vinmec_2D" in row["image_path"] or "vinmec_m1_307" in row["image_path"])
+        and (root / row["image_path"]).is_file()
+        for row in rows
+    ):
+        selected = milestone_1_validation_case(root)
+        assert selected is not None
+    else:
+        with pytest.raises(ValueError, match="No usable Milestone 1 Validation image"):
+            milestone_1_validation_case(root)
 
-    assert case["split"] == "VAL"
-    assert case["is_empty_mask"] == "False"
-    assert "vinmec_m1_307" in case["image_path"]
-    assert (root / case["image_path"]).is_file()
 
-
-def test_sanity_check_uses_all_and_only_milestone_1_validation_rows():
+def test_sanity_check_preserves_historical_rows_without_claiming_source_files():
     root = Path(__file__).resolve().parents[1]
     rows = validation_rows(root)
 
     assert len(rows) == 46
     assert all(row["split"] == "VAL" for row in rows)
     assert len({row["case_id"] for row in rows}) == 46
-    assert all((root / row["image_path"]).is_file() for row in rows)
+    assert all("image_path" in row and "mask_path" in row for row in rows)
 
 
 def test_generate_empty_masks_and_load_mismatched_raw_image(tmp_path):

@@ -11,6 +11,7 @@ Medical-Grade AI Inference Engine & Automated Caliper Measurement Service:
 
 import base64
 import hashlib
+import math
 import os
 import time
 
@@ -300,7 +301,10 @@ class InferenceEngine:
             mid_12 = [float((p1[0] + p2[0]) / 2), float((p1[1] + p2[1]) / 2)]
             mid_30 = [float((p3[0] + p0[0]) / 2), float((p3[1] + p0[1]) / 2)]
 
-            if dim1_px >= dim2_px:
+            # Ensure caliper_dmax is strictly the longer axis and caliper_dorth is the orthogonal shorter axis
+            d_01_23 = math.dist(mid_01, mid_23)
+            d_12_30 = math.dist(mid_12, mid_30)
+            if d_12_30 >= d_01_23:
                 caliper_dmax = [mid_12, mid_30]
                 caliper_dorth = [mid_01, mid_23]
             else:
@@ -391,6 +395,7 @@ class InferenceEngine:
         padded_gray: np.ndarray,
         pixel_spacing_mm: float | None = None,
         roi_mask: np.ndarray | None = None,
+        scale: float = 1.0,
     ) -> dict:
         """
         Executes full medical inference pipeline:
@@ -433,8 +438,9 @@ class InferenceEngine:
             ),
         }
 
-        # Extract clinical measurements and calipers
-        measurements = self.extract_calipers_and_measurements(clean_mask, pixel_spacing_mm=pixel_spacing_mm)
+        # Extract clinical measurements and calipers (scale-adjusted spacing for 512x512 mask)
+        effective_spacing = (pixel_spacing_mm / scale) if (pixel_spacing_mm and scale and scale > 0) else pixel_spacing_mm
+        measurements = self.extract_calipers_and_measurements(clean_mask, pixel_spacing_mm=effective_spacing)
         if not is_quality_valid:
             measurements["quality_alert"] = quality_gate["alert"]
         calibrated = pixel_spacing_mm is not None and pixel_spacing_mm > 0

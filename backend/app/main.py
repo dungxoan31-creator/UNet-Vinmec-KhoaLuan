@@ -3,12 +3,16 @@ FastAPI Application Entry Point for Ovarian Ultrasound AI System.
 Author: Nguyen Huu Dung (MIS 65A - NEU)
 """
 
+import json
 import os
+import uuid
+from datetime import UTC, datetime
 
-from fastapi import Depends, FastAPI
+from fastapi import Body, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
 from backend.app.config import (
     DATA_DIR,
@@ -32,7 +36,7 @@ from backend.app.routers import (
 )
 from backend.app.routers.auth import get_current_user
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
-from backend.db.database import init_db
+from backend.db.database import AuditLogModel, get_db, init_db
 
 # Initialize Database Schema
 init_db()
@@ -89,6 +93,34 @@ def serve_admin_ui():
     if os.path.exists(index_file):
         return FileResponse(index_file)
     return HTMLResponse("<h1>Vinmec AI Admin Portal Running.</h1>")
+
+
+@app.get("/api/notifications")
+def get_notifications():
+    """Return clinical workstation notifications."""
+    return []
+
+
+@app.post("/api/notifications/read")
+def read_notifications(payload: dict = Body(default={})):
+    """Mark workstation notifications as read."""
+    return {"status": "SUCCESS"}
+
+
+@app.post("/api/feedback")
+def submit_feedback(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    """Acknowledge doctor feedback and suggestions with durable audit logging."""
+    audit_entry = AuditLogModel(
+        entity_name="user_feedback",
+        entity_id=str(uuid.uuid4()),
+        action_type="USER_FEEDBACK",
+        actor_id=payload.get("actor_id") or payload.get("username") or "doctor",
+        details=payload if payload else {},
+        timestamp=datetime.now(UTC),
+    )
+    db.add(audit_entry)
+    db.commit()
+    return {"status": "SUCCESS", "message": "Đã ghi nhận góp ý của bác sĩ.", "feedback_id": str(audit_entry.id)}
 
 
 # Backward compatibility re-exports

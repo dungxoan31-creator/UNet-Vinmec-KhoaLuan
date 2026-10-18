@@ -1,13 +1,11 @@
 import { state } from "./state.js";
 import { openCase } from "./cases.js";
 import { protectedImage, request } from "./api.js";
-import { log } from "./demo.js";
+
 import { letterbox } from "./coordinates.js";
 import { $, esc, pageHead, button, loading, errorBox, toast } from "./ui.js";
 async function reportImages(i) {
-  const url = state.demo
-    ? i.source
-    : await protectedImage("/api/images/" + i.image_id + "/source.png");
+  const url = await protectedImage("/api/images/" + i.image_id + "/source.png");
   const bitmap = await createImageBitmap(await (await fetch(url)).blob());
   const c = document.createElement("canvas");
   c.width = bitmap.width;
@@ -52,7 +50,10 @@ async function reportImages(i) {
   );
   g.globalAlpha = 1;
   const m = i.measurements;
-  for (const points of [m?.caliper_dmax_points, m?.caliper_dorth_points])
+  const primaryLesion = m?.lesions?.[0];
+  const dmaxPoints = m?.caliper_dmax_points || primaryLesion?.caliper_dmax_points;
+  const dorthPoints = m?.caliper_dorth_points || primaryLesion?.caliper_dorth_points;
+  for (const points of [dmaxPoints, dorthPoints])
     if (points?.length === 2) {
       g.strokeStyle = "#fff";
       g.lineWidth = 2;
@@ -63,23 +64,23 @@ async function reportImages(i) {
     }
   const overlay = c.toDataURL();
   bitmap.close();
-  if (!state.demo) URL.revokeObjectURL(url);
+  {
+    URL.revokeObjectURL(url);
+  }
   return [original, binary, overlay];
 }
 export async function renderReport(root, id) {
   root.innerHTML =
     pageHead(
-      "Phiếu kết quả nghiên cứu",
+      "Phiếu kết quả",
       "In hoặc lưu PDF bằng hộp thoại của trình duyệt.",
-      button("Tải ZIP nghiên cứu", "export-research", "small") +
+      button("Tải hồ sơ kết quả", "export-research", "small") +
         " " +
         button("In / Lưu PDF", "print", "primary"),
     ) + `<div id="reportData">${loading()}</div>`;
   const target = root.querySelector("#reportData"),
-    identity = state.user?.id,
-    mode = state.demo;
-  const active = () =>
-    root.isConnected && identity === state.user?.id && mode === state.demo;
+    identity = state.user?.id;
+  const active = () => root.isConnected && identity === state.user?.id;
   const printBtn = root.querySelector("[data-action=print]");
   const exportBtn = root.querySelector("[data-action=export-research]");
   printBtn.disabled = true;
@@ -91,16 +92,13 @@ export async function renderReport(root, id) {
       exportBtn.onclick = async () => {
         const revIds = c.images.map((i) => i.review?.review_id).filter(Boolean);
         if (state.dirty || revIds.length !== c.images.length) {
-          return toast(
-            "Cần hoàn tất lưu rà soát trước khi tải kết quả.",
-            true,
-          );
+          return toast("Cần hoàn tất lưu rà soát trước khi tải kết quả.", true);
         }
         try {
           const token = sessionStorage.getItem("ova.token");
           const headers = { "Content-Type": "application/json" };
           if (token) headers.Authorization = "Bearer " + token;
-          toast("Đang tải kết quả nghiên cứu...");
+          toast("Đang tải kết quả...");
           const resp = await fetch(
             `/api/cases/${encodeURIComponent(c.study_id)}/research-export`,
             {
@@ -116,10 +114,7 @@ export async function renderReport(root, id) {
             const err = await resp
               .json()
               .catch(() => ({ detail: "Lỗi tải kết quả." }));
-            return toast(
-              err.detail || "Không thể tải kết quả nghiên cứu.",
-              true,
-            );
+            return toast(err.detail || "Không thể tải kết quả.", true);
           }
           const blob = await resp.blob();
           if (blob.size === 0) return toast("File rỗng.", true);
@@ -131,50 +126,70 @@ export async function renderReport(root, id) {
           a.click();
           a.remove();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
-          toast("Đã tải tệp ZIP kết quả nghiên cứu.");
+          toast("Đã tải tệp ZIP kết quả.");
         } catch (err) {
           toast(err.message || "Lỗi tải tệp ZIP.", true);
         }
       };
     }
-    if (
-      c.images.length !== 2 ||
-      (!c.images.every((i) => i.review) && !state.demo)
-    )
+    if (c.images.length !== 2 || !c.images.every((i) => i.review))
       throw Error("Cần lưu rà soát đủ hai bên trước khi xuất phiếu.");
     if (state.dirty)
       throw Error(
         "Có bản nháp chưa được lưu. Hãy hoàn tất rà soát trước khi xuất phiếu.",
       );
-    if (!state.demo) {
+    {
       for (const i of c.images) {
-        i.measurements = await request(
-          "/api/images/" + i.image_id + "/measurements",
-          { method: "POST", body: { rle_mask: i.review.verified_mask_rle } },
-        );
+        if (i.review && (i.review.max_diameter_mm != null || i.review.total_area_cm2 != null)) {
+          const prevM = i.measurements || i.prediction?.measurements || {};
+          i.measurements = {
+            ...prevM,
+            calibrated: i.review.max_diameter_mm != null,
+            max_diameter_mm: i.review.max_diameter_mm,
+            ortho_diameter_mm: i.review.ortho_diameter_mm,
+            total_area_cm2: i.review.total_area_cm2,
+            calibration_source: i.review.max_diameter_mm != null ? "Đã hiệu chuẩn" : "Chưa hiệu chuẩn",
+          };
+        } else if (i.review) {
+          const liveM = await request(
+            "/api/images/" + i.image_id + "/measurements",
+            { method: "POST", body: { rle_mask: i.review.verified_mask_rle } },
+          );
+          i.measurements = {
+            ...liveM,
+            calibrated: false,
+            max_diameter_mm: null,
+            ortho_diameter_mm: null,
+            total_area_cm2: null,
+          };
+        }
       }
     }
     const assets = await Promise.all(c.images.map(reportImages));
     if (!active()) return;
-    target.innerHTML = `<article class="report"><span class="watermark">BẢN MẪU NGHIÊN CỨU</span><header class="report-header"><div><p class="eyebrow">ĐƠN VỊ NGHIÊN CỨU</p><h1>Phiếu rà soát phân đoạn siêu âm</h1><p>Khảo sát buồng trứng hai bên</p></div><div class="mono">${esc(c.study_code || c.study_id)}</div></header><p class="report-notice">Bản mẫu nghiên cứu – Không thay thế chẩn đoán y khoa</p><div class="grid-2"><p>PID: <strong>${esc(c.patient_id)}</strong></p><p>Ngày khảo sát: ${esc(c.study_date)}</p></div>${c.images
+    target.innerHTML = `<article class="report"><header class="report-header"><div><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png" alt="Vinmec" width="100" height="62"><p class="eyebrow">HỖ TRỢ PHÂN ĐOẠN SIÊU ÂM</p><h1>Phiếu rà soát phân đoạn siêu âm</h1><p>Khảo sát buồng trứng hai bên</p></div><div class="mono">${esc(c.study_code || c.study_id)}</div></header><p class="report-notice">Hỗ trợ phân đoạn siêu âm · Bác sĩ xác nhận kết quả</p><div class="grid-2"><p>PID: <strong>${esc(c.patient_id)}</strong></p><p>Ngày khảo sát: ${esc(c.study_date)}</p></div>${c.images
       .map((i, index) => {
         const m = i.measurements || {},
           cal = m.calibrated;
         const fmt = (v) => (typeof v === "number" ? v.toFixed(2) : "Chưa có");
-        return `<section><h2>Buồng trứng ${i.laterality === "L" ? "trái" : "phải"}</h2><div class="report-images">${assets[index].map((url, n) => `<figure><img src="${url}" alt="${["Ảnh gốc", "Mask rà soát", "Lớp phủ và thước đo"][n]}"><figcaption>${["Ảnh gốc", "Mask rà soát", "Lớp phủ; caliper nếu có"][n]}</figcaption></figure>`).join("")}</div><table><thead><tr><th>d₁ × d₂</th><th>Diện tích</th><th>Hiệu chuẩn</th></tr></thead><tbody><tr><td>${fmt(cal ? m.max_diameter_mm : m.max_diameter_px)} × ${fmt(cal ? m.ortho_diameter_mm : m.ortho_diameter_px)} ${cal ? "mm" : "px"}</td><td>${fmt(cal ? m.total_area_cm2 : m.total_area_px)} ${cal ? "cm²" : "px²"}</td><td>${cal ? esc(m.calibration_source || "Đã hiệu chuẩn") : "Chưa hiệu chuẩn"}</td></tr></tbody></table><p>Mô tả: ${esc(i.morphology || "Chưa ghi nhận")}<br>Ghi chú: ${esc(i.notes || "Chưa ghi nhận")}</p><p class="small">Mô hình: ${esc(i.prediction?.provenance?.model_name || i.prediction?.model_version || "Chưa có")}<br>SHA-256: <span class="mono">${esc(i.prediction?.provenance?.model_checksum || "Bản ghi chưa cung cấp")}</span></p></section>`;
+        return `<section><h2>Buồng trứng ${i.laterality === "L" ? "trái" : "phải"}</h2><div class="report-images">${assets[index].map((url, n) => `<figure><img src="${url}" alt="${["Ảnh gốc", "Mask rà soát", "Lớp phủ và thước đo"][n]}"><figcaption>${["Ảnh gốc", "Mask rà soát", "Lớp phủ; caliper nếu có"][n]}</figcaption></figure>`).join("")}</div><table><thead><tr><th>d₁ × d₂</th><th>Diện tích</th><th>Hiệu chuẩn</th></tr></thead><tbody><tr><td>${fmt(cal ? m.max_diameter_mm : m.max_diameter_px)} × ${fmt(cal ? m.ortho_diameter_mm : m.ortho_diameter_px)} ${cal ? "mm" : "px"}</td><td>${fmt(cal ? m.total_area_cm2 : m.total_area_px)} ${cal ? "cm²" : "px²"}</td><td>${cal ? esc(m.calibration_source || "Đã hiệu chuẩn") : "Chưa hiệu chuẩn"}</td></tr></tbody></table><p>Mô tả: ${esc(i.morphology || "Chưa ghi nhận")}<br>Ghi chú: ${esc(i.notes || "Chưa ghi nhận")}</p><p class="small">Mô hình: ${esc(i.prediction?.provenance?.architecture || i.prediction?.provenance?.model_name || i.prediction?.model_version || "Chưa có")}<br>SHA-256: <span class="mono">${esc(i.prediction?.provenance?.checkpoint_sha256 || i.prediction?.provenance?.model_checksum || "Bản ghi chưa cung cấp")}</span></p></section>`;
       })
       .join(
         "",
-      )}<footer>Người rà soát: ${esc(c.images[0].review?.doctor_id || state.user.username)} · Mã ca ${esc(c.study_id)}<br>Chưa có chữ ký số xác thực. ${state.demo ? "Dữ liệu và ảnh sơ đồ minh họa." : ""}</footer></article>`;
+      )}<footer>Người rà soát: ${esc(c.images[0].review?.doctor_id || state.user.username)} · Mã ca ${esc(c.study_id)}<br>Chưa có chữ ký số xác thực. </footer></article>`;
     printBtn.disabled = false;
     printBtn.onclick = async () => {
       try {
-        if (!state.demo)
-          await request(
-            "/api/workspace/cases/" + c.study_id + "/report-export",
-            { method: "POST", body: { version: c.version } },
-          );
-        else log("EXPORT_REPORT", c.study_id);
+        if (state.capabilities?.case_workflow === true) {
+          try {
+            await request(
+              "/api/workspace/cases/" + c.study_id + "/report-export",
+              { method: "POST", body: { version: c.version } },
+            );
+          } catch (exportErr) {
+            console.warn("Report export audit notification notice:", exportErr);
+          }
+        }
         document.getElementById("printRoot")?.remove();
         const print = document.createElement("div");
         print.id = "printRoot";

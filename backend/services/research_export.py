@@ -64,6 +64,10 @@ def build_research_bundle(
     buf = io.BytesIO()
     images_metadata = []
 
+    image_review_counts = {}
+    for r in reviews:
+        image_review_counts[r.image_id] = image_review_counts.get(r.image_id, 0) + 1
+
     with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
         for rev in reviews:
             image = db.query(ImageModel).filter(ImageModel.id == rev.image_id).first()
@@ -112,10 +116,15 @@ def build_research_bundle(
             rev_sha256 = hashlib.sha256(rev_png_bytes).hexdigest()
             overlay_sha256 = hashlib.sha256(overlay_png_bytes).hexdigest()
 
-            # Write PNGs into ZIP under {image_id}/
-            zf.writestr(f"{image.id}/ai_mask.png", ai_png_bytes)
-            zf.writestr(f"{image.id}/reviewed_mask.png", rev_png_bytes)
-            zf.writestr(f"{image.id}/overlay.png", overlay_png_bytes)
+            # Write PNGs into ZIP under unique folder if multiple reviews for same image
+            dir_name = f"{image.id}_{rev.id}" if image_review_counts[image.id] > 1 else str(image.id)
+            ai_path = f"{dir_name}/ai_mask.png"
+            rev_path = f"{dir_name}/reviewed_mask.png"
+            overlay_path = f"{dir_name}/overlay.png"
+
+            zf.writestr(ai_path, ai_png_bytes)
+            zf.writestr(rev_path, rev_png_bytes)
+            zf.writestr(overlay_path, overlay_png_bytes)
 
             images_metadata.append({
                 "image_id": image.id,
@@ -131,22 +140,22 @@ def build_research_bundle(
                     "ortho_diameter_mm": rev.ortho_diameter_mm,
                     "total_area_cm2": rev.total_area_cm2,
                 },
-                "physical_units": "mm" if image.pixel_spacing_mm is not None else None,
+                "physical_units": "mm" if rev.max_diameter_mm is not None else None,
                 "geometry": {
                     "native_shape": [int(h), int(w)],
                 },
                 "provenance": prediction.provenance_json or {},
                 "files": {
                     "ai_mask": {
-                        "path": f"{image.id}/ai_mask.png",
+                        "path": ai_path,
                         "sha256": ai_sha256,
                     },
                     "reviewed_mask": {
-                        "path": f"{image.id}/reviewed_mask.png",
+                        "path": rev_path,
                         "sha256": rev_sha256,
                     },
                     "overlay": {
-                        "path": f"{image.id}/overlay.png",
+                        "path": overlay_path,
                         "sha256": overlay_sha256,
                     },
                 },

@@ -28,6 +28,7 @@ COPY frontend/ /app/frontend/
 COPY templates/ /app/templates/
 COPY knowledge/ /app/knowledge/
 COPY checkpoints/ /app/checkpoints/
+COPY evaluation/ /app/evaluation/
 COPY data/ /app/data/
 COPY pyproject.toml MODEL_CARD.md /app/
 

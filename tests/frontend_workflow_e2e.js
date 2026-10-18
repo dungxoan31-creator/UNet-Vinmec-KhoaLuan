@@ -1,0 +1,236 @@
+/* Integration regression for the redesigned workflow. Use an isolated backend DB. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const {chromium} = require('playwright-core');
+const root = path.resolve(__dirname, '..');
+const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8027';
+const output = path.resolve(root,'artifacts/frontend-redesign');
+const sample = fs.readFileSync(path.join(root,'ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv'),'utf8').trim().split(/\r?\n/);
+const index = sample[0].split(',').indexOf('image_path');
+const images = sample.slice(1).map(row=>row.split(',')[index]).filter(Boolean).map(file=>{
+  const normalized=file.replaceAll('\\','/').replace('dataset/Vinmec/Vinmec_2d/images/','dataset/2d/images/').replace('dataset/Vinmec/Vinmec_3d/images/','dataset/3d/images/');
+  return path.resolve(root,normalized);
+});
+const image = images.find(file=>fs.existsSync(file));
+assert.ok(image,'A real validation image is required');
+fs.mkdirSync(output,{recursive:true});
+const checks=[];
+function passed(name){checks.push(name);console.log('PASS '+name);}
+async function main() {
+ const browser=await chromium.launch({headless:true,executablePath:'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'});
+ const page=await browser.newPage({viewport:{width:1440,height:960}});
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ let studyId, predictionCount=0, uploadCount=0, failPrediction=true, failSave=true;
+ page.on('request',req=>{if(req.url().includes('/api/predict/'))predictionCount++;if(req.url().endsWith('/api/upload'))uploadCount++;});
+ await page.route('**/api/predict/*',async route=>{
+   if(failPrediction){failPrediction=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'test inference unavailable'})});}
+   else await route.continue();
+ });
+ await page.route('**/api/review',async route=>{
+   if(failSave){failSave=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'test save unavailable'})});}
+   else await route.continue();
+ });
+ try {
+  await page.goto(base,{waitUntil:'networkidle'});
+  await page.screenshot({path:path.join(output,'home-1440.png'),fullPage:true});
+  assert.equal(await page.locator('nav a:visible').count(),4);
+  assert.equal(await page.locator('#loginModal').evaluate(e=>e.open),false);
+  await page.locator('a[href="#new_case"]').first().click();
+  await page.locator('#loginModal').waitFor({state:'visible'});
+  await page.locator('#loginUsername').fill('doctor');
+  await page.locator('#loginPassword').fill('wrong-password');
+  await page.locator('#loginSubmit').click();
+  await page.locator('#loginError').waitFor({state:'visible'});
+  await page.locator('#loginPassword').fill(process.env.APP_DOCTOR_PASSWORD || 'doctor-local-test-2026');
+  await page.locator('#loginSubmit').click();
+  await page.locator('#screenUpload').waitFor({state:'visible'});
+  passed('Home scope, protected route and invalid/valid login');
+  await page.locator('#fileInput').setInputFiles({name:'invalid.txt',mimeType:'text/plain',buffer:Buffer.from('invalid')});
+  await page.locator('#uploadError').waitFor({state:'visible'});
+  assert.equal(await page.locator('#runSegmentationBtn').isDisabled(),true);
+  await page.locator('#fileInput').setInputFiles({name:'corrupt.png',mimeType:'image/png',buffer:Buffer.from('not an image')});
+  await page.waitForFunction(()=>document.getElementById('uploadStatus').textContent==='Ảnh chưa hợp lệ.');
+  await page.locator('#fileInput').setInputFiles(image);
+  await page.waitForFunction(()=>!document.getElementById('runSegmentationBtn').disabled);
+  assert.ok((await page.locator('#fileMeta').textContent()).includes('px'));
+  await page.screenshot({path:path.join(output,'upload-1440.png'),fullPage:true});
+  await page.locator('#runSegmentationBtn').click();
+  await page.waitForFunction(()=>document.getElementById('uploadStatus').textContent==='Segmentation failed.');
+  assert.ok(await page.locator('#uploadError').isVisible());
+  studyId=await page.evaluate(()=>currentCase.study_id);
+  assert.ok(studyId);
+  await page.locator('#runSegmentationBtn').click();
+  await page.locator('#screenResults').waitFor({state:'visible',timeout:120000});
+  assert.equal(uploadCount,1,'Retry must not upload/create a duplicate case');
+  passed('Image validation, preview, real upload, inference failure and retry');
+  const source=await page.evaluate(()=>({rle:currentPrediction.rle_mask,hash:currentPrediction.provenance?.model_checksum,ready:currentCase.maskReady}));
+  assert.ok(source.ready);assert.equal(source.rle.counts.reduce((a,b)=>a+b,0),512*512);
+  const snapshot=()=>page.evaluate(()=>ctx.getImageData(0,0,512,512).data.reduce((s,v,i)=>s+(i%4===3?0:v),0));
+  await page.locator('[data-view="original"]').click();const original=await snapshot();
+  await page.locator('[data-view="mask"]').click();const mask=await snapshot();
+  await page.locator('[data-view="overlay"]').click();const overlay=await snapshot();
+  assert.notEqual(original,mask);assert.notEqual(original,overlay);
+  await page.locator('#opacitySlider').fill('0');
+  assert.equal(await snapshot(),original);
+  await page.locator('#opacitySlider').fill('40');
+  passed('Original, binary Mask, Overlay and real opacity');
+  const point=await page.evaluate(()=>{
+    const pixels=maskCtx.getImageData(0,0,512,512).data;
+    const [w,h]=currentCase.sourceDimensions,scale=Math.min(512/w,512/h),px=(512-Math.floor(w*scale))/2,py=(512-Math.floor(h*scale))/2;
+    for(let y=Math.ceil(py)+35;y<477-py;y+=20)for(let x=Math.ceil(px)+35;x<477-px;x+=20)if(pixels[(y*512+x)*4+3]===0)return {x,y};
+    throw new Error('No editable background point');
+  });
+  const draw=async()=>{
+    const box=await page.locator('#editorCanvas').boundingBox();
+    const x=box.x+point.x/512*box.width,y=box.y+point.y/512*box.height;
+    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+5,y+5,{steps:3});await page.mouse.up();
+  };
+  const alpha=()=>page.evaluate(p=>maskCtx.getImageData(p.x,p.y,1,1).data[3],point);
+  await page.locator('#toolBrush').click();await draw();assert.ok(await alpha()>0);
+  assert.equal(await page.locator('#hudStatus').textContent(),'Edited');
+  await page.keyboard.press('Control+z');assert.equal(await alpha(),0);
+  await page.keyboard.press('Control+Shift+z');assert.ok(await alpha()>0);
+  await page.locator('#resetMaskBtn').click();assert.equal(await alpha(),0);
+  await page.locator('#undoBtn').click();assert.ok(await alpha()>0);
+  await page.locator('#toolEraser').click();await draw();assert.equal(await alpha(),0);
+  await page.locator('#undoBtn').click();assert.ok(await alpha()>0);
+  await page.locator('#toolPan').click();await draw();
+  assert.ok(await page.evaluate(()=>panOffsetX!==0));
+  await page.locator('button[title="Fit to screen / Reset (0)"]').click();
+  await page.locator('button[title="Zoom in (+)"]').click();assert.equal(await page.locator('#zoomLevelDisplay').textContent(),'125%');
+  await page.locator('button[title="Fit to screen / Reset (0)"]').click();
+  await page.locator('#toolBrush').click();
+  passed('Brush/Eraser, pointer pan, zoom/fit, keyboard Undo/Redo and reversible Reset AI');
+  await page.locator('#textDoctorNotes').fill('E2E: segmentation boundary reviewed.');
+  const beforeNotes=await page.evaluate(()=>undoStack.length);
+  await page.locator('#textDoctorNotes').press('Control+z');
+  assert.equal(await page.evaluate(()=>undoStack.length),beforeNotes,'Textarea undo must not undo mask');
+  await page.locator('#textDoctorNotes').fill('E2E: segmentation boundary reviewed.');
+  const savedMask=await page.evaluate(()=>encodeCurrentMask());
+  await page.locator('#confirmSegmentationBtn').click();
+  await page.locator('#saveReviewBtn').click();
+  await page.locator('#confirmError').waitFor({state:'visible'});
+  assert.equal(await page.evaluate(()=>currentCase.confirmed),false);
+  assert.deepEqual(await page.evaluate(()=>encodeCurrentMask()),savedMask);
+  await page.locator('#saveReviewBtn').click();
+  await page.waitForFunction(()=>currentCase.confirmed===true);
+  assert.equal(await page.locator('#hudStatus').textContent(),'Confirmed');
+  const token=await page.evaluate(()=>sessionStorage.getItem('ovarian_ai_access_token'));
+  const detail=await page.request.get(base+'/api/cases/'+studyId,{headers:{Authorization:'Bearer '+token}});
+  assert.ok(detail.ok());const stored=await detail.json();
+  assert.deepEqual(stored.images[0].review.verified_mask_rle,savedMask);
+  assert.equal(stored.images[0].review.doctor_id,'doctor');
+  assert.equal(stored.images[0].review.doctor_action,'MODIFIED');
+  passed('Save failure keeps mask; real authenticated review persists exact edited RLE');
+  const downloadEvent=page.waitForEvent('download');
+  await page.locator('#downloadMaskBtn').click();
+  const download=await downloadEvent;
+  await download.saveAs(path.join(output,'reviewed-mask.png'));
+  assert.equal(await download.failure(),null);
+  await page.locator('a[data-route="cases"]').click();
+  await page.waitForFunction(()=>document.getElementById('casesTableBody').children.length>0);
+  await page.locator('#caseSearch').fill(stored.study_code);
+  await page.waitForTimeout(500);
+  await page.locator('#casesTableBody button').first().click();
+  await page.locator('#screenResults').waitFor({state:'visible'});
+  assert.equal(predictionCount,2,'Case reopening must not run model again');
+  assert.deepEqual(await page.evaluate(()=>encodeCurrentMask()),savedMask);
+  assert.deepEqual(await page.evaluate(()=>currentPrediction.rle_mask),source.rle,'Reset baseline remains original AI mask');
+  assert.equal(await page.evaluate(()=>currentCase.confirmed),true);
+  passed('Reviewed source-sized PNG download and exact case reopening without new inference');
+  const checkedSizes=[];
+  for(const width of [1440,1280,1024,768,390]) {
+    await page.setViewportSize({width,height:960});
+    await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});
+    await page.screenshot({path:path.join(output,'workspace-'+width+'.png'),fullPage:true});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No viewport horizontal overflow at '+width);
+    assert.ok(await page.locator('#editorCanvas').isVisible());
+    const workspace=await page.locator('#workstation').boundingBox(), viewer=await page.locator('#imageViewer').boundingBox();
+    assert.ok(viewer.width>workspace.width*(width>=1280?.42:.65));
+    checkedSizes.push(width);
+  }
+  passed('Responsive workspace: '+checkedSizes.join('/'));
+  // Chromium touch input must edit the same mask canvas on mobile.
+  const touchPoint=await page.evaluate(()=>{
+    const pixels=maskCtx.getImageData(0,0,512,512).data;
+    const [w,h]=currentCase.sourceDimensions,scale=Math.min(512/w,512/h),px=(512-Math.floor(w*scale))/2,py=(512-Math.floor(h*scale))/2;
+    for(let y=Math.ceil(py)+35;y<477-py;y+=30)for(let x=Math.ceil(px)+35;x<477-px;x+=30)if(pixels[(y*512+x)*4+3]===0)return {x,y};
+  });
+  const touchBox=await page.locator('#editorCanvas').boundingBox();
+  await page.evaluate(()=>canvas.addEventListener('pointerdown',event=>{
+    window.__touchDebug={x:event.clientX,y:event.clientY,rect:canvas.getBoundingClientRect().toJSON(),zoom:currentZoom,tool:currentTool};
+  },{once:true}));
+  const cdp=await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:touchBox.x+touchPoint.x/512*touchBox.width,y:touchBox.y+touchPoint.y/512*touchBox.height,id:1}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  assert.ok(await page.evaluate(p=>maskCtx.getImageData(p.x,p.y,1,1).data[3]>0,touchPoint),JSON.stringify({touchPoint,touchBox,event:await page.evaluate(()=>window.__touchDebug)}));
+  assert.equal(await page.evaluate(()=>currentCase.confirmed),false,'Editing invalidates saved confirmation');
+  await page.evaluate(()=>undoCanvas());
+  assert.equal(await page.evaluate(()=>currentCase.confirmed),true,'Undo to saved mask restores persisted confirmation');
+  await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await cdp.detach();
+  passed('Mobile touch editing and confirmation invalidation/restoration');
+  await page.setViewportSize({width:1440,height:960});
+  await page.locator('a[data-route="evaluation"]').click();
+  await page.waitForFunction(()=>document.getElementById('evaluationSplits').children.length===2);
+  const realMetrics=await page.request.get(base+'/api/evaluation/metrics',{headers:{Authorization:'Bearer '+token}});
+  const returned=await realMetrics.json();
+  const cards=page.locator('.split-card');
+  assert.ok((await cards.nth(0).textContent()).includes(returned.validation.dice_mean.toFixed(3)));
+  assert.ok((await cards.nth(1).textContent()).includes(returned.test.dice_mean.toFixed(3)));
+  await page.waitForFunction(()=>document.getElementById('evaluationRows').children.length>0);
+  await page.locator('#evaluationRows button').first().click();
+  await page.waitForFunction(()=>document.getElementById('comparisonGrid').children.length===4);
+  await page.waitForFunction(()=>document.getElementById('evaluationCaseMetrics').children.length>0 || document.getElementById('comparisonMessage').textContent.includes('ground truth'));
+  assert.equal(await page.locator('#comparisonGrid canvas').count(),1,'Archived native-sized prediction must align as an overlay');
+  await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});
+  await page.screenshot({path:path.join(output,'evaluation-1440.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:960});
+  await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});
+  await page.screenshot({path:path.join(output,'evaluation-390.png'),fullPage:true});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  passed('Historical Evaluation: actual separate Validation/Test metrics and image/GT/prediction/overlay detail');
+  await page.route('**/api/evaluation/metrics',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({validation:{count:null,dice_mean:null,iou_mean:null,recall_mean:null},test:{count:null,dice_mean:null,iou_mean:null,recall_mean:null}})}));
+  await page.evaluate(()=>loadEvaluation());
+  assert.equal(await page.locator('.split-card .metric dd').allTextContents().then(values=>values.every(value=>value==='Chưa có')),true);
+  passed('Missing backend metrics produce no invented numbers');
+  await page.route('**/api/evaluation/samples?*',route=>route.fulfill({status:503,contentType:'application/json',body:'{}'}));
+  await page.evaluate(()=>loadBenchmarkSamples(0));
+  assert.ok((await page.locator('#samplesMessage').textContent()).includes('sẵn sàng'));
+  passed('Evaluation API failure state');
+  assert.deepEqual(errors,[],'No JavaScript page errors');
+  passed('No runtime console exceptions');
+  await page.evaluate(()=>navigateTo('new_case'));
+  assert.equal(await page.evaluate(()=>currentCase.study_id || null),null,'New Case navigation starts a fresh case');
+  assert.equal(await page.locator('#runSegmentationBtn').isDisabled(),true);
+  await page.evaluate(()=>logout());
+  assert.equal(await page.evaluate(()=>sessionStorage.getItem('ovarian_ai_access_token')),null);
+  assert.equal(await page.evaluate(()=>currentPrediction),null);
+  assert.equal(await page.locator('#screenDashboard').isVisible(),true);
+  await page.locator('a[data-route="cases"]').click();
+  await page.locator('#loginModal').waitFor({state:'visible'});
+  await page.locator('#loginUsername').fill('doctor');
+  await page.locator('#loginPassword').fill(process.env.APP_DOCTOR_PASSWORD || 'doctor-local-test-2026');
+  await page.locator('#loginSubmit').click();
+  await page.locator('#screenHistory').waitFor({state:'visible'});
+  passed('New Case resets previous image; logout clears case data and protects routes');
+  fs.writeFileSync(path.join(output,'e2e-result.json'),JSON.stringify({passed:true,base,image,checks,screenshots:checkedSizes.map(width=>'workspace-'+width+'.png'),errors},null,2));
+ } catch(error) {
+   console.error(error.stack);
+   await page.screenshot({path:path.join(output,'failure.png'),fullPage:true});
+   fs.writeFileSync(path.join(output,'e2e-result.json'),JSON.stringify({passed:false,checks,errors,error:error.stack},null,2));
+   process.exitCode=1;
+ } finally {
+   if(studyId) {
+     const login=await page.request.post(base+'/api/auth/login',{data:{username:'admin',password:process.env.APP_ADMIN_PASSWORD||'admin-local-test-2026'}});
+     if(!login.ok()) throw new Error('E2E cleanup requires an admin account');
+     const token=(await login.json()).access_token;
+     const deleted=await page.request.delete(base+'/api/cases/'+studyId,{headers:{Authorization:'Bearer '+token}});
+     assert.equal(deleted.status(),200,'E2E case cleanup requires admin authorization');
+   }
+   await browser.close();
+ }
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -40,6 +40,18 @@ export function createTracker({
     return sessionId;
   }
 
+  function getStudyId() {
+    return studyId;
+  }
+
+  function reset() {
+    sessionId = null;
+    studyId = null;
+    sessionStartTime = 0;
+    eventQueue = [];
+    tasks.clear();
+  }
+
   async function startSession(newStudyId, participantMetadata = {}) {
     studyId = newStudyId;
     sessionStartTime = now();
@@ -290,6 +302,8 @@ export function createTracker({
 
   return {
     getSessionId,
+    getStudyId,
+    reset,
     startSession,
     startTask,
     getTask,

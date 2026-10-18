@@ -1,14 +1,13 @@
 import { state, role, clearDraft } from "./state.js";
 import { request } from "./api.js";
-import { transition } from "./demo.js";
+
 import { encode } from "./coordinates.js";
 import { $, esc, modal, toast } from "./ui.js";
 import { tracker } from "./hitl-tracker.js";
 export async function saveResearchReview() {
   const c = state.case,
     identity = state.user?.id,
-    username = state.user?.username,
-    demo = state.demo;
+    username = state.user?.username;
   if (
     !c ||
     role() !== "BS" ||
@@ -21,12 +20,12 @@ export async function saveResearchReview() {
   if (c.images.length !== 2 || !c.images.every((i) => i.seen))
     return toast("Xem đủ hai bên trước khi lưu rà soát.", true);
   const manual = c.images.some((i) => !i.prediction?.prediction_id);
-  if (manual && !demo && !state.capabilities.manual_review)
+  if (manual && !state.capabilities.manual_review)
     return toast(
       "Mask vẽ tay được giữ thành bản nháp. API hiện tại yêu cầu prediction_id; cần API lưu rà soát thủ công để lưu lên máy chủ.",
       true,
     );
-  if (!navigator.onLine && !demo) {
+  if (!navigator.onLine) {
     state.pendingReview = { caseId: c.study_id, userId: identity };
     return toast(
       "Chưa đồng bộ. Bản rà soát sẽ gửi lại khi có mạng trong phiên này.",
@@ -34,7 +33,8 @@ export async function saveResearchReview() {
   }
   const snapshots = c.images.map((i) => {
     const tm = tracker.getTaskMetrics(i.image_id);
-    const timeSpent = tm && tm.task_total_ms > 0 ? Math.round(tm.task_total_ms / 1000) : null;
+    const timeSpent =
+      tm && tm.task_total_ms > 0 ? Math.round(tm.task_total_ms / 1000) : null;
     return {
       image: i,
       body: {
@@ -50,18 +50,20 @@ export async function saveResearchReview() {
         verified_mask_rle: encode(i.mask),
         clinical_notes: i.notes || "",
         lesion_type: i.morphology || "Chưa đánh giá",
+        orads: i.orads || "",
+        orads_score: i.orads || null,
+        morphology_description: i.morphologyDesc || "",
         time_spent_seconds: timeSpent,
       },
     };
   });
-  const sameSession = () =>
-    state.user?.id === identity && state.demo === demo && state.case === c;
+  const sameSession = () => state.user?.id === identity && state.case === c;
   const operation = Symbol("review");
   state.operation = operation;
   state.busy = true;
   try {
     let manualReviews = null;
-    if (manual && !demo) {
+    if (manual) {
       const result = await request(
         "/api/workspace/cases/" +
           encodeURIComponent(c.study_id) +
@@ -77,17 +79,35 @@ export async function saveResearchReview() {
     }
     const expectedRevision = c.review_revision ?? 0;
     const reviewBodies = snapshots.map((s) => s.body);
-    const payloadSnapshot = JSON.stringify({
+
+    // Fingerprint clinical content (excluding volatile elapsed time)
+    const clinicalSnapshot = JSON.stringify({
       study_id: c.study_id,
       expected_revision: expectedRevision,
-      reviews: reviewBodies,
+      reviews: reviewBodies.map((b) => ({
+        image_id: b.image_id,
+        prediction_id: b.prediction_id,
+        doctor_action: b.doctor_action,
+        verified_mask_rle: b.verified_mask_rle,
+        clinical_notes: b.clinical_notes,
+        lesion_type: b.lesion_type,
+        orads: b.orads,
+        morphology_description: b.morphology_description,
+      })),
     });
 
     let requestId = state.currentReviewRequestId;
-    if (!requestId || state.lastReviewPayloadSnapshot !== payloadSnapshot) {
+    let savedTimeSpent = state.lastReviewTimeSpent;
+    if (!requestId || state.lastClinicalSnapshot !== clinicalSnapshot) {
       requestId = crypto.randomUUID();
       state.currentReviewRequestId = requestId;
-      state.lastReviewPayloadSnapshot = payloadSnapshot;
+      state.lastClinicalSnapshot = clinicalSnapshot;
+      state.lastReviewTimeSpent = reviewBodies.map((b) => b.time_spent_seconds);
+    } else if (savedTimeSpent) {
+      // Re-use exact same time_spent_seconds for idempotent retry
+      reviewBodies.forEach((b, idx) => {
+        b.time_spent_seconds = savedTimeSpent[idx];
+      });
     }
 
     if (!sameSession())
@@ -98,40 +118,33 @@ export async function saveResearchReview() {
     }
     await tracker.flush();
 
-    const hitlSessionId = tracker.getSessionId();
-    const watermarks = tracker.getWatermarks();
+    const hitlSessionId =
+      tracker.getStudyId && tracker.getStudyId() === c.study_id
+        ? tracker.getSessionId()
+        : null;
+    const watermarks = hitlSessionId ? tracker.getWatermarks() : [];
 
     const batchPayload = {
       study_id: c.study_id,
       expected_revision: expectedRevision,
       request_id: requestId,
       reviews: reviewBodies,
-      ...(hitlSessionId ? { hitl_session_id: hitlSessionId, telemetry_tasks: watermarks } : {}),
+      ...(hitlSessionId
+        ? { hitl_session_id: hitlSessionId, telemetry_tasks: watermarks }
+        : {}),
     };
 
-    const result = demo
+    const result = manualReviews
       ? {
           status: "SUCCESS",
           study_id: c.study_id,
           review_revision: expectedRevision + 1,
-          reviews: c.images.map((img) => ({
-            review_id: crypto.randomUUID(),
-            image_id: img.image_id,
-            prediction_id: img.prediction?.prediction_id,
-            doctor_action: "ACCEPTED_RAW",
-          })),
+          reviews: manualReviews,
         }
-      : manualReviews
-        ? {
-            status: "SUCCESS",
-            study_id: c.study_id,
-            review_revision: expectedRevision + 1,
-            reviews: manualReviews,
-          }
-        : await request("/api/reviews/batch", {
-            method: "POST",
-            body: batchPayload,
-          });
+      : await request("/api/reviews/batch", {
+          method: "POST",
+          body: batchPayload,
+        });
 
     if (
       result.status !== "SUCCESS" ||
@@ -143,11 +156,7 @@ export async function saveResearchReview() {
     if (!sameSession())
       throw Error("Phiên đã thay đổi sau khi lưu. Mở lại ca để kiểm tra.");
 
-    for (const { image } of snapshots) {
-      tracker.confirmAck(image.image_id, requestId);
-    }
-    await tracker.flush();
-
+    // Update revision and review record immediately upon successful batch commit
     c.review_revision = result.review_revision;
     for (const { image, body } of snapshots) {
       const rev = result.reviews.find((r) => r.image_id === image.image_id);
@@ -157,6 +166,9 @@ export async function saveResearchReview() {
         verified_mask_rle: body.verified_mask_rle,
         clinical_notes: body.clinical_notes,
         lesion_type: body.lesion_type,
+        orads: body.orads,
+        orads_score: body.orads_score,
+        morphology_description: body.morphology_description,
       };
     }
 
@@ -165,10 +177,52 @@ export async function saveResearchReview() {
       state.pendingReview = null;
       state.currentReviewRequestId = null;
       state.lastReviewPayloadSnapshot = null;
+      state.lastClinicalSnapshot = null;
+      state.lastReviewTimeSpent = null;
       c.status = "REVIEWED";
-      toast("Đã lưu rà soát nghiên cứu của hai bên thành công.");
+      toast("Đã lưu rà soát của hai bên thành công.");
+    }
+
+    // Telemetry ACK is non-blocking and failure here will not invalidate saved review
+    try {
+      for (const { image } of snapshots) {
+        tracker.confirmAck(image.image_id, requestId);
+      }
+      await tracker.flush();
+    } catch (telemetryErr) {
+      console.warn("Telemetry flush warning after successful review commit:", telemetryErr);
     }
   } catch (e) {
+    if (e.message && (e.message.includes("409") || e.message.includes("Xung đột phiên bản"))) {
+      try {
+        const fresh = await request("/api/cases/" + encodeURIComponent(c.study_id));
+        if (fresh && fresh.review_revision > expectedRevision) {
+          const ourReviews = fresh.images?.filter(
+            (img) => img.review?.doctor_id === username,
+          );
+          if (ourReviews && ourReviews.length === c.images.length) {
+            c.review_revision = fresh.review_revision;
+            for (const { image } of snapshots) {
+              const r = ourReviews.find((revImg) => revImg.image_id === image.image_id)?.review;
+              if (r) image.review = r;
+            }
+            if (sameSession()) {
+              clearDraft();
+              state.pendingReview = null;
+              state.currentReviewRequestId = null;
+              state.lastReviewPayloadSnapshot = null;
+              state.lastClinicalSnapshot = null;
+              state.lastReviewTimeSpent = null;
+              c.status = "REVIEWED";
+              toast("Đã xác nhận rà soát trên máy chủ thành công.");
+              return;
+            }
+          }
+        }
+      } catch {
+        // Fall back to standard error reporting
+      }
+    }
     for (const { image } of snapshots || []) {
       tracker.recordSaveFailure(image.image_id, { error: e.message });
     }
@@ -182,6 +236,8 @@ export function openSignoff() {
   const c = state.case,
     identity = state.user?.id;
   if (state.busy || !state.editing?.allowed) return;
+  if (!state.capabilities?.case_workflow)
+    return toast("Tính năng quy trình hai cấp (Ký sơ bộ / Chuyển duyệt) chưa được kích hoạt trên hệ thống.", true);
   if (
     role() !== "BS" ||
     !c ||
@@ -199,17 +255,7 @@ export function openSignoff() {
       state.busy = true;
       try {
         const form = Object.fromEntries(new FormData(e.target));
-        if (state.demo) {
-          transition(c, "SIGN_PRELIM");
-          for (const i of c.images)
-            i.review = {
-              review_id: crypto.randomUUID(),
-              prediction_id: i.prediction?.prediction_id,
-              doctor_id: state.user.username,
-              verified_mask_rle: encode(i.mask),
-              reviewed_at: new Date().toISOString(),
-            };
-        } else {
+        {
           const body = {
             version: c.version,
             images: c.images.map((i) => ({
@@ -237,11 +283,7 @@ export function openSignoff() {
           );
         clearDraft();
         dialog.close();
-        toast(
-          state.demo
-            ? "Đã ký sơ bộ trong demo."
-            : "Đã ký sơ bộ và chuyển duyệt.",
-        );
+        toast("Đã ký sơ bộ và chuyển duyệt.");
         location.hash = "#case/" + c.study_id;
       } catch (err) {
         $("#signError").textContent = err.message;

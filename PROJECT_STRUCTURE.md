@@ -1,12 +1,14 @@
 # KIẾN TRÚC & DANH MỤC VAI TRÒ DỰ ÁN (PROJECT STRUCTURE & ROLE MANIFEST)
 > **Dự án**: Hệ thống Hỗ trợ Chẩn đoán & Phân đoạn Siêu âm Buồng trứng Human-in-the-Loop (Khóa luận Tốt nghiệp MIS / ITBA / AI - NEU)  
 > **Cơ sở dữ liệu lâm sàng**: Bệnh viện Đa khoa Quốc tế Vinmec Times City  
-> **Cập nhật gần nhất**: 2026-10-06 | Phiên bản kiến trúc: 1.2.0
+> **Cập nhật trạng thái bằng chứng**: 2026-10-07 | Phiên bản kiến trúc: 1.2.0
+
+> **Giới hạn hiện tại:** Đây là cấu trúc của prototype nghiên cứu, chưa phải hệ thống lâm sàng đã thẩm định. Split 661/541/402 chỉ tách được SHA-256 ảnh; [kiểm toán gần trùng](docs/reports/Kiem_Toan_Anh_Gan_Trung_Giua_Split_2026-10-07.md) ghi 59 cặp ứng viên xuyên split. [307 bản ghi Mốc 1](docs/reports/Truy_Vet_Du_Lieu_Moc_1_307_2026-10-07.md) chưa có file gốc để replay chính xác; Patient/Case ID nguồn và phê duyệt nhãn chuyên gia chưa được xác minh.
 
 ---
 
 ## 1. NGUYÊN TẮC CỐT LÕI (CORE INVARIANTS)
-1. **Single Source of Truth**: Mỗi cấu hình, tập dữ liệu chia mẫu (split) và mô hình production chỉ có một vị trí khai báo chính thức duy nhất.
+1. **Single Source of Truth**: Mỗi cấu hình, tập dữ liệu chia mẫu (split) và mô hình mặc định của prototype chỉ có một vị trí khai báo chính thức duy nhất.
 2. **Bảo toàn Dữ liệu Lâm sàng**: Thư mục `dataset/2d` và `dataset/3d` là tài sản nghiên cứu gốc, luôn ở chế độ chỉ đọc (read-only) trong quá trình huấn luyện và đánh giá.
 3. **Phân định Rõ ràng Runtime vs Source**: Thư mục `data/` chỉ dùng cho runtime (file tạm bác sĩ upload và báo cáo PDF xuất tự động), không chứa mã nguồn.
 4. **Kiểm soát Trọng số Mô hình**: File `evaluation/selected_model.json` chỉ định mô hình chính thức thông qua băm SHA-256 (`checkpoints/unified_vinmec_refine_2026-10-06/lr_3e-04/baseline_unet_best.pth`).
@@ -37,8 +39,8 @@ UNet-Vinmec-KhoaLuan/
 │   ├── finetune_2d_unet.py      # Pipeline tinh chỉnh (fine-tune) U-Net trên dữ liệu 2D
 │   ├── metrics_clinical.py      # Tính toán các chỉ số lâm sàng (Dice, IoU, Recall, Precision)
 │   ├── splits/                  # Thư mục chứa các file phân chia tập train/val/test
-│   │   ├── unified_vinmec_clean_2026-10-06/ # Tập split chính thức hiện tại (Train 663, Val 541, Test 402)
-│   │   ├── kltn_ground_truth_307.csv         # Bộ ground truth chuẩn hóa 307 ca
+│   │   ├── unified_vinmec_clean_2026-10-06/ # Split hiện tại (Train 661, Val 541, Test 402)
+│   │   ├── kltn_ground_truth_307.csv         # Metadata nhãn tham chiếu lịch sử 307 bản ghi
 │   │   ├── train.csv, val.csv, test.csv      # Phân chia mẫu theo cấu trúc chuẩn
 │   │   └── archive/             # Lưu trữ các file split thử nghiệm qua các mốc cũ
 │   ├── train_baseline_unet.py   # Huấn luyện mô hình Standard U-Net Baseline
@@ -96,32 +98,32 @@ UNet-Vinmec-KhoaLuan/
 │   ├── 2d/                      # Tập ảnh siêu âm 2D B-mode
 │   │   ├── images/              # 1,469 tệp ảnh siêu âm gốc
 │   │   └── masks/               # Mặt nạ nhãn phân đoạn tổn thương (Binary PNG)
-│   ├── 3d/                      # Tập ảnh siêu âm 3D bổ trợ
-│   │   ├── images/              # 170 tệp ảnh siêu âm 3D
-│   │   └── masks/               # 170 tệp mặt nạ tổn thương 3D
+│   ├── 3d/                      # Tên thư mục nguồn; pipeline xử lý từng ảnh 2D
+│   │   ├── images/              # 170 tệp ảnh trong thư mục 3d
+│   │   └── masks/               # 170 tệp mặt nạ trong thư mục 3d
 │   └── index.csv                # Chỉ mục liên kết toàn bộ mẫu ảnh, nhãn và nguồn gốc dữ liệu
 │
-├── metadata/                    # METADATA BỘ CHUẨN VÀ TẬP PHÂN CHIA (SINGLE SOURCE OF TRUTH)
-│   ├── kltn_ground_truth_307.csv # Tập Ground Truth 307 ca được bác sĩ thẩm định chính thức
-│   ├── train.csv                # Tập huấn luyện (215 ca)
-│   ├── val.csv                  # Tập thẩm định (46 ca)
-│   ├── test.csv                 # Tập kiểm thử độc lập (46 ca)
+├── metadata/                    # METADATA LỊCH SỬ MỐC 1
+│   ├── kltn_ground_truth_307.csv # Metadata tham chiếu lịch sử; phê duyệt nhãn chưa xác minh
+│   ├── train.csv                # Tập huấn luyện lịch sử (215 bản ghi)
+│   ├── val.csv                  # Tập thẩm định lịch sử (46 bản ghi)
+│   ├── test.csv                 # Phân chia lịch sử 46 bản ghi; độc lập bệnh nhân chưa xác minh
 │   └── thesis_exports/          # Bản sao lưu tên tiếng Việt phục vụ nộp báo cáo Khóa luận
 │       ├── Tap_Huan_Luyen_Train_215.csv
 │       ├── Tap_Tham_Dinh_Val_46.csv
 │       └── Tap_Kiem_Thu_Test_46.csv
 │
 ├── checkpoints/                 # TRỌNG SỐ MÔ HÌNH HỌC SÂU (MODEL WEIGHTS)
-│   ├── unified_vinmec_refine_2026-10-06/ # MÔ HÌNH PRODUCTION CHÍNH THỨC HIỆN TẠI
+│   ├── unified_vinmec_refine_2026-10-06/ # CHECKPOINT MẶC ĐỊNH CỦA PROTOTYPE
 │   │   └── lr_3e-04/baseline_unet_best.pth # Checkpoint chính thức phục vụ suy luận
 │   ├── baseline_unet_best.pth   # Trọng số Standard U-Net Baseline gốc
 │   ├── unetplusplus_resnet34_2026-10-06/ # Checkpoint mô hình đối chuẩn U-Net++
 │   ├── retrain_2d_2026-10-03_stable/     # Checkpoint chuẩn kiểm định tính ổn định
 │   └── archive_milestone_1/     # Lưu trữ trọng số các mốc nghiên cứu trước
 │
-├── evaluation/                  # KẾT QUẢ ĐÁNH GIÁ THỰC NGHIỆM LÂM SÀNG
+├── evaluation/                  # METRIC PHÂN ĐOẠN VÀ MINH CHỨNG KỸ THUẬT
 │   ├── selected_model.json      # Bản kê khai mô hình chính thức kèm mã băm SHA-256
-│   ├── milestone_3_2026-10-06/  # Kết quả đánh giá độc lập của Mốc 3 (Test Set)
+│   ├── milestone_3_2026-10-06/  # Test Standard U-Net lịch sử trên split đã dùng trước đó
 │   ├── milestone_3_audit_2026-10-06/ # Bằng chứng kiểm toán số liệu và đối chuẩn
 │   ├── unified_vinmec_2026-10-06/    # Báo cáo đánh giá tập hợp dữ liệu Vinmec hợp nhất
 │   ├── baseline_visualizations/      # Ảnh minh họa phân đoạn đối chứng
@@ -137,8 +139,8 @@ UNet-Vinmec-KhoaLuan/
 │   ├── build_unified_vinmec_splits.py         # Xây dựng phân chia tập dữ liệu hợp nhất
 │   ├── build_vinmec_clean_dataset.py          # Chuẩn hóa cấu trúc thư mục dữ liệu sạch
 │   ├── refine_unified_vinmec_unet.py          # Tinh chỉnh U-Net và chọn mô hình tốt nhất
-│   ├── evaluate_unified_vinmec.py             # Đánh giá độc lập trên tập Test
-│   ├── render_unified_vinmec_error_analysis.py # Xuất bảng phân tích ca lỗi lâm sàng
+│   ├── evaluate_unified_vinmec.py             # Đánh giá trên split Test đã khóa
+│   ├── render_unified_vinmec_error_analysis.py # Xuất bảng phân tích sai khác mask
 │   ├── validate_vinmec_datasets.py            # Kiểm toán toàn vẹn nhãn và ảnh
 │   ├── verify_milestone3_validation.py        # Thẩm định kết quả Mốc 3
 │   ├── audit_milestone3_evidence.py           # Khóa bằng chứng kiểm toán Mốc 3
@@ -174,15 +176,15 @@ UNet-Vinmec-KhoaLuan/
 
 | Tên Module / Tệp | Vai trò Cụ thể (Purpose) | Phân loại Trạng thái |
 |---|---|---|
-| `backend/app/main.py` | Cổng REST API chính điều phối toàn bộ dịch vụ CDSS | `[Active Production]` |
-| `backend/app/config.py` | Nạp cấu hình, quản lý đường dẫn và bảo mật băm SHA-256 của weights | `[Active Production]` |
-| `backend/services/morphology_extractor.py` | Trích xuất thông số hình thái (d1, d2, diện tích) theo chuẩn y khoa ISUOG | `[Active Production]` |
-| `backend/services/inference_engine.py` | Chạy mạng PyTorch U-Net với cơ chế tiền xử lý Letterbox và CLAHE | `[Active Production]` |
-| `frontend/js/modules/canvas.js` | Canvas đa lớp hiển thị ảnh siêu âm và công cụ vẽ chỉnh viền Human-in-the-Loop | `[Active Production]` |
+| `backend/app/main.py` | Cổng REST API chính điều phối toàn bộ dịch vụ CDSS | `[Active Prototype]` |
+| `backend/app/config.py` | Nạp cấu hình, quản lý đường dẫn và bảo mật băm SHA-256 của weights | `[Active Prototype]` |
+| `backend/services/morphology_extractor.py` | Trích xuất thông số hình thái (d1, d2, diện tích) theo chuẩn y khoa ISUOG | `[Active Prototype]` |
+| `backend/services/inference_engine.py` | Chạy mạng PyTorch U-Net với cơ chế tiền xử lý Letterbox và CLAHE | `[Active Prototype]` |
+| `frontend/js/modules/canvas.js` | Canvas đa lớp hiển thị ảnh siêu âm và công cụ vẽ chỉnh viền Human-in-the-Loop | `[Active Prototype]` |
 | `dataset/2d/images/` & `dataset/2d/masks/` | Tập dữ liệu siêu âm 2D gốc Vinmec phục vụ huấn luyện và kiểm thử | `[Read-Only Source]` |
-| `metadata/kltn_ground_truth_307.csv` | Bảng Ground Truth 307 ca được bác sĩ Vinmec xác thực chính thức | `[Single Source of Truth]` |
-| `checkpoints/unified_vinmec_refine_2026-10-06/...` | Trọng số mô hình Standard U-Net tốt nhất (Val Dice ~0.6724) đang phục vụ API | `[Active Production Checkpoint]` |
-| `evaluation/selected_model.json` | Manifest chỉ định mô hình chính thức cho hệ thống | `[Active Production Manifest]` |
+| `metadata/kltn_ground_truth_307.csv` | Metadata nhãn tham chiếu Mốc 1; phê duyệt chuyên gia chưa được xác minh | `[Historical Reference]` |
+| `checkpoints/unified_vinmec_refine_2026-10-06/...` | Trọng số Standard U-Net (Val Dice ~0,6724) mặc định của prototype | `[Active Prototype Checkpoint]` |
+| `evaluation/selected_model.json` | Manifest chỉ định mô hình mặc định của prototype | `[Active Prototype Manifest]` |
 | `evaluation/archive/` | Kho lưu trữ toàn bộ dữ liệu thực nghiệm lịch sử M1 & M2 (tránh phình thư mục) | `[Historical Archive]` |
 | `metadata/thesis_exports/` | Lưu trữ file CSV tên tiếng Việt phục vụ phụ lục báo cáo khóa luận | `[Thesis Reference]` |
 | `data/uploads/` & `data/reports/` | Bộ nhớ đệm lưu trữ ảnh và báo cáo sinh trong lúc bác sĩ tương tác hệ thống | `[Runtime Data]` |

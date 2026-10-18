@@ -12,10 +12,17 @@ from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.app.config import UPLOAD_DIR
-from backend.app.routers.auth import require_admin
-from backend.db.database import ImageModel, PatientModel, StudyModel, get_db
+from backend.app.routers.auth import require_admin, require_clinical
+from backend.db.database import (
+    HITLEventModel,
+    HITLSessionModel,
+    ImageModel,
+    PatientModel,
+    ReviewBatchModel,
+    StudyModel,
+    get_db,
+)
 from backend.schemas.schemas import CreateCaseRequest
-from backend.services.demo_samples import demo_catalog
 
 router = APIRouter(tags=["Clinical Cases"])
 
@@ -72,7 +79,12 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
 
 @router.get("/api/cases")
 def list_cases(
-    search: str | None = None, status: str | None = None, date: str | None = None, db: Session = Depends(get_db)
+    search: str | None = None,
+    status: str | None = None,
+    date: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+    db: Session = Depends(get_db),
 ):
     """
     List all cases with search and filtering for Dashboard & History.
@@ -99,7 +111,13 @@ def list_cases(
             )
         )
 
-    studies = query.order_by(desc(StudyModel.created_at)).limit(50).all()
+    query = query.order_by(desc(StudyModel.created_at))
+    if offset:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    studies = query.all()
 
     cases_list = []
     for s in studies:
@@ -152,7 +170,20 @@ def list_cases(
     return cases_list
 
 
-@router.get("/api/cases/{study_id}")
+@router.get("/api/workspace/cases")
+def get_workspace_cases(
+    search: str | None = None,
+    status: str | None = None,
+    date: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """Alias for /api/cases used by workstation case manager."""
+    return list_cases(search=search, status=status, date=date, limit=limit, offset=offset, db=db)
+
+
+@router.get("/api/cases/{study_id}", dependencies=[Depends(require_clinical)])
 def get_case_detail(study_id: str, db: Session = Depends(get_db)):
     """
     Retrieve full case details for viewing/reopening.
@@ -163,9 +194,27 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin ca khám.")
 
+    latest_batch = (
+        db.query(ReviewBatchModel)
+        .filter(ReviewBatchModel.study_id == study_id)
+        .order_by(ReviewBatchModel.created_at.desc(), ReviewBatchModel.id.desc())
+        .first()
+    )
+    batch_review_ids = set()
+    if latest_batch and isinstance(latest_batch.response_json, dict):
+        batch_review_ids = {
+            item["review_id"]
+            for item in latest_batch.response_json.get("reviews", [])
+            if isinstance(item, dict) and "review_id" in item
+        }
+
     images_data = []
     for img in study.images:
-        last_r = max(img.reviews, key=lambda review: (review.created_at, review.id)) if img.reviews else None
+        last_r = None
+        if batch_review_ids and img.reviews:
+            last_r = next((review for review in img.reviews if review.id in batch_review_ids), None)
+        if not last_r and img.reviews:
+            last_r = max(img.reviews, key=lambda review: (review.created_at, review.id))
         pred_data = None
         if img.predictions:
             last_p = next((prediction for prediction in img.predictions if last_r and prediction.id == last_r.prediction_id), None)
@@ -188,6 +237,7 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
 
         review_data = None
         if last_r:
+            fb = last_r.hitl_feedback if isinstance(last_r.hitl_feedback, dict) else {}
             review_data = {
                 "review_id": last_r.id,
                 "prediction_id": last_r.prediction_id,
@@ -195,6 +245,9 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
                 "doctor_action": last_r.doctor_action,
                 "time_spent_seconds": last_r.time_spent_seconds,
                 "lesion_type": last_r.lesion_type,
+                "orads": fb.get("orads"),
+                "orads_score": fb.get("orads_score") or fb.get("orads"),
+                "morphology_description": fb.get("morphologyDesc") or fb.get("morphology_description"),
                 "clinical_notes": last_r.clinical_notes,
                 "hitl_feedback": last_r.hitl_feedback,
                 "reviewed_at": last_r.created_at.replace(tzinfo=UTC).isoformat(),
@@ -238,16 +291,13 @@ def get_case_detail(study_id: str, db: Session = Depends(get_db)):
 
 @router.get("/api/samples")
 def get_sample_cases(db: Session = Depends(get_db)):
-    """Return real retained 2D demo images without unverified clinical labels."""
-    return [metadata for metadata, _ in demo_catalog()]
+    """Retained compatibility endpoint; clinical images must be uploaded."""
+    return []
 
 
 @router.get("/api/samples/{sample_id}/image")
 def get_sample_image(sample_id: str):
-    for metadata, path in demo_catalog():
-        if metadata["id"] == sample_id:
-            return FileResponse(path, filename=metadata["image_filename"])
-    raise HTTPException(status_code=404, detail="Demo image unavailable.")
+    raise HTTPException(status_code=404, detail="Image unavailable.")
 
 
 @router.delete("/api/cases/{study_id}", dependencies=[Depends(require_admin)])
@@ -261,6 +311,20 @@ def delete_case(study_id: str, db: Session = Depends(get_db)):
 
     upload_root = Path(UPLOAD_DIR).resolve()
     uploaded_paths = [Path(img.raw_path).resolve() for img in study.images if img.raw_path]
+    # Clean up associated HITL sessions, events, and review batches to avoid orphan records
+    session_query = db.query(HITLSessionModel).filter(HITLSessionModel.study_id == study_id)
+    if hasattr(session_query, "all"):
+        sessions = session_query.all()
+        for s in (sessions if isinstance(sessions, list) else []):
+            if hasattr(s, "id"):
+                ev_query = db.query(HITLEventModel).filter(HITLEventModel.session_id == s.id)
+                if hasattr(ev_query, "delete"):
+                    ev_query.delete(synchronize_session=False)
+                db.delete(s)
+    batch_query = db.query(ReviewBatchModel).filter(ReviewBatchModel.study_id == study_id)
+    if hasattr(batch_query, "delete"):
+        batch_query.delete(synchronize_session=False)
+
     db.delete(study)
     db.commit()
     for path in uploaded_paths:

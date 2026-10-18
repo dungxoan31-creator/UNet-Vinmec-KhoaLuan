@@ -13,10 +13,16 @@ services:
     environment:
       - PORT=8000
       - PYTHONUNBUFFERED=1
+      - APP_DB_PATH=/app/data/ovarian_ai.db
+      - APP_DATA_DIR=/app/data
+      - APP_JWT_SECRET=${APP_JWT_SECRET:?APP_JWT_SECRET must be set in environment}
+      - APP_ADMIN_PASSWORD=${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD must be set in environment}
+      - APP_DOCTOR_PASSWORD=${APP_DOCTOR_PASSWORD:?APP_DOCTOR_PASSWORD must be set in environment}
     volumes:
-      - ./data/uploads:/app/data/uploads
-      - ./data/reports:/app/data/reports
-      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ./checkpoints:/app/checkpoints:ro
+      - ./evaluation:/app/evaluation:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s

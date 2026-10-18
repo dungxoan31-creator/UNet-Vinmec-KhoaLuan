@@ -9,15 +9,14 @@ export async function startBilateral(files, metadata) {
   if (state.busy) return;
   if (!files.L || !files.R)
     return toast("Cần đủ ảnh trái và phải trước khi chạy.", true);
-  if (state.demo) return toast("Dùng nút cặp ảnh sơ đồ trong chế độ demo.");
+
   const identity = state.user?.id,
     operation = Symbol();
   state.busy = true;
   state.operation = operation;
   state.controller = new AbortController();
   const signal = state.controller.signal,
-    active = () =>
-      state.user?.id === identity && !state.demo && !signal.aborted;
+    active = () => state.user?.id === identity && !signal.aborted;
   const cancel = $("[data-action=cancel-upload]");
   if (cancel) cancel.disabled = true;
   const indicator = setTimeout(() => {
@@ -74,29 +73,49 @@ export async function startBilateral(files, metadata) {
     };
     delete state.case.files;
     pending = null;
+    // UAT-03: Re-enable PID field now that the case flow is complete
+    const pidInput = document.querySelector("[name=pid]");
+    if (pidInput) { pidInput.disabled = false; pidInput.title = ""; }
     location.hash = "#viewer/" + state.case.study_id;
   }
   try {
+    const targetPid = (metadata.pid || "").trim();
     if (
       !pending ||
       pending.owner !== identity ||
       pending.files.L !== files.L ||
-      pending.files.R !== files.R
+      pending.files.R !== files.R ||
+      (pending.patient_id && targetPid && pending.patient_id !== targetPid) ||
+      (pending.requested_pid !== undefined && pending.requested_pid !== targetPid)
     ) {
+      pending = null;
       const result = await request("/api/cases", {
         method: "POST",
         body: {
           patient_id:
-            metadata.pid ||
+            targetPid ||
             "BN-" + crypto.randomUUID().slice(0, 8).toUpperCase(),
           active_ovary_side: "BOTH",
           clinical_notes: metadata.reason,
-          study_date: new Date().toISOString().slice(0, 10),
+          study_date: (() => {
+            const d = new Date();
+            return [
+              d.getFullYear(),
+              String(d.getMonth() + 1).padStart(2, "0"),
+              String(d.getDate()).padStart(2, "0"),
+            ].join("-");
+          })(),
         },
         signal,
       });
       check();
-      pending = { ...result, owner: identity, files: { ...files }, images: [] };
+      pending = { ...result, owner: identity, files: { ...files }, images: [], requested_pid: targetPid };
+      // UAT-03: Lock PID field once a case has been created to prevent stale PID on retry
+      const pidInput = document.querySelector("[name=pid]");
+      if (pidInput) {
+        pidInput.disabled = true;
+        pidInput.title = "Mã bệnh nhân đã được ghi nhận cho ca này. Tạo ca mới để thay đổi.";
+      }
       try {
         await tracker.startSession(pending.study_id, {
           participant_code: metadata.participant_code,
@@ -108,25 +127,37 @@ export async function startBilateral(files, metadata) {
         console.warn("HITL session init notice:", e);
       }
     }
+    const setStep = (stepNum) => {
+      const spans = document.querySelectorAll(".stepper span");
+      spans.forEach((s, idx) => {
+        s.classList.toggle("current", idx === stepNum - 1);
+        s.classList.toggle("done", idx < stepNum - 1);
+      });
+    };
+    setStep(1);
     // Upload both sides before inference so a failed model can still lead to manual review.
     for (const side of ["L", "R"]) await upload(side);
     for (const side of ["L", "R"]) {
       check();
       const image = pending.images.find((i) => i.laterality === side);
       if (image.prediction) continue;
+      setStep(2);
       stage(side, "Kiểm tra chất lượng ảnh…");
       const quality = await request(
         "/api/validate-image?image_id=" + encodeURIComponent(image.image_id),
         { method: "POST", signal },
       );
       image.iqa = quality;
-      if (!quality.is_acceptable && !image.iqaOverride)
+      if (!quality.is_acceptable && !image.iqaOverride) {
+        const iqaPct = quality.iqa_score != null ? Math.round(quality.iqa_score * 100) : 0;
         throw Object.assign(
           Error(
-            `Ảnh ${side === "L" ? "trái" : "phải"} chưa đạt kiểm tra chất lượng: ${quality.message || "Tải ảnh khác hoặc chọn vẽ tay."}`,
+            `Ảnh buồng trứng ${side === "L" ? "trái" : "phải"} chưa đạt kiểm chuẩn chất lượng (IQA: ${iqaPct}%): ${quality.message || "Ảnh bị mờ, thiếu tương phản hoặc có bóng cản lớn. Khuyến nghị chỉnh máy siêu âm và chụp lại."}`,
           ),
-          { qualityImage: image },
+          { qualityImage: image, qualityReport: quality },
         );
+      }
+      setStep(3);
       stage(side, "AI đang phân đoạn…");
       tracker.track(image.image_id, "INFERENCE_START");
       let prediction;
@@ -137,10 +168,13 @@ export async function startBilateral(files, metadata) {
         );
         tracker.track(image.image_id, "INFERENCE_END");
       } catch (err) {
-        tracker.track(image.image_id, "INFERENCE_FAILED", { error: err.message });
+        tracker.track(image.image_id, "INFERENCE_FAILED", {
+          error: err.message,
+        });
         throw err;
       }
       check();
+      setStep(4);
       image.prediction = prediction;
       image.mask = decode(prediction.rle_mask);
       image.aiMask = image.mask.slice();
@@ -161,10 +195,11 @@ export async function startBilateral(files, metadata) {
             : error.message,
           "retry-upload-error",
         ) +
-        `<div class="actions">${pending?.images.length === 2 ? button("Vẽ tay không cần AI", "manual-fallback") : ""}${error.qualityImage && state.capabilities.iqa_override ? button("Tiếp tục với ảnh chất lượng thấp", "iqa-override") : ""}</div>`;
-      $("[data-action=retry-upload-error]")?.addEventListener("click", () =>
-        startBilateral(files, metadata),
-      );
+        `<div class="actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${pending?.images.length === 2 ? button("Chuyển sang chế độ vẽ tay", "manual-fallback", "quiet") : ""}${error.qualityImage && state.capabilities.iqa_override ? button("Bỏ qua cảnh báo & tiếp tục", "iqa-override", "quiet") : ""}</div>`;
+      $("[data-action=retry-upload-error]")?.addEventListener("click", () => {
+        const freshPid = (document.querySelector("[name=pid]")?.value || metadata.pid || "").trim();
+        startBilateral(files, { ...metadata, pid: freshPid });
+      });
       $("[data-action=manual-fallback]")?.addEventListener(
         "click",
         async () => {
@@ -185,7 +220,7 @@ export async function startBilateral(files, metadata) {
               image.mask ??= new Uint8Array(262144);
               image.aiMask ??= image.mask.slice();
             }
-            if (state.user?.id !== identity || state.demo) return;
+            if (state.user?.id !== identity) return;
             state.case = { ...current, status: "IN_REVIEW" };
             delete state.case.files;
             pending = null;

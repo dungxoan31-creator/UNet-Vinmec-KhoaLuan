@@ -1,183 +1,238 @@
-"""
-Authentication, User Profiles, JWT Tokens, and Role-Based Access Control (RBAC).
-"""
-
+import hashlib
+import os
+import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import jwt
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.config import CURRENT_ACTIVE_USER
 from backend.db.database import UserModel, get_db
-from backend.schemas.schemas import LoginRequest, SwitchRoleRequest, TokenResponse, UserProfile
+from backend.schemas.schemas import LoginRequest, RegisterRequest, TokenResponse, UserProfile
 
-JWT_SECRET = "vinmec-medical-ai-ovarian-secret-key-2026"
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
-
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 router = APIRouter(tags=["Authentication & RBAC"])
 
 
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000)
+    return f"{salt}:{key.hex()}"
+
+
+def verify_password(password: str, hashed: str) -> bool:
+    try:
+        if not hashed or ":" not in hashed:
+            return False
+        salt, key_hex = hashed.split(":", 1)
+        expected_key = bytes.fromhex(key_hex)
+        key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100_000)
+        return secrets.compare_digest(key, expected_key)
+    except Exception:
+        return False
+
+
+def _signing_key() -> str:
+    key = os.environ.get("APP_JWT_SECRET", "")
+    if len(key) < 32:
+        raise HTTPException(status_code=503, detail="Configure APP_JWT_SECRET with at least 32 characters.")
+    return key
+
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
-    """Generates a signed JWT access token."""
-    to_encode = data.copy()
-    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire, "iat": datetime.now(UTC)})
-    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    now = datetime.now(UTC)
+    payload = {**data, "exp": now + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)), "iat": now}
+    return jwt.encode(payload, _signing_key(), algorithm=JWT_ALGORITHM)
 
 
-def get_current_user(
-    authorization: str | None = Header(None),
-    db: Session = Depends(get_db),
-) -> UserModel:
-    """
-    Dependency extracting and validating the current user from JWT Bearer token,
-    falling back to current active session for seamless demo/testing workflows.
-    """
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ")[1]
-        try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-            username: str = payload.get("sub")
-            if username:
-                user = db.query(UserModel).filter(UserModel.username == username).first()
-                if user and user.is_active:
-                    return user
-        except (jwt.PyJWTError, Exception):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token xác thực không hợp lệ hoặc đã hết hạn.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-    # Fallback to active runtime user for testing & backward compatibility
-    user = db.query(UserModel).filter(UserModel.username == CURRENT_ACTIVE_USER["username"]).first()
-    if not user:
-        user = db.query(UserModel).first()
+def get_current_user(authorization: str | None = Header(None), db: Session = Depends(get_db)) -> UserModel:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Sign in required.", headers={"WWW-Authenticate": "Bearer"})
+    try:
+        payload = jwt.decode(authorization[7:], _signing_key(), algorithms=[JWT_ALGORITHM])
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.") from exc
+    username = payload.get("sub")
+    user = db.query(UserModel).filter(UserModel.username == username).first() if username else None
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Account unavailable.")
     return user
 
 
 def require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
-    """Dependency verifying that the user has ADMIN privileges."""
-    if not current_user or current_user.role != "ADMIN":
+    if current_user.role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    return current_user
+
+
+def require_clinical(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    if current_user.role != "DOCTOR":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yêu cầu quyền Quản trị viên (ADMIN) để thực hiện thao tác này.",
+            status_code=403,
+            detail="Tài khoản quản trị viên hoặc phi lâm sàng không có quyền truy cập hồ sơ và hình ảnh người bệnh.",
         )
     return current_user
 
 
 @router.post("/api/auth/login", response_model=TokenResponse)
 def login(req: LoginRequest, db: Session = Depends(get_db)):
-    """
-    Authenticates user credentials and issues a signed JWT Bearer access token.
-    Default demo passwords match usernames (e.g. 'bacsi' / 'admin').
-    """
-    username_clean = req.username.strip().lower()
-    user = db.query(UserModel).filter(UserModel.username == username_clean).first()
-    if not user:
-        if username_clean == "doctor":
-            user = db.query(UserModel).filter(UserModel.username == "bacsi").first()
-        elif username_clean == "bacsi":
-            user = db.query(UserModel).filter(UserModel.username == "doctor").first()
-
+    username = req.username.strip().lower()
+    user = db.query(UserModel).filter(UserModel.username == username).first()
     if not user or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Tên đăng nhập hoặc mật khẩu không chính xác.",
-        )
+        raise HTTPException(status_code=401, detail="Invalid username or password.")
 
-    # Issue signed JWT Bearer access token
+    password = req.password or ""
+    if user.password_hash:
+        if not verify_password(password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Invalid username or password.")
+    else:
+        password_variable = "APP_ADMIN_PASSWORD" if user.role == "ADMIN" else "APP_DOCTOR_PASSWORD"
+        configured_password = os.environ.get(password_variable)
+        if not configured_password or not secrets.compare_digest(password, configured_password):
+            raise HTTPException(status_code=401, detail="Invalid username or password.")
 
-    access_token = create_access_token(data={"sub": user.username, "role": user.role, "uid": user.id})
-    CURRENT_ACTIVE_USER["username"] = user.username
-    CURRENT_ACTIVE_USER["role"] = user.role
-
-    user_profile = UserProfile(
-        id=user.id,
-        username=user.username,
-        full_name=user.full_name,
-        role=user.role,
-        department=user.department,
-        title=user.title,
-        hospital=user.hospital,
-        avatar=user.avatar,
-        is_active=user.is_active,
+    return TokenResponse(
+        access_token=create_access_token({"sub": user.username, "uid": user.id}),
+        user=UserProfile.model_validate(user, from_attributes=True),
     )
 
-    return TokenResponse(access_token=access_token, user=user_profile)
+
+@router.post("/api/auth/register", response_model=TokenResponse)
+def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    if req.role and req.role.upper() == "ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Không thể tự cấp quyền quản trị viên qua đăng ký công khai.",
+        )
+
+    username = req.username.strip().lower()
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Tên đăng nhập phải có ít nhất 3 ký tự.")
+    if not req.password or len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu phải có ít nhất 6 ký tự.")
+    if not req.full_name or len(req.full_name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="Họ và tên không được để trống.")
+
+    existing = db.query(UserModel).filter(UserModel.username == username).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Tên đăng nhập đã tồn tại trong hệ thống.")
+
+    new_user = UserModel(
+        id=str(uuid.uuid4()),
+        username=username,
+        password_hash=hash_password(req.password),
+        full_name=req.full_name.strip(),
+        role="DOCTOR",
+        department=req.department or "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa",
+        title=req.title or "BS",
+        hospital=req.hospital or "Bệnh viện ĐKQT Vinmec Times City",
+        avatar="doctor_avatar.png",
+        is_active=True,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return TokenResponse(
+        access_token=create_access_token({"sub": new_user.username, "uid": new_user.id}),
+        user=UserProfile.model_validate(new_user, from_attributes=True),
+    )
 
 
-@router.get("/api/auth/users", response_model=list[UserProfile])
+@router.get("/api/auth/users", response_model=list[UserProfile], dependencies=[Depends(require_admin)])
 def get_system_users(db: Session = Depends(get_db)):
-    """
-    Returns available user accounts (Doctor vs Admin).
-    """
-    users = db.query(UserModel).all()
-    return [
-        {
-            "id": u.id,
-            "username": u.username,
-            "full_name": u.full_name,
-            "role": u.role,
-            "department": u.department,
-            "title": u.title,
-            "hospital": u.hospital,
-            "avatar": u.avatar,
-            "is_active": u.is_active,
-        }
-        for u in users
-    ]
+    return [UserProfile.model_validate(user, from_attributes=True) for user in db.query(UserModel).all()]
 
 
 @router.get("/api/auth/current-user", response_model=UserProfile)
 def get_current_user_profile(user: UserModel = Depends(get_current_user)):
-    """
-    Returns current active user session profile.
-    """
+    return UserProfile.model_validate(user, from_attributes=True)
+
+
+def create_reset_token(username: str, expires_delta: timedelta | None = None) -> str:
+    now = datetime.now(UTC)
+    payload = {
+        "sub": username,
+        "purpose": "reset_password",
+        "exp": now + (expires_delta or timedelta(hours=1)),
+        "iat": now,
+    }
+    return jwt.encode(payload, _signing_key(), algorithm=JWT_ALGORITHM)
+
+
+@router.post("/api/auth/forgot-password")
+def forgot_password(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    """Accept password recovery request."""
+    username = (payload.get("username") or "").strip().lower()
+    user = db.query(UserModel).filter(UserModel.username == username).first() if username else None
+    token = create_reset_token(user.username) if user else None
     return {
-        "id": user.id,
-        "username": user.username,
-        "full_name": user.full_name,
-        "role": user.role,
-        "department": user.department,
-        "title": user.title,
-        "hospital": user.hospital,
-        "avatar": user.avatar,
-        "is_active": user.is_active,
+        "status": "SUCCESS",
+        "message": "Nếu tài khoản tồn tại, yêu cầu đặt lại mật khẩu đã được tiếp nhận.",
+        "reset_token": token,
     }
 
 
-@router.post("/api/auth/switch-role")
-def switch_active_role(req: SwitchRoleRequest, db: Session = Depends(get_db)):
-    """
-    Switches active session role between DOCTOR and ADMIN, issuing a new signed JWT token.
-    """
-    target_role = req.role.upper()
-    if target_role not in ["DOCTOR", "ADMIN"]:
-        raise HTTPException(status_code=400, detail="Vai trò không hợp lệ.")
+@router.post("/api/auth/reset-password")
+def reset_password(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    """Reset account password via secure token."""
+    username = (payload.get("username") or "").strip().lower()
+    token = (payload.get("token") or "").strip()
+    new_pw = payload.get("new_password", "")
 
-    user = db.query(UserModel).filter(UserModel.role == target_role).first()
-    if user:
-        CURRENT_ACTIVE_USER["username"] = user.username
-        CURRENT_ACTIVE_USER["role"] = user.role
-        access_token = create_access_token(data={"sub": user.username, "role": user.role, "uid": user.id})
-        return {
-            "status": "SUCCESS",
-            "message": f"Đã chuyển sang tài khoản {user.full_name} ({user.role})",
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "full_name": user.full_name,
-                "role": user.role,
-                "department": user.department,
-                "title": user.title,
-                "hospital": user.hospital,
-            },
-        }
+    if not token:
+        raise HTTPException(status_code=400, detail="Token đặt lại mật khẩu không được để trống.")
+    if not new_pw or len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự.")
 
-    CURRENT_ACTIVE_USER["role"] = target_role
-    return {"status": "SUCCESS", "role": target_role}
+    try:
+        data = jwt.decode(token, _signing_key(), algorithms=[JWT_ALGORITHM])
+        if data.get("purpose") != "reset_password":
+            raise HTTPException(status_code=400, detail="Token không hợp lệ.")
+        token_user = (data.get("sub") or "").lower()
+        if username and token_user != username:
+            raise HTTPException(status_code=400, detail="Token không khớp với người dùng.")
+        target_username = token_user or username
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=400, detail="Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.") from exc
+
+    user = db.query(UserModel).filter(UserModel.username == target_username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản người dùng.")
+
+    user.password_hash = hash_password(new_pw)
+    db.commit()
+    return {"status": "SUCCESS", "message": "Mật khẩu đã được đặt lại thành công."}
+
+
+@router.post("/api/auth/change-password")
+def change_password(payload: dict = Body(default={}), user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Allow logged in user to update clinical credentials."""
+    old_pw = payload.get("old_password") or payload.get("current_password") or ""
+    new_pw = payload.get("new_password", "")
+    if not new_pw:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới không được để trống")
+    if len(new_pw) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
+
+    if user.password_hash:
+        if not verify_password(old_pw, user.password_hash):
+            raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác")
+    else:
+        password_variable = "APP_ADMIN_PASSWORD" if user.role == "ADMIN" else "APP_DOCTOR_PASSWORD"
+        configured_password = os.environ.get(password_variable)
+        if not configured_password or not secrets.compare_digest(old_pw, configured_password):
+            raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác")
+
+    user.password_hash = hash_password(new_pw)
+    db.commit()
+    return {"status": "SUCCESS", "message": "Đổi mật khẩu thành công."}
+
+
+@router.post("/api/auth/refresh")
+def refresh_token(user: UserModel = Depends(get_current_user)):
+    """Renew clinical session JWT token."""
+    token = create_access_token({"sub": user.username, "uid": user.id})
+    return {"access_token": token, "token_type": "bearer", "expires_in": 86400}

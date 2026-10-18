@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-17T01:06:25+07:00",
+  "generated_at": "2026-10-17T12:43:57+07:00",
   "test_scope": "selected",
   "overall_exit_code": 0,
   "prototype_ready": true,
@@ -9,7 +9,7 @@
   "independent_gate_status": "BLOCKED",
   "browser_skipped": false,
   "live_browser_verified": true,
-  "commands_executed": 9,
+  "commands_executed": 8,
   "blockers": [
     "Independent test cohort patient-level mapping unverified (independent_gate status: BLOCKED)"
   ],

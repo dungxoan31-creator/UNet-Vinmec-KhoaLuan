@@ -115,3 +115,44 @@ def compute_dataset_clinical_summary(sample_results: list) -> dict:
         "specificity_normal_cases": empty_spec_mean,
         "specificity_all_cases": spec_mean
     }
+
+
+def compute_hd95_and_asd(pred_binary: np.ndarray, gt_binary: np.ndarray, voxelspacing: float = 1.0) -> dict:
+    """
+    Computes 95th percentile Hausdorff Distance (HD95) and Average Surface Distance (ASD)
+    between predicted binary mask and ground truth binary mask.
+    Handles empty masks according to clinical convention.
+    """
+    from scipy.ndimage import binary_erosion, distance_transform_edt
+
+    p = (pred_binary > 0).astype(bool)
+    g = (gt_binary > 0).astype(bool)
+
+    if not p.any() and not g.any():
+        return {"hd95": 0.0, "asd": 0.0, "is_valid": True}
+    if not p.any() or not g.any():
+        return {"hd95": None, "asd": None, "is_valid": False}
+
+    # Extract surface boundaries via morphological erosion
+    p_border = p ^ binary_erosion(p)
+    g_border = g ^ binary_erosion(g)
+
+    if not p_border.any() or not g_border.any():
+        return {"hd95": 0.0, "asd": 0.0, "is_valid": True}
+
+    dt_gt = distance_transform_edt(~g_border, sampling=voxelspacing)
+    dt_pred = distance_transform_edt(~p_border, sampling=voxelspacing)
+
+    distances_pred_to_gt = dt_gt[p_border]
+    distances_gt_to_pred = dt_pred[g_border]
+
+    all_distances = np.concatenate([distances_pred_to_gt, distances_gt_to_pred])
+
+    hd95 = float(np.percentile(all_distances, 95))
+    asd = float(np.mean(all_distances))
+
+    return {
+        "hd95": round(hd95, 2),
+        "asd": round(asd, 2),
+        "is_valid": True,
+    }

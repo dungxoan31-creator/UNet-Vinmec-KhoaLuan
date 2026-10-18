@@ -7,6 +7,7 @@ import os
 import shutil
 import sqlite3
 import tarfile
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -14,36 +15,68 @@ from typing import Any
 class BackupService:
     def __init__(
         self,
-        db_path: str = "ovarian_ai.db",
-        data_dir: str = "data",
+        db_path: str | None = None,
+        data_dir: str | None = None,
         backup_dir: str = "backups",
     ):
-        self.db_path = os.path.abspath(db_path)
-        self.data_dir = os.path.abspath(data_dir)
-        self.backup_dir = os.path.abspath(backup_dir)
+        from backend.db.database import DB_PATH
+
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+        if db_path:
+            self.db_path = os.path.abspath(db_path) if os.path.isabs(db_path) else os.path.abspath(os.path.join(project_root, db_path))
+        elif os.environ.get("APP_DB_PATH"):
+            env_db = os.environ.get("APP_DB_PATH")
+            self.db_path = os.path.abspath(env_db) if os.path.isabs(env_db) else os.path.abspath(os.path.join(project_root, env_db))
+        else:
+            self.db_path = DB_PATH
+
+        if data_dir:
+            self.data_dir = os.path.abspath(data_dir) if os.path.isabs(data_dir) else os.path.abspath(os.path.join(project_root, data_dir))
+        elif os.environ.get("APP_DATA_DIR"):
+            env_data = os.environ.get("APP_DATA_DIR")
+            self.data_dir = os.path.abspath(env_data) if os.path.isabs(env_data) else os.path.abspath(os.path.join(project_root, env_data))
+        else:
+            self.data_dir = os.path.abspath(os.path.join(project_root, "data"))
+
+        self.backup_dir = os.path.abspath(backup_dir) if os.path.isabs(backup_dir) else os.path.abspath(os.path.join(project_root, backup_dir))
         os.makedirs(self.backup_dir, exist_ok=True)
 
     def create_backup(self, include_images: bool = True) -> dict[str, Any]:
         """
         Creates a timestamped snapshot of the SQLite database and uploaded clinical media files.
         """
+        if not os.path.exists(self.db_path):
+            raise FileNotFoundError(f"Database file not found: {self.db_path}")
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_name = f"vinmec_ovarian_backup_{timestamp}"
+        unique_suffix = uuid.uuid4().hex[:6]
+        base_name = f"vinmec_ovarian_backup_{timestamp}_{unique_suffix}"
+
+        # Avoid colliding archive paths if called in the same second (BUG-30)
+        candidate_name = base_name
+        counter = 1
+        while os.path.exists(os.path.join(self.backup_dir, f"{candidate_name}.tar.gz")):
+            candidate_name = f"{base_name}_{counter}"
+            counter += 1
+
+        backup_name = candidate_name
         archive_path = os.path.join(self.backup_dir, f"{backup_name}.tar.gz")
 
-        temp_backup_dir = os.path.join(self.backup_dir, backup_name)
+        temp_dir_name = f"{backup_name}_{uuid.uuid4().hex[:6]}"
+        temp_backup_dir = os.path.join(self.backup_dir, temp_dir_name)
         os.makedirs(temp_backup_dir, exist_ok=True)
 
         try:
-            # 1. Hot SQLite Backup using online backup API
-            if os.path.exists(self.db_path):
-                dest_db_path = os.path.join(temp_backup_dir, "ovarian_ai.db")
-                src_conn = sqlite3.connect(self.db_path)
-                dest_conn = sqlite3.connect(dest_db_path)
-                with dest_conn:
-                    src_conn.backup(dest_conn, pages=100)
-                dest_conn.close()
-                src_conn.close()
+            # 1. Hot SQLite Backup using online backup API (BUG-29)
+            dest_db_name = os.path.basename(self.db_path)
+            dest_db_path = os.path.join(temp_backup_dir, dest_db_name)
+            src_conn = sqlite3.connect(self.db_path)
+            dest_conn = sqlite3.connect(dest_db_path)
+            with dest_conn:
+                src_conn.backup(dest_conn, pages=100)
+            dest_conn.close()
+            src_conn.close()
 
             # 2. Copy media directories if requested
             if include_images and os.path.exists(self.data_dir):
@@ -88,9 +121,9 @@ class BackupService:
                 backups.append(
                     {
                         "filename": fname,
+                        "path": fpath,
                         "size_mb": round(stat.st_size / (1024 * 1024), 2),
                         "created_at": datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M:%S"),
-                        "path": fpath,
                     }
                 )
         return backups

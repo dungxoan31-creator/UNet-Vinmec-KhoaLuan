@@ -253,19 +253,11 @@ def test_invalid_survey_is_rejected(source_case, feedback):
     assert result.status_code == 422
 
 
-def test_demo_catalog_has_readable_assets_and_no_invented_clinical_facts(doctor_access):
+def test_retired_sample_catalog_exposes_no_training_images(doctor_access):
     with TestClient(app) as client:
         result = client.get("/api/samples")
         assert result.status_code == 200
-        samples = result.json()
-        assert samples
-        for sample in samples:
-            assert sample["pathology"] is None and sample["patient_id"] is None
-            assert sample["ovary_side"] == "UNKNOWN" and sample["dataset_split"] == "Validation"
-            assert "max_diameter_mm" not in sample and "patient_age" not in sample
-            image = client.get(sample["image_url"])
-            assert image.status_code == 200
-            assert cv2.imdecode(np.frombuffer(image.content, np.uint8), cv2.IMREAD_GRAYSCALE) is not None
+        assert result.json() == []
         assert client.get("/api/samples/unknown/image").status_code == 404
         assert client.get("/api/samples/%2e%2e%2fsecret/image").status_code == 404
 

@@ -1,124 +1,127 @@
-/**
- * MODULE: NAVIGATION.JS
- */
-
-
-function navigateTo(screenName) {
-    // RBAC Guard: Bác sĩ chỉ được dùng để khám bệnh (Khám & Phân Tích) và xem hồ sơ bệnh nhân (Hồ Sơ Bệnh Án)
-    if ((screenName === 'admin_portal' || screenName === 'dashboard') && currentRole !== 'ADMIN') {
-        showToast("⚠️ Phân quyền: Bác sĩ chỉ có quyền thực hiện Khám & Phân Tích và xem Hồ Sơ Bệnh Án.", false);
-        navigateTo('dual_upload');
-        return;
+/** Hash routing and common accessible UI for the research workflow. */
+const API_BASE_URL = window.location.origin;
+const API_BASE = API_BASE_URL;
+const $ = id => document.getElementById(id);
+let activeRoute = 'home';
+let toastTimer;
+const screens = {home:'screenDashboard',new_case:'screenUpload',cases:'screenHistory',results:'screenResults',evaluation:'screenEvaluation',admin:'screenAdmin'};
+const routeAliases = {dashboard:'home',upload:'new_case',create_case:'new_case',dual_upload:'new_case',history:'cases',review:'results'};
+function navigateTo(route, options={}) {
+    route = routeAliases[route] || route;
+    if (!screens[route]) route = 'home';
+    if (route === 'results' && !currentPrediction) route = 'new_case';
+    if (route !== 'home' && (!currentUser || !sessionStorage.getItem('ovarian_ai_access_token'))) {
+        openLogin(route);
+        route = 'home';
     }
-
-    document.body.classList.toggle('pacs-mode', ['dual_upload', 'dual_results', 'dual_report'].includes(screenName));
-    document.querySelectorAll('.screen-container').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav-item-btn').forEach(b => b.classList.remove('active'));
-
-    if (screenName === 'dashboard') {
-        document.getElementById('screenDashboard').classList.add('active');
-        document.getElementById('navDashboard').classList.add('active');
-        loadDashboardStats();
-        loadDashboardCases();
-        checkDraftOnLoad();
-    } else if (screenName === 'create_case') {
-        document.getElementById('screenCreateCase').classList.add('active');
-        document.getElementById('navNewCase').classList.add('active');
-        const studyDateInput = document.getElementById('inputStudyDate');
-        if (studyDateInput && !studyDateInput.value) {
-            studyDateInput.value = new Date().toISOString().split('T')[0];
+    if (route === 'admin' && currentUser?.role !== 'ADMIN') route = 'home';
+    if (currentCase.saving || currentCase.processing) {
+        if (route !== activeRoute) {
+            showToast('Đang xử lý. Vui lòng chờ thao tác hoàn tất.');
+            history.replaceState(null, '', '#'+activeRoute);
+            return;
         }
-    } else if (screenName === 'dual_upload') {
-        document.getElementById('screenDualUpload').classList.add('active');
-        document.getElementById('navNewCase').classList.add('active');
-    } else if (screenName === 'dual_results') {
-        document.getElementById('screenDualResults').classList.add('active');
-    } else if (screenName === 'dual_report') {
-        document.getElementById('screenDualReport').classList.add('active');
-    } else if (screenName === 'upload') {
-        document.getElementById('screenUpload').classList.add('active');
-        const pidEl = document.getElementById('uploadCurrentPidText');
-        if (pidEl) pidEl.innerText = (typeof currentCase !== 'undefined' && currentCase && currentCase.patient_id) ? currentCase.patient_id : 'BN-VINMEC';
-    } else if (screenName === 'quality_check') {
-        document.getElementById('screenQualityCheck').classList.add('active');
-    } else if (screenName === 'ai_progress') {
-        document.getElementById('screenAIProgress').classList.add('active');
-    } else if (screenName === 'results') {
-        document.getElementById('screenResults').classList.add('active');
-    } else if (screenName === 'report_complete') {
-        document.getElementById('screenReportComplete').classList.add('active');
-    } else if (screenName === 'history') {
-        document.getElementById('screenHistory').classList.add('active');
-        document.getElementById('navHistory').classList.add('active');
-        loadHistoryTable();
-    } else if (screenName === 'admin_portal') {
-        document.getElementById('screenAdminPortal').classList.add('active');
-        const adminNavBtn = document.getElementById('navAdminPortal');
-        if (adminNavBtn) adminNavBtn.classList.add('active');
-        loadAdminData();
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (route === 'new_case' && activeRoute !== route && currentCase.study_id && !options.reuseCase) {
+        if (!canReplaceCase()) {
+            history.replaceState(null, '', '#'+activeRoute);
+            return;
+        }
+        resetSingleCase();
+    }
+    const routeChanged = activeRoute !== route;
+    if (routeChanged && route !== 'cases') clearTimeout(caseFilterTimer);
+    activeRoute = route;
+    Object.entries(screens).forEach(([key,id]) => {
+        $(id).hidden = key !== route;
+        $(id).classList.toggle('active', key === route);
+    });
+    document.querySelectorAll('[data-route]').forEach(link => {
+        if (link.dataset.route === route || (route === 'results' && link.dataset.route === 'cases')) link.setAttribute('aria-current','page');
+        else link.removeAttribute('aria-current');
+    });
+    if (location.hash !== '#'+route) history.pushState(null, '', '#'+route);
+    if (route === 'cases') loadAllCases();
+    if (route === 'evaluation') loadEvaluation();
+    if (route === 'admin') loadAdminWorkspace();
+    if (route === 'results') {
+        syncReviewUI();
+        if (!window.matchMedia('(min-width:1201px)').matches) $('reviewPanel').open = false;
+    }
+    if (routeChanged) window.scrollTo(0,0);
+    document.title = (route === 'results' ? (currentCase.study_code || 'Case') : ({home:'Overview',new_case:'New Case',cases:'Cases',evaluation:'Evaluation',admin:'Admin'})[route])+' · Ovarian Segmentation';
 }
-
-function executeQuickSearch() {
-            const query = document.getElementById('quickSearchInput').value.trim();
-            if (query) {
-                navigateTo('history');
-                document.getElementById('histSearchInput').value = query;
-                filterHistory();
-            }
-        }
-
-function showToast(msg, isSuccess = true) {
-            const toast = document.getElementById('toastNotification');
-            document.getElementById('toastMsg').innerText = msg;
-            document.getElementById('toastIcon').innerText = isSuccess ? '✓' : '⚠️';
-            toast.style.borderLeftColor = isSuccess ? 'var(--vm-green)' : 'var(--vm-accent-red)';
-            toast.style.display = 'flex';
-            setTimeout(() => { toast.style.display = 'none'; }, 3200);
-        }
-
-function toggleMobileDrawer() {
-            const overlay = document.getElementById('mobileDrawerOverlay');
-            if (overlay) overlay.classList.toggle('active');
-        }
-
-function closeMobileDrawer() {
-            const overlay = document.getElementById('mobileDrawerOverlay');
-            if (overlay) overlay.classList.remove('active');
-        }
-
-document.addEventListener('DOMContentLoaded', () => {
-            const overlay = document.getElementById('mobileDrawerOverlay');
-            if (overlay) {
-                overlay.addEventListener('click', (e) => {
-                    if (e.target === overlay) closeMobileDrawer();
-                });
-            }
-        });
-
+function showToast(message, success=true) {
+    clearTimeout(toastTimer);
+    $('toast').textContent = message;
+    $('toast').hidden = false;
+    $('toast').style.background = success ? '#20435d' : '#8e3030';
+    toastTimer = setTimeout(()=>$('toast').hidden=true, 5000);
+}
+function showError(id, message) { $(id).textContent = message || ''; $(id).hidden = !message; }
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+function finiteMetric(value) { return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(3) : 'Chưa có'; }
+async function apiJson(path, options={}) {
+    const response = await authenticatedFetch(API_BASE+path, options);
+    if (!response.ok) {
+        // Deliberately don't display backend traces or arbitrary diagnostic detail.
+        const messages = {401:'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',403:'Tài khoản chưa có quyền thực hiện thao tác này.',404:'Không tìm thấy dữ liệu. Hãy tải lại danh sách hoặc chọn ca khác.',409:'Ảnh đã có trong ca. Hãy mở lại ca hoặc tạo ca mới.',413:'Tệp vượt quá 20 MB. Hãy chọn ảnh nhỏ hơn.',422:'Ảnh hoặc mask không hợp lệ. Kiểm tra tệp siêu âm, vùng mask và thử lại.',503:'Mô hình hoặc dịch vụ chưa sẵn sàng. Hãy thử lại sau.'};
+        throw new Error(messages[response.status] || 'Không thể hoàn tất yêu cầu. Hãy thử lại.');
+    }
+    return response.json();
+}
 function setupKeyboardShortcuts() {
-            window.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-                if (e.code === 'Space') {
-                    e.preventDefault();
-                    toggleMaskOverlay();
-                } else if (e.key === 'b' || e.key === 'B') {
-                    setCanvasTool('brush');
-                } else if (e.key === 'e' || e.key === 'E') {
-                    setCanvasTool('eraser');
-                } else if (e.key === '+' || e.key === '=') {
-                    zoomInCanvas();
-                } else if (e.key === '-' || e.key === '_') {
-                    zoomOutCanvas();
-                } else if (e.key === '0') {
-                    resetZoomCanvas();
-                } else if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
-                    e.preventDefault();
-                    undoCanvas();
-                } else if (e.ctrlKey && (e.key === 'y' || e.key === 'Y')) {
-                    e.preventDefault();
-                    redoCanvas();
-                }
-            });
+    window.addEventListener('keydown', e => {
+        if (activeRoute !== 'results' || document.querySelector('dialog[open]') || currentCase.saving || !currentCase.maskReady) return;
+        if (e.code === 'Space' && activeRoute === 'results' && !e.target.closest('input,textarea,select,[contenteditable=true]')) {
+            e.preventDefault();
+            if (!isSpacePressed) {
+                isSpacePressed = true;
+                if (canvas && !isPanning) canvas.style.cursor = 'grab';
+            }
+            return;
         }
+        if (e.target.closest('input,textarea,select,[contenteditable=true]')) return;
+        const key = e.key.toLowerCase();
+        if ((e.ctrlKey || e.metaKey) && key==='z') { e.preventDefault(); e.shiftKey ? redoCanvas() : undoCanvas(); }
+        else if ((e.ctrlKey || e.metaKey) && key==='y') { e.preventDefault(); redoCanvas(); }
+        else if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+            if (key==='b') setCanvasTool('brush');
+            else if (key==='e') setCanvasTool('eraser');
+            else if (key==='h') setCanvasTool('pan');
+            else if (key==='[') { e.preventDefault(); setBrushSize(brushSize-2); }
+            else if (key===']') { e.preventDefault(); setBrushSize(brushSize+2); }
+            else if (key==='1') setViewMode('original');
+            else if (key==='2') setViewMode('mask');
+            else if (key==='3') setViewMode('overlay');
+            else if (key==='+' || key==='=') zoomInCanvas();
+            else if (key==='-') zoomOutCanvas();
+            else if (key==='0') resetZoomCanvas();
+            else if (key==='?' || (key==='/' && e.shiftKey)) openShortcutModal();
+            else if (e.target === $('canvasContainer') && key.startsWith('arrow')) {
+                e.preventDefault();
+                if (key==='arrowleft') panOffsetX-=20;
+                if (key==='arrowright') panOffsetX+=20;
+                if (key==='arrowup') panOffsetY-=20;
+                if (key==='arrowdown') panOffsetY+=20;
+                applyCanvasZoom();
+            }
+        }
+    });
+    window.addEventListener('keyup', e => {
+        if (e.code === 'Space') {
+            isSpacePressed = false;
+            if (canvas && !isPanning) canvas.style.cursor = currentTool === 'pan' ? 'grab' : 'none';
+        }
+    });
+    window.addEventListener('hashchange',()=>navigateTo(location.hash.slice(1)));
+    window.addEventListener('beforeunload', e => {
+        if (currentCase.dirty || currentCase.saving || currentCase.processing) { e.preventDefault(); e.returnValue=''; }
+    });
+}
+async function toggleViewerFullscreen() {
+    try { if (document.fullscreenElement) await document.exitFullscreen(); else await $('imageViewer').requestFullscreen(); }
+    catch { showToast('Trình duyệt chưa hỗ trợ toàn màn hình.',false); }
+}

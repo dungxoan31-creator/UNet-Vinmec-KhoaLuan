@@ -55,7 +55,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       return;
     }
     state.editing = { caseId: c.study_id, allowed: !readonly };
-    root.innerHTML = `<div class="viewer-head"><div class="actions"><a class="icon-btn" href="#cases" aria-label="Về danh sách">${icon("list")}</a><strong>${esc(c.study_code || c.study_id)}</strong><span class="muted small">${esc(c.patient_id)}</span>${badge(c.status)}</div><div class="actions">${button("Trái", "side-L", "small primary")}${button("Phải", "side-R", "small")}${button("Lưu rà soát", "save-review", "small")}${button("Tải kết quả", "export-research", "small")}${button("Ký sơ bộ", "sign", "primary")}${correction ? button("Lưu phiên bản sửa", "save-correction", "primary") : ""}${button("Phiếu", "report", "small")}${button("Rà soát", "panel-toggle", "small")}</div></div><div class="viewer-grid"><aside class="toolrail" aria-label="Công cụ chỉnh mask">${[
+    root.innerHTML = `<div class="viewer-head"><div class="actions"><a class="icon-btn" href="#cases" aria-label="Về danh sách">${icon("list")}</a><strong>${esc(c.study_code || c.study_id)}</strong><span class="muted small">${esc(c.patient_id)}</span>${badge(c.status)}</div><div class="actions">${button("Trái", "side-L", "small primary")}${button("Phải", "side-R", "small")}${button("Lưu rà soát", "save-review", "small")}${button("Tải kết quả", "export-research", "small")}${button("Ký sơ bộ", "sign", "primary")}${correction ? button("Lưu phiên bản sửa", "save-correction", "primary") : ""}${button("Phiếu", "report", "small")}${button("Rà soát", "panel-toggle", "small")}${button("?", "shortcuts-help", "small quiet")}</div></div><div class="viewer-grid"><aside class="toolrail" aria-label="Công cụ chỉnh mask">${[
       ["brush", "brush", "Cọ vẽ (B)"],
       ["erase", "erase", "Tẩy (E)"],
       ["polygon", "polygon", "Đa giác (L)"],
@@ -76,7 +76,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       )
       .join(
         "",
-      )}</aside><section class="viewer-center"><div class="viewer-controls">${["Gốc", "Mask", "Lớp phủ"].map((v, i) => button(v, "layer-" + i, "small")).join("")}${button("Đường viền", "contour", "small")}${button("Đối chiếu gốc", "compare", "small")}${button("Hai bên", "bilateral", "small")}${button("Mask AI", "ai-compare", "small")}<label class="range-row">Cọ <input type="range" id="brushSize" min="2" max="64" value="16" aria-label="Cỡ cọ"><output id="brushOutput">16</output></label><label class="range-row">Độ mờ<input id="opacity" type="range" min="0" max="100" value="35"></label></div><div class="viewport-wrap"><div class="canvas-pane" id="pane"><span class="canvas-label" id="sideLabel">Buồng trứng trái · giữ Space xem ảnh gốc</span><div id="brushCursorV2" class="brush-cursor" hidden></div><canvas id="viewport" tabindex="0" aria-label="Khung ảnh phân đoạn, phím B vẽ, E tẩy, H di chuyển"></canvas></div><div class="canvas-pane" id="secondPane" hidden><span class="canvas-label">Đối chiếu ảnh gốc</span><canvas id="secondViewport" aria-label="Ảnh gốc đối chiếu"></canvas></div></div><div class="measure-strip"><div class="measure-values pixel" id="measureValues"><div><small>d₁</small><strong id="d1">—</strong></div><div><small>d₂</small><strong id="d2">—</strong></div><div><small>Diện tích</small><strong id="area">—</strong></div></div><div><span class="badge" id="calibrationBadge">Chưa hiệu chuẩn – chỉ có px</span>${button("Hiệu chuẩn thước", "calibrate", "small")}</div></div><div class="viewer-controls"><label class="range-row">Sáng<input type="range" id="brightness" min="50" max="180" value="100"></label><label class="range-row">Tương phản<input type="range" id="contrast" min="50" max="180" value="100"></label>${button("Mặc định", "image-reset", "small")}<span class="muted small" id="draftStatus">Bản nháp trên thiết bị</span></div></section><aside class="viewer-panel"><h3>Kết quả phân đoạn</h3><p id="modelName">Đang đọc mô hình…</p><details><summary class="small">Nguồn mô hình</summary><p id="modelHash" class="mono"></p></details><h3>Trạng thái rà soát</h3><ol class="timeline"><li>AI đề xuất</li><li>Người rà soát hiệu chỉnh</li><li>Ký sơ bộ hai bên</li></ol>${lease ? `<div class="banner info small">${esc(lease.label)}</div>` : ""}${c.reason ? `<div class="banner warning small">Yêu cầu sửa: ${esc(c.reason)}</div>` : ""}${state.draftConflict ? `<div class="banner warning small">Bản nháp dựa trên phiên bản cũ. Đang hiển thị bản máy chủ.${button("Tải bản nháp cũ", "download-conflict", "small")}${button("Giữ bản máy chủ", "keep-server", "small")}</div>` : ""}<div id="viewerWarnings"></div><h3>Mô tả hình thái</h3><div class="chips">${["Dạng nang", "Dạng đặc", "Hỗn hợp", "Bờ chưa rõ"].map((v) => `<button class="chip" data-chip="${v}">${v}</button>`).join("")}</div><label class="field">Mô tả bổ sung<input id="morphology" maxlength="100"></label><label class="field">Ghi chú rà soát<textarea id="notes" rows="3"></textarea></label>${button("Không có vùng tổn thương cần phân đoạn", "no-lesion", "small")}${button("Bỏ mask AI, vẽ mới", "manual", "small")}<p class="muted small">Mask rỗng ghi nhận vùng phân đoạn rỗng, không đưa kết luận bệnh lý.</p><details><summary class="small">Lịch sử chỉnh sửa</summary><ol id="historyList" class="small"></ol></details></aside></div>`;
+      )}</aside><section class="viewer-center"><div class="viewer-controls">${["Gốc", "Mask", "Lớp phủ"].map((v, i) => button(v, "layer-" + i, "small")).join("")}${button("Đường viền", "contour", "small")}${button("Đối chiếu gốc", "compare", "small")}${button("Hai bên", "bilateral", "small")}${button("Mask AI", "ai-compare", "small")}<label class="range-row">Cọ <input type="range" id="brushSize" min="2" max="64" value="16" aria-label="Cỡ cọ"><output id="brushOutput">16</output></label><label class="range-row">Độ mờ<input id="opacity" type="range" min="0" max="100" value="35"></label></div><div class="viewport-wrap"><div class="canvas-pane" id="pane"><span class="canvas-label" id="sideLabel">Buồng trứng trái · giữ Space xem ảnh gốc</span><div id="brushCursorV2" class="brush-cursor" hidden></div><canvas id="viewport" tabindex="0" aria-label="Khung ảnh phân đoạn, phím B vẽ, E tẩy, H di chuyển"></canvas></div><div class="canvas-pane" id="secondPane" hidden><span class="canvas-label">Đối chiếu ảnh gốc</span><canvas id="secondViewport" aria-label="Ảnh gốc đối chiếu"></canvas></div></div><div class="measure-strip"><div class="measure-values pixel" id="measureValues"><div><small>d₁</small><strong id="d1">—</strong></div><div><small>d₂</small><strong id="d2">—</strong></div><div><small>Diện tích</small><strong id="area">—</strong></div></div><div><span class="badge" id="calibrationBadge">Chưa hiệu chuẩn – chỉ có px</span>${button("Hiệu chuẩn thước", "calibrate", "small")}</div></div><div class="viewer-controls"><label class="range-row">Sáng<input type="range" id="brightness" min="50" max="180" value="100"></label><label class="range-row">Tương phản<input type="range" id="contrast" min="50" max="180" value="100"></label>${button("Mặc định", "image-reset", "small")}<span class="muted small" id="draftStatus">Bản nháp trên thiết bị</span></div></section><aside class="viewer-panel"><h3>Kết quả phân đoạn</h3><p id="modelName">Đang đọc mô hình…</p><details><summary class="small">Nguồn mô hình</summary><p id="modelHash" class="mono"></p></details><h3>Trạng thái rà soát</h3><ol class="timeline"><li>AI đề xuất</li><li>Người rà soát hiệu chỉnh</li><li>Ký sơ bộ hai bên</li></ol>${lease ? `<div class="banner info small">${esc(lease.label)}</div>` : ""}${c.reason ? `<div class="banner warning small">Yêu cầu sửa: ${esc(c.reason)}</div>` : ""}${state.draftConflict ? `<div class="banner warning small">Bản nháp dựa trên phiên bản cũ. Đang hiển thị bản máy chủ.${button("Tải bản nháp cũ", "download-conflict", "small")}${button("Giữ bản máy chủ", "keep-server", "small")}</div>` : ""}<div id="viewerWarnings"></div><h3>Phân loại hình thái & Nguy cơ</h3><label class="field">Hình thái IOTA (ISUOG)<select id="iotaMorphology"><option value="">-- Chọn hình thái --</option><option value="Nang đơn thùy dịch trong">Nang đơn thùy dịch trong (Unilocular Anechoic)</option><option value="Nang nhiều thùy">Nang nhiều thùy (Multilocular)</option><option value="Nang đơn thùy có phần đặc">Nang đơn thùy có phần đặc (Unilocular-Solid)</option><option value="Nang nhiều thùy có phần đặc">Nang nhiều thùy có phần đặc (Multilocular-Solid)</option><option value="Khối u đặc">Khối u đặc (Solid Tumor)</option></select></label><label class="field">Phân tầng nguy cơ ACR O-RADS<select id="oradsScore"><option value="">-- Chọn O-RADS --</option><option value="O-RADS 1">O-RADS 1 - Bình thường / Nang sinh lý (<30mm)</option><option value="O-RADS 2">O-RADS 2 - Lành tính (<1% nguy cơ)</option><option value="O-RADS 3">O-RADS 3 - Nguy cơ thấp (1% - <10%)</option><option value="O-RADS 4">O-RADS 4 - Nguy cơ trung bình (10% - <50%)</option><option value="O-RADS 5">O-RADS 5 - Nguy cơ cao (≥50%)</option></select></label><div class="chips" style="margin-top:6px;margin-bottom:8px">${["Dạng nang", "Dạng đặc", "Hỗn hợp", "Bóng cản âm"].map((v) => `<button class="chip" data-chip="${v}">${v}</button>`).join("")}</div><label class="field">Mô tả bổ sung<input id="morphology" maxlength="100" placeholder="Chi tiết âm vang, vách ngăn..."></label><label class="field">Ghi chú lâm sàng của bác sĩ<textarea id="notes" rows="3" placeholder="Kết luận hoặc lưu ý theo dõi..."></textarea></label>${button("Không có vùng tổn thương cần phân đoạn", "no-lesion", "small")}${button("Bỏ mask AI, vẽ mới", "manual", "small")}<p class="muted small">Mask rỗng ghi nhận vùng phân đoạn rỗng, không đưa kết luận bệnh lý.</p><details><summary class="small">Lịch sử chỉnh sửa</summary><ol id="historyList" class="small"></ol></details></aside></div>`;
     if (state.draftConflict) {
       $("[data-action=download-conflict]").onclick = () =>
         download(
@@ -285,9 +285,53 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     const measure = () => {
       clearTimeout(timer);
       const current = ++serial;
+      let hasPixels = false;
+      if (image.mask) {
+        for (let idx = 0; idx < image.mask.length; idx++) {
+          if (image.mask[idx]) {
+            hasPixels = true;
+            break;
+          }
+        }
+      }
+      if (!hasPixels) {
+        const emptyMeas = {
+          max_diameter_px: 0,
+          ortho_diameter_px: 0,
+          total_area_px: 0,
+          max_diameter_mm: image.measurements?.calibrated ? 0 : null,
+          ortho_diameter_mm: image.measurements?.calibrated ? 0 : null,
+          total_area_cm2: image.measurements?.calibrated ? 0 : null,
+          calibrated: Boolean(image.measurements?.calibrated),
+          calibration_source: image.measurements?.calibration_source,
+        };
+        image.measurements = emptyMeas;
+        displayMeasurements(emptyMeas);
+      } else {
+        // UAT-07: Immediately clear stale physical (mm/cm²) measurements while API
+        // request is in-flight so old values are never shown after a mask change.
+        const wasCalibrated = Boolean(image.measurements?.calibrated);
+        const calSource = image.measurements?.calibration_source;
+        const interimMeas = {
+          max_diameter_px: null,
+          ortho_diameter_px: null,
+          total_area_px: null,
+          max_diameter_mm: null,
+          ortho_diameter_mm: null,
+          total_area_cm2: null,
+          calibrated: wasCalibrated,
+          calibration_source: calSource,
+          _pending: true,
+        };
+        image.measurements = interimMeas;
+        // Show "Đang cập nhật..." placeholders immediately
+        $("#d1").textContent = "Đang cập nhật…";
+        $("#d2").textContent = "Đang cập nhật…";
+        $("#area").textContent = "Đang cập nhật…";
+      }
       timer = setTimeout(async () => {
         worker.postMessage({ mask: image.mask, box, serial: current });
-        if (!state.demo && image.image_id) {
+        if (image.image_id) {
           try {
             const m = await request(
               "/api/images/" +
@@ -304,38 +348,68 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
               displayMeasurements(m);
             }
           } catch (e) {
-            if (e.name !== "AbortError")
+            if (e.name !== "AbortError") {
               $("#draftStatus").textContent =
                 "Chưa cập nhật được số đo máy chủ.";
+              if (current === serial) {
+                let hasPx = false;
+                if (image.mask) {
+                  for (let idx = 0; idx < image.mask.length; idx++) {
+                    if (image.mask[idx]) {
+                      hasPx = true;
+                      break;
+                    }
+                  }
+                }
+                const fallbackMeas = {
+                  max_diameter_px: hasPx && image.workerMeas ? image.workerMeas.d1 : 0,
+                  ortho_diameter_px: hasPx && image.workerMeas ? image.workerMeas.d2 : 0,
+                  total_area_px: hasPx && image.workerMeas ? image.workerMeas.area : 0,
+                  // UAT-07: API failed — physical mm/cm² must be null (not stale old values)
+                  max_diameter_mm: null,
+                  ortho_diameter_mm: null,
+                  total_area_cm2: null,
+                  calibrated: false,
+                  calibration_source: image.measurements?.calibration_source,
+                };
+                image.measurements = fallbackMeas;
+                displayMeasurements(fallbackMeas);
+              }
+            }
           }
         }
       }, 180);
     };
     worker.onmessage = ({ data: m }) => {
       if (m.serial !== serial) return;
+      image.workerMeas = m;
+      if (m.area === 0) {
+        const emptyMeas = {
+          max_diameter_px: 0,
+          ortho_diameter_px: 0,
+          total_area_px: 0,
+          max_diameter_mm: image.measurements?.calibrated ? 0 : null,
+          ortho_diameter_mm: image.measurements?.calibrated ? 0 : null,
+          total_area_cm2: image.measurements?.calibrated ? 0 : null,
+          calibrated: Boolean(image.measurements?.calibrated),
+          calibration_source: image.measurements?.calibration_source,
+        };
+        image.measurements = emptyMeas;
+        displayMeasurements(emptyMeas);
+      }
       image.seen = true;
       $("[data-action=sign]").disabled =
         readonly || c.images.length !== 2 || !c.images.every((i) => i.seen);
       $("[data-action=save-review]").disabled =
         readonly || !c.images.every((i) => i.seen);
-      if (state.demo) {
-        image.measurements = {
-          calibrated: false,
-          max_diameter_px: m.d1,
-          ortho_diameter_px: m.d2,
-          total_area_px: m.area,
-        };
-        displayMeasurements(image.measurements);
-      }
+
       const count = components(image.mask).length;
       const warnings = [
         !image.measurements?.calibrated ? "Chưa hiệu chuẩn – chỉ có px" : "",
         m.touches ? "Mask chạm biên ảnh" : "",
         count > 1 ? `${count} thành phần mask – kiểm tra từng vùng` : "",
         image.iqa?.is_acceptable === false ? "Chất lượng ảnh thấp" : "",
-        image.anonymization?.status === "DEMO"
-          ? "Ảnh sơ đồ demo"
-          : "Ẩn danh chưa được máy chủ xác minh",
+        "Ẩn danh chưa được máy chủ xác minh",
       ].filter(Boolean);
       $("#viewerWarnings").innerHTML = warnings
         .map((v) => `<div class="banner warning small">${esc(v)}</div>`)
@@ -439,14 +513,18 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       $("#sideLabel").textContent =
         `Buồng trứng ${side === "L" ? "trái" : "phải"} · giữ Space xem ảnh gốc`;
       $("#modelName").textContent =
+        image.prediction?.provenance?.architecture ||
         image.prediction?.provenance?.model_name ||
         image.prediction?.model_version ||
         "Vẽ tay – chưa có dự đoán";
       $("#modelHash").textContent =
+        image.prediction?.provenance?.checkpoint_sha256 ||
         image.prediction?.provenance?.model_checksum ||
         "Bản ghi chưa cung cấp SHA-256.";
       $("#notes").value = image.notes || "";
-      $("#morphology").value = image.morphology || "";
+      $("#morphology").value = image.morphologyDesc || "";
+      if ($("#iotaMorphology")) $("#iotaMorphology").value = image.morphology || "";
+      if ($("#oradsScore")) $("#oradsScore").value = image.orads || "";
       for (const s of ["L", "R"])
         $(`[data-action=side-${s}]`).classList.toggle("primary", s === side);
       $("#notes").disabled = $("#morphology").disabled = readonly;
@@ -651,7 +729,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         beforeEdit();
         image.mask =
           action === "clear" ? new Uint8Array(262144) : image.aiMask.slice();
-        tracker.track(image.image_id, action === "clear" ? "CLEAR_MASK" : "RESET_AI");
+        tracker.track(
+          image.image_id,
+          action === "clear" ? "CLEAR_MASK" : "RESET_AI",
+        );
       } else {
         beforeEdit();
         image.mask = cleanMask(image.mask, action);
@@ -793,12 +874,31 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     for (const id of ["notes", "morphology"])
       $("#" + id).oninput = (e) => {
         if (state.busy) {
-          e.target.value = image[id] || "";
+          e.target.value = (id === "morphology" ? image.morphologyDesc : image[id]) || "";
           return;
         }
-        image[id] = e.target.value;
+        if (id === "morphology") image.morphologyDesc = e.target.value;
+        else image[id] = e.target.value;
         changed();
       };
+    if ($("#iotaMorphology")) {
+      const handleIota = (e) => {
+        if (image) image.morphology = e.target.value;
+        state.dirty = true;
+        changed();
+      };
+      $("#iotaMorphology").onchange = handleIota;
+      $("#iotaMorphology").oninput = handleIota;
+    }
+    if ($("#oradsScore")) {
+      const handleOrads = (e) => {
+        if (image) image.orads = e.target.value;
+        state.dirty = true;
+        changed();
+      };
+      $("#oradsScore").onchange = handleOrads;
+      $("#oradsScore").oninput = handleOrads;
+    }
     $$("[data-chip]").forEach((b) => {
       b.disabled = readonly;
       b.onclick = () => {
@@ -841,7 +941,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         const token = sessionStorage.getItem("ova.token");
         const headers = { "Content-Type": "application/json" };
         if (token) headers.Authorization = "Bearer " + token;
-        toast("Đang tải kết quả nghiên cứu...");
+        toast("Đang tải kết quả...");
         const resp = await fetch(
           `/api/cases/${encodeURIComponent(c.study_id)}/research-export`,
           {
@@ -857,7 +957,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           const err = await resp
             .json()
             .catch(() => ({ detail: "Lỗi tải kết quả." }));
-          return toast(err.detail || "Không thể tải kết quả nghiên cứu.", true);
+          return toast(err.detail || "Không thể tải kết quả.", true);
         }
         const blob = await resp.blob();
         if (blob.size === 0) return toast("File rỗng.", true);
@@ -869,7 +969,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        toast("Đã tải tệp ZIP kết quả nghiên cứu.");
+        toast("Đã tải tệp ZIP kết quả.");
       } catch (err) {
         toast(err.message || "Lỗi tải tệp ZIP.", true);
       }
@@ -904,9 +1004,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             spacing = Number(data.mm) / Number(data.pixels);
           if (!Number.isFinite(spacing) || spacing <= 0) return;
           try {
-            if (state.demo) {
-              toast("Ảnh sơ đồ không có thước vật lý. Giữ đơn vị pixel.");
-            } else {
+            {
               await request(
                 "/api/images/" +
                   image.image_id +
@@ -914,6 +1012,12 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
                   encodeURIComponent(spacing),
                 { method: "POST" },
               );
+              image.pixel_spacing_mm = spacing;
+              if (image.measurements) {
+                image.measurements.calibrated = true;
+                image.measurements.calibration_source = "Nhập tay";
+              }
+              state.dirty = true;
               measure();
             }
             d.close();
