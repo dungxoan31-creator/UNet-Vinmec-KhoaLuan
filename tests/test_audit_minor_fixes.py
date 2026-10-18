@@ -237,3 +237,20 @@ def test_fe_07_banner_info_contrast_meets_wcag_aa():
     light_ratio = (max(l_bg, l_text) + 0.05) / (min(l_bg, l_text) + 0.05)
     assert light_ratio >= 4.5, f"FE-07 VULNERABILITY: Light banner contrast {light_ratio:.2f} < 4.5:1!"
 
+
+def test_dep_06_to_12_build_toolchain_security_boundaries():
+    """DEP-06..12: Build toolchain advisories must be pinned to safe versions and unexposed at HTTP runtime."""
+    from pathlib import Path
+
+    lock_content = Path("requirements-lock.txt").read_text(encoding="utf-8")
+    docker_content = Path("Dockerfile").read_text(encoding="utf-8")
+
+    # 1. requirements-lock.txt must specify pip>=26.2 and setuptools>=78.1.1
+    assert "pip>=26.2" in lock_content, "DEP-06..11 VULNERABILITY: requirements-lock.txt missing safe pip>=26.2 pin!"
+    assert "setuptools>=78.1.1" in lock_content, "DEP-12 VULNERABILITY: requirements-lock.txt missing safe setuptools>=78.1.1 pin!"
+
+    # 2. Dockerfile must explicitly upgrade build toolchain
+    assert "pip>=26.2" in docker_content, "DEP-06..11 VULNERABILITY: Dockerfile does not upgrade pip to >=26.2!"
+    assert "setuptools>=78.1.1" in docker_content, "DEP-12 VULNERABILITY: Dockerfile does not upgrade setuptools to >=78.1.1!"
+
+

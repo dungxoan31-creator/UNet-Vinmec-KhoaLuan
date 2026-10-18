@@ -38,3 +38,7 @@ Jinja2==3.1.6
 ruff==0.16.9
 pytest==9.1.1
 pytest-asyncio==1.4.0
+
+# Pinned build toolchain to remediate DEP-06..12
+pip>=26.2
+setuptools>=78.1.1
