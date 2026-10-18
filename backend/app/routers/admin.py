@@ -2,6 +2,7 @@
 Admin Governance, Model Registry Overview, Audit Logs, and Dataset Export endpoints.
 """
 
+import secrets
 import uuid
 from datetime import UTC, datetime
 
@@ -272,17 +273,34 @@ def create_admin_user(user_data: dict = Body(default={}), db: Session = Depends(
     existing = db.query(UserModel).filter(UserModel.username == username).first()
     if existing:
         raise HTTPException(status_code=409, detail="Tài khoản đã tồn tại")
+    password = user_data.get("password")
+    must_change = False
+    temp_password = None
+    if not password:
+        temp_password = secrets.token_urlsafe(12)
+        password = temp_password
+        must_change = True
+
     user = UserModel(
         id=str(uuid.uuid4()),
         username=username,
         full_name=user_data.get("full_name", username),
         role=user_data.get("role", "DOCTOR"),
         department=user_data.get("department", "Khoa Chẩn đoán Hình ảnh"),
-        password_hash=hash_password(user_data.get("password", "Default@123")),
+        password_hash=hash_password(password),
+        must_change_password=must_change,
     )
     db.add(user)
     db.commit()
-    return {"status": "SUCCESS", "user_id": user.id, "username": user.username}
+    res = {
+        "status": "SUCCESS",
+        "user_id": user.id,
+        "username": user.username,
+        "must_change_password": must_change,
+    }
+    if temp_password:
+        res["temp_password"] = temp_password
+    return res
 
 
 @router.patch("/api/admin/users/{user_id}")
@@ -339,12 +357,27 @@ def admin_reset_user_password(
     user = db.query(UserModel).filter((UserModel.id == user_id) | (UserModel.username == user_id)).first()
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
-    new_password = payload.get("new_password") or "Vinmec@2026"
-    user.password_hash = hash_password(new_password)
+    raw_password = payload.get("new_password")
+    must_change = False
+    temp_password = None
+    if not raw_password:
+        temp_password = secrets.token_urlsafe(12)
+        raw_password = temp_password
+        must_change = True
+
+    user.password_hash = hash_password(raw_password)
+    user.must_change_password = must_change
     user.tokens_revoked_at = datetime.now(UTC)
     user.token_version = (user.token_version or 1) + 1
     db.commit()
-    return {"status": "SUCCESS", "message": "Đã đặt lại mật khẩu người dùng.", "temp_password": new_password}
+    res = {
+        "status": "SUCCESS",
+        "message": "Đã đặt lại mật khẩu người dùng.",
+        "must_change_password": must_change,
+    }
+    if temp_password:
+        res["temp_password"] = temp_password
+    return res
 
 
 @router.delete("/api/admin/users/{user_id}")

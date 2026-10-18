@@ -201,6 +201,24 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (lần gửi lại cùng request_id nhưng đổi O-RADS bị từ chối 409 Conflict; lần gửi lại giống hệt 100% được trả về kết quả 200 an toàn).
   - Hồi quy: 310 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-25] Loại bỏ mật khẩu mặc định dùng chung khi khởi tạo tài khoản và ép buộc đổi mật khẩu lần đầu
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `backend/db/database.py`, `backend/schemas/schemas.py`, `backend/app/routers/admin.py`, `backend/app/routers/auth.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi quản trị viên khởi tạo tài khoản mới không truyền mật khẩu (`POST /api/admin/users`) hoặc thực hiện đặt lại mật khẩu người dùng (`POST /api/admin/users/{user_id}/reset-password`), hệ thống sử dụng các chuỗi mật khẩu mặc định tĩnh hardcode công khai (`Default@123` và `Vinmec@2026`). Đồng thời, hệ thống không có cờ đánh dấu yêu cầu đổi mật khẩu ở lần đăng nhập tiếp theo. Điều này dẫn đến nguy cơ bất kỳ kẻ tấn công nào cũng có thể chiếm đoạt tài khoản mới tạo hoặc vừa được reset bằng các mật khẩu mặc định đã biết.
+- **Giải pháp**:
+  - Bổ sung trường `must_change_password = Column(Boolean, default=False, nullable=False)` vào `UserModel` cùng auto-migration trong `init_db`.
+  - Cập nhật schema `TokenResponse` với trường `must_change_password: bool = False`.
+  - Trong `backend/app/routers/admin.py`:
+    1. Khi tạo tài khoản (`create_admin_user`) mà không cung cấp mật khẩu, sinh ngẫu nhiên mật khẩu tạm thời an toàn thông qua `secrets.token_urlsafe(12)`, lưu hash và bật cờ `must_change_password = True`. Trả về mật khẩu tạm trong response để cấp phát qua kênh an toàn.
+    2. Khi đặt lại mật khẩu (`admin_reset_user_password`) mà không cung cấp mật khẩu mới, sinh ngẫu nhiên mật khẩu tạm thời với `secrets.token_urlsafe(12)`, bật cờ `must_change_password = True` và thu hồi các phiên làm việc hiện có.
+  - Trong `backend/app/routers/auth.py`:
+    1. Trong `login`, trả về giá trị cờ `must_change_password` của tài khoản trong response.
+    2. Trong `change_password` và `reset_password`, sau khi người dùng cập nhật mật khẩu riêng, tự động hạ cờ `user.must_change_password = False`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_be_25_secure_provisioning_and_no_shared_default_password` (Fails với `AssertionError: assert None is True` trước khi sửa do mật khẩu mặc định hardcode).
+  - Xác nhận: Test chuyển sang PASSED (tạo và reset tài khoản sinh mật khẩu ngẫu nhiên không trùng chuỗi mặc định, bật cờ `must_change_password`, và tự động tắt cờ khi đổi mật khẩu).
+  - Hồi quy: 311 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
 
 
 

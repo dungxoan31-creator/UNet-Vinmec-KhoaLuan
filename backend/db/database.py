@@ -159,6 +159,7 @@ class UserModel(Base):
     hospital = Column(String(100), default="Bệnh viện ĐKQT Vinmec Times City")
     avatar = Column(String(255), default="doctor_avatar.png")
     is_active = Column(Boolean, default=True)
+    must_change_password = Column(Boolean, default=False, nullable=False)
     token_version = Column(Integer, default=1)
     tokens_revoked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
@@ -300,6 +301,8 @@ def init_db():
                 cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255);")
             if user_columns and "token_version" not in user_columns:
                 cursor.execute("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1;")
+            if user_columns and "must_change_password" not in user_columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 0;")
             if user_columns and "tokens_revoked_at" not in user_columns:
                 cursor.execute("ALTER TABLE users ADD COLUMN tokens_revoked_at DATETIME;")
             conn.commit()

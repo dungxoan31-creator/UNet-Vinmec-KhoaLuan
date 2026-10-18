@@ -289,6 +289,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int = 86400  # 24 hours
     user: "UserProfile"
+    must_change_password: bool = False
 
 
 class UserProfile(BaseModel):

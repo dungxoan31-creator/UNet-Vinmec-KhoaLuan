@@ -172,6 +172,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
             "token_version": getattr(user, "token_version", 1) or 1,
         }),
         user=UserProfile.model_validate(user, from_attributes=True),
+        must_change_password=bool(getattr(user, "must_change_password", False)),
     )
 
 
@@ -293,6 +294,7 @@ def reset_password(payload: dict = Body(default={}), db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản người dùng.")
 
     user.password_hash = hash_password(new_pw)
+    user.must_change_password = False
     user.tokens_revoked_at = datetime.now(UTC)
     user.token_version = (getattr(user, "token_version", 1) or 1) + 1
     db.add(
@@ -328,6 +330,7 @@ def change_password(payload: dict = Body(default={}), user: UserModel = Depends(
             raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác")
 
     user.password_hash = hash_password(new_pw)
+    user.must_change_password = False
     user.tokens_revoked_at = datetime.now(UTC)
     user.token_version = (getattr(user, "token_version", 1) or 1) + 1
     db.commit()

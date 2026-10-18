@@ -413,5 +413,85 @@ def test_be_12_review_idempotency_hash_includes_orads_and_descriptors(tmp_path, 
         engine.dispose()
 
 
+def test_be_25_secure_provisioning_and_no_shared_default_password(tmp_path, monkeypatch):
+    """BE-25: User creation and reset without password must generate random temporary secrets with must_change_password requirement."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.routers.auth import create_access_token, hash_password
+    from backend.db.database import Base, UserModel, get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'be25.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(
+            UserModel(
+                id="u_adm",
+                username="admin1",
+                full_name="Admin",
+                role="ADMIN",
+                is_active=True,
+                password_hash=hash_password("adminpass123"),
+            )
+        )
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            admin_token = create_access_token({"sub": "admin1", "uid": "u_adm"})
+            ah = {"Authorization": f"Bearer {admin_token}"}
+
+            # 1. Admin creates user without explicit password
+            create_resp = client.post(
+                "/api/admin/users",
+                headers=ah,
+                json={"username": "newdoc", "full_name": "BS. New", "role": "DOCTOR"},
+            )
+            assert create_resp.status_code == 200
+            create_data = create_resp.json()
+            assert create_data.get("must_change_password") is True
+            temp_pw = create_data.get("temp_password")
+            assert temp_pw and temp_pw != "Default@123", "BE-25 VULNERABILITY: Static default password used in provisioning!"
+
+            # 2. Login with temporary password returns must_change_password=True
+            login_resp = client.post("/api/auth/login", json={"username": "newdoc", "password": temp_pw})
+            assert login_resp.status_code == 200
+            login_data = login_resp.json()
+            assert login_data.get("must_change_password") is True, "BE-25 VULNERABILITY: must_change_password flag missing in login response!"
+
+            # 3. Change password clears must_change_password flag
+            doc_token = login_data["access_token"]
+            dh = {"Authorization": f"Bearer {doc_token}"}
+            ch_resp = client.post(
+                "/api/auth/change-password",
+                headers=dh,
+                json={"old_password": temp_pw, "new_password": "permanentpassword123"},
+            )
+            assert ch_resp.status_code == 200
+
+            # 4. Subsequent login has must_change_password=False
+            login2 = client.post("/api/auth/login", json={"username": "newdoc", "password": "permanentpassword123"})
+            assert login2.status_code == 200
+            assert login2.json().get("must_change_password") is False
+
+            # 5. Admin reset password without new_password generates random temp password with must_change_password=True
+            reset_resp = client.post(f"/api/admin/users/{create_data['user_id']}/reset-password", headers=ah, json={})
+            assert reset_resp.status_code == 200
+            reset_data = reset_resp.json()
+            assert reset_data.get("must_change_password") is True
+            reset_temp_pw = reset_data.get("temp_password")
+            assert reset_temp_pw and reset_temp_pw != "Vinmec@2026", "BE-25 VULNERABILITY: Static fallback used in admin password reset!"
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+
 
 
