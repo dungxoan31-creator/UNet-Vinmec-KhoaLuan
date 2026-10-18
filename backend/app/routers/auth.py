@@ -8,7 +8,7 @@ import jwt
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.db.database import UserModel, get_db
+from backend.db.database import AuditLogModel, UserModel, get_db
 from backend.schemas.schemas import LoginRequest, RegisterRequest, TokenResponse, UserProfile
 
 JWT_ALGORITHM = "HS256"
@@ -167,6 +167,7 @@ def create_reset_token(username: str, expires_delta: timedelta | None = None) ->
     payload = {
         "sub": username,
         "purpose": "reset_password",
+        "jti": str(uuid.uuid4()),
         "exp": now + (expires_delta or timedelta(hours=1)),
         "iat": now,
     }
@@ -210,11 +211,32 @@ def reset_password(payload: dict = Body(default={}), db: Session = Depends(get_d
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=400, detail="Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.") from exc
 
+    token_id = str(data.get("jti") or hashlib.sha256(token.encode("utf-8")).hexdigest()[:36])
+    already_used = (
+        db.query(AuditLogModel)
+        .filter(
+            AuditLogModel.entity_name == "consumed_reset_token",
+            AuditLogModel.entity_id == token_id,
+        )
+        .first()
+    )
+    if already_used:
+        raise HTTPException(status_code=400, detail="Token đặt lại mật khẩu đã được sử dụng.")
+
     user = db.query(UserModel).filter(UserModel.username == target_username).first()
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản người dùng.")
 
     user.password_hash = hash_password(new_pw)
+    db.add(
+        AuditLogModel(
+            entity_name="consumed_reset_token",
+            entity_id=token_id,
+            action_type="TOKEN_CONSUMED",
+            actor_id=target_username,
+            details={"consumed_at": datetime.now(UTC).isoformat()},
+        )
+    )
     db.commit()
     return {"status": "SUCCESS", "message": "Mật khẩu đã được đặt lại thành công."}
 

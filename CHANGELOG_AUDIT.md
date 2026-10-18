@@ -115,6 +115,24 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED sau khi sửa.
   - Hồi quy: 304 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+---
+
+## Nhóm CRITICAL
+
+### [BE-03] Chống tấn công lặp lại token đặt lại mật khẩu (Token Replay Attack)
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `backend/app/routers/auth.py`
+- **Nguyên nhân gốc (Root Cause)**: Endpoint `POST /api/auth/reset-password` chỉ kiểm tra chữ ký JWT và `purpose == "reset_password"` rồi tiến hành cập nhật mật khẩu người dùng, nhưng không ghi nhận trạng thái đã sử dụng (consume) của token. Do token có thời hạn 1 giờ, kẻ tấn công hoặc bên thứ ba chặn bắt được token có thể tái sử dụng token đó nhiều lần liên tiếp để đổi mật khẩu tài khoản bất kỳ lúc nào trong vòng đời hiệu lực.
+- **Giải pháp**:
+  - Bổ sung định danh duy nhất `jti` (UUIDv4) vào payload khi tạo token đặt lại mật khẩu trong `create_reset_token`.
+  - Trong `reset_password`, tính toán định danh token `token_id` (từ `jti` hoặc SHA-256 fingerprint của token chuỗi).
+  - Kiểm tra bảng `AuditLogModel` với `entity_name="consumed_reset_token"` và `entity_id=token_id`. Nếu token đã được dùng, từ chối ngay lập tức HTTP 400 Bad Request ("Token đặt lại mật khẩu đã được sử dụng.").
+  - Sau khi đặt lại mật khẩu thành công, lập tức lưu bản ghi tiêu thụ token vào `AuditLogModel` với hành động `TOKEN_CONSUMED` trong cùng transaction cơ sở dữ liệu.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_be_03_reset_token_cannot_be_reused` (Fails với `assert 200 == 400` do lần gọi thứ hai dùng lại token thành công trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (lần 1 thành công 200, lần 2 dùng lại cùng token bị từ chối 400).
+  - Hồi quy: 305 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
 
 
 
