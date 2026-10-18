@@ -3,9 +3,10 @@ Doctor Review, Ground Truth Sign-Off, and Medical PDF Report Generation endpoint
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from backend.app.routers.auth import get_current_user
+from backend.app.routers.auth import get_current_user, require_clinical
 from backend.db.database import ImageModel, UserModel, get_db
 from backend.schemas.schemas import (
     BatchReviewRequest,
@@ -14,6 +15,7 @@ from backend.schemas.schemas import (
     DoctorReviewResponse,
     ResearchExportRequest,
 )
+from backend.services.research_export import build_research_bundle
 from backend.services.review_service import persist_review_batch
 
 router = APIRouter(tags=["Doctor Review & Reports"])
@@ -75,14 +77,11 @@ def export_case_research_bundle(
     study_id: str,
     export_req: ResearchExportRequest,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(require_clinical),
 ):
     """
     Build and export a traceable ZIP bundle pinning exact review and AI mask snapshots.
     """
-    from fastapi.responses import Response
-    from backend.services.research_export import build_research_bundle
-
     bundle_bytes = build_research_bundle(
         db=db,
         study_id=study_id,

@@ -91,3 +91,61 @@ def test_be_04_self_registered_doctor_requires_admin_approval(tmp_path, monkeypa
         engine.dispose()
 
 
+def test_be_05_admin_and_non_clinical_roles_cannot_export_research_bundle(tmp_path, monkeypatch):
+    """BE-05: Admin and non-clinical roles must NOT be allowed to bypass clinical boundaries via research ZIP export."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from backend.db.database import Base, UserModel, PatientModel, StudyModel, get_db
+    from backend.app.routers.auth import create_access_token
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'be05.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add_all([
+            UserModel(id="admin-id", username="admin", full_name="Admin", role="ADMIN", is_active=True),
+            UserModel(id="sec-id", username="secretary", full_name="Thư ký", role="SECRETARY", is_active=True),
+            PatientModel(id="p1", anonymized_pid="PID-BE05"),
+            StudyModel(id="s1", patient_id="p1", study_code="STD-BE05", study_date="2026-10-18"),
+        ])
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    admin_token = create_access_token({"sub": "admin"})
+    sec_token = create_access_token({"sub": "secretary"})
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            payload = {"review_ids": ["rev-1"], "expected_revision": 0}
+
+            # 1. Admin attempt
+            admin_resp = client.post(
+                "/api/cases/s1/research-export",
+                json=payload,
+                headers={"Authorization": f"Bearer {admin_token}"},
+            )
+            assert admin_resp.status_code == 403, (
+                f"BE-05 VULNERABILITY DETECTED: Admin was allowed to invoke research-export! "
+                f"Status: {admin_resp.status_code}, Body: {admin_resp.text}"
+            )
+
+            # 2. Secretary attempt
+            sec_resp = client.post(
+                "/api/cases/s1/research-export",
+                json=payload,
+                headers={"Authorization": f"Bearer {sec_token}"},
+            )
+            assert sec_resp.status_code == 403, (
+                f"BE-05 VULNERABILITY DETECTED: Secretary was allowed to invoke research-export! "
+                f"Status: {sec_resp.status_code}, Body: {sec_resp.text}"
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+
