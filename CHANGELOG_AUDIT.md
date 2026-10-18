@@ -721,3 +721,20 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_qa_01_codebase_lint_cleanliness` (Fails với `QA-01 VULNERABILITY: Ruff lint errors detected` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (`ruff check backend scripts tests evaluation` trả về exit code 0 với 0 lỗi).
   - Hồi quy: 343 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+---
+
+## Nhóm MINOR
+
+### [BE-24] Từ chối yêu cầu tạo người dùng với thông tin trống bằng mã lỗi HTTP 422
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi client gửi yêu cầu tạo tài khoản người dùng quản trị (`POST /api/admin/users`) với payload trống `{}` hoặc tên đăng nhập chỉ gồm khoảng trắng, hàm `create_admin_user` trước đây trả về HTTP 200 `status: SUCCESS` giả tạo ("Yêu cầu tiếp nhận.") nhưng không thực sự tạo bản ghi nào trong cơ sở dữ liệu. Điều này vi phạm ngữ nghĩa RESTful API và làm sai lệch trạng thái giao diện quản trị viên.
+- **Giải pháp**:
+  - Tại `create_admin_user`: Kiểm tra `raw_username = (user_data.get("username") or "").strip()`.
+  - Nếu `not raw_username`, lập tức ném ngoại lệ `HTTPException(status_code=422, detail="Tên đăng nhập không được để trống")`.
+  - Bảo đảm phản hồi HTTP 422 chuẩn hóa cho dữ liệu đầu vào không hợp lệ.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_be_24_create_user_empty_payload_rejects_with_422` (Fails với `AssertionError: BE-24 VULNERABILITY: Empty payload returned 200 instead of 422!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (payload trống và khoảng trắng đều nhận HTTP 422 với thông báo tiếng Việt chính xác, số lượng user tạo ra là 0).
+  - Hồi quy: 344 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
