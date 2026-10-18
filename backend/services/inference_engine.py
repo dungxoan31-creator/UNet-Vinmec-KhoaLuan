@@ -253,11 +253,8 @@ class InferenceEngine:
             pixel_spacing_mm = self.default_pixel_spacing_mm
         pixel_spacing_mm = max(0.0001, float(pixel_spacing_mm))
 
-        contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        lesions = []
-
-        if not contours:
+        contours, hierarchy = cv2.findContours(binary_mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours or hierarchy is None:
             return {
                 "has_lesion": False,
                 "total_lesions": 0,
@@ -269,10 +266,24 @@ class InferenceEngine:
                 "total_area_cm2": 0.0,
             }
 
+        # Identify outer contours (parent == -1) and subtract inner erased holes
+        outer_candidates = []
+        for i, cnt in enumerate(contours):
+            if hierarchy[0][i][3] == -1:  # outer contour
+                outer_area = float(cv2.contourArea(cnt))
+                hole_area = 0.0
+                child_idx = hierarchy[0][i][2]
+                while child_idx != -1:
+                    hole_area += float(cv2.contourArea(contours[child_idx]))
+                    child_idx = hierarchy[0][child_idx][0]  # next sibling hole
+                net_area = max(0.0, outer_area - hole_area)
+                outer_candidates.append((cnt, net_area))
+
+        outer_candidates.sort(key=lambda x: x[1], reverse=True)
+        lesions = []
         total_area_px = 0.0
 
-        for idx, cnt in enumerate(contours):
-            area_px = float(cv2.contourArea(cnt))
+        for idx, (cnt, area_px) in enumerate(outer_candidates):
             if area_px < 50:
                 continue
 

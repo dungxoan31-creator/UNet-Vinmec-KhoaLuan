@@ -270,6 +270,21 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED sau khi sửa template báo cáo.
   - Hồi quy: Toàn bộ suite node tests và full pytest suite đều giữ vững kết quả.
 
+### [AI-04] Khấu trừ diện tích lỗ tẩy (Erased Hole) trong thuật toán tính diện tích mặt nạ tổn thương
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/inference_engine.py`
+- **Nguyên nhân gốc (Root Cause)**: Hàm `extract_calipers_and_measurements` trước đây sử dụng cờ `cv2.RETR_EXTERNAL` để trích xuất đường viền. Chế độ này chỉ lấy đường viền bao ngoài cùng (outer contour) và bỏ qua toàn bộ cấu trúc lỗ rỗng bên trong. Khi bác sĩ sử dụng công cụ Tẩy (Eraser) để đục khoét các phần mô lành hoặc cấu trúc dạng nang bên trong một tổn thương lớn, thuật toán vẫn lấy nguyên vẹn diện tích hình bao ngoài (`cv2.contourArea(cnt)`), khiến diện tích tính toán (`area_px` và `total_area_cm2`) không hề giảm dù phần lớn vùng bên trong đã bị xóa bỏ.
+- **Giải pháp**:
+  - Chuyển đổi cờ trích xuất đường viền từ `cv2.RETR_EXTERNAL` sang `cv2.RETR_CCOMP` để thu thập cây phả hệ đường viền 2 cấp (đường viền ngoài và các lỗ rỗng con tương ứng).
+  - Duyệt qua từng đường viền ngoài (`hierarchy[0][i][3] == -1`), tính diện tích bao ngoài `outer_area`.
+  - Duyệt qua danh sách toàn bộ các lỗ con (`child_idx = hierarchy[0][i][2]`) và cộng dồn diện tích lỗ `hole_area`.
+  - Tính toán diện tích thực `net_area = max(0.0, outer_area - hole_area)`, khấu trừ chính xác phần diện tích bị tẩy rỗng trước khi áp dụng ngưỡng kích thước và chuyển đổi sang cm².
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_04_erased_hole_reduces_mask_area` (Fails với `AssertionError: AI-04 VULNERABILITY: Internal hole ignored in lesion area calculation! Reported area_px: 10000.0` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (diện tích khấu trừ chính xác từ 100.0 cm² xuống 61.58 cm² khi đục lỗ 61×61 trong khối 101×101).
+  - Hồi quy: 314 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
 

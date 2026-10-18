@@ -111,3 +111,29 @@ def test_fe_03_research_export_metadata_includes_orads_and_morphology(tmp_path, 
     finally:
         app.dependency_overrides.pop(get_db, None)
         engine.dispose()
+
+
+def test_ai_04_erased_hole_reduces_mask_area():
+    """AI-04: Mask area calculation must account for erased internal holes instead of returning filled outer envelope."""
+    from backend.services.inference_engine import InferenceEngine
+
+    engine = InferenceEngine.__new__(InferenceEngine)
+    engine.default_pixel_spacing_mm = 1.0
+
+    # Create a 200x200 mask with a 101x101 outer square and an erased 61x61 inner square
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    mask[50:151, 50:151] = 1  # 101x101 outer square = 10,000 px contour area
+    mask[70:131, 70:131] = 0  # 61x61 inner hole erased = ~3,600-3,800 px erased
+
+    res = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=1.0)
+    assert res["has_lesion"] is True
+    lesion = res["lesions"][0]
+
+    # Without fix, area_px is 10000.0 (ignoring the erased hole). With fix, hole is subtracted.
+    assert lesion["area_px"] < 8000.0, (
+        f"AI-04 VULNERABILITY: Internal hole ignored in lesion area calculation! Reported area_px: {lesion['area_px']}"
+    )
+    assert res["total_area_cm2"] < 80.0, (
+        f"AI-04 VULNERABILITY: Internal hole ignored in total_area_cm2! Reported: {res['total_area_cm2']}"
+    )
+
