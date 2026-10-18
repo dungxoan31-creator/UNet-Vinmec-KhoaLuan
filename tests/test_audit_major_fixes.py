@@ -829,6 +829,30 @@ def test_be_20_admin_candidate_models_persist_across_restart(tmp_path, monkeypat
         )
 
 
+def test_be_21_consecutive_failed_logins_are_throttled_with_429():
+    """BE-21: Consecutive failed logins against an account must be throttled with HTTP 429."""
+    import uuid
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+
+    with TestClient(app) as client:
+        target_user = f"brute_target_{uuid.uuid4().hex[:8]}"
+        statuses = []
+        for _ in range(12):
+            resp = client.post("/api/auth/login", json={"username": target_user, "password": "wrong-password"})
+            statuses.append(resp.status_code)
+
+        assert statuses[:5] == [401, 401, 401, 401, 401], f"Expected first 5 attempts to be 401: {statuses[:5]}"
+        assert all(s == 429 for s in statuses[5:]), f"Expected attempts 6..12 to be 429: {statuses[5:]}"
+
+        # Ensure different user is not blocked (preventing cross-user DoS)
+        other_user = f"other_user_{uuid.uuid4().hex[:8]}"
+        other_resp = client.post("/api/auth/login", json={"username": other_user, "password": "wrong-password"})
+        assert other_resp.status_code == 401, "Different user should not be locked out by attacker"
+
+
 
 
 

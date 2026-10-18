@@ -450,3 +450,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_20_admin_candidate_models_persist_across_restart` (Fails với `AssertionError: BE-20 VULNERABILITY: Candidate model lost across process restart! Output: ... PERSISTED:False` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (mô hình `candidate_resunet_v2` tồn tại bền vững trong registry sau khi tiến trình mới khởi động lại; endpoint overview hiển thị chính xác danh sách candidate).
   - Hồi quy: 327 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
+### [BE-21] Cơ chế bóp nghẹt tần suất (Throttling) chống tấn công dò quét mật khẩu Brute-force
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/auth.py`
+- **Nguyên nhân gốc (Root Cause)**: Endpoint `POST /api/auth/login` không có bất kỳ cơ chế giới hạn tần suất (rate limiting / throttling) đối với các lần đăng nhập sai liên tiếp. Khi kẻ tấn công gửi hàng chục hoặc hàng trăm request thử mật khẩu liên tục cho cùng một tài khoản, máy chủ luôn phản hồi HTTP 401 mà không áp dụng biện pháp phòng vệ, tạo điều kiện thuận lợi cho tấn công vét cạn từ điển (dictionary / brute-force attack).
+- **Giải pháp**:
+  - Triển khai thuật toán cửa sổ trượt (Sliding-window Throttling) cục bộ: `_check_auth_rate_limit`, `_record_auth_failure` và `_record_auth_success`.
+  - Giới hạn tối đa 5 lần đăng nhập thất bại liên tiếp trong khung thời gian 60 giây (`_MAX_AUTH_FAILURES = 5`, `_AUTH_WINDOW_SECONDS = 60.0`). Khi vượt ngưỡng, các request đăng nhập tiếp theo cho tài khoản đó lập tức bị chặn với mã trạng thái `HTTP 429 Too Many Requests` ("Quá nhiều lần đăng nhập không thành công. Vui lòng thử lại sau.").
+  - **Bảo toàn An toàn Lâm sàng (Tránh DoS)**: Không khóa tài khoản vĩnh viễn trong CSDL (`is_active` giữ nguyên) để ngăn ngừa kẻ xấu cố ý đăng nhập sai nhằm khóa tài khoản làm việc của bác sĩ. Sau khi hết thời gian chờ 60 giây hoặc khi đăng nhập thành công, bộ đếm thất bại được giải phóng hoàn toàn.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_21_consecutive_failed_logins_are_throttled_with_429` (Fails với danh sách 12 status code toàn bộ là 401 trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (5 lần đầu nhận 401, các lần tiếp theo nhận 429; các tài khoản khác vẫn hoạt động bình thường không bị ảnh hưởng chéo).
+  - Hồi quy: 328 passed, 2 skipped, 0 regressions trên toàn bộ test suite.

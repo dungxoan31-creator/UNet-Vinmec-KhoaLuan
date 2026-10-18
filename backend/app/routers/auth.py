@@ -112,11 +112,43 @@ def require_clinical(current_user: UserModel = Depends(get_current_user)) -> Use
     return current_user
 
 
+_AUTH_FAILURE_ATTEMPTS: dict[str, list[float]] = {}
+_MAX_AUTH_FAILURES = 5
+_AUTH_WINDOW_SECONDS = 60.0
+
+
+def _check_auth_rate_limit(key: str) -> None:
+    now = datetime.now(UTC).timestamp()
+    attempts = _AUTH_FAILURE_ATTEMPTS.get(key, [])
+    valid_attempts = [t for t in attempts if now - t < _AUTH_WINDOW_SECONDS]
+    _AUTH_FAILURE_ATTEMPTS[key] = valid_attempts
+    if len(valid_attempts) >= _MAX_AUTH_FAILURES:
+        raise HTTPException(
+            status_code=429,
+            detail="Quá nhiều lần đăng nhập không thành công. Vui lòng thử lại sau.",
+        )
+
+
+def _record_auth_failure(key: str) -> None:
+    now = datetime.now(UTC).timestamp()
+    attempts = _AUTH_FAILURE_ATTEMPTS.get(key, [])
+    valid_attempts = [t for t in attempts if now - t < _AUTH_WINDOW_SECONDS]
+    valid_attempts.append(now)
+    _AUTH_FAILURE_ATTEMPTS[key] = valid_attempts
+
+
+def _record_auth_success(key: str) -> None:
+    _AUTH_FAILURE_ATTEMPTS.pop(key, None)
+
+
 @router.post("/api/auth/login", response_model=TokenResponse)
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     username = req.username.strip().lower()
+    _check_auth_rate_limit(username)
+
     user = db.query(UserModel).filter(UserModel.username == username).first()
     if not user or not user.is_active:
+        _record_auth_failure(username)
         db.add(
             AuditLogModel(
                 entity_name="auth",
@@ -140,6 +172,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         pwd_valid = bool(configured_password and secrets.compare_digest(password, configured_password))
 
     if not pwd_valid:
+        _record_auth_failure(username)
         db.add(
             AuditLogModel(
                 entity_name="auth",
@@ -153,6 +186,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         db.commit()
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
+    _record_auth_success(username)
     db.add(
         AuditLogModel(
             entity_name="auth",
