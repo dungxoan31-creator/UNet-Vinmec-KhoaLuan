@@ -22,9 +22,20 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
+    event,
     text,
 )
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
 
 _env_db_path = os.environ.get("APP_DB_PATH")
 if _env_db_path:
@@ -192,6 +203,7 @@ class HITLSessionModel(Base):
     completed_at = Column(DateTime, nullable=True)
 
     study = relationship("StudyModel")
+    review_batch = relationship("ReviewBatchModel")
     events = relationship("HITLEventModel", back_populates="session", cascade="all, delete-orphan")
 
 

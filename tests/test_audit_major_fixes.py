@@ -536,3 +536,32 @@ def test_be_14_upload_db_failure_rolls_back_atomically(tmp_path, monkeypatch):
     finally:
         app.dependency_overrides.pop(get_db, None)
         engine_db.dispose()
+
+
+def test_be_15_sqlite_foreign_keys_enforced():
+    """BE-15: SQLite connections must enforce PRAGMA foreign_keys=ON to prevent orphan records."""
+    import uuid
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    from backend.db.database import ImageModel, SessionLocal, engine
+
+    # 1. Direct engine PRAGMA check
+    with engine.connect() as conn:
+        fk_status = conn.exec_driver_sql("PRAGMA foreign_keys").scalar()
+        assert fk_status == 1, f"BE-15 VULNERABILITY: SQLite PRAGMA foreign_keys is {fk_status}, expected 1 (ON)!"
+
+    # 2. Orphan record insertion check
+    with SessionLocal() as db:
+        orphan_img = ImageModel(
+            id=f"orphan-{uuid.uuid4().hex[:8]}",
+            study_id="non-existent-study-id-9999",
+            filename="orphan.png",
+            raw_path="dummy.png",
+        )
+        db.add(orphan_img)
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+

@@ -271,6 +271,7 @@ def persist_review_batch(
             created_at=now_utc,
         )
         db.add(batch_record)
+        db.flush()
 
         if hitl_sess:
             hitl_sess.review_batch_id = batch_record.id

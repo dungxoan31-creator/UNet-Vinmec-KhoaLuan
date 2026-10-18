@@ -373,3 +373,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (khi commit ImageModel thất bại, số lượng patient và study trong cơ sở dữ liệu đều là 0, và không có file mồ côi nào lưu lại trên đĩa).
   - Hồi quy: 321 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-15] Kích hoạt bắt buộc PRAGMA foreign_keys = ON cho SQLite và bảo toàn liên kết quan hệ
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/db/database.py`, `backend/services/review_service.py`
+- **Nguyên nhân gốc (Root Cause)**: SQLite mặc định tắt tính năng thực thi khóa ngoại (`PRAGMA foreign_keys = 0`). Mặc dù ORM SQLAlchemy khai báo đầy đủ `ForeignKey("studies.id")`, `ForeignKey("patients.id")`, nhưng SQLite không hề kiểm tra ràng buộc này khi thêm/sửa/xóa dữ liệu. Hậu quả là có thể trực tiếp chèn bản ghi ảnh (`ImageModel`), dự đoán (`PredictionModel`) hoặc đánh giá rà soát trỏ tới các ID ca khám không hề tồn tại mà không bị chặn lại, sinh ra các bản ghi mồ côi phá vỡ tính toàn vẹn quan hệ. Đồng thời, khi kích hoạt foreign keys, việc cập nhật `HITLSessionModel.review_batch_id` trước khi bản ghi `ReviewBatchModel` được đẩy xuống DB tạo ra xung đột thứ tự phụ thuộc.
+- **Giải pháp**:
+  - Đăng ký event listener `@event.listens_for(Engine, "connect")`: Mỗi khi kết nối SQLite được khởi tạo, tự động thực thi lệnh `PRAGMA foreign_keys = ON;`. Điều này áp dụng toàn cục cho mọi session và engine SQLite trong hệ thống.
+  - Trong `HITLSessionModel`: Khai báo rõ ràng mối quan hệ `review_batch = relationship("ReviewBatchModel")` để SQLAlchemy xây dựng đồ thị phụ thuộc (dependency graph) chính xác.
+  - Trong `review_service.py`: Thực hiện `db.flush()` ngay sau `db.add(batch_record)` để đảm bảo bản ghi `ReviewBatchModel` tồn tại trong bảng trước khi `hitl_sessions` liên kết khóa ngoại tới `batch_record.id`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_15_sqlite_foreign_keys_enforced` (Fails với `AssertionError: BE-15 VULNERABILITY: SQLite PRAGMA foreign_keys is 0, expected 1 (ON)!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (kết nối trả về `PRAGMA foreign_keys = 1`, việc chèn ảnh mồ côi bị chặn đứng bằng `IntegrityError`, các quy trình rà soát HITL batch hoạt động trơn tru).
+  - Hồi quy: 322 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
