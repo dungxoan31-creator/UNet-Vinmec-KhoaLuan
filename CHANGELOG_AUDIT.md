@@ -256,6 +256,21 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (tệp metadata.json trong ZIP chứa đầy đủ `orads="O-RADS 3"` và `morphology_description="U nang đơn thùy, thành mỏng"`).
   - Hồi quy: 313 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [FE-02] Hiển thị phân loại O-RADS và mô tả hình thái lâm sàng đã lưu trên phiếu in kết quả
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `frontend/app/report-preview.js`
+- **Nguyên nhân gốc (Root Cause)**: Khi bác sĩ mở giao diện xem trước phiếu in (`renderReport`), mẫu giao diện HTML chỉ đọc `i.morphology` và `i.notes`. Trong khi đó, các kết quả đánh giá lâm sàng thực tế được lưu trong đối tượng `i.review` (như `orads_score`/`orads`, `morphology_description`, `clinical_notes`). Do không liên kết với các trường đã lưu của `i.review`, phiếu in bị bỏ trống hoàn toàn phân loại nguy cơ O-RADS và mô tả hình thái của từng bên buồng trứng, làm sai lệch nội dung bàn giao chuyên môn so với kết quả bác sĩ đã xác nhận trên hệ thống.
+- **Giải pháp**:
+  - Trong `frontend/app/report-preview.js`, trích xuất giá trị phân loại O-RADS ưu tiên từ `i.review?.orads_score || i.review?.orads || i.orads`.
+  - Trích xuất mô tả hình thái từ `i.review?.morphology_description || i.morphologyDesc || i.morphology || i.review?.lesion_type`.
+  - Trích xuất ghi chú lâm sàng từ `i.review?.clinical_notes || i.notes`.
+  - Cập nhật mẫu báo cáo in ấn hiển thị rõ ràng: `Phân loại O-RADS: <strong>...</strong>`, `Mô tả hình thái: ...` và `Ghi chú lâm sàng: ...` theo từng bên buồng trứng.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_fe_02_report_preview.mjs` (Fails với `AssertionError: FE-02 VULNERABILITY: report-preview.js does not render saved O-RADS classification!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED sau khi sửa template báo cáo.
+  - Hồi quy: Toàn bộ suite node tests và full pytest suite đều giữ vững kết quả.
+
+
 
 
 
