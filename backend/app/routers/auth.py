@@ -66,9 +66,29 @@ def get_current_user(authorization: str | None = Header(None), db: Session = Dep
         raise HTTPException(status_code=401, detail="Invalid token type.")
 
     username = payload.get("sub")
+    uid = payload.get("uid")
+    token_ver = payload.get("token_version")
+    iat = payload.get("iat")
+
     user = db.query(UserModel).filter(UserModel.username == username).first() if username else None
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Account unavailable.")
+
+    # BE-07: Ensure token belongs to this user ID if uid is present
+    if uid and user.id != uid:
+        raise HTTPException(status_code=401, detail="Account identity changed.")
+
+    # BE-06: Check token revocation on password change / reset / logout
+    if token_ver is not None and getattr(user, "token_version", None) is not None:
+        if token_ver != user.token_version:
+            raise HTTPException(status_code=401, detail="Token has been revoked.")
+    else:
+        revoked_at = getattr(user, "tokens_revoked_at", None)
+        if revoked_at is not None and iat is not None:
+            revoked_ts = (revoked_at.replace(tzinfo=UTC) if revoked_at.tzinfo is None else revoked_at).timestamp()
+            if float(iat) <= revoked_ts:
+                raise HTTPException(status_code=401, detail="Token has been revoked.")
+
     return user
 
 
@@ -105,7 +125,11 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=401, detail="Invalid username or password.")
 
     return TokenResponse(
-        access_token=create_access_token({"sub": user.username, "uid": user.id}),
+        access_token=create_access_token({
+            "sub": user.username,
+            "uid": user.id,
+            "token_version": getattr(user, "token_version", 1) or 1,
+        }),
         user=UserProfile.model_validate(user, from_attributes=True),
     )
 
@@ -228,6 +252,8 @@ def reset_password(payload: dict = Body(default={}), db: Session = Depends(get_d
         raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản người dùng.")
 
     user.password_hash = hash_password(new_pw)
+    user.tokens_revoked_at = datetime.now(UTC)
+    user.token_version = (getattr(user, "token_version", 1) or 1) + 1
     db.add(
         AuditLogModel(
             entity_name="consumed_reset_token",
@@ -261,12 +287,27 @@ def change_password(payload: dict = Body(default={}), user: UserModel = Depends(
             raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác")
 
     user.password_hash = hash_password(new_pw)
+    user.tokens_revoked_at = datetime.now(UTC)
+    user.token_version = (getattr(user, "token_version", 1) or 1) + 1
     db.commit()
     return {"status": "SUCCESS", "message": "Đổi mật khẩu thành công."}
+
+
+@router.post("/api/auth/logout")
+def logout(user: UserModel = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Invalidate current user session and revoke active tokens."""
+    user.tokens_revoked_at = datetime.now(UTC)
+    user.token_version = (getattr(user, "token_version", 1) or 1) + 1
+    db.commit()
+    return {"status": "SUCCESS", "message": "Đã đăng xuất và thu hồi phiên làm việc."}
 
 
 @router.post("/api/auth/refresh")
 def refresh_token(user: UserModel = Depends(get_current_user)):
     """Renew clinical session JWT token."""
-    token = create_access_token({"sub": user.username, "uid": user.id})
+    token = create_access_token({
+        "sub": user.username,
+        "uid": user.id,
+        "token_version": getattr(user, "token_version", 1) or 1,
+    })
     return {"access_token": token, "token_type": "bearer", "expires_in": 86400}

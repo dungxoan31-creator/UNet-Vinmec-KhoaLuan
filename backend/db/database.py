@@ -159,6 +159,8 @@ class UserModel(Base):
     hospital = Column(String(100), default="Bệnh viện ĐKQT Vinmec Times City")
     avatar = Column(String(255), default="doctor_avatar.png")
     is_active = Column(Boolean, default=True)
+    token_version = Column(Integer, default=1)
+    tokens_revoked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
@@ -296,6 +298,10 @@ def init_db():
             user_columns = [col[1] for col in cursor.fetchall()]
             if user_columns and "password_hash" not in user_columns:
                 cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255);")
+            if user_columns and "token_version" not in user_columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1;")
+            if user_columns and "tokens_revoked_at" not in user_columns:
+                cursor.execute("ALTER TABLE users ADD COLUMN tokens_revoked_at DATETIME;")
             conn.commit()
         finally:
             conn.close()

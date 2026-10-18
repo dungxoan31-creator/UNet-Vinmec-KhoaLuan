@@ -133,6 +133,23 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (lần 1 thành công 200, lần 2 dùng lại cùng token bị từ chối 400).
   - Hồi quy: 305 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-06] Thu hồi phiên làm việc và vô hiệu hóa access token khi đổi mật khẩu/đăng xuất
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `backend/db/database.py`, `backend/app/routers/auth.py`, `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi người dùng đổi mật khẩu (`/api/auth/change-password`), quản trị viên reset mật khẩu (`/api/admin/users/{user_id}/reset-password`), hoặc thực hiện khôi phục tài khoản (`/api/auth/reset-password`), hệ thống không cập nhật phiên làm việc hay cơ chế thu hồi token. Các access token đã cấp phát trước đó vẫn tiếp tục có hiệu lực truy cập API cho đến khi hết hạn (24 giờ), cho phép kẻ tấn công giữ quyền truy cập ngay cả sau khi nạn nhân đã đổi mật khẩu. Đồng thời hệ thống thiếu endpoint `POST /api/auth/logout` ở tầng máy chủ.
+- **Giải pháp**:
+  - Bổ sung `token_version = Column(Integer, default=1)` và `tokens_revoked_at = Column(DateTime, nullable=True)` vào `UserModel` cùng auto-migration trong `init_db`.
+  - Trong `create_access_token` và `login`, gắn `token_version` vào payload của JWT.
+  - Trong `get_current_user`, kiểm tra xác thực kép:
+    1. Nếu token có `token_version`, đối chiếu `token_ver != user.token_version` để từ chối ngay HTTP 401 Unauthorized nếu phiên đã bị thu hồi.
+    2. Nếu token tạo thủ công/cũ không có `token_version`, so sánh thời điểm cấp phát `iat` với `tokens_revoked_at` để từ chối các token sinh trước thời điểm thu hồi.
+  - Khi đổi mật khẩu, reset mật khẩu, hoặc admin reset mật khẩu: tăng `token_version` và cập nhật `tokens_revoked_at = datetime.now(UTC)`.
+  - Bổ sung endpoint máy chủ chuẩn `POST /api/auth/logout` để thu hồi phiên làm việc tức thì khi người dùng đăng xuất.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_be_06_session_revocation_on_password_change_and_logout` (Fails với `assert 200 == 401` trước khi sửa do token cũ vẫn dùng được).
+  - Xác nhận: Test chuyển sang PASSED (token cũ bị từ chối 401 sau khi đổi mật khẩu; sau khi đăng xuất token phiên cũng bị từ chối 401).
+  - Hồi quy: 306 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
 
 
 

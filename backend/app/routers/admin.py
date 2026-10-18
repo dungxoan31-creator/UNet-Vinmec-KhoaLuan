@@ -316,6 +316,8 @@ def admin_reset_user_password(
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
     new_password = payload.get("new_password") or "Vinmec@2026"
     user.password_hash = hash_password(new_password)
+    user.tokens_revoked_at = datetime.now(UTC)
+    user.token_version = (user.token_version or 1) + 1
     db.commit()
     return {"status": "SUCCESS", "message": "Đã đặt lại mật khẩu người dùng.", "temp_password": new_password}
 
