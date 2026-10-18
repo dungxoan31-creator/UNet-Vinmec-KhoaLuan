@@ -653,3 +653,42 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_ops_02_and_03_liveness_readiness_separation_and_db_ping` (Fails trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (khi mô phỏng lỗi kết nối CSDL, readiness lập tức phản hồi HTTP 503 với `database="disconnected"`).
   - Hồi quy: 340 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [OPS-06] Loại bỏ dữ liệu runtime và dữ liệu người bệnh khỏi Docker Image và thiết lập .dockerignore
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `Dockerfile`, `.dockerignore`
+- **Nguyên nhân gốc (Root Cause)**: Trong `Dockerfile`, lệnh `COPY data/ /app/data/` thực hiện sao chép toàn bộ thư mục `data/` từ máy host vào image Docker trong quá trình build. Nếu trên môi trường phát triển hoặc máy trạm thử nghiệm lâm sàng thư mục `data/uploads/` chứa ảnh siêu âm thực tế của bệnh nhân hoặc file cơ sở dữ liệu `data/*.db`, chúng sẽ bị đóng gói vĩnh viễn vào các layer của Docker image, tạo nguy cơ rò rỉ thông tin y tế (PHI) nghiêm trọng khi image được đẩy lên container registry. Đồng thời, dự án thiếu tệp `.dockerignore` để loại trừ các tệp tạm, logs, và tài nguyên nhạy cảm.
+- **Giải pháp**:
+  - Xóa bỏ chỉ thị `COPY data/ /app/data/` trong `Dockerfile`. Thay vào đó, sử dụng lệnh `RUN mkdir -p /app/data/uploads /app/data/reports /app/backups` để tạo thư mục rỗng sẵn sàng cho việc mount runtime volume.
+  - Tạo tệp `.dockerignore` toàn diện, loại trừ triệt để: `data/`, `data/uploads/`, `data/reports/`, `backups/`, `*.db`, `*.sqlite3`, `*.log`, `.env*`, `.venv`, `.pytest_cache`, `artifacts/`, và `audit_fix_logs/`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ops_06_07_08_packaging_and_backup_boundaries` (Fails với `OPS-06 VULNERABILITY: COPY data/ found in Dockerfile` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (Dockerfile không chứa `COPY data/`, `.dockerignore` tồn tại và loại trừ đúng đắn các đường dẫn nhạy cảm).
+  - Hồi quy: 341 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [OPS-07] Chặn đưa tệp lưu trữ sao lưu (Backup Archives) vào Git Repository
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `.gitignore`
+- **Nguyên nhân gốc (Root Cause)**: Tệp cấu hình `.gitignore` trước đây không chứa quy tắc loại trừ các tệp nén sao lưu hệ thống (`*.tar.gz`, `*.zip`, `*.7z`) hoặc thư mục `backups/`. Khi người dùng hoặc tác vụ tự động thực hiện tạo bản sao lưu (`BackupService.create_backup`), các tệp nén chứa toàn bộ cơ sở dữ liệu bệnh nhân và ảnh y tế có thể vô tình bị đưa vào git stage (`git add .`) và commit lên kho mã nguồn, dẫn đến rò rỉ dữ liệu y tế trên lịch sử git.
+- **Giải pháp**:
+  - Bổ sung cấu hình loại trừ rõ ràng trong `.gitignore`:
+    - `backups/*` (kèm ngoại lệ giữ thư mục `!backups/.gitkeep`).
+    - `*.tar.gz`, `*.zip`, `*.7z`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ops_06_07_08_packaging_and_backup_boundaries` (Fails với `OPS-07 VULNERABILITY: backups/synthetic.tar.gz is not ignored by git` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (`git check-ignore backups/synthetic.tar.gz` trả về mã 0).
+  - Hồi quy: 341 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [OPS-08] Khai báo tường minh ranh giới mã hóa và an toàn của dịch vụ Backup Service
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/backup_service.py`
+- **Nguyên nhân gốc (Root Cause)**: Dịch vụ sao lưu `BackupService.create_backup` đóng gói cơ sở dữ liệu SQLite và thư mục ảnh thành tệp nén `tar.gz` không mã hóa cấp ứng dụng (unencrypted archive). Kết quả trả về của hàm không khai báo bất kỳ metadata nào về ranh giới mã hóa hoặc hướng dẫn an toàn dữ liệu, khiến người vận hành có thể ngộ nhận rằng tệp lưu trữ đã được mã hóa tự động và tự do vận chuyển qua các kênh mạng không an toàn.
+- **Giải pháp**:
+  - Tại `BackupService.create_backup`: Bổ sung khối siêu dữ liệu `encryption` trong cấu trúc từ điển trả về:
+    - `application_level_encrypted: False`
+    - `at_rest_layer: "filesystem_or_volume"`
+    - `guidance: "Archive relies on host volume/BitLocker encryption and strict OS filesystem permissions. For off-site transport, encrypt archive via standard operational tooling."`
+  - Đảm bảo tính minh bạch hoàn toàn về ranh giới an toàn thông tin theo tiêu chuẩn phần mềm y tế.
+- **Kiểm thử xác minh**:
+  - Tái hiện & Xác nhận: `tests/test_audit_major_fixes.py::test_ops_06_07_08_packaging_and_backup_boundaries` PASSED.
+  - Hồi quy: 341 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
