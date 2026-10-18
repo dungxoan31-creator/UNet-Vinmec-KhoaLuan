@@ -504,3 +504,18 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_26_patch_is_active_strict_validation_and_revocation` (Fails với `Status=200` khi truyền chuỗi không hợp lệ trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (chuỗi lạ nhận 422, `"false"` cập nhật thành công và token cũ của tài khoản bị thu hồi ngay lập tức với 401).
   - Hồi quy: 331 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
+### [BE-27] Bảo vệ tính toàn vẹn thời gian và tương thích định dạng hash sự kiện telemetry HITL
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/hitl.py`
+- **Nguyên nhân gốc (Root Cause)**: Trong endpoint tiếp nhận sự kiện HITL `POST /api/hitl/sessions/{session_id}/events`, logic kiểm tra trùng lặp với các sự kiện cũ lưu hash legacy (`payload_hash` chỉ hash `event.payload`) chỉ so sánh một phần nhỏ các cột (`event_type`, `task_id`, `seq`, `image_id`) mà bỏ qua các trường thời gian (`client_utc`, `elapsed_ms`, `session_elapsed_ms`) và `prediction_id`. Điều này khiến các request gửi lại (replay) có cùng payload nhưng bị làm sai lệch thời gian nghiên cứu (`elapsed_ms` bị thay đổi) vô tình được chấp nhận như bản sao hợp lệ (HTTP 200) thay vì bị từ chối bằng `HTTP 409 Conflict`. Đồng thời, các sự kiện trung gian lưu hash `mid_hash` (`event_type`, `task_id`, `image_id`, `seq`, `elapsed_ms`, `payload`) bị từ chối nhầm 409 khi replay chính xác.
+- **Giải pháp**:
+  - Đối với bản ghi hash legacy (`legacy_hash`): bắt buộc đối chiếu nghiêm ngặt toàn bộ thông tin sự kiện gồm `event_type`, `task_id`, `seq`, `image_id`, `prediction_id`, `client_utc`, và sai số thời gian `elapsed_ms`, `session_elapsed_ms` (< 0.1ms). Nếu có bất kỳ sự sai lệch nào về thời gian hoặc định danh, lập tức từ chối `HTTP 409 Conflict`.
+  - Bổ sung kiểm tra định dạng trung gian (`mid_hash`): cho phép replay thành công (HTTP 200, duplicate) đối với các sự kiện định dạng trung gian có dữ liệu chính xác và thời gian đồng nhất.
+  - Tự động nâng cấp (migration on replay) giá trị hash cũ trong cơ sở dữ liệu lên hash định danh toàn diện v2 (`identity_hash`) ngay khi xác nhận replay trùng khớp thành công.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_27_legacy_and_intermediate_telemetry_hash_timing_integrity` (Fails với `AssertionError: BE-27 VULNERABILITY: Mutated timing accepted under legacy hash! Status=200 assert 200 == 409` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (sự kiện đúng timing được nhận diện duplicate 200, sự kiện đột biến timing bị từ chối 409, định dạng intermediate replay thành công 200).
+  - Hồi quy: 332 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
