@@ -167,3 +167,22 @@ def test_demo_01_report_generator_removes_hardcoded_placeholders():
     assert "3 THÁNG" not in norm.get("conclusion_l2", ""), "DEMO-01 VULNERABILITY: Hardcoded 3-month recall used as fallback!"
 
 
+def test_fe_04_viewer_readonly_and_lease_loss_guard_blocks_clinical_mutation():
+    """FE-04: Viewer clinical controls must enforce readonly and editing.allowed guards, and lease loss must disable selectors."""
+    from pathlib import Path
+
+    viewer_js = Path("frontend/app/viewer.js").read_text(encoding="utf-8")
+
+    # 1. handleIota and handleOrads must guard against !state.editing?.allowed
+    assert "!state.editing?.allowed" in viewer_js, "FE-04 VULNERABILITY: Clinical input handlers missing editing.allowed guard!"
+
+    # 2. window.addEventListener("ova:lease-lost") must disable iotaMorphology and oradsScore
+    assert 'if ($("#iotaMorphology")) $("#iotaMorphology").disabled = true;' in viewer_js, (
+        "FE-04 VULNERABILITY: lease-lost listener does not disable iotaMorphology!"
+    )
+    assert 'if ($("#oradsScore")) $("#oradsScore").disabled = true;' in viewer_js, (
+        "FE-04 VULNERABILITY: lease-lost listener does not disable oradsScore!"
+    )
+
+
+

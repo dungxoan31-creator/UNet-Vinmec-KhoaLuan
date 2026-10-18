@@ -875,7 +875,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     };
     for (const id of ["notes", "morphology"])
       $("#" + id).oninput = (e) => {
-        if (state.busy) {
+        if (state.busy || readonly || !state.editing?.allowed) {
           e.target.value = (id === "morphology" ? image.morphologyDesc : image[id]) || "";
           return;
         }
@@ -885,7 +885,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       };
     if ($("#iotaMorphology")) {
       const handleIota = (e) => {
-        if (state.busy || readonly) {
+        if (state.busy || readonly || !state.editing?.allowed) {
           if (image) e.target.value = image.morphology || "";
           return;
         }
@@ -898,7 +898,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     }
     if ($("#oradsScore")) {
       const handleOrads = (e) => {
-        if (state.busy || readonly) {
+        if (state.busy || readonly || !state.editing?.allowed) {
           if (image) e.target.value = image.orads || "";
           return;
         }
@@ -1124,6 +1124,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     window.addEventListener(
       "ova:lease-lost",
       () => {
+        readonly = true;
+        state.editing = { caseId: c.study_id, allowed: false };
         $$("[data-tool]").forEach((b) => {
           if (!["fit", "pan", "fullscreen"].includes(b.dataset.tool))
             b.disabled = true;
@@ -1133,6 +1135,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           if (b) b.disabled = true;
         }
         $("#notes").disabled = $("#morphology").disabled = true;
+        if ($("#iotaMorphology")) $("#iotaMorphology").disabled = true;
+        if ($("#oradsScore")) $("#oradsScore").disabled = true;
         $$("[data-chip]").forEach((b) => (b.disabled = true));
       },
       events,
