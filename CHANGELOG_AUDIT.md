@@ -738,3 +738,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_minor_fixes.py::test_be_24_create_user_empty_payload_rejects_with_422` (Fails với `AssertionError: BE-24 VULNERABILITY: Empty payload returned 200 instead of 422!` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (payload trống và khoảng trắng đều nhận HTTP 422 với thông báo tiếng Việt chính xác, số lượng user tạo ra là 0).
   - Hồi quy: 344 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [BE-11] Triển khai Endpoint xuất nhật ký kiểm toán quản trị (Admin Audit Events Export)
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Giao diện quản trị `frontend/app/admin-audit.js:81` có nút "Xuất kết quả" gọi API `GET /api/admin/audit-events/export?...` để tải file CSV nhật ký hệ thống. Tuy nhiên backend chưa định nghĩa route này trong router quản trị, khiến request bị từ chối bằng lỗi `HTTP 404 Not Found` và làm hỏng luồng trích xuất nhật ký giám sát.
+- **Giải pháp**:
+  - Triển khai endpoint `GET /api/admin/audit-events/export` tại `backend/app/routers/admin.py`, tự động kế thừa cơ chế phân quyền bảo mật cấp cao `require_admin`.
+  - Hỗ trợ toàn bộ các bộ lọc dữ liệu: tìm kiếm văn bản `q`, người thực hiện `actor`, loại hành vi `action`, và khoảng thời gian `from`/`to`.
+  - Trả về cấu trúc JSON chuẩn hóa `{"items": items, "total": len(items)}` với đầy đủ thông tin thời gian, người thực hiện, hành vi, đối tượng và chi tiết sự kiện, đáp ứng chính xác hợp đồng gọi của client.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_be_11_audit_events_export_endpoint` (Fails với `assert 404 == 401` trước khi sửa do endpoint không tồn tại).
+  - Xác nhận: Test chuyển sang PASSED (request không có token bị từ chối HTTP 401; request admin hợp lệ nhận HTTP 200 với danh sách đầy đủ trường và áp dụng đúng các bộ lọc).
+  - Hồi quy: 345 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
