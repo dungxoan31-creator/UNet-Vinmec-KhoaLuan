@@ -332,3 +332,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_05_nonempty_subthreshold_mask_retains_measurements_and_warns` (Fails với `AssertionError: AI-05 VULNERABILITY: Nonempty mask was silently discarded as having no lesion!` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (mặt nạ 33 px dài 10 mm giữ nguyên `has_lesion = True`, đường kính >= 9.0 mm, diện tích > 0 và sinh cảnh báo lâm sàng minh bạch; mặt nạ thực sự rỗng vẫn trả về `has_lesion = False`).
   - Hồi quy: 318 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [AI-09] Đồng bộ nguồn gốc đo đạc (Provenance Spacing) và lưu vết lịch sử hiệu chuẩn
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/inference.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi bác sĩ hoặc kỹ thuật viên thực hiện hiệu chuẩn lại tỉ lệ khoảng cách vật lý của ảnh siêu âm (`POST /api/images/{image_id}/calibrate`), hệ thống tính lại các đường kính tổn thương và gán đè vào `prediction.measurements`, nhưng hoàn toàn không cập nhật `prediction.provenance_json`. Dẫn tới tình trạng dữ liệu mâu thuẫn nghiêm trọng: `prediction.provenance_json["pixel_spacing_mm"]` vẫn giữ giá trị cũ (ví dụ 0.2 mm/px), trong khi các kích thước lâm sàng hiển thị và lưu trữ (`max_diameter_mm`, `ortho_diameter_mm`) đã biến đổi theo tỉ lệ mới (ví dụ 0.4 mm/px). Người dùng và các quy trình nghiên cứu xuất khẩu không thể tái tạo lại số đo vật lý từ metadata nguồn gốc.
+- **Giải pháp**:
+  - Tại hàm `calibrate_image_spacing`: Trích xuất và bảo toàn giá trị tỉ lệ suy luận ban đầu `original_inference_pixel_spacing_mm` trong `provenance_json`.
+  - Cập nhật trường `pixel_spacing_mm` của `provenance_json` khớp chính xác với giá trị hiệu chuẩn mới.
+  - Thiết lập mảng lịch sử hiệu chuẩn `calibration_history` ghi nhận thời điểm (`calibrated_at`), người thực hiện (`actor`), tỉ lệ cũ (`previous_pixel_spacing_mm`), tỉ lệ mới (`new_pixel_spacing_mm`) và nguồn hiệu chuẩn (`MANUAL`).
+  - Đồng bộ `pixel_spacing_mm` và `calibration_source` vào payload `updated_measurements` để đảm bảo tính toàn vẹn của kết quả trả về API.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_09_calibration_updates_provenance_spacing` (Fails với `AssertionError: AI-09 VULNERABILITY: provenance_json was not updated! provenance_json={'pixel_spacing_mm': 0.2...}` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (`provenance_json["pixel_spacing_mm"]` cập nhật lên 0.4, `original_inference_pixel_spacing_mm` bảo toàn 0.2 và có `calibration_history`).
+  - Hồi quy: 319 passed, 2 skipped, 0 regressions trên toàn bộ test suite.

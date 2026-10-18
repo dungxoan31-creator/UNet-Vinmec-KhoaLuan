@@ -321,3 +321,56 @@ def test_ai_05_nonempty_subthreshold_mask_retains_measurements_and_warns():
     assert empty_res["max_diameter_mm"] == 0.0
     assert empty_res["total_area_cm2"] == 0.0
 
+
+def test_ai_09_calibration_updates_provenance_spacing(tmp_path):
+    """AI-09: Recalibrating image scale must synchronize provenance_json with new spacing and keep calibration history."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.config import model_registry
+    from backend.app.routers.inference import calibrate_image_spacing
+    from backend.db.database import Base, ImageModel, PatientModel, PredictionModel, StudyModel, UserModel
+
+    engine_db = create_engine(f"sqlite:///{tmp_path / 'ai09.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine_db)
+
+    adapter = model_registry.get_primary_adapter()
+    engine_ai = adapter.engine
+
+    mask = np.zeros((200, 200), dtype=np.uint8)
+    mask[50:150, 50:150] = 1  # 100x100
+    rle = engine_ai.mask_to_rle(mask)
+
+    with Session(engine_db) as db:
+        pat = PatientModel(id="p1", anonymized_pid="TEST_AI09")
+        db.add(pat)
+        std = StudyModel(id="s1", patient_id="p1", study_date="2026-10-18")
+        db.add(std)
+        img = ImageModel(id="img1", study_id="s1", filename="img1.png", raw_path="dummy.png", width=200, height=200, pixel_spacing_mm=0.2)
+        db.add(img)
+        pred = PredictionModel(
+            id="pred1",
+            image_id="img1",
+            raw_mask_rle=rle,
+            measurements=engine_ai.extract_calipers_and_measurements(mask, pixel_spacing_mm=0.2),
+            provenance_json={"pixel_spacing_mm": 0.2, "transform": {"scale": 1.0}},
+        )
+        db.add(pred)
+        user = UserModel(id="u1", username="doctor1", full_name="Doctor One", role="DOCTOR", is_active=True)
+        db.add(user)
+        db.commit()
+
+        # Recalibrate image spacing from 0.2 to 0.4 mm/px
+        res = calibrate_image_spacing("img1", pixel_spacing_mm=0.4, db=db, current_user=user)
+        assert res["success"] is True
+
+        # Refresh prediction from DB
+        pred_after = db.query(PredictionModel).filter(PredictionModel.id == "pred1").first()
+
+        # In AI-09 vulnerability: pred_after.provenance_json["pixel_spacing_mm"] remained 0.2
+        assert pred_after.provenance_json.get("pixel_spacing_mm") == 0.4, (
+            f"AI-09 VULNERABILITY: provenance_json was not updated! provenance_json={pred_after.provenance_json}"
+        )
+        assert pred_after.provenance_json.get("original_inference_pixel_spacing_mm") == 0.2
+        assert "calibration_history" in pred_after.provenance_json
+

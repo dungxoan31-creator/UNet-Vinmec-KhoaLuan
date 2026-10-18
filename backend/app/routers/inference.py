@@ -707,13 +707,34 @@ def calibrate_image_spacing(
     if prediction and prediction.raw_mask_rle:
         engine = model_registry.get_primary_adapter().engine
         mask = engine.rle_to_mask(prediction.raw_mask_rle)
-        prov = prediction.provenance_json or {}
+        prov = dict(prediction.provenance_json or {})
         transform = prov.get("transform") or {}
         calib_scale = float(transform.get("scale", 1.0))
         effective_spacing = (spacing / calib_scale) if calib_scale > 0 else spacing
         updated_measurements = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=effective_spacing)
         updated_measurements["calibrated"] = True
+        updated_measurements["pixel_spacing_mm"] = spacing
+        updated_measurements["calibration_source"] = "MANUAL"
         prediction.measurements = updated_measurements
+
+        # AI-09: Synchronize provenance_json and preserve original inference provenance separately
+        from datetime import UTC
+        calib_history = list(prov.get("calibration_history") or [])
+        old_spacing = prov.get("pixel_spacing_mm")
+        calib_history.append({
+            "calibrated_at": datetime.now(UTC).isoformat(),
+            "actor": current_user.username,
+            "previous_pixel_spacing_mm": old_spacing,
+            "new_pixel_spacing_mm": spacing,
+            "calibration_source": "MANUAL",
+        })
+        if "original_inference_pixel_spacing_mm" not in prov:
+            prov["original_inference_pixel_spacing_mm"] = old_spacing
+        prov["pixel_spacing_mm"] = spacing
+        prov["calibration_history"] = calib_history
+        prov["last_calibrated_at"] = datetime.now(UTC).isoformat()
+        prov["calibrated_by"] = current_user.username
+        prediction.provenance_json = prov
 
     audit = AuditLogModel(
         entity_name="image",
