@@ -169,10 +169,49 @@ def _save_admin_settings(settings: dict) -> None:
 
 _ADMIN_SETTINGS = _load_admin_settings()
 
-_DEPARTMENTS = [
-    {"id": "dep-cdha", "name": "Trung tâm Chẩn đoán hình ảnh", "code": "CDHA", "members": 12},
-    {"id": "dep-ps", "name": "Khoa Phụ sản", "code": "PS", "members": 8},
+_DEFAULT_DEPARTMENTS = [
+    {"id": "dep-cdha", "name": "Trung tâm Chẩn đoán hình ảnh", "code": "CDHA", "members": 0},
+    {"id": "dep-ps", "name": "Khoa Phụ sản", "code": "PS", "members": 0},
 ]
+
+
+def _get_admin_departments_file() -> str:
+    env_dir = os.environ.get("APP_DATA_DIR")
+    if env_dir:
+        from backend.app.config import PROJECT_ROOT
+
+        data_dir = os.path.abspath(env_dir) if os.path.isabs(env_dir) else os.path.abspath(os.path.join(PROJECT_ROOT, env_dir))
+    else:
+        from backend.app.config import DATA_DIR
+
+        data_dir = DATA_DIR
+    return os.path.join(data_dir, "admin_departments.json")
+
+
+def _load_admin_departments() -> list[dict]:
+    filepath = _get_admin_departments_file()
+    if os.path.isfile(filepath):
+        try:
+            with open(filepath, encoding="utf-8") as f:
+                saved = json.load(f)
+                if isinstance(saved, list):
+                    return saved
+        except Exception:
+            pass
+    return [dict(d) for d in _DEFAULT_DEPARTMENTS]
+
+
+def _save_admin_departments(departments: list[dict]) -> None:
+    filepath = _get_admin_departments_file()
+    try:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(departments, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+_DEPARTMENTS = _load_admin_departments()
 
 
 def parse_date_boundary(date_str: str | None, is_end_of_day: bool = False) -> datetime | None:
@@ -269,30 +308,49 @@ def get_audit_events(
 
 
 @router.get("/api/admin/departments")
-def get_admin_departments():
-    """Return clinical ultrasound and ob/gyn departments."""
-    return _DEPARTMENTS
+def get_admin_departments(db: Session = Depends(get_db)):
+    """Return clinical ultrasound and ob/gyn departments with real membership count."""
+    global _DEPARTMENTS
+    _DEPARTMENTS = _load_admin_departments()
+    res = []
+    for d in _DEPARTMENTS:
+        item = dict(d)
+        d_name = item.get("name", "")
+        d_code = item.get("code", "")
+        try:
+            count = db.query(UserModel).filter(
+                (UserModel.department == d_name) | (UserModel.department == d_code)
+            ).count()
+            item["members"] = count
+        except Exception:
+            item["members"] = item.get("members", 0)
+        res.append(item)
+    return res
 
 
 @router.post("/api/admin/departments")
 def create_admin_department(dept: dict = Body(default={})):
     """Create a new clinical department."""
+    global _DEPARTMENTS
     dept_id = dept.get("id") or f"dep-{len(_DEPARTMENTS) + 1}"
     name = dept.get("name") or "Khoa mới"
     new_dept = {"id": dept_id, "name": name, "code": dept.get("code", dept_id.upper()), "members": 0}
     _DEPARTMENTS.append(new_dept)
+    _save_admin_departments(_DEPARTMENTS)
     return {"status": "SUCCESS", "department": new_dept}
 
 
 @router.patch("/api/admin/departments/{dept_id}")
 def update_admin_department(dept_id: str, dept: dict = Body(default={})):
     """Update a department name or code."""
+    global _DEPARTMENTS
     for d in _DEPARTMENTS:
         if d["id"] == dept_id:
             if "name" in dept:
                 d["name"] = dept["name"]
             if "code" in dept:
                 d["code"] = dept["code"]
+            _save_admin_departments(_DEPARTMENTS)
             return {"status": "SUCCESS", "department": d}
     raise HTTPException(status_code=404, detail="Không tìm thấy khoa.")
 
@@ -302,6 +360,7 @@ def delete_admin_department(dept_id: str):
     """Delete a clinical department."""
     global _DEPARTMENTS
     _DEPARTMENTS = [d for d in _DEPARTMENTS if d["id"] != dept_id]
+    _save_admin_departments(_DEPARTMENTS)
     return {"status": "SUCCESS"}
 
 

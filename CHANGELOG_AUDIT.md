@@ -422,8 +422,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_18_admin_settings_persist_across_restart` (Fails với `AssertionError: BE-18 VULNERABILITY: Settings lost across process restart! Output: ... PERSISTED:BỆNH VIỆN...` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (cấu hình `persisted-header-audit-be18` được đọc chính xác trong tiến trình con khởi tạo hoàn toàn mới).
   - Hồi quy: 325 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
-
-
-
+### [BE-19] Lưu trữ bền vững danh sách khoa phòng và tính toán nhân sự thực tế
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Danh sách khoa phòng chuyên môn (`_DEPARTMENTS`) được lưu dưới dạng danh sách tĩnh trong bộ nhớ RAM, với số lượng nhân viên `members` được hardcode sẵn (12 và 8). Khi quản trị viên tạo, sửa hoặc xóa khoa phòng qua các API `POST/PATCH/DELETE /api/admin/departments`, các thay đổi trả về HTTP 200 nhưng hoàn toàn biến mất sau khi tiến trình uvicorn khởi động lại. Đồng thời, số liệu thành viên hiển thị không phản ánh số lượng nhân sự thực tế được phân bổ trong cơ sở dữ liệu.
+- **Giải pháp**:
+  - Xây dựng cơ chế đọc/ghi tệp bền vững `_load_admin_departments` và `_save_admin_departments` lưu trữ dữ liệu khoa phòng vào `admin_departments.json` trong thư mục dữ liệu cấu hình `DATA_DIR` (hỗ trợ phân giải biến môi trường `APP_DATA_DIR`).
+  - Mọi thao tác thêm mới (`POST`), cập nhật tên/mã khoa (`PATCH`) và xóa khoa (`DELETE`) đều tự động ghi cập nhật bền vững xuống đĩa.
+  - Trong API `GET /api/admin/departments`, tích hợp dependency `db: Session = Depends(get_db)` để tính toán động số lượng thành viên thực tế của từng khoa phòng thông qua bảng `users` (`UserModel.department == d_name` hoặc `UserModel.department == d_code`).
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_19_admin_departments_persist_across_restart` (Fails với `AssertionError: BE-19 VULNERABILITY: Department lost across process restart! Output: ... PERSISTED:False` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (khoa mới tạo tồn tại nguyên vẹn sau khi tiến trình mới khởi động lại; số lượng nhân sự `members` được tính toán tự động và chính xác theo dữ liệu người dùng).
+  - Hồi quy: 326 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
 

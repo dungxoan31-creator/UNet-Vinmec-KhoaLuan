@@ -687,5 +687,81 @@ def test_be_18_admin_settings_persist_across_restart(tmp_path, monkeypatch):
         )
 
 
+def test_be_19_admin_departments_persist_across_restart(tmp_path, monkeypatch):
+    """BE-19: Departments created/updated via admin API must persist across process restart."""
+    import subprocess
+    import sys
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+
+    with SessionLocal() as db:
+        admin_user = db.query(UserModel).filter(UserModel.username == "admin").first()
+        if not admin_user:
+            admin_user = UserModel(id="u_admin", username="admin", full_name="Admin", role="ADMIN", is_active=True)
+            db.add(admin_user)
+            db.commit()
+        admin_uid = admin_user.id
+
+    with TestClient(app) as client:
+        token = create_access_token({"sub": "admin", "uid": admin_uid, "role": "ADMIN"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Create department
+        create_resp = client.post(
+            "/api/admin/departments",
+            headers=headers,
+            json={"id": "dep-synthetic-19", "name": "Khoa Ung bướu Phụ khoa", "code": "UBPK"},
+        )
+        assert create_resp.status_code == 200
+
+        # Verify member calculation with user in department
+        with SessionLocal() as db:
+            if not db.query(UserModel).filter(UserModel.username == "doc_ubpk").first():
+                db.add(
+                    UserModel(
+                        id="u_doc_ubpk",
+                        username="doc_ubpk",
+                        full_name="Doctor UBPK",
+                        role="DOCTOR",
+                        department="Khoa Ung bướu Phụ khoa",
+                        is_active=True,
+                    )
+                )
+                db.commit()
+
+        list_resp = client.get("/api/admin/departments", headers=headers)
+        assert list_resp.status_code == 200
+        depts = list_resp.json()
+        target = next((d for d in depts if d["id"] == "dep-synthetic-19"), None)
+        assert target is not None
+        assert target["members"] == 1
+
+        # Simulate fresh process / restart
+        import os
+        child_env = os.environ.copy()
+        child_env["PYTHONIOENCODING"] = "utf-8"
+        child_env["APP_DATA_DIR"] = str(tmp_path)
+
+        code = (
+            "from backend.app.routers import admin; "
+            "found = any(x.get('id') == 'dep-synthetic-19' for x in admin._DEPARTMENTS); "
+            "print('PERSISTED:' + str(found))"
+        )
+        child = subprocess.run([sys.executable, "-c", code], env=child_env, capture_output=True, encoding="utf-8", timeout=30)
+        assert child.returncode == 0, f"Child process failed: {child.stderr}"
+        output = child.stdout
+        assert "PERSISTED:True" in output, (
+            f"BE-19 VULNERABILITY: Department lost across process restart! Output: {output}"
+        )
+
+
+
 
 
