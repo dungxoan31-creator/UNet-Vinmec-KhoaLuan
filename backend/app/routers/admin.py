@@ -2,6 +2,8 @@
 Admin Governance, Model Registry Overview, Audit Logs, and Dataset Export endpoints.
 """
 
+import json
+import os
 import secrets
 import uuid
 from datetime import UTC, datetime
@@ -118,7 +120,7 @@ def list_backups():
     return backup_service.list_backups()
 
 
-_ADMIN_SETTINGS = {
+_DEFAULT_ADMIN_SETTINGS = {
     "hospital_name": "Vinmec Times City International Hospital",
     "report_header": "BỆNH VIỆN ĐA KHOA QUỐC TẾ VINMEC TIMES CITY",
     "iqa_threshold": 0.65,
@@ -126,6 +128,46 @@ _ADMIN_SETTINGS = {
     "ai_assisted_signoff": True,
     "hitl_enabled": True,
 }
+
+
+def _get_admin_settings_file() -> str:
+    env_dir = os.environ.get("APP_DATA_DIR")
+    if env_dir:
+        from backend.app.config import PROJECT_ROOT
+
+        data_dir = os.path.abspath(env_dir) if os.path.isabs(env_dir) else os.path.abspath(os.path.join(PROJECT_ROOT, env_dir))
+    else:
+        from backend.app.config import DATA_DIR
+
+        data_dir = DATA_DIR
+    return os.path.join(data_dir, "admin_settings.json")
+
+
+def _load_admin_settings() -> dict:
+    settings = dict(_DEFAULT_ADMIN_SETTINGS)
+    filepath = _get_admin_settings_file()
+    if os.path.isfile(filepath):
+        try:
+            with open(filepath, encoding="utf-8") as f:
+                saved = json.load(f)
+                if isinstance(saved, dict):
+                    settings.update(saved)
+        except Exception:
+            pass
+    return settings
+
+
+def _save_admin_settings(settings: dict) -> None:
+    filepath = _get_admin_settings_file()
+    try:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(settings, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+_ADMIN_SETTINGS = _load_admin_settings()
 
 _DEPARTMENTS = [
     {"id": "dep-cdha", "name": "Trung tâm Chẩn đoán hình ảnh", "code": "CDHA", "members": 12},
@@ -448,6 +490,7 @@ def register_admin_model(model_data: dict = Body(default={})):
 @router.get("/api/admin/settings")
 def get_admin_settings():
     """Return admin workspace settings."""
+    _ADMIN_SETTINGS.update(_load_admin_settings())
     return _ADMIN_SETTINGS
 
 
@@ -455,6 +498,7 @@ def get_admin_settings():
 def update_admin_settings(settings: dict = Body(default={})):
     """Update admin workspace settings."""
     _ADMIN_SETTINGS.update(settings)
+    _save_admin_settings(_ADMIN_SETTINGS)
     return {"status": "SUCCESS", "message": "Đã lưu cấu hình.", "settings": _ADMIN_SETTINGS}
 
 

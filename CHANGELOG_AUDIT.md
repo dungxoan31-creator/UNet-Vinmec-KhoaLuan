@@ -410,6 +410,20 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (chuỗi chữ không phải ngày và ngày không có trên lịch đều nhận lỗi HTTP 422; chuỗi ngày hợp lệ được lưu trữ và phản hồi chính xác).
   - Hồi quy: 324 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-18] Lưu trữ bền vững (Persistence) cài đặt quản trị hệ thống qua các lần khởi động lại
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Toàn bộ cấu hình quản trị hệ thống (`hospital_name`, `report_header`, `iqa_threshold`, `unit`, `ai_assisted_signoff`, `hitl_enabled`) chỉ được lưu trong biến từ điển bộ nhớ tạm thời `_ADMIN_SETTINGS` của tiến trình Python. Mặc dù API `PUT /api/admin/settings` trả về HTTP 200 thành công, nhưng mỗi khi tiến trình uvicorn khởi động lại hoặc khi hệ thống chạy đa tiến trình/đa worker, toàn bộ cấu hình cập nhật của quản trị viên bị biến mất và khôi phục về giá trị mặc định tĩnh.
+- **Giải pháp**:
+  - Xây dựng cơ chế lưu trữ bền vững `_save_admin_settings` và tải tự động `_load_admin_settings` trỏ tới tệp cấu hình `admin_settings.json` trong thư mục dữ liệu `DATA_DIR` (hỗ trợ phân giải động biến môi trường `APP_DATA_DIR`).
+  - Khi quản trị viên cập nhật cài đặt qua `PUT /api/admin/settings`, hệ thống cập nhật bộ nhớ đồng thời ghi tệp JSON an toàn có thụt lề định dạng.
+  - Khi truy vấn `GET /api/admin/settings`, hệ thống đồng bộ dữ liệu mới nhất từ tệp cấu hình để đảm bảo tính nhất quán giữa các tiến trình worker.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_18_admin_settings_persist_across_restart` (Fails với `AssertionError: BE-18 VULNERABILITY: Settings lost across process restart! Output: ... PERSISTED:BỆNH VIỆN...` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (cấu hình `persisted-header-audit-be18` được đọc chính xác trong tiến trình con khởi tạo hoàn toàn mới).
+  - Hồi quy: 325 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
 

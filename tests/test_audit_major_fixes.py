@@ -635,4 +635,57 @@ def test_be_17_create_case_rejects_invalid_study_date(monkeypatch):
         assert resp3.json()["study_date"] == "2026-10-18"
 
 
+def test_be_18_admin_settings_persist_across_restart(tmp_path, monkeypatch):
+    """BE-18: Admin settings updated via PUT /api/admin/settings must persist across process restart."""
+    import subprocess
+    import sys
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+
+    with SessionLocal() as db:
+        admin_user = db.query(UserModel).filter(UserModel.username == "admin").first()
+        if not admin_user:
+            admin_user = UserModel(id="u_admin", username="admin", full_name="Admin", role="ADMIN", is_active=True)
+            db.add(admin_user)
+            db.commit()
+        admin_uid = admin_user.id
+
+    with TestClient(app) as client:
+        token = create_access_token({"sub": "admin", "uid": admin_uid, "role": "ADMIN"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Update setting
+        update_resp = client.put(
+            "/api/admin/settings",
+            headers=headers,
+            json={"report_header": "persisted-header-audit-be18"},
+        )
+        assert update_resp.status_code == 200
+
+        # Simulate fresh process / restart
+        import os
+        child_env = os.environ.copy()
+        child_env["PYTHONIOENCODING"] = "utf-8"
+        child_env["APP_DATA_DIR"] = str(tmp_path)
+
+        code = (
+            "from backend.app.routers import admin; "
+            "print('PERSISTED:' + str(admin._ADMIN_SETTINGS.get('report_header')))"
+        )
+        child = subprocess.run([sys.executable, "-c", code], env=child_env, capture_output=True, encoding="utf-8", timeout=30)
+        assert child.returncode == 0, f"Child process failed: {child.stderr}"
+        output = child.stdout
+        assert "PERSISTED:persisted-header-audit-be18" in output, (
+            f"BE-18 VULNERABILITY: Settings lost across process restart! Output: {output}"
+        )
+
+
+
 
