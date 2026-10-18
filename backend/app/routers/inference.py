@@ -283,8 +283,11 @@ async def upload_image(
             os.remove(file_path)
         except OSError:
             pass
-        if "uq_study_file_hash" in str(exc.orig) or "images.study_id, images.file_hash" in str(exc.orig):
+        orig_str = str(getattr(exc, "orig", exc))
+        if "uq_study_file_hash" in orig_str or "images.study_id, images.file_hash" in orig_str:
             raise HTTPException(status_code=409, detail="Ảnh này đã tồn tại trong ca khảo sát.") from exc
+        if "uq_study_laterality" in orig_str or "images.study_id, images.laterality" in orig_str:
+            raise HTTPException(status_code=409, detail="Ca khám đã có ảnh cho bên khảo sát này.") from exc
         raise
 
     return {

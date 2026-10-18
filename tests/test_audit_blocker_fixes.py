@@ -148,4 +148,79 @@ def test_be_05_admin_and_non_clinical_roles_cannot_export_research_bundle(tmp_pa
         engine.dispose()
 
 
+def test_be_13_concurrent_laterality_upload_race(tmp_path, monkeypatch):
+    """BE-13: Concurrent uploads with same laterality must not create two images on the same ovary side."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    import concurrent.futures
+    import cv2
+    import numpy as np
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+    from backend.db.database import Base, UserModel, PatientModel, StudyModel, ImageModel, get_db
+    from backend.app.routers.auth import create_access_token
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'be13.db'}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add_all([
+            UserModel(id="doc-id", username="doctor", full_name="Bác sĩ", role="DOCTOR", is_active=True),
+            PatientModel(id="p1", anonymized_pid="PID-BE13"),
+            StudyModel(id="s1", patient_id="p1", study_code="STD-BE13", study_date="2026-10-18", ovary_side="BOTH"),
+        ])
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    doc_token = create_access_token({"sub": "doctor"})
+    headers = {"Authorization": f"Bearer {doc_token}"}
+
+    # Generate two distinct valid test ultrasound images
+    img1 = np.full((128, 128, 3), 100, dtype=np.uint8)
+    img2 = np.full((128, 128, 3), 200, dtype=np.uint8)
+    png1 = cv2.imencode(".png", img1)[1].tobytes()
+    png2 = cv2.imencode(".png", img2)[1].tobytes()
+
+    try:
+        def upload_attempt(png_bytes, filename):
+            with TestClient(app) as client:
+                return client.post(
+                    "/api/upload",
+                    headers=headers,
+                    data={"study_id": "s1", "laterality": "R"},
+                    files={"file": (filename, png_bytes, "image/png")},
+                )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            fut1 = executor.submit(upload_attempt, png1, "right_1.png")
+            fut2 = executor.submit(upload_attempt, png2, "right_2.png")
+            r1 = fut1.result()
+            r2 = fut2.result()
+
+        with Session(engine) as db:
+            right_images = db.query(ImageModel).filter(
+                ImageModel.study_id == "s1", ImageModel.laterality == "R"
+            ).all()
+
+        assert len(right_images) <= 1, (
+            f"BE-13 VULNERABILITY DETECTED: Concurrent upload created {len(right_images)} images with laterality='R'! "
+            f"Statuses: {r1.status_code}, {r2.status_code}"
+        )
+        # Exactly one must succeed, the other must be rejected with 409 Conflict
+        statuses = sorted([r1.status_code, r2.status_code])
+        assert statuses == [200, 409], (
+            f"BE-13 VULNERABILITY DETECTED: Expected statuses [200, 409] but got: {statuses}. "
+            f"r1: {r1.text}, r2: {r2.text}"
+        )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+
 

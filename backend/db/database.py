@@ -16,11 +16,13 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     create_engine,
+    text,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
@@ -70,7 +72,10 @@ class StudyModel(Base):
 
 class ImageModel(Base):
     __tablename__ = "images"
-    __table_args__ = (UniqueConstraint("study_id", "file_hash", name="uq_study_file_hash"),)
+    __table_args__ = (
+        UniqueConstraint("study_id", "file_hash", name="uq_study_file_hash"),
+        Index("uq_study_laterality", "study_id", "laterality", unique=True, sqlite_where=text("laterality IS NOT NULL")),
+    )
 
     id = Column(String(36), primary_key=True)
     study_id = Column(String(36), ForeignKey("studies.id"), nullable=False)
@@ -267,6 +272,18 @@ def init_db():
                         cursor.execute("UPDATE images SET file_hash = ? WHERE id = ?", (digest, image_id))
                         claimed.add((study_id, digest))
                 cursor.execute("CREATE UNIQUE INDEX uq_study_file_hash ON images(study_id, file_hash)")
+            has_laterality_constraint = False
+            for index in indexes:
+                if index[2]:
+                    index_name = index[1].replace('"', '""')
+                    indexed_columns = [column[2] for column in cursor.execute(f'PRAGMA index_info("{index_name}")')]
+                    if indexed_columns == ["study_id", "laterality"]:
+                        has_laterality_constraint = True
+                        break
+            if not has_laterality_constraint:
+                cursor.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_study_laterality ON images(study_id, laterality) WHERE laterality IS NOT NULL;"
+                )
             cursor.execute("PRAGMA table_info(reviews);")
             review_columns = [col[1] for col in cursor.fetchall()]
             if "hitl_feedback" not in review_columns:

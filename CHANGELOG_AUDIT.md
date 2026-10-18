@@ -52,5 +52,18 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (HTTP 403 Forbidden cho cả Admin và Thư ký).
   - Hồi quy: 300 passed, 2 skipped, 0 regressions trên toàn bộ test suite (bao gồm 8 test trong `tests/test_research_export.py`).
 
+### [BE-13] Loại bỏ race condition khi tải lên đồng thời hai ảnh cùng bên buồng trứng
+- **Mức độ nghiêm trọng**: BLOCKER
+- **Tập tin sửa đổi**: `backend/db/database.py`, `backend/app/routers/inference.py`
+- **Nguyên nhân gốc (Root Cause)**: Kiểm tra trùng lặp bên buồng trứng (`laterality="R"` hoặc `"L"`) chỉ được thực hiện bằng câu lệnh `SELECT` trước khi upload, thiếu ràng buộc tính toàn vẹn cấp cơ sở dữ liệu. Khi có hai request upload gửi đồng thời cho cùng một ca bệnh và cùng một bên buồng trứng, cả hai đều thấy bên đó còn trống và cùng chèn thành công (HTTP 200), dẫn đến việc một ca bệnh có 2 ảnh cùng bên buồng trứng, gây nhầm lẫn lâm sàng nghiêm trọng khi bác sĩ đọc kết quả.
+- **Giải pháp**:
+  - Bổ sung `Index("uq_study_laterality", "study_id", "laterality", unique=True, sqlite_where=text("laterality IS NOT NULL"))` vào ORM model `ImageModel` và auto-migration trong `init_db`.
+  - Trong `upload_image`, xử lý `IntegrityError` đối với vi phạm constraint `uq_study_laterality`: rollback transaction, xóa file ảnh tạm khỏi đĩa và trả về HTTP 409 Conflict ("Ca khám đã có ảnh cho bên khảo sát này.").
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_blocker_fixes.py::test_be_13_concurrent_laterality_upload_race` (Dùng đa luồng `ThreadPoolExecutor` gửi 2 upload cùng `laterality="R"`, trước khi sửa cả hai đều 200 và tạo 2 ảnh right).
+  - Xác nhận: Test chuyển sang PASSED (Một request thành công 200, request cạnh tranh còn lại nhận 409 Conflict; DB lưu đúng 1 ảnh duy nhất cho bên R).
+  - Hồi quy: 301 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
