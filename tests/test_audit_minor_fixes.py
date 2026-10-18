@@ -254,3 +254,25 @@ def test_dep_06_to_12_build_toolchain_security_boundaries():
     assert "setuptools>=78.1.1" in docker_content, "DEP-12 VULNERABILITY: Dockerfile does not upgrade setuptools to >=78.1.1!"
 
 
+def test_qa_02_static_type_check_configured():
+    """QA-02: Project must configure static type-checking pipeline across frontend and backend boundaries."""
+    import json
+    from pathlib import Path
+
+    # 1. package.json must define "type-check" script
+    pkg_path = Path("package.json")
+    assert pkg_path.exists(), "QA-02: Missing package.json!"
+    pkg_data = json.loads(pkg_path.read_text(encoding="utf-8"))
+    scripts = pkg_data.get("scripts", {})
+    assert "type-check" in scripts, "QA-02 VULNERABILITY: package.json missing 'type-check' script!"
+
+    # 2. scripts/type_check.js must exist and be executable
+    type_check_script = Path("scripts/type_check.js")
+    assert type_check_script.exists(), "QA-02 VULNERABILITY: Missing scripts/type_check.js runner!"
+
+    # 3. pyproject.toml must have static type check configuration
+    pyproject_text = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert "[tool.mypy]" in pyproject_text, "QA-02 VULNERABILITY: pyproject.toml missing [tool.mypy] section!"
+
+
+

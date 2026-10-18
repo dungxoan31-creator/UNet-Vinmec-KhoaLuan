@@ -44,3 +44,16 @@ filterwarnings = [
     "ignore::starlette.testclient.StarletteDeprecationWarning",
     "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+follow_imports = "silent"
+exclude = [
+    "artifacts",
+    "evaluation",
+    "dataset",
+]
+
