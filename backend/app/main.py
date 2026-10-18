@@ -3,7 +3,6 @@ FastAPI Application Entry Point for Ovarian Ultrasound AI System.
 Author: Nguyen Huu Dung (MIS 65A - NEU)
 """
 
-import json
 import os
 import uuid
 from datetime import UTC, datetime
@@ -36,7 +35,7 @@ from backend.app.routers import (
 )
 from backend.app.routers.auth import get_current_user
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
-from backend.db.database import AuditLogModel, get_db, init_db
+from backend.db.database import AuditLogModel, UserModel, get_db, init_db
 
 # Initialize Database Schema
 init_db()
@@ -108,14 +107,22 @@ def read_notifications(payload: dict = Body(default={})):
 
 
 @app.post("/api/feedback")
-def submit_feedback(payload: dict = Body(default={}), db: Session = Depends(get_db)):
+def submit_feedback(
+    payload: dict = Body(default={}),
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Acknowledge doctor feedback and suggestions with durable audit logging."""
     audit_entry = AuditLogModel(
         entity_name="user_feedback",
         entity_id=str(uuid.uuid4()),
         action_type="USER_FEEDBACK",
-        actor_id=payload.get("actor_id") or payload.get("username") or "doctor",
-        details=payload if payload else {},
+        actor_id=user.username,
+        details={
+            "title": str(payload.get("title", "")),
+            "message": str(payload.get("message", "")),
+            "role": user.role,
+        },
         timestamp=datetime.now(UTC),
     )
     db.add(audit_entry)

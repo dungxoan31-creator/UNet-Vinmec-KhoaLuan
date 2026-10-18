@@ -163,6 +163,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (cả token có `uid` cũ và token không có `uid` phát hành trước đó đều bị từ chối 401 khi tài khoản mới được tái tạo).
   - Hồi quy: 307 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-08] Bảo vệ tính toàn vẹn audit và chống giả mạo actor trong feedback
+- **Mức độ nghiêm trọng**: CRITICAL
+- **Tập tin sửa đổi**: `backend/app/main.py`
+- **Nguyên nhân gốc (Root Cause)**: Endpoint `POST /api/feedback` không yêu cầu xác thực người dùng và nhận trực tiếp giá trị `actor_id` từ client payload (`payload.get("actor_id")`) để ghi vào bảng `AuditLogModel`. Lỗ hổng này cho phép kẻ tấn công ẩn danh chèn các bản ghi nhật ký giả mạo dưới danh nghĩa của bất kỳ tài khoản nào (bao gồm quản trị viên `admin`), phá hủy tính toàn vẹn và giá trị chứng cứ pháp lý của hệ thống audit trail.
+- **Giải pháp**:
+  - Bắt buộc xác thực người dùng thông qua dependency `user: UserModel = Depends(get_current_user)`. Mọi request ẩn danh đều bị từ chối ngay HTTP 401 Unauthorized.
+  - Gán trường `actor_id` của bản ghi audit duy nhất từ phiên làm việc đã xác thực của máy chủ (`user.username`), loại bỏ hoàn toàn việc tin tưởng `actor_id` do client truyền lên.
+  - Chuẩn hóa trường `details` chỉ lưu trữ các thông tin hợp lệ (`title`, `message`, `role`), tránh nhúng payload tùy tiện không kiểm soát.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_critical_fixes.py::test_be_08_feedback_requires_auth_and_prevents_actor_spoofing` (Trước khi sửa, request ẩn danh nhận HTTP 200 và client giả mạo được `actor_id="auditadmin"`).
+  - Xác nhận: Test chuyển sang PASSED (request ẩn danh bị từ chối 401; request có token của `doctor1` truyền `actor_id="auditadmin"` chỉ ghi nhận đúng `actor_id="doctor1"` trong audit log).
+  - Hồi quy: 308 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
 
 
 

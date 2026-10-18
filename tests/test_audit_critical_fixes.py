@@ -203,3 +203,53 @@ def test_be_07_old_token_cannot_rebind_to_recreated_username(tmp_path, monkeypat
         engine.dispose()
 
 
+def test_be_08_feedback_requires_auth_and_prevents_actor_spoofing(tmp_path, monkeypatch):
+    """BE-08: Feedback endpoint must require authentication and derive actor strictly from server session."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import AuditLogModel, Base, UserModel, get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'be08.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(UserModel(id="u1", username="doctor1", full_name="BS. Test", role="DOCTOR", is_active=True))
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            # 1. Anonymous feedback submission MUST be rejected with 401
+            anon_resp = client.post("/api/feedback", json={"actor_id": "auditadmin", "message": "unauthenticated spoof"})
+            assert anon_resp.status_code == 401, (
+                f"BE-08 VULNERABILITY DETECTED: Anonymous feedback was accepted! Status: {anon_resp.status_code}"
+            )
+
+            # 2. Authenticated user cannot spoof actor_id
+            token = create_access_token({"sub": "doctor1", "uid": "u1"})
+            h = {"Authorization": f"Bearer {token}"}
+            auth_resp = client.post(
+                "/api/feedback",
+                headers=h,
+                json={"actor_id": "auditadmin", "title": "Góp ý UI", "message": "Giao diện rất tốt"},
+            )
+            assert auth_resp.status_code == 200
+            feedback_id = int(auth_resp.json()["feedback_id"])
+
+            with Session(engine) as db:
+                row = db.query(AuditLogModel).filter(AuditLogModel.id == feedback_id).one()
+                assert row.actor_id == "doctor1", (
+                    f"BE-08 VULNERABILITY DETECTED: Client claimed actor spoofed audit log! Expected doctor1, got {row.actor_id}"
+                )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+
