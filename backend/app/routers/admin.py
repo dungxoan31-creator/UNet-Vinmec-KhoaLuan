@@ -422,7 +422,7 @@ def create_admin_user(user_data: dict = Body(default={}), db: Session = Depends(
     """Create a new user account administratively."""
     raw_username = (user_data.get("username") or "").strip()
     if not raw_username:
-        return {"status": "SUCCESS", "message": "Yêu cầu tiếp nhận."}
+        raise HTTPException(status_code=422, detail="Tên đăng nhập không được để trống")
     username = raw_username.lower()
     existing = db.query(UserModel).filter(UserModel.username == username).first()
     if existing:
