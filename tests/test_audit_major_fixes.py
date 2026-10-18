@@ -953,6 +953,70 @@ def test_be_23_admin_create_user_normalizes_username_lowercase(monkeypatch):
         )
 
 
+def test_be_26_patch_is_active_strict_validation_and_revocation(monkeypatch):
+    """BE-26: PATCH /api/admin/users must strictly validate is_active and revoke active session when deactivated."""
+    import uuid
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    with SessionLocal() as db:
+        admin_user = db.query(UserModel).filter(UserModel.username == "admin").first()
+        if not admin_user:
+            admin_user = UserModel(id="u_admin", username="admin", full_name="Admin", role="ADMIN", is_active=True)
+            db.add(admin_user)
+            db.commit()
+        admin_uid = admin_user.id
+
+        test_uid = f"u_test_26_{uuid.uuid4().hex[:6]}"
+        test_uname = f"doc_26_{uuid.uuid4().hex[:6]}"
+        db.add(UserModel(id=test_uid, username=test_uname, full_name="Doc 26", role="DOCTOR", is_active=True))
+        db.commit()
+
+    with TestClient(app) as client:
+        admin_token = create_access_token({"sub": "admin", "uid": admin_uid, "role": "ADMIN"})
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+        doc_token = create_access_token({"sub": test_uname, "uid": test_uid, "role": "DOCTOR"})
+        doc_headers = {"Authorization": f"Bearer {doc_token}"}
+
+        # 1. Reject invalid string values with HTTP 422
+        invalid_resp = client.patch(
+            f"/api/admin/users/{test_uid}",
+            headers=admin_headers,
+            json={"is_active": "unrecognized_bool_value"},
+        )
+        assert invalid_resp.status_code == 422, (
+            f"BE-26 VULNERABILITY: Invalid is_active string accepted! Status={invalid_resp.status_code}"
+        )
+
+        # 2. String 'false' must successfully deactivate the user
+        deact_resp = client.patch(
+            f"/api/admin/users/{test_uid}",
+            headers=admin_headers,
+            json={"is_active": "false"},
+        )
+        assert deact_resp.status_code == 200
+
+        with SessionLocal() as db:
+            refreshed = db.query(UserModel).filter(UserModel.id == test_uid).first()
+            assert refreshed is not None
+            assert refreshed.is_active is False, (
+                f"BE-26 VULNERABILITY: String 'false' did not set is_active=False! Stored={refreshed.is_active}"
+            )
+
+        # 3. Session revocation: deactivated user's existing token must be rejected with 401
+        check_resp = client.get("/api/cases", headers=doc_headers)
+        assert check_resp.status_code == 401, (
+            f"BE-26 VULNERABILITY: Deactivated user token still active! Status={check_resp.status_code}"
+        )
+
+
 
 
 

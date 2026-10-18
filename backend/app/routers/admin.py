@@ -482,10 +482,32 @@ def update_admin_user(
         updated_fields["department"] = str(payload["department"])
     if "is_active" in payload:
         val = payload["is_active"]
-        if isinstance(val, str):
-            user.is_active = val.strip().lower() not in ("false", "0", "no", "")
+        new_active: bool
+        if isinstance(val, bool):
+            new_active = val
+        elif isinstance(val, (int, float)):
+            new_active = bool(val)
+        elif isinstance(val, str):
+            norm = val.strip().lower()
+            if norm in ("true", "1", "yes", "on", "active"):
+                new_active = True
+            elif norm in ("false", "0", "no", "off", "inactive"):
+                new_active = False
+            else:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Giá trị is_active không hợp lệ. Phải là kiểu boolean (true/false).",
+                )
         else:
-            user.is_active = bool(val)
+            raise HTTPException(
+                status_code=422,
+                detail="Giá trị is_active không hợp lệ. Phải là kiểu boolean (true/false).",
+            )
+
+        if user.is_active and not new_active:
+            user.tokens_revoked_at = datetime.now(UTC)
+            user.token_version = (user.token_version or 1) + 1
+        user.is_active = new_active
         updated_fields["is_active"] = user.is_active
 
     db.add(
