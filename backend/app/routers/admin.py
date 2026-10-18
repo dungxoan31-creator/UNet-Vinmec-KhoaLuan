@@ -399,6 +399,11 @@ def register_admin_model(model_data: dict = Body(default={})):
     arch = model_data.get("architecture") or "Candidate Checkpoint"
     ckpt = model_data.get("checkpoint") or model_data.get("artifact_id")
     key = model_data.get("model_id") or f"candidate_{len(model_registry.adapters)}_{uuid.uuid4().hex[:6]}"
+    if key in model_registry.adapters or key in {"attention_unet", "s4m", "ultrasam", "ds2net", "sovaseg"}:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Mã mô hình '{key}' đã tồn tại hoặc thuộc danh mục phục vụ được bảo vệ.",
+        )
 
     adapter = CandidateModelAdapter(name=name, version=version, architecture=arch, checkpoint=ckpt)
     model_registry.register_adapter(key, adapter)

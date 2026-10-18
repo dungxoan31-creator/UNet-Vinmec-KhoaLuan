@@ -169,3 +169,62 @@ def test_ai_06_summary_diameters_belong_to_same_dominant_lesion():
     assert res["ortho_diameter_mm"] == dominant["ortho_diameter_mm"]
 
 
+def test_ai_08_cannot_overwrite_serving_model_key(tmp_path, monkeypatch):
+    """AI-08: Registering a model candidate with an existing or reserved key must be rejected to prevent overwriting active serving models."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.config import model_registry
+    from backend.app.routers.auth import create_access_token, hash_password
+    from backend.db.database import Base, UserModel, get_db
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'ai08.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(
+            UserModel(
+                id="u_adm",
+                username="admin1",
+                full_name="Admin",
+                role="ADMIN",
+                is_active=True,
+                password_hash=hash_password("adminpass123"),
+            )
+        )
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            admin_token = create_access_token({"sub": "admin1", "uid": "u_adm"})
+            ah = {"Authorization": f"Bearer {admin_token}"}
+
+            original_adapter = model_registry.get_adapter("attention_unet")
+            original_is_loaded = original_adapter.is_loaded if original_adapter else False
+
+            # Attempt to register candidate model using active serving key "attention_unet"
+            resp = client.post(
+                "/api/admin/models/register",
+                headers=ah,
+                json={"model_id": "attention_unet", "name": "Fake Model", "checkpoint": "dummy.pt"},
+            )
+            # Must be rejected with 409 Conflict (or 400), NEVER 200 SUCCESS
+            assert resp.status_code == 409, (
+                f"AI-08 VULNERABILITY: Registered candidate overwritten serving model! Status={resp.status_code}, Body={resp.text}"
+            )
+
+            # Active serving model must remain intact
+            current_adapter = model_registry.get_adapter("attention_unet")
+            assert current_adapter is original_adapter
+            assert current_adapter.is_loaded == original_is_loaded
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+

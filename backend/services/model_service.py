@@ -390,7 +390,9 @@ class ModelRegistry:
         self.register_adapter("ds2net", DS2NetAdapter(fallback_engine=primary_engine))
         self.register_adapter("sovaseg", SovaSegAdapter(fallback_engine=primary_engine))
 
-    def register_adapter(self, key: str, adapter: BaseModelAdapter):
+    def register_adapter(self, key: str, adapter: BaseModelAdapter, allow_overwrite: bool = False):
+        if not allow_overwrite and key in self.adapters:
+            raise ValueError(f"Model key '{key}' is already registered and cannot be overwritten.")
         self.adapters[key] = adapter
 
     def get_adapter(self, key: str) -> BaseModelAdapter | None:

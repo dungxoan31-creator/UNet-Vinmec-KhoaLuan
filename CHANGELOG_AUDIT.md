@@ -296,6 +296,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (Dmax và Dorth đều thuộc tổn thương ưu thế 100×20 mm thay vì ghép trục 40 mm từ tổn thương phụ).
   - Hồi quy: 315 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [AI-08] Khóa định danh mô hình phục vụ cốt lõi và ngăn chặn ghi đè Registry
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`, `backend/services/model_service.py`
+- **Nguyên nhân gốc (Root Cause)**: Endpoint đăng ký mô hình ứng viên `POST /api/admin/models/register` nhận tham số `model_id` do client truyền vào mà không kiểm tra trùng lặp hoặc bảo vệ các định danh cốt lõi. Phương thức `ModelRegistry.register_adapter` gán đè trực tiếp `self.adapters[key] = adapter`. Khi người dùng gửi request với `model_id="attention_unet"` (hoặc các mô hình phục vụ khác), mô hình chính đang phục vụ lâm sàng bị ghi đè bởi một `CandidateModelAdapter` chưa được tải (`is_loaded=False`), lập tức làm tê liệt toàn bộ luồng suy luận của hệ thống mà không cần bước phê duyệt hoặc kiểm thử hợp lệ.
+- **Giải pháp**:
+  - Tại tầng dịch vụ (`backend/services/model_service.py`): Bổ sung cờ bảo vệ `allow_overwrite: bool = False` trong `register_adapter`. Nếu `key in self.adapters` và không bật `allow_overwrite`, ném lỗi `ValueError` từ chối ghi đè.
+  - Tại tầng API (`backend/app/routers/admin.py`): Trước khi đăng ký, kiểm tra nếu `key` đã tồn tại trong `model_registry.adapters` hoặc thuộc danh sách khóa phục vụ được bảo vệ (`{"attention_unet", "s4m", "ultrasam", "ds2net", "sovaseg"}`), từ chối ngay lập tức HTTP 409 Conflict ("Mã mô hình đã tồn tại hoặc thuộc danh mục phục vụ được bảo vệ.").
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_08_cannot_overwrite_serving_model_key` (Fails với `Status=200` và adapter `attention_unet` bị ghi đè thành công trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (request đăng ký trùng khóa bị từ chối 409 Conflict, adapter chính `attention_unet` giữ nguyên tham chiếu và trạng thái `is_loaded`).
+  - Hồi quy: 316 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
 
