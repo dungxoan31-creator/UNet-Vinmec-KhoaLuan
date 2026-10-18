@@ -101,6 +101,14 @@ class BackupService:
                 "size_mb": round(archive_size_bytes / (1024 * 1024), 2),
                 "timestamp": timestamp,
                 "included_images": include_images,
+                "encryption": {
+                    "at_rest_layer": "filesystem_or_volume",
+                    "application_level_encrypted": False,
+                    "guidance": (
+                        "Archive relies on host volume/BitLocker encryption and strict OS filesystem permissions. "
+                        "For off-site transport, encrypt archive via standard operational tooling."
+                    ),
+                },
             }
         finally:
             if os.path.exists(temp_backup_dir):

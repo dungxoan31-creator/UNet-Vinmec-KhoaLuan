@@ -1,0 +1,42 @@
+# Git and IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Python bytecode, caches and virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+.venv
+venv
+env
+
+# Local runtime data, databases, and patient media (PHI protection)
+data/
+data/uploads/
+data/reports/
+ovarian_ai.db
+*.db
+*.sqlite3
+*.sqlite
+*.log
+*.tar.gz
+*.zip
+
+# Backups
+backups/
+
+# Secrets and environment files
+.env*
+
+# Node and UI build artifacts
+node_modules/
+
+# Audit and evaluation scratch files
+artifacts/
+audit_fix_logs/
+.aider*

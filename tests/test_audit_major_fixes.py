@@ -1,6 +1,7 @@
 """Regression tests for audit fixes - MAJOR issues."""
 import io
 import json
+import os
 
 import numpy as np
 from fastapi.testclient import TestClient
@@ -1747,6 +1748,55 @@ def test_ops_02_and_03_liveness_readiness_separation_and_db_ping(monkeypatch):
     compose_content = Path("docker-compose.yml").read_text(encoding="utf-8")
     assert "/api/health/ready" in dockerfile_content, "Dockerfile healthcheck does not target /api/health/ready"
     assert "/api/health/ready" in compose_content, "docker-compose healthcheck does not target /api/health/ready"
+
+
+def test_ops_06_07_08_packaging_and_backup_boundaries(tmp_path):
+    """OPS-06, OPS-07, OPS-08: Docker packaging exclusion, Git ignore for backups, and backup encryption boundary."""
+    import subprocess
+    from pathlib import Path
+
+    from backend.services.backup_service import BackupService
+
+    # 1. OPS-06: Dockerfile must NOT copy data/ directly into image layers
+    dockerfile_content = Path("Dockerfile").read_text(encoding="utf-8")
+    assert "COPY data/" not in dockerfile_content, "OPS-06 VULNERABILITY: Dockerfile still copies data/ into image layer!"
+
+    dockerignore_path = Path(".dockerignore")
+    assert dockerignore_path.exists(), "OPS-06 VULNERABILITY: .dockerignore file missing!"
+    dockerignore_content = dockerignore_path.read_text(encoding="utf-8")
+    assert "data/" in dockerignore_content, ".dockerignore must exclude data/"
+    assert "*.db" in dockerignore_content, ".dockerignore must exclude *.db"
+    assert "backups/" in dockerignore_content, ".dockerignore must exclude backups/"
+
+    # 2. OPS-07: .gitignore must ignore backups and archives
+    gitignore_content = Path(".gitignore").read_text(encoding="utf-8")
+    assert "backups" in gitignore_content, ".gitignore must exclude backups"
+    assert "*.tar.gz" in gitignore_content, ".gitignore must exclude *.tar.gz"
+
+    git_res = subprocess.run(
+        ["git", "check-ignore", "backups/synthetic.tar.gz"],
+        capture_output=True,
+        text=True,
+    )
+    assert git_res.returncode == 0, "OPS-07 VULNERABILITY: backups/synthetic.tar.gz is not ignored by git!"
+
+    # 3. OPS-08: Backup service explicitly declares encryption and security boundary
+    service = BackupService(
+        db_path=str(tmp_path / "test.db"),
+        data_dir=str(tmp_path / "data"),
+        backup_dir=str(tmp_path / "backups"),
+    )
+    # Create empty db file
+    (tmp_path / "test.db").write_bytes(b"")
+    os.makedirs(tmp_path / "data", exist_ok=True)
+
+    result = service.create_backup(include_images=False)
+    assert result["status"] == "SUCCESS"
+    assert "encryption" in result, "OPS-08 VULNERABILITY: Backup service response missing encryption boundary metadata!"
+    enc = result["encryption"]
+    assert enc.get("application_level_encrypted") is False
+    assert enc.get("at_rest_layer") == "filesystem_or_volume"
+
 
 
 

@@ -21,6 +21,13 @@ data/uploads/*
 data/reports/*
 !data/reports/.gitkeep
 
+# System backups and archives (preserve folder via .gitkeep)
+backups/*
+!backups/.gitkeep
+*.tar.gz
+*.zip
+*.7z
+
 # Large pre-trained checkpoints (tracked via Git LFS or external storage)
 *.pth
 checkpoints/**/*.pth

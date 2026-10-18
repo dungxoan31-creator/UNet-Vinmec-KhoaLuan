@@ -29,11 +29,10 @@ COPY templates/ /app/templates/
 COPY knowledge/ /app/knowledge/
 COPY checkpoints/ /app/checkpoints/
 COPY evaluation/ /app/evaluation/
-COPY data/ /app/data/
 COPY pyproject.toml MODEL_CARD.md /app/
 
 # Ensure runtime directories exist
-RUN mkdir -p /app/data/uploads /app/data/reports
+RUN mkdir -p /app/data/uploads /app/data/reports /app/backups
 
 # Create non-root unprivileged user for clinical safety
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
