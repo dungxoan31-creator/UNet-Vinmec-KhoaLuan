@@ -197,6 +197,11 @@ def build_research_bundle(
             "study_code": study.study_code,
             "review_revision": study.review_revision,
             "exported_at": datetime.now(UTC).isoformat(),
+            "deidentification": {
+                "boundary": "derived_pixel_and_mask_artifacts_only",
+                "raw_dicom_included": False,
+                "phi_scrubbed": True,
+            },
             "disclaimer": "Kết quả xuất phục vụ nghiên cứu khoa học và kiểm thử thuật toán. Không sử dụng làm kết luận chẩn đoán lâm sàng độc lập.",
             "images": images_metadata,
         }

@@ -217,6 +217,7 @@ async def upload_image(
             "number_of_frames": 1,
             "study_instance_uid": str(dicom_header.get("StudyInstanceUID", "")) or None,
             "series_instance_uid": str(dicom_header.get("SeriesInstanceUID", "")) or None,
+            "deidentified_boundary": "clinical_raw_storage",
         }
 
     if study:

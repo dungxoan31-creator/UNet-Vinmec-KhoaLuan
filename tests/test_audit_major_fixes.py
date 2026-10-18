@@ -1542,3 +1542,135 @@ def test_ai_03_caliper_bounding_proxy_disclaimer_and_outside_mask_annotation():
     assert dominant.get("endpoints_outside_mask") is True, (
         f"AI-03 VULNERABILITY: endpoints_outside_mask not flagged for triangular mask! {dominant.get('endpoints_outside_mask')}"
     )
+
+
+def test_ai_11_deidentification_boundary_separates_clinical_raw_from_research_artifacts(monkeypatch, tmp_path):
+    """AI-11: Explicitly verify deidentification boundary: raw DICOM identifiers must not leak into API metadata or research exports."""
+    import io
+    import json
+    import uuid
+    import zipfile
+
+    import numpy as np
+    from fastapi.testclient import TestClient
+    from pydicom.dataset import FileDataset, FileMetaDataset
+    from pydicom.uid import ExplicitVRLittleEndian, UltrasoundImageStorage, generate_uid
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import (
+        PredictionModel,
+        ReviewModel,
+        SessionLocal,
+        UserModel,
+    )
+    from backend.services.inference_engine import InferenceEngine
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    doc_uname = f"doc_11_{uuid.uuid4().hex[:6]}"
+    doc_uid = f"u_doc_11_{uuid.uuid4().hex[:6]}"
+
+    with SessionLocal() as db:
+        db.add(UserModel(id=doc_uid, username=doc_uname, full_name="Doc 11", role="DOCTOR", is_active=True))
+        db.commit()
+
+    doc_token = create_access_token({"sub": doc_uname, "uid": doc_uid, "role": "DOCTOR"})
+    doc_headers = {"Authorization": f"Bearer {doc_token}"}
+
+    # Create synthetic DICOM with identifying header tags
+    meta = FileMetaDataset()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    meta.MediaStorageSOPClassUID = UltrasoundImageStorage
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    ds = FileDataset(None, {}, file_meta=meta, preamble=b"\0" * 128)
+    ds.SOPClassUID, ds.SOPInstanceUID = meta.MediaStorageSOPClassUID, meta.MediaStorageSOPInstanceUID
+    ds.Modality, ds.NumberOfFrames = "US", 1
+    ds.PatientName = "SYNTHETIC^PATIENT_SENTINEL"
+    ds.PatientID = "NOT-A-REAL-PID-9999"
+    ds.Rows, ds.Columns, ds.SamplesPerPixel = 100, 100, 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.BitsAllocated, ds.BitsStored, ds.HighBit, ds.PixelRepresentation = 8, 8, 7, 0
+    ds.PixelData = (np.ones((100, 100), dtype=np.uint8) * 128).tobytes()
+
+    buf = io.BytesIO()
+    ds.save_as(buf, enforce_file_format=True)
+    raw_dcm_bytes = buf.getvalue()
+
+    with TestClient(app) as client:
+        # 1. Upload DICOM
+        upload_resp = client.post(
+            "/api/upload",
+            headers=doc_headers,
+            data={"anonymized_pid": "ANON-PID-SAFE-11"},
+            files={"file": ("test_synthetic.dcm", raw_dcm_bytes, "application/dicom")},
+        )
+        assert upload_resp.status_code == 200, f"Upload failed: {upload_resp.text}"
+        data = upload_resp.json()
+        image_id = data["image_id"]
+        study_id = data["study_id"]
+        dcm_meta = data.get("dicom_metadata", {})
+
+        # Ensure no identifying tags leak into API metadata
+        assert "SYNTHETIC" not in json.dumps(dcm_meta)
+        assert "9999" not in json.dumps(dcm_meta)
+        assert dcm_meta.get("deidentified_boundary") == "clinical_raw_storage"
+
+        # 2. Source image endpoint serves PNG without DICOM headers
+        source_resp = client.get(f"/api/images/{image_id}/source.png", headers=doc_headers)
+        assert source_resp.status_code == 200
+        assert source_resp.headers["content-type"].startswith("image/png")
+        assert b"SYNTHETIC" not in source_resp.content
+
+        # 3. Create prediction & review to test research export
+        dummy_mask = np.zeros((512, 512), dtype=np.uint8)
+        dummy_mask[50:60, 50:60] = 1
+        dummy_rle = InferenceEngine.mask_to_rle(dummy_mask)
+
+        pred_id = f"pred_11_{uuid.uuid4().hex[:6]}"
+        rev_id = f"rev_11_{uuid.uuid4().hex[:6]}"
+
+        with SessionLocal() as db:
+            db.add(
+                PredictionModel(
+                    id=pred_id,
+                    image_id=image_id,
+                    raw_mask_rle=dummy_rle,
+                    measurements={"max_diameter_mm": 5.0, "total_area_cm2": 1.0},
+                )
+            )
+            db.add(
+                ReviewModel(
+                    id=rev_id,
+                    image_id=image_id,
+                    prediction_id=pred_id,
+                    doctor_id=doc_uname,
+                    doctor_action="ACCEPTED_RAW",
+                    verified_mask_rle=dummy_rle,
+                    max_diameter_mm=5.0,
+                    total_area_cm2=1.0,
+                )
+            )
+            db.commit()
+
+        # 4. Research export ZIP must have deidentification boundary manifest and ZERO raw DICOM files
+        export_resp = client.post(
+            f"/api/cases/{study_id}/research-export",
+            headers=doc_headers,
+            json={"review_ids": [rev_id], "expected_revision": 0},
+        )
+        assert export_resp.status_code == 200, f"Export failed: {export_resp.text}"
+
+        with zipfile.ZipFile(io.BytesIO(export_resp.content)) as zf:
+            file_names = zf.namelist()
+            assert not any(fn.endswith(".dcm") for fn in file_names), "Raw DICOM leaked into research export!"
+            meta_json = json.loads(zf.read("metadata.json"))
+            assert "deidentification" in meta_json, "deidentification manifest missing from research export!"
+            deid = meta_json["deidentification"]
+            assert deid.get("boundary") == "derived_pixel_and_mask_artifacts_only"
+            assert deid.get("raw_dicom_included") is False
+            assert deid.get("phi_scrubbed") is True
+            # Full bundle payload must contain zero occurrences of the synthetic patient identity
+            assert "SYNTHETIC^PATIENT_SENTINEL" not in json.dumps(meta_json)
+            assert "NOT-A-REAL-PID-9999" not in json.dumps(meta_json)
+
