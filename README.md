@@ -1,4 +1,4 @@
-# Hệ thống Hỗ trợ Chẩn đoán & Phân đoạn Siêu âm Buồng trứng Human-in-the-Loop (CDSS)
+# Hệ thống Phân đoạn Siêu âm Buồng trứng Human-in-the-Loop (CDSS)
 > **Ovarian Ultrasound AI Decision Support System**  
 > Dự án Khóa luận Tốt nghiệp Hệ thống Thông tin Quản lý (MIS / ITBA / AI) – Trường Đại học Kinh tế Quốc dân (NEU).  
 > Dữ liệu nghiên cứu thực nghiệm: Bệnh viện Đa khoa Quốc tế Vinmec Times City.
