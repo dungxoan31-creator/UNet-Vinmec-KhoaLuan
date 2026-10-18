@@ -3,12 +3,13 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import distinct, func
+from fastapi.responses import JSONResponse
+from sqlalchemy import distinct, func, text
 from sqlalchemy.orm import Session
 
 from backend.app.config import SYSTEM_ENVIRONMENT, model_registry
 from backend.app.routers.auth import get_current_user
-from backend.db.database import ImageModel, ReviewModel, StudyModel, get_db
+from backend.db.database import ImageModel, ReviewModel, StudyModel, engine, get_db
 from backend.schemas.schemas import DashboardStatsResponse
 
 router = APIRouter(tags=["System & Metrics"])
@@ -27,18 +28,68 @@ def get_system_capabilities() -> dict[str, bool]:
     }
 
 
+@router.get("/api/health/live")
+def liveness_check():
+    """Liveness probe: returns 200 as long as the HTTP worker process is responsive."""
+    return {"status": "alive", "timestamp": datetime.now(UTC).isoformat()}
+
+
+@router.get("/api/health/ready")
+def readiness_check():
+    """
+    Readiness probe: verifies live database connectivity and model readiness.
+    Returns 200 OK when service can process inferences and transactions,
+    or 503 Service Unavailable if dependencies are unhealthy.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_ready = True
+    except Exception as exc:
+        db_ready = False
+        db_error = str(exc)
+
+    adapter = model_registry.get_primary_adapter()
+    model_ready = bool(adapter and getattr(adapter, "is_loaded", False))
+    engine_obj = getattr(adapter, "engine", None) if model_ready else None
+    if engine_obj and getattr(engine_obj, "is_model_ready", False) is False:
+        model_ready = False
+
+    is_ready = db_ready and model_ready
+    status_code = 200 if is_ready else 503
+
+    payload = {
+        "status": "ready" if is_ready else "unhealthy",
+        "database": "connected" if db_ready else "disconnected",
+        "model_ready": model_ready,
+        "primary_model": getattr(adapter, "name", "None") if adapter else None,
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+    if not db_ready:
+        payload["database_error"] = db_error
+
+    return JSONResponse(status_code=status_code, content=payload)
+
+
 @router.get("/api/health")
 def health_check():
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_ready = True
+    except Exception:
+        db_ready = False
+
     adapter = model_registry.get_primary_adapter()
     is_ready = bool(adapter and getattr(adapter, "is_loaded", False))
-    engine = getattr(adapter, "engine", None) if is_ready else None
-    if engine and getattr(engine, "is_model_ready", False) is False:
+    engine_obj = getattr(adapter, "engine", None) if is_ready else None
+    if engine_obj and getattr(engine_obj, "is_model_ready", False) is False:
         is_ready = False
-    checksum = getattr(engine, "model_checksum", None) if is_ready else None
+    checksum = getattr(engine_obj, "model_checksum", None) if is_ready else None
     model_name = getattr(adapter, "name", "Standard U-Net")
 
     return {
-        "status": "healthy",
+        "status": "healthy" if db_ready else "degraded",
         "system": "Ovarian ultrasound segmentation workstation (Research Use Only - RUO)",
         "clinical_status": "RESEARCH_USE_ONLY",
         "regulatory_disclaimer": (
@@ -49,6 +100,7 @@ def health_check():
         "primary_model": model_name,
         "environment": SYSTEM_ENVIRONMENT,
         "model_ready": is_ready,
+        "database_ready": db_ready,
         "checkpoint_sha256": checksum,
         "capabilities": get_system_capabilities(),
         "timestamp": datetime.now(UTC).isoformat(),

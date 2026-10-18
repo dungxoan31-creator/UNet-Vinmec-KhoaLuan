@@ -1677,7 +1677,6 @@ def test_ai_11_deidentification_boundary_separates_clinical_raw_from_research_ar
 
 def test_fe_05_and_06_css_contrast_compliance():
     """FE-05 & FE-06: Primary hover button and info banner must achieve >= 4.5:1 WCAG AA contrast in dark and light themes."""
-    import re
     from pathlib import Path
 
     css_dir = Path("frontend/css")
@@ -1695,5 +1694,59 @@ def test_fe_05_and_06_css_contrast_compliance():
     assert "var(--accent-text)" in banner_info_block, (
         "FE-06 VULNERABILITY: .banner.info does not use --accent-text, failing 4.5:1 contrast against accent-soft!"
     )
+
+
+def test_ops_02_and_03_liveness_readiness_separation_and_db_ping(monkeypatch):
+    """OPS-02 & OPS-03: Separate liveness from readiness; readiness must verify DB ping and model readiness with 503."""
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.config import model_registry
+    from backend.app.main import app
+    from backend.db import database
+
+    client = TestClient(app)
+
+    # 1. Liveness check: must return 200
+    resp_live = client.get("/api/health/live")
+    assert resp_live.status_code == 200, f"Liveness check failed: {resp_live.status_code}"
+    assert resp_live.json().get("status") == "alive"
+
+    # 2. Normal readiness: both DB and model are ready -> 200
+    resp_ready = client.get("/api/health/ready")
+    assert resp_ready.status_code == 200, f"Normal readiness failed: {resp_ready.text}"
+    assert resp_ready.json().get("status") == "ready"
+    assert resp_ready.json().get("database") == "connected"
+    assert resp_ready.json().get("model_ready") is True
+
+    # 3. OPS-02: When model is not ready, readiness must return 503 Service Unavailable, not 200!
+    primary = model_registry.get_primary_adapter()
+    monkeypatch.setattr(primary, "is_loaded", False)
+    resp_unready_model = client.get("/api/health/ready")
+    assert resp_unready_model.status_code == 503, (
+        f"OPS-02 VULNERABILITY: Readiness returned {resp_unready_model.status_code} (expected 503) when model is not ready!"
+    )
+    assert resp_unready_model.json().get("model_ready") is False
+    monkeypatch.undo()
+
+    # 4. OPS-03: When database connection fails, readiness must return 503 Service Unavailable, not 200!
+    def failing_connect(*args, **kwargs):
+        raise RuntimeError("Synthetic simulated database connection failure")
+
+    monkeypatch.setattr(database.engine, "connect", failing_connect)
+    resp_unready_db = client.get("/api/health/ready")
+    assert resp_unready_db.status_code == 503, (
+        f"OPS-03 VULNERABILITY: Readiness returned {resp_unready_db.status_code} (expected 503) when database is down!"
+    )
+    assert resp_unready_db.json().get("database") == "disconnected"
+    monkeypatch.undo()
+
+    # 5. Verify Dockerfile and docker-compose.yml use /api/health/ready
+    dockerfile_content = Path("Dockerfile").read_text(encoding="utf-8")
+    compose_content = Path("docker-compose.yml").read_text(encoding="utf-8")
+    assert "/api/health/ready" in dockerfile_content, "Dockerfile healthcheck does not target /api/health/ready"
+    assert "/api/health/ready" in compose_content, "docker-compose healthcheck does not target /api/health/ready"
+
 
 
