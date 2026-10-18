@@ -1,20 +1,18 @@
 """Verification tests for the 12 UAT bugs identified on 2026-10-17."""
 
-import os
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-import pytest
 
 from backend.db.database import (
     Base,
     ImageModel,
     PatientModel,
     PredictionModel,
-    ReviewBatchModel,
     ReviewModel,
     StudyModel,
     UserModel,
@@ -220,11 +218,13 @@ def test_uat_10_search_over_50_cases(uat_app_client):
 
 def test_uat_09_physical_units_null_when_uncalibrated(tmp_path):
     """UAT-09: Research export must set physical_units=None when saved review has null max_diameter_mm."""
-    from backend.services.research_export import build_research_bundle
-    from backend.core.image_utils import cv2_imwrite_unicode
-    import numpy as np
-    import zipfile
     import json
+    import zipfile
+
+    import numpy as np
+
+    from backend.core.image_utils import cv2_imwrite_unicode
+    from backend.services.research_export import build_research_bundle
 
     engine = create_engine(f"sqlite:///{tmp_path / 'export_test.db'}")
     Base.metadata.create_all(engine)

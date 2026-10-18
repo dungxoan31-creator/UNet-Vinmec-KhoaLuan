@@ -2,9 +2,9 @@
 Unit and integration tests for authenticated HITL session and event ingestion (Task 12).
 """
 
-import math
 import os
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 

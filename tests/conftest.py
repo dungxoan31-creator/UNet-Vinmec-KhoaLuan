@@ -15,8 +15,8 @@ import pytest
 
 from backend.app.main import app
 from backend.app.routers.auth import get_current_user
-from backend.db.database import UserModel
 from backend.db import database
+from backend.db.database import UserModel
 
 _test_engine = database.engine
 

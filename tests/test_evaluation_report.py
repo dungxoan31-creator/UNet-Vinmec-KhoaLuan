@@ -11,14 +11,13 @@ Verifies:
 
 import json
 from pathlib import Path
+
 import pytest
 
 from scripts.build_evaluation_report import (
-    build_report,
-    audit_run_summary,
     audit_current_run_pointer,
-    generate_markdown_report,
-    generate_limitations_doc,
+    audit_run_summary,
+    build_report,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -214,7 +213,7 @@ def test_missing_independent_test_blocks_complete(tmp_path):
     )
 
     out_dir = tmp_path / "report_out"
-    report = build_report(
+    _ = build_report(
         root=tmp_path,
         run_dirs=[],
         hitl_dir=None,

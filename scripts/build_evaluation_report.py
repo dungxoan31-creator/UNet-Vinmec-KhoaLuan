@@ -18,21 +18,21 @@ Enforces:
 
 import argparse
 import csv
-from datetime import datetime, timezone
 import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def derive_release_status(
-    checks: Optional[Dict[str, Any]] = None,
-    independent_gate: Optional[Dict[str, Any]] = None,
-    user_study: Optional[Dict[str, Any]] = None,
-    hitl: Optional[Dict[str, Any]] = None,
-    runs: Optional[List[Dict[str, Any]]] = None,
+    checks: dict[str, Any] | None = None,
+    independent_gate: dict[str, Any] | None = None,
+    user_study: dict[str, Any] | None = None,
+    hitl: dict[str, Any] | None = None,
+    runs: list[dict[str, Any]] | None = None,
     prototype_checks_passed: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Evaluates release gates and returns a unified status dictionary:
     - prototype_ready: bool
@@ -56,8 +56,8 @@ def derive_release_status(
        - Quantitative independent evaluation runs completed (if runs provided).
        - Either verified clinician validation OR verified technical acceptance fallback recorded.
     """
-    blockers: List[str] = []
-    limitations: List[str] = []
+    blockers: list[str] = []
+    limitations: list[str] = []
 
     # 1. Prototype Readiness
     prototype_ready = False
@@ -165,7 +165,7 @@ def derive_release_status(
     }
 
 
-def audit_run_summary(summary_path: Path) -> Dict[str, Any]:
+def audit_run_summary(summary_path: Path) -> dict[str, Any]:
     """
     Reads and validates a run summary.json file.
     Ensures that retrospective replays are correctly tagged and all primary/secondary metrics
@@ -174,7 +174,7 @@ def audit_run_summary(summary_path: Path) -> Dict[str, Any]:
     if not summary_path.exists():
         raise FileNotFoundError(f"Run summary not found: {summary_path}")
 
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         data = json.load(f)
 
     run_id = data.get("run_id", summary_path.parent.name)
@@ -182,7 +182,7 @@ def audit_run_summary(summary_path: Path) -> Dict[str, Any]:
     status = data.get("status", "UNKNOWN")
 
     is_historical_replay = (run_kind == "retrospective_test_replay")
-    
+
     if is_historical_replay:
         kind_label = "Retrospective Test Replay (Historical Data)"
     elif run_kind == "validation_dry_run":
@@ -214,7 +214,7 @@ def audit_run_summary(summary_path: Path) -> Dict[str, Any]:
     }
 
 
-def audit_current_run_pointer(pointer_path: Path) -> Dict[str, Any]:
+def audit_current_run_pointer(pointer_path: Path) -> dict[str, Any]:
     """
     Validates that current_run.json points to a legitimate run summary with matching hashes.
     Raises ValueError on hash or identity mismatches.
@@ -222,7 +222,7 @@ def audit_current_run_pointer(pointer_path: Path) -> Dict[str, Any]:
     if not pointer_path.exists():
         raise FileNotFoundError(f"current_run.json pointer not found: {pointer_path}")
 
-    with open(pointer_path, "r", encoding="utf-8") as f:
+    with open(pointer_path, encoding="utf-8") as f:
         pointer = json.load(f)
 
     summary_path_str = pointer.get("summary_path")
@@ -236,7 +236,7 @@ def audit_current_run_pointer(pointer_path: Path) -> Dict[str, Any]:
     if not summary_path.exists():
         raise FileNotFoundError(f"Pointer summary_path does not exist on disk: {summary_path}")
 
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         summary = json.load(f)
 
     # Check protocol_sha256
@@ -275,7 +275,7 @@ def _fmt_metric(val: Any, decimals: int = 4) -> str:
     return str(val)
 
 
-def generate_markdown_report(report_data: Dict[str, Any]) -> str:
+def generate_markdown_report(report_data: dict[str, Any]) -> str:
     """
     Renders structured Markdown report (results.md) synthesizing quantitative evaluation,
     error analysis, HITL telemetry, user study findings, and system limitations.
@@ -292,11 +292,11 @@ def generate_markdown_report(report_data: Dict[str, Any]) -> str:
         "",
         "## 1. Thông tin Mô hình và Cấu hình Suy luận",
         "",
-        f"- **Kiến trúc mạng**: Standard U-Net (Baseline v1)",
+        "- **Kiến trúc mạng**: Standard U-Net (Baseline v1)",
         f"- **Checkpoint SHA-256**: `{report_data.get('checkpoint_sha256', 'N/A')}`",
-        f"- **Kích thước đầu vào**: 512×512 (Letterbox bảo toàn tỷ lệ khung hình gốc)",
-        f"- **Ngưỡng nhị phân hóa**: $\\ge 0.5$ (không áp dụng hình thái học morphology post-processing)",
-        f"- **Không gian dự đoán**: Native Resolution (hồi phục kích thước ảnh gốc qua inverse letterbox)",
+        "- **Kích thước đầu vào**: 512×512 (Letterbox bảo toàn tỷ lệ khung hình gốc)",
+        "- **Ngưỡng nhị phân hóa**: $\\ge 0.5$ (không áp dụng hình thái học morphology post-processing)",
+        "- **Không gian dự đoán**: Native Resolution (hồi phục kích thước ảnh gốc qua inverse letterbox)",
         "",
         "---",
         "",
@@ -314,7 +314,7 @@ def generate_markdown_report(report_data: Dict[str, Any]) -> str:
             counts = r.get("counts", {})
             total_n = counts.get("total_samples", 0)
             p = r.get("primary", {})
-            
+
             dice = p.get("dice", {})
             iou = p.get("iou", {})
             rec = p.get("recall", {})
@@ -389,7 +389,7 @@ def generate_markdown_report(report_data: Dict[str, Any]) -> str:
         f"- **Số lượng bác sĩ tham gia (Clinicians)**: {clinician_count} bác sĩ",
         f"- **Số lượng kỹ thuật viên / kiểm thử viên**: {tech_count} người",
         f"- **Có đánh giá lâm sàng độc lập**: {'CÓ' if user_study.get('has_clinician_validation') else 'CHƯA (NOT_CONDUCTED)'}",
-        f"- **Biên bản nghiệm thu kỹ thuật (Technical Acceptance)**: PASS (Quy trình nạp, sửa, hoàn tác, lưu atomic và xuất ZIP hoạt động ổn định).",
+        "- **Biên bản nghiệm thu kỹ thuật (Technical Acceptance)**: PASS (Quy trình nạp, sửa, hoàn tác, lưu atomic và xuất ZIP hoạt động ổn định).",
         "",
         "> [!WARNING]",
         "> Nghiên cứu không ngụy tạo kết quả khảo sát Likert của bác sĩ. Mọi đánh giá tính khả dụng hiện tại dựa trên quy trình nghiệm thu kỹ thuật nội bộ (Technical Acceptance Protocol) và ghi nhận trạng thái trung thực `NOT_CONDUCTED` cho khảo sát lâm sàng.",
@@ -460,14 +460,14 @@ Tài liệu này xác định các giới hạn kỹ thuật và lâm sàng củ
 
 def build_report(
     root: Path,
-    run_dirs: List[Path],
-    hitl_dir: Optional[Path],
-    user_dir: Optional[Path],
-    independent_gate_path: Optional[Path],
+    run_dirs: list[Path],
+    hitl_dir: Path | None,
+    user_dir: Path | None,
+    independent_gate_path: Path | None,
     output: Path,
     prototype_checks_passed: bool = False,
-    checks: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    checks: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Consolidates evaluation runs, HITL telemetry, user study findings, and gates
     into a comprehensive report artifact structure.
@@ -490,7 +490,7 @@ def build_report(
     # 2. Audit HITL Telemetry
     hitl_data = {}
     if hitl_dir and (hitl_dir / "summary.json").exists():
-        with open(hitl_dir / "summary.json", "r", encoding="utf-8") as f:
+        with open(hitl_dir / "summary.json", encoding="utf-8") as f:
             hitl_data = json.load(f)
 
     # 3. Audit User Study
@@ -501,21 +501,21 @@ def build_report(
         "has_clinician_validation": False,
     }
     if user_dir and (user_dir / "study_status.json").exists():
-        with open(user_dir / "study_status.json", "r", encoding="utf-8") as f:
+        with open(user_dir / "study_status.json", encoding="utf-8") as f:
             user_study_data = json.load(f)
 
     # 4. Check Independent Gate
     gate_json = None
     independent_gate_status = "UNKNOWN"
     if independent_gate_path and independent_gate_path.exists():
-        with open(independent_gate_path, "r", encoding="utf-8") as f:
+        with open(independent_gate_path, encoding="utf-8") as f:
             gate_json = json.load(f)
             independent_gate_status = gate_json.get("status", "UNKNOWN")
     else:
         # Check standard location under root
         std_gate = root / "evaluation" / "milestone_3_final" / "data_audit" / "independent_gate" / "audit.json"
         if std_gate.exists():
-            with open(std_gate, "r", encoding="utf-8") as f:
+            with open(std_gate, encoding="utf-8") as f:
                 gate_json = json.load(f)
                 independent_gate_status = gate_json.get("status", "UNKNOWN")
 
@@ -536,7 +536,7 @@ def build_report(
 
     report_payload = {
         "schema_version": 1,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "checkpoint_sha256": checkpoint_sha,
         "prototype_ready": prototype_ready,
         "evaluation_complete": evaluation_complete,
@@ -630,7 +630,7 @@ def build_report(
     return report_payload
 
 
-def _write_evidence_matrix(target_path: Path, report_payload: Dict[str, Any]) -> None:
+def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) -> None:
     rows = [
         [
             "R1",
@@ -729,7 +729,7 @@ def _write_evidence_matrix(target_path: Path, report_payload: Dict[str, Any]) ->
         writer.writerows(rows)
 
 
-def report_data_gate_passed(report_payload: Dict[str, Any]) -> bool:
+def report_data_gate_passed(report_payload: dict[str, Any]) -> bool:
     return report_payload.get("independent_gate_status") == "PASS"
 
 
@@ -890,14 +890,14 @@ Tài liệu này dùng để điều hành buổi thử nghiệm/bảo vệ nguy
 
 
 def generate_final_checks(
-    results: Dict[str, Any],
+    results: dict[str, Any],
     independent_gate_status: str,
     output_dir: Path,
-    user_study: Optional[Dict[str, Any]] = None,
-    hitl: Optional[Dict[str, Any]] = None,
-    runs: Optional[List[Dict[str, Any]]] = None,
-    independent_gate: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    user_study: dict[str, Any] | None = None,
+    hitl: dict[str, Any] | None = None,
+    runs: list[dict[str, Any]] | None = None,
+    independent_gate: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     if independent_gate is None:
         independent_gate = {"status": independent_gate_status}
@@ -923,7 +923,7 @@ def generate_final_checks(
 
     checks = {
         "schema_version": 1,
-        "generated_at": results.get("start_time") or datetime.now(timezone.utc).isoformat(),
+        "generated_at": results.get("start_time") or datetime.now(UTC).isoformat(),
         "test_scope": results.get("test_scope", "selected"),
         "overall_exit_code": overall_exit,
         "prototype_ready": status_res["prototype_ready"],
@@ -947,7 +947,7 @@ def generate_final_checks(
 def validate_release_package(
     report_dir: Path,
     expected_checkpoint_sha: str = "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
-) -> tuple[bool, List[str]]:
+) -> tuple[bool, list[str]]:
     required_files = [
         "results.md",
         "limitations.md",
@@ -967,7 +967,7 @@ def validate_release_package(
     status_file = report_dir / "release_status.json"
     if status_file.exists():
         try:
-            with open(status_file, "r", encoding="utf-8") as f:
+            with open(status_file, encoding="utf-8") as f:
                 data = json.load(f)
             actual_sha = data.get("checkpoint_sha256", "")
             if expected_checkpoint_sha and actual_sha != expected_checkpoint_sha:
@@ -1004,7 +1004,7 @@ def main():
     if args.checks:
         checks_file = Path(args.checks).resolve()
         if checks_file.exists():
-            with open(checks_file, "r", encoding="utf-8") as f:
+            with open(checks_file, encoding="utf-8") as f:
                 checks_data = json.load(f)
 
     report = build_report(
@@ -1029,7 +1029,7 @@ def main():
         if not summary_path.exists():
             raise FileNotFoundError(f"Cannot set current run: {summary_path} not found")
 
-        with open(summary_path, "r", encoding="utf-8") as f:
+        with open(summary_path, encoding="utf-8") as f:
             sum_data = json.load(f)
 
         pointer_data = {

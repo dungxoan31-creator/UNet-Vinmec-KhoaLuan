@@ -6,13 +6,13 @@ import datetime
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import cv2
 import numpy as np
-import torch
 
-from evaluation.protocol import load_protocol, load_cases, audit_inputs, normalize_reference, resolve_dataset_path
-from evaluation.segmentation_metrics import score_masks, aggregate_metrics
+from evaluation.protocol import audit_inputs, load_cases, load_protocol, normalize_reference, resolve_dataset_path
+from evaluation.segmentation_metrics import aggregate_metrics, score_masks
 
 
 def _compute_sha256(path: Path) -> str:
@@ -23,7 +23,7 @@ def _compute_sha256(path: Path) -> str:
     return hasher.hexdigest().lower()
 
 
-def _save_histogram_png(values: List[float], output_path: Path, title: str = "Dice Distribution"):
+def _save_histogram_png(values: list[float], output_path: Path, title: str = "Dice Distribution"):
     """Draw a 20-bin histogram [0, 1] using PIL/cv2 without GUI dependencies."""
     w, h = 600, 400
     img = np.full((h, w, 3), 255, dtype=np.uint8)
@@ -63,7 +63,7 @@ def freeze_protocol(
     output: Path,
     prior_test_access: bool = False,
     notes: str = ""
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Freeze and lock protocol and manifest hashes prior to evaluation."""
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -72,7 +72,7 @@ def freeze_protocol(
     manifest_sha = _compute_sha256(manifest_path)
     lock_data = {
         "schema_version": 1,
-        "locked_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "locked_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "protocol_sha256": proto_sha,
         "manifest_sha256": manifest_sha,
         "checkpoint_sha256": proto["model"].get("checkpoint_sha256"),
@@ -90,9 +90,9 @@ def evaluate_run(
     manifest_path: Path,
     output: Path,
     run_kind: str,
-    engine: Optional[Any] = None,
-    lock_path: Optional[Path] = None
-) -> Dict[str, Any]:
+    engine: Any | None = None,
+    lock_path: Path | None = None
+) -> dict[str, Any]:
     """Execute complete reproducible native-space segmentation evaluation."""
     root = root.resolve()
     protocol_path = protocol_path.resolve()
@@ -112,7 +112,7 @@ def evaluate_run(
     log_fp = open(log_file, "w", encoding="utf-8")
 
     def log(msg: str):
-        timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        timestamp = datetime.datetime.now(datetime.UTC).isoformat()
         line = f"[{timestamp}] {msg}"
         print(line)
         log_fp.write(line + "\n")
@@ -146,7 +146,7 @@ def evaluate_run(
         "run_id": output.name,
         "run_kind": run_kind,
         "status": "RUNNING",
-        "start_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "start_time": datetime.datetime.now(datetime.UTC).isoformat(),
         "protocol_sha256": protocol_sha,
         "manifest_sha256": manifest_sha,
         "checkpoint_sha256": protocol["model"].get("checkpoint_sha256"),
@@ -167,7 +167,7 @@ def evaluate_run(
 
     if audit["status"] != "READY":
         run_manifest["status"] = audit["status"]
-        run_manifest["end_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        run_manifest["end_time"] = datetime.datetime.now(datetime.UTC).isoformat()
         (output / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
         log(f"Audit status is {audit['status']}. Halting run.")
         log_fp.close()
@@ -182,7 +182,7 @@ def evaluate_run(
         if not ledger_exists:
             lwriter.writerow(["timestamp", "run_id", "run_kind", "manifest_path", "status", "operator"])
         lwriter.writerow([
-            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            datetime.datetime.now(datetime.UTC).isoformat(),
             output.name,
             run_kind,
             str(manifest_path).replace("\\", "/"),
@@ -196,7 +196,7 @@ def evaluate_run(
         cp_path = root / protocol["model"]["checkpoint_path"]
         if not cp_path.is_file():
             raise FileNotFoundError(f"Checkpoint not found: {cp_path}")
-        
+
         calc_cp_sha = _compute_sha256(cp_path)
         expected_cp_sha = (protocol["model"].get("checkpoint_sha256") or "").lower()
         if expected_cp_sha and calc_cp_sha != expected_cp_sha:
@@ -212,7 +212,7 @@ def evaluate_run(
     from backend.services.preprocessor import UltrasoundPreprocessor
     preprocessor = UltrasoundPreprocessor(target_size=tuple(protocol["preprocess"]["target_size"]))
 
-    per_image_rows: List[Dict[str, Any]] = []
+    per_image_rows: list[dict[str, Any]] = []
 
     try:
         log(f"Evaluating {len(cases)} cases...")
@@ -280,7 +280,8 @@ def evaluate_run(
             if not p_file.exists():
                 raise RuntimeError(f"Readback failure: missing prediction PNG {p_file}")
             read_img = cv2.imread(str(p_file), cv2.IMREAD_GRAYSCALE)
-            read_binary = (read_img > 0).astype(np.uint8)
+            if read_img is None:
+                raise RuntimeError(f"Readback failure: cannot decode PNG {p_file}")
             # Compare sha
             if _compute_sha256(p_file) != row["prediction_sha256"]:
                 raise RuntimeError(f"Readback SHA256 mismatch for sample {sid}")
@@ -294,7 +295,7 @@ def evaluate_run(
 
         # Write per_case_metrics.csv if case IDs are present
         per_case_csv = output / "per_case_metrics.csv"
-        case_groups: Dict[str, List[Dict[str, Any]]] = {}
+        case_groups: dict[str, list[dict[str, Any]]] = {}
         for r in per_image_rows:
             cid = r.get("source_case_id") or r.get("sample_id")
             case_groups.setdefault(cid, []).append(r)
@@ -338,13 +339,13 @@ def evaluate_run(
         _save_histogram_png(dice_values, dists_dir / "dice_histogram.png", title="Dice Coefficient Distribution")
 
         run_manifest["status"] = "COMPLETE"
-        run_manifest["end_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        run_manifest["end_time"] = datetime.datetime.now(datetime.UTC).isoformat()
         (output / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
 
         with open(ledger_path, "a", encoding="utf-8", newline="") as lf:
             lwriter = csv.writer(lf)
             lwriter.writerow([
-                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                datetime.datetime.now(datetime.UTC).isoformat(),
                 output.name,
                 run_kind,
                 str(manifest_path).replace("\\", "/"),
@@ -360,12 +361,12 @@ def evaluate_run(
         log(f"Evaluation failed with exception: {e}")
         run_manifest["status"] = "PARTIAL"
         run_manifest["error"] = str(e)
-        run_manifest["end_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        run_manifest["end_time"] = datetime.datetime.now(datetime.UTC).isoformat()
         (output / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
         with open(ledger_path, "a", encoding="utf-8", newline="") as lf:
             lwriter = csv.writer(lf)
             lwriter.writerow([
-                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                datetime.datetime.now(datetime.UTC).isoformat(),
                 output.name,
                 run_kind,
                 str(manifest_path).replace("\\", "/"),

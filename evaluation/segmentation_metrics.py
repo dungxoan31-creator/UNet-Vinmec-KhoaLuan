@@ -1,12 +1,12 @@
 """Standardized Segmentation Metrics v1 and Statistical Aggregation."""
 
-import math
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import numpy as np
 from scipy import ndimage
 
 
-def score_masks(pred: np.ndarray, gt: np.ndarray) -> Dict[str, Any]:
+def score_masks(pred: np.ndarray, gt: np.ndarray) -> dict[str, Any]:
     """Score a pair of predicted and ground truth 2D binary masks."""
     if pred.ndim != 2 or gt.ndim != 2:
         raise ValueError(f"Both masks must be 2D, got pred {pred.shape} and gt {gt.shape}")
@@ -127,7 +127,7 @@ def score_masks(pred: np.ndarray, gt: np.ndarray) -> Dict[str, Any]:
     }
 
 
-def _calc_stats(values: List[Optional[float]]) -> Dict[str, Any]:
+def _calc_stats(values: list[float | None]) -> dict[str, Any]:
     valid = [v for v in values if v is not None]
     n_valid = len(valid)
     n_null = len(values) - n_valid
@@ -161,7 +161,7 @@ def _calc_stats(values: List[Optional[float]]) -> Dict[str, Any]:
     }
 
 
-def aggregate_metrics(rows: List[Dict[str, Any]], bootstrap_seed: int = 42) -> Dict[str, Any]:
+def aggregate_metrics(rows: list[dict[str, Any]], bootstrap_seed: int = 42) -> dict[str, Any]:
     """Aggregate per-image metric rows into primary, secondary and patient-level statistics."""
     # 1. Primary: macro on non-empty GT
     nonempty_rows = [r for r in rows if not r.get("gt_empty", False)]
@@ -185,13 +185,13 @@ def aggregate_metrics(rows: List[Dict[str, Any]], bootstrap_seed: int = 42) -> D
     micro_iou = float(sum_tp / iou_denom) if iou_denom > 0 else 1.0
 
     # 3. Patient-level macro and bootstrap CI
-    patient_groups: Dict[str, List[Dict[str, Any]]] = {}
+    patient_groups: dict[str, list[dict[str, Any]]] = {}
     for r in nonempty_rows:
         pid = (r.get("patient_id") or "").strip()
         if pid:
             patient_groups.setdefault(pid, []).append(r)
 
-    patient_macro_dice: Dict[str, Any] = {}
+    patient_macro_dice: dict[str, Any] = {}
     if patient_groups:
         patient_dice_means = [
             float(np.mean([item["dice"] for item in items if item.get("dice") is not None]))

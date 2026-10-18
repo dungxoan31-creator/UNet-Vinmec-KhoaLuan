@@ -10,6 +10,7 @@ Verifies:
 import io
 import os
 import uuid
+
 import pytest
 
 os.environ.setdefault("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
@@ -18,8 +19,8 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from backend.app.main import app
-from backend.db.database import SessionLocal, UserModel, StudyModel, ImageModel, PredictionModel, ReviewModel
 from backend.app.routers.auth import create_access_token
+from backend.db.database import PredictionModel, ReviewModel, SessionLocal, UserModel
 
 
 @pytest.fixture

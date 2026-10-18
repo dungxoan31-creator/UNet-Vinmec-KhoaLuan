@@ -1,11 +1,12 @@
 """Tests for Evaluation Protocol v1 and Data Independence Gate."""
 
+import hashlib
 import json
 from pathlib import Path
-import pytest
-import numpy as np
+
 import cv2
-import hashlib
+import numpy as np
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,7 +42,7 @@ def _create_synthetic_pair(tmp_path, name="sample_1", corrupt_img=False, corrupt
 
 
 def test_independent_gate_rejects_unknown_identity(tmp_path):
-    from evaluation.protocol import load_protocol, load_cases, audit_inputs
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
 
     protocol_path = ROOT / "evaluation" / "protocols" / "milestone3_v1.json"
     protocol = load_protocol(protocol_path)
@@ -63,13 +64,13 @@ def test_independent_gate_rejects_unknown_identity(tmp_path):
 
 
 def test_patient_overlap_across_development_history(tmp_path):
-    from evaluation.protocol import load_protocol, load_cases, audit_inputs
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
 
     protocol_path = ROOT / "evaluation" / "protocols" / "milestone3_v1.json"
     protocol = load_protocol(protocol_path)
 
     img_rel, mask_rel, img_sha, mask_sha = _create_synthetic_pair(tmp_path)
-    
+
     # Create evidence file showing patient P_OVERLAP was in train set
     dev_history_file = tmp_path / "dev_history.json"
     dev_history_file.write_text(json.dumps({"train_patients": ["P_OVERLAP"]}), encoding="utf-8")
@@ -91,7 +92,7 @@ def test_patient_overlap_across_development_history(tmp_path):
 
 
 def test_corrupt_pair_fails_preflight(tmp_path):
-    from evaluation.protocol import load_protocol, load_cases, audit_inputs
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
 
     protocol_path = ROOT / "evaluation" / "protocols" / "milestone3_v1.json"
     protocol = load_protocol(protocol_path)
@@ -112,7 +113,7 @@ def test_corrupt_pair_fails_preflight(tmp_path):
 
 
 def test_duplicate_sample_id_rejected(tmp_path):
-    from evaluation.protocol import load_protocol, load_cases
+    from evaluation.protocol import load_cases
 
     img_rel, mask_rel, img_sha, mask_sha = _create_synthetic_pair(tmp_path)
     manifest_csv = tmp_path / "manifest.csv"
@@ -128,13 +129,13 @@ def test_duplicate_sample_id_rejected(tmp_path):
 
 
 def test_relocated_path_preserves_hash(tmp_path):
-    from evaluation.protocol import load_protocol, load_cases, audit_inputs
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
 
     protocol_path = ROOT / "evaluation" / "protocols" / "milestone3_v1.json"
     protocol = load_protocol(protocol_path)
 
     img_rel, mask_rel, img_sha, mask_sha = _create_synthetic_pair(tmp_path)
-    
+
     # Path with wrong recorded prefix that resolver can handle if set up, or exact path
     manifest_csv = tmp_path / "manifest.csv"
     manifest_content = (
@@ -150,7 +151,7 @@ def test_relocated_path_preserves_hash(tmp_path):
 
 
 def test_evidence_path_cannot_escape_root(tmp_path):
-    from evaluation.protocol import load_protocol, load_cases, audit_inputs
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
 
     protocol_path = ROOT / "evaluation" / "protocols" / "milestone3_v1.json"
     protocol = load_protocol(protocol_path)

@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from backend.db.database import Base
+
 try:
     from scripts.export_milestone_1_report import build_full_report
 except ImportError:

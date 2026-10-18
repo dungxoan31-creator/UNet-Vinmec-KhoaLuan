@@ -1,15 +1,12 @@
 """Tests for Error Analysis, Ranking and Case Panel Rendering v1."""
 
 from pathlib import Path
+
 import cv2
 import numpy as np
 import pytest
 
-from evaluation.error_analysis import (
-    rank_cases,
-    render_case,
-    build_error_analysis
-)
+from evaluation.error_analysis import rank_cases, render_case
 
 ROOT = Path(__file__).resolve().parents[1]
 

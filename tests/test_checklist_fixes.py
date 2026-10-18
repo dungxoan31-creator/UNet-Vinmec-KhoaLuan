@@ -7,7 +7,6 @@ Comprehensive test suite verifying fixes for:
 """
 
 import numpy as np
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session

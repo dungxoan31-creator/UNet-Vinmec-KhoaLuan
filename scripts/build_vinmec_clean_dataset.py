@@ -12,9 +12,10 @@ import os
 import shutil
 from collections import defaultdict
 from pathlib import Path
-from PIL import Image
+
 import cv2
 import numpy as np
+from PIL import Image
 
 ROOT = Path(".").resolve()
 TARGET_CLEAN = ROOT / "dataset" / "Vinmec_clean"
@@ -51,22 +52,22 @@ def main():
     print("=== Step 1: Scanning all 3 source folders and all subsets ===")
     records = []
     unmatched_files = []
-    
+
     for sname, img_dir, mask_dir, mask_suffix, modality in SOURCES:
         if not img_dir.is_dir() or not mask_dir.is_dir():
             print(f"Skipping {sname}, directories not found.")
             continue
-        
+
         imgs = sorted(os.listdir(img_dir))
         masks_set = set(os.listdir(mask_dir))
-        
+
         for f in imgs:
             if not f.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
                 continue
             img_path = img_dir / f
             stem = img_path.stem
             expected_mask_name = stem + mask_suffix
-            
+
             if expected_mask_name not in masks_set:
                 unmatched_files.append({
                     "source": sname,
@@ -75,18 +76,18 @@ def main():
                     "reason": "Missing expected mask"
                 })
                 continue
-                
+
             mask_path = mask_dir / expected_mask_name
-            
+
             # Read image metadata
             img_sha = sha256_file(img_path)
             mask_sha = sha256_file(mask_path)
-            
+
             with Image.open(img_path) as im:
                 img_size = im.size  # (width, height)
             with Image.open(mask_path) as m:
                 mask_size = m.size  # (width, height)
-                
+
             records.append({
                 "source_dataset": sname,
                 "modality": modality,
@@ -135,19 +136,19 @@ def main():
         # Sort by priority
         group.sort(key=lambda x: source_priority.get(x["source_dataset"], 99))
         canonical = group[0]
-        
+
         # Prepare destination paths for canonical
         modality = canonical["modality"]
         dest_img_rel = f"dataset/Vinmec_clean/{modality}/images/{canonical['stem']}.JPG"
         dest_mask_rel = f"dataset/Vinmec_clean/{modality}/masks/{canonical['stem']}.PNG"
-        
+
         canonical["status"] = "VALID_PAIR"
         canonical["duplicate_of"] = ""
         canonical["destination_image"] = dest_img_rel
         canonical["destination_mask"] = dest_mask_rel
         canonical_records.append(canonical)
         final_audit_rows.append(canonical)
-        
+
         for dup in group[1:]:
             dup["status"] = "DUPLICATE_PAIR"
             dup["duplicate_of"] = canonical["image_path"]
@@ -172,7 +173,7 @@ def main():
     phashes = np.stack(phashes)
     dhashes = np.stack(dhashes)
     n_can = len(canonical_records)
-    
+
     possible_duplicates = []
     for i in range(n_can):
         diffs_p = np.count_nonzero(phashes[i] != phashes[i+1:], axis=1)
@@ -210,7 +211,7 @@ def main():
         src_mask = ROOT / r["mask_path"]
         dst_img = ROOT / r["destination_image"]
         dst_mask = ROOT / r["destination_mask"]
-        
+
         shutil.copy2(src_img, dst_img)
         copied_images += 1
         shutil.copy2(src_mask, dst_mask)
@@ -257,14 +258,14 @@ def main():
     # Step 6: Export Audit Reports
     print("\n=== Step 6: Exporting CSV and JSON reports ===")
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Full mapping report
     fieldnames = [
         "sample_id", "source_dataset", "modality", "image_path", "mask_path",
         "image_hash", "mask_hash", "image_size", "mask_size", "status",
         "duplicate_of", "destination_image", "destination_mask"
     ]
-    
+
     for r in final_audit_rows:
         r["sample_id"] = f"{r['modality']}_{r['stem']}"
 

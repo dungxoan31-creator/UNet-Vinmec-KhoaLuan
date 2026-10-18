@@ -1,6 +1,7 @@
 import os
 import uuid
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -208,8 +209,8 @@ def test_stale_version_409(auth_tokens, bilateral_case):
 
 
 def test_rollback_on_second_image_failure(auth_tokens, bilateral_case):
-    from backend.db import database
     from backend.app.main import app
+    from backend.db import database
     client = TestClient(app)
     req_id = str(uuid.uuid4())
     # Second review has foreign prediction -> second review will fail
@@ -247,8 +248,8 @@ def test_rollback_on_second_image_failure(auth_tokens, bilateral_case):
 
 
 def test_atomic_success_and_idempotent_retry(auth_tokens, bilateral_case):
-    from backend.db import database
     from backend.app.main import app
+    from backend.db import database
     client = TestClient(app)
     req_id = str(uuid.uuid4())
     payload = {

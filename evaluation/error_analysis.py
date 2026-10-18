@@ -5,21 +5,22 @@ import csv
 import html
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
+
 import cv2
 import numpy as np
 
-from evaluation.protocol import resolve_dataset_path, normalize_reference
+from evaluation.protocol import normalize_reference, resolve_dataset_path
 
 
-def rank_cases(rows: List[Dict[str, Any]], k: int = 5) -> Dict[str, List[str]]:
+def rank_cases(rows: list[dict[str, Any]], k: int = 5) -> dict[str, list[str]]:
     """Rank cases into characteristic error and performance groups."""
     valid_fg = [r for r in rows if not r.get("gt_empty", False) and r.get("dice") is not None]
     if not valid_fg:
         valid_fg = rows
 
     # Helper to sort by key with tie-break on sample_id
-    def _top_k(items: List[Dict[str, Any]], key_fn, reverse: bool = True) -> List[str]:
+    def _top_k(items: list[dict[str, Any]], key_fn, reverse: bool = True) -> list[str]:
         sorted_items = sorted(items, key=lambda x: (key_fn(x), str(x.get("sample_id", ""))), reverse=reverse)
         return [str(x["sample_id"]) for x in sorted_items[:k]]
 
@@ -147,7 +148,7 @@ def render_case(
     return output_path
 
 
-def _generate_html_report(annotations: List[Dict[str, Any]], panel_dir: Path) -> str:
+def _generate_html_report(annotations: list[dict[str, Any]], panel_dir: Path) -> str:
     """Generate self-contained offline HTML viewer for error analysis panels."""
     rows_html = []
     for ann in annotations:
@@ -211,7 +212,7 @@ def _generate_html_report(annotations: List[Dict[str, Any]], panel_dir: Path) ->
 """
 
 
-def build_error_analysis(run_dir: Path, output_dir: Optional[Path] = None, k: int = 5) -> Dict[str, Any]:
+def build_error_analysis(run_dir: Path, output_dir: Path | None = None, k: int = 5) -> dict[str, Any]:
     """Build full error analysis package from an existing evaluation run directory."""
     run_dir = run_dir.resolve()
     output_dir = (output_dir or (run_dir / "error_analysis")).resolve()
@@ -224,7 +225,7 @@ def build_error_analysis(run_dir: Path, output_dir: Optional[Path] = None, k: in
         raise FileNotFoundError(f"Missing per_image_metrics.csv in {run_dir}")
 
     rows = []
-    with open(metrics_csv, "r", encoding="utf-8-sig") as f:
+    with open(metrics_csv, encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for r in reader:
             parsed = dict(r)
@@ -239,8 +240,8 @@ def build_error_analysis(run_dir: Path, output_dir: Optional[Path] = None, k: in
             rows.append(parsed)
 
     # Load protocol and manifest
-    protocol_json = run_dir / "protocol.json"
-    audit_json = run_dir / "input_audit.json"
+    _protocol_json = run_dir / "protocol.json"
+    _audit_json = run_dir / "input_audit.json"
     root = run_dir.parents[1]  # evaluation/milestone_3_final/run -> repo root
 
     groups = rank_cases(rows, k=k)
@@ -255,7 +256,7 @@ def build_error_analysis(run_dir: Path, output_dir: Optional[Path] = None, k: in
                 writer.writerow([sid, grp])
 
     # Map sample_id to all groups it belongs to
-    sample_to_groups: Dict[str, List[str]] = {}
+    sample_to_groups: dict[str, list[str]] = {}
     for grp, sids in groups.items():
         for sid in sids:
             sample_to_groups.setdefault(sid, []).append(grp)
@@ -271,7 +272,7 @@ def build_error_analysis(run_dir: Path, output_dir: Optional[Path] = None, k: in
     if not manifest_csv.is_file():
         manifest_csv = root / "evaluation" / "manifests" / "validation_v1.csv"
     if manifest_csv.is_file():
-        with open(manifest_csv, "r", encoding="utf-8-sig") as mf:
+        with open(manifest_csv, encoding="utf-8-sig") as mf:
             mreader = csv.DictReader(mf)
             for m in mreader:
                 manifest_rows[m["sample_id"]] = m

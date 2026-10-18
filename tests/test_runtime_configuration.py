@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-import pytest
+
 from fastapi.testclient import TestClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -12,7 +12,7 @@ def test_env_is_read_before_app_import(tmp_path):
     """Assert APP_DATA_DIR and APP_DB_PATH redirect storage and do not touch root DB."""
     tmp_data_dir = tmp_path / "data"
     tmp_db_path = tmp_path / "custom_dir" / "custom_test.db"
-    
+
     root_db = PROJECT_ROOT / "ovarian_ai.db"
     root_db_mtime_before = root_db.stat().st_mtime if root_db.exists() else None
 

@@ -4,8 +4,8 @@ Verifies honest handling of clinician vs technical participants,
 non-fabrication of metrics, Likert statistics oracles, and HTML escaping.
 """
 
-import html
 import pytest
+
 from evaluation.hitl_analysis import summarize_questionnaire
 
 

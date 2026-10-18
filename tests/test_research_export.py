@@ -7,6 +7,7 @@ import json
 import os
 import uuid
 import zipfile
+
 import cv2
 import numpy as np
 import pytest
@@ -178,7 +179,6 @@ def test_export_pins_review_prediction(auth_tokens, case_with_multiple_predictio
         # Decode ai_mask.png from zip: it MUST match P1, NOT P2!
         ai_mask_bytes = zf.read(ai_mask_path)
         ai_mask_np = cv2.imdecode(np.frombuffer(ai_mask_bytes, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
-        ai_binary = (ai_mask_np > 0).astype(np.uint8)
 
         # Compare with P1 and P2 source
         assert ai_mask_np.shape == (300, 400)
@@ -198,8 +198,8 @@ def test_bundle_requires_persisted_review(auth_tokens, case_with_multiple_predic
 
 
 def test_export_rejects_cross_case_ids(auth_tokens, case_with_multiple_predictions):
-    from backend.db import database
     from backend.app.main import app
+    from backend.db import database
     client = TestClient(app)
     c = case_with_multiple_predictions
 
@@ -256,6 +256,7 @@ def test_export_auth_and_no_phi(auth_tokens, case_with_multiple_predictions):
 
 def test_native_shapes_and_mask_hashes(auth_tokens, case_with_multiple_predictions):
     import hashlib
+
     from backend.app.main import app
     client = TestClient(app)
     c = case_with_multiple_predictions

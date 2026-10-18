@@ -2,17 +2,15 @@
 
 import json
 import os
-from pathlib import Path
 import subprocess
-import pytest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_baseline_paths_exclude_production_db():
-    from tests import serve_isolated_app
     from backend.db import database
-    
+
     runtime_db = Path(database.DB_PATH).resolve()
     is_isolated = any(p.lower() in ("artifacts", "temp", "tmp") or "temp" in p.lower() or "artifacts" in p.lower() for p in runtime_db.parts)
     assert is_isolated, f"Runtime DB must be an isolated test database, got {runtime_db}"
@@ -27,7 +25,6 @@ def test_baseline_paths_exclude_production_db():
         assert runtime_db != prod_db, f"Runtime DB must not equal production DB candidate {prod_db}"
 
 
-import os
 
 def test_verifier_preserves_exit_status(tmp_path):
     if os.environ.get("VERIFIER_TEST_RUNNING"):
@@ -54,7 +51,7 @@ def test_verifier_preserves_exit_status(tmp_path):
     env["VERIFIER_TEST_RUNNING"] = "1"
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
     assert result.returncode != 0, f"Verifier must exit nonzero when child process exits 7. Output: {result.stdout}\nError: {result.stderr}"
-    
+
     results_json = tmp_path / "baseline_results.json"
     assert results_json.exists(), f"Results json must be created in {tmp_path}"
     import json
@@ -104,7 +101,7 @@ def test_release_rejects_missing_artifact_or_stale_hash(tmp_path):
     # Now create files with mismatched hash
     for fname in ["results.md", "limitations.md", "evidence_matrix.csv", "checksums.csv", "final_checks.json", "open_issues.csv", "demo_script.md"]:
         (report_dir / fname).write_text("content", encoding="utf-8")
-    
+
     (report_dir / "release_status.json").write_text(
         json.dumps({
             "checkpoint_sha256": "WRONG_STALE_HASH",

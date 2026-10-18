@@ -1833,6 +1833,20 @@ def test_dep_01_through_05_and_ops_05_dependency_advisories_and_pinning():
     )
 
 
+def test_qa_01_codebase_lint_cleanliness():
+    """QA-01: Ruff static linter must pass with 0 diagnostics on all source code directories."""
+    import subprocess
+    import sys
+
+    res = subprocess.run(
+        [sys.executable, "-m", "ruff", "check", "backend", "scripts", "tests", "evaluation"],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode == 0, f"QA-01 VULNERABILITY: Ruff lint errors detected:\n{res.stdout}\n{res.stderr}"
+
+
+
 
 
 

@@ -8,6 +8,13 @@ requires-python = ">=3.10"
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+exclude = [
+    ".git",
+    ".venv",
+    "artifacts",
+    "audit_fix_logs",
+    "evaluation/milestone_3_*",
+]
 
 [tool.ruff.lint]
 select = [
@@ -21,6 +28,11 @@ ignore = [
     "B008",  # Do not perform function call `Depends` in argument defaults (FastAPI standard)
     "E501",  # Line too long (handled by formatter)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["E402"]
+"tests/serve_isolated_app.py" = ["E402"]
+"scripts/export_hitl_sessions.py" = ["E402"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]

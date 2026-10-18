@@ -39,7 +39,7 @@ def export_hitl_sessions(
     if participant_registry is None:
         default_provenance = os.path.join(PROJECT_ROOT, "docs", "evaluation", "hitl_session_provenance.csv")
         if os.path.isfile(default_provenance):
-            with open(default_provenance, "r", encoding="utf-8") as f:
+            with open(default_provenance, encoding="utf-8") as f:
                 participant_registry = list(csv.DictReader(f))
 
     if participant_registry:
@@ -251,7 +251,7 @@ def main():
 
     registry = None
     if args.participant_registry and os.path.isfile(args.participant_registry):
-        with open(args.participant_registry, "r", encoding="utf-8") as f:
+        with open(args.participant_registry, encoding="utf-8") as f:
             registry = list(csv.DictReader(f))
 
     s_ids = [s.strip() for s in args.session_ids.split(",") if s.strip()] if args.session_ids else None

@@ -3,7 +3,7 @@ import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-import pytest
+
 from fastapi.testclient import TestClient
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -87,8 +87,8 @@ def test_migration_is_idempotent(tmp_path):
 
 def test_old_prediction_provenance_remains_unknown(tmp_path):
     """Legacy predictions with provenance_json=None must not have active checkpoint hash fabricated."""
-    from backend.db import database
     from backend.app.main import app
+    from backend.db import database
 
     client = TestClient(app)
     db = next(database.get_db())
@@ -151,9 +151,9 @@ def test_old_prediction_provenance_remains_unknown(tmp_path):
 
 def test_prediction_provenance_survives_restart(tmp_path):
     """New prediction persists full provenance_json and reopens accurately."""
-    from backend.db import database
     from backend.app.config import model_registry
     from backend.app.main import app
+    from backend.db import database
 
     adapter = model_registry.get_primary_adapter()
     active_checksum = getattr(getattr(adapter, "engine", None), "model_checksum", None)

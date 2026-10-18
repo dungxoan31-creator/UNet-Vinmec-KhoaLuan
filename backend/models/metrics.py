@@ -10,7 +10,6 @@ Evaluation Metrics for Medical Image Segmentation:
 """
 
 import numpy as np
-from scipy.spatial.distance import directed_hausdorff
 
 
 def compute_dice_iou_numpy(pred_mask, gt_mask, smooth=1e-6):

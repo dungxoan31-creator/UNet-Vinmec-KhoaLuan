@@ -167,7 +167,6 @@ def summarize_timeline(events: list[dict[str, Any]]) -> dict[str, Any]:
     inference_end = None
     viewed_time = None
     first_edit_time = None
-    last_edit_time = None
     active_edit_ms = 0.0
     active_stroke_start = None
     confirm_attempt_time = None
@@ -199,7 +198,6 @@ def summarize_timeline(events: list[dict[str, Any]]) -> dict[str, Any]:
             edit_count += 1
             if first_edit_time is None:
                 first_edit_time = t
-            last_edit_time = t
             if active_stroke_start is not None:
                 active_edit_ms += max(0.0, t - active_stroke_start)
                 active_stroke_start = None
@@ -516,13 +514,13 @@ def main():
         if not os.path.isfile(sessions_file):
             raise FileNotFoundError(f"Missing {sessions_file}")
 
-        with open(sessions_file, "r", encoding="utf-8") as f:
+        with open(sessions_file, encoding="utf-8") as f:
             sessions = json.load(f)
 
         references = None
         if args.references and os.path.isfile(args.references):
             references = {}
-            with open(args.references, "r", encoding="utf-8") as f:
+            with open(args.references, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     references[row.get("image_id", "")] = row
@@ -530,7 +528,7 @@ def main():
         participant_registry = None
         if args.participant_registry and os.path.isfile(args.participant_registry):
             participant_registry = []
-            with open(args.participant_registry, "r", encoding="utf-8") as f:
+            with open(args.participant_registry, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 participant_registry = list(reader)
 
@@ -585,13 +583,13 @@ def main():
 
         responses: list[dict[str, Any]] = []
         if args.questionnaire and os.path.isfile(args.questionnaire):
-            with open(args.questionnaire, "r", encoding="utf-8") as f:
+            with open(args.questionnaire, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 responses = list(reader)
 
         participants: list[dict[str, Any]] = []
         if args.participants and os.path.isfile(args.participants):
-            with open(args.participants, "r", encoding="utf-8") as f:
+            with open(args.participants, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 participants = list(reader)
 

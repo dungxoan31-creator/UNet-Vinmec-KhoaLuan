@@ -5,7 +5,8 @@ import csv
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import cv2
 import numpy as np
 
@@ -33,23 +34,23 @@ except ImportError:
         return original
 
 
-def load_protocol(path: Path) -> Dict[str, Any]:
+def load_protocol(path: Path) -> dict[str, Any]:
     """Load and validate the frozen protocol JSON."""
     if not path.is_file():
         raise FileNotFoundError(f"Protocol file not found: {path}")
-    
-    with open(path, "r", encoding="utf-8") as f:
+
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
-        
+
     required_keys = ["schema_version", "protocol_id", "run_kinds", "model", "preprocess", "inference"]
     for k in required_keys:
         if k not in data:
             raise ValueError(f"Protocol missing required key: {k}")
-            
+
     return data
 
 
-def load_cases(root: Path, manifest: Path) -> List[Dict[str, Any]]:
+def load_cases(root: Path, manifest: Path) -> list[dict[str, Any]]:
     """Load and validate normalized manifest v1 CSV rows."""
     if not manifest.is_file():
         raise FileNotFoundError(f"Manifest file not found: {manifest}")
@@ -57,7 +58,7 @@ def load_cases(root: Path, manifest: Path) -> List[Dict[str, Any]]:
     cases = []
     seen_sample_ids = set()
 
-    with open(manifest, "r", encoding="utf-8-sig") as f:
+    with open(manifest, encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         required_cols = {"sample_id", "image_path", "mask_path"}
         if not required_cols.issubset(set(reader.fieldnames or [])):
@@ -93,7 +94,7 @@ def normalize_reference(mask: np.ndarray) -> np.ndarray:
     return out.astype(np.uint8)
 
 
-def _check_safe_relative_path(root: Path, rel_path_str: str) -> Optional[Path]:
+def _check_safe_relative_path(root: Path, rel_path_str: str) -> Path | None:
     """Ensure a relative path does not escape root."""
     try:
         resolved = (root / rel_path_str).resolve()
@@ -103,14 +104,14 @@ def _check_safe_relative_path(root: Path, rel_path_str: str) -> Optional[Path]:
         return None
 
 
-def audit_inputs(root: Path, cases: List[Dict[str, Any]], protocol: Dict[str, Any], run_kind: str) -> Dict[str, Any]:
+def audit_inputs(root: Path, cases: list[dict[str, Any]], protocol: dict[str, Any], run_kind: str) -> dict[str, Any]:
     """Audit dataset inputs, geometry, hashes, and data independence gate."""
     allowed_runs = protocol.get("run_kinds", [])
     if run_kind not in allowed_runs:
         raise ValueError(f"Unknown run_kind '{run_kind}'. Allowed: {allowed_runs}")
 
-    errors: List[str] = []
-    failures: List[Dict[str, Any]] = []
+    errors: list[str] = []
+    failures: list[dict[str, Any]] = []
     status = "READY"
 
     counts = {

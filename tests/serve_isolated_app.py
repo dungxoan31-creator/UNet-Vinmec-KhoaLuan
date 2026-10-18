@@ -1,6 +1,7 @@
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -15,8 +16,8 @@ os.environ.setdefault("APP_JWT_SECRET", "test-secret-at-least-32-characters-long
 os.environ.setdefault("APP_DOCTOR_PASSWORD", "doctor-local-test-2026")
 os.environ.setdefault("APP_ADMIN_PASSWORD", "admin-local-test-2026")
 
-from backend.db import database
 from backend.app import config
+from backend.db import database
 
 database.DB_PATH = str(RUNTIME / "technical_test.sqlite3")
 database.DATABASE_URL = f"sqlite:///{database.DB_PATH}"

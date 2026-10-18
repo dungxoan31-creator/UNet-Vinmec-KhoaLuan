@@ -1,10 +1,11 @@
 """Tests for Versioned Segmentation Metrics v1 and Statistical Aggregation."""
 
 import math
+
 import numpy as np
 import pytest
 
-from evaluation.segmentation_metrics import score_masks, aggregate_metrics
+from evaluation.segmentation_metrics import aggregate_metrics, score_masks
 
 
 def test_hand_computed_overlap():
@@ -137,7 +138,7 @@ def test_macro_micro_and_patient_weighting():
         {"sample_id": "s4", "case_id": "c4", "patient_id": "p2", "dice": 0.0, "tp": 0, "fp": 5, "fn": 5, "tn": 10, "gt_empty": False},
     ]
     agg = aggregate_metrics(rows, bootstrap_seed=42)
-    
+
     # Image macro mean: (1.0 + 0 + 0 + 0)/4 = 0.25
     assert agg["primary"]["dice"]["mean"] == pytest.approx(0.25, abs=1e-12)
     # Patient macro mean: (p1=1.0, p2=0.0) -> mean 0.5

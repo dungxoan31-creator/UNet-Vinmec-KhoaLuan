@@ -1,6 +1,6 @@
 """Regression tests for audit fixes - BLOCKER issues."""
-import pytest
 from fastapi.testclient import TestClient
+
 from backend.app.main import app
 
 
@@ -43,7 +43,8 @@ def test_be_04_self_registered_doctor_requires_admin_approval(tmp_path, monkeypa
     monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from backend.db.database import Base, UserModel, PatientModel, StudyModel, get_db
+
+    from backend.db.database import Base, PatientModel, StudyModel, UserModel, get_db
 
     engine = create_engine(f"sqlite:///{tmp_path / 'be04.db'}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
@@ -96,8 +97,9 @@ def test_be_05_admin_and_non_clinical_roles_cannot_export_research_bundle(tmp_pa
     monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from backend.db.database import Base, UserModel, PatientModel, StudyModel, get_db
+
     from backend.app.routers.auth import create_access_token
+    from backend.db.database import Base, PatientModel, StudyModel, UserModel, get_db
 
     engine = create_engine(f"sqlite:///{tmp_path / 'be05.db'}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
@@ -152,12 +154,14 @@ def test_be_13_concurrent_laterality_upload_race(tmp_path, monkeypatch):
     """BE-13: Concurrent uploads with same laterality must not create two images on the same ovary side."""
     monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
     import concurrent.futures
+
     import cv2
     import numpy as np
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from backend.db.database import Base, UserModel, PatientModel, StudyModel, ImageModel, get_db
+
     from backend.app.routers.auth import create_access_token
+    from backend.db.database import Base, ImageModel, PatientModel, StudyModel, UserModel, get_db
 
     engine = create_engine(
         f"sqlite:///{tmp_path / 'be13.db'}",
@@ -224,10 +228,10 @@ def test_be_13_concurrent_laterality_upload_race(tmp_path, monkeypatch):
 
 def test_ai_01_dicom_rejects_time_unit_physical_units_4(tmp_path):
     """AI-01: DICOM Sequence of Ultrasound Regions with time units (PhysicalUnits=4) must NOT be calibrated as mm."""
-    import pydicom
     from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
     from pydicom.sequence import Sequence
     from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, generate_uid
+
     from backend.app.routers.inference import extract_dicom_calibration_spacing
 
     meta = FileMetaDataset()
@@ -263,10 +267,10 @@ def test_ai_01_dicom_rejects_time_unit_physical_units_4(tmp_path):
 
 def test_ai_02_dicom_rejects_non_2d_region_or_picks_correct_2d_region(tmp_path):
     """AI-02: DICOM calibration must ignore non-2D regions (e.g. M-mode / Doppler) and require valid 2D spatial format."""
-    import pydicom
     from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
     from pydicom.sequence import Sequence
     from pydicom.uid import ExplicitVRLittleEndian, SecondaryCaptureImageStorage, generate_uid
+
     from backend.app.routers.inference import extract_dicom_calibration_spacing
 
     meta = FileMetaDataset()

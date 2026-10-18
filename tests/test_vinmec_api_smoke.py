@@ -2,12 +2,12 @@
 
 import base64
 import csv
+import uuid
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pytest
-import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session

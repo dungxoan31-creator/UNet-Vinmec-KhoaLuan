@@ -3,7 +3,6 @@ Tests for HITL Session Analysis, Monotonic Timings, and Paired Segmentation Qual
 """
 
 import numpy as np
-import pytest
 
 from evaluation.hitl_analysis import (
     analyze_hitl,

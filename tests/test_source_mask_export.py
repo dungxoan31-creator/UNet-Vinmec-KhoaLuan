@@ -2,8 +2,8 @@
 
 import cv2
 import numpy as np
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
