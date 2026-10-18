@@ -173,14 +173,34 @@ export async function saveResearchReview() {
     }
 
     if (sameSession()) {
-      clearDraft();
-      state.pendingReview = null;
-      state.currentReviewRequestId = null;
-      state.lastReviewPayloadSnapshot = null;
-      state.lastClinicalSnapshot = null;
-      state.lastReviewTimeSpent = null;
-      c.status = "REVIEWED";
-      toast("Đã lưu rà soát của hai bên thành công.");
+      // FE-01: Compare current clinical fields against submitted snapshot before clearing draft
+      const hasPendingChangesAfterSnapshot = c.images.some((img, idx) => {
+        const snap = snapshots[idx]?.body;
+        if (!snap) return false;
+        return (
+          (img.orads || "") !== (snap.orads || "") ||
+          (img.morphology || "") !== (snap.lesion_type === "Chưa đánh giá" ? "" : (snap.lesion_type || "")) ||
+          (img.morphologyDesc || "") !== (snap.morphology_description || "") ||
+          (img.notes || "") !== (snap.clinical_notes || "")
+        );
+      });
+
+      if (!hasPendingChangesAfterSnapshot) {
+        clearDraft();
+        state.dirty = false;
+        state.pendingReview = null;
+        state.currentReviewRequestId = null;
+        state.lastReviewPayloadSnapshot = null;
+        state.lastClinicalSnapshot = null;
+        state.lastReviewTimeSpent = null;
+        c.status = "REVIEWED";
+        toast("Đã lưu rà soát của hai bên thành công.");
+      } else {
+        // Retain unpersisted edits made after snapshot
+        state.dirty = true;
+        c.status = "REVIEWED";
+        toast("Đã lưu bản rà soát trước đó. Có thay đổi mới chưa lưu.");
+      }
     }
 
     // Telemetry ACK is non-blocking and failure here will not invalidate saved review

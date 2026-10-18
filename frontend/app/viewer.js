@@ -528,6 +528,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       for (const s of ["L", "R"])
         $(`[data-action=side-${s}]`).classList.toggle("primary", s === side);
       $("#notes").disabled = $("#morphology").disabled = readonly;
+      if ($("#iotaMorphology")) $("#iotaMorphology").disabled = readonly;
+      if ($("#oradsScore")) $("#oradsScore").disabled = readonly;
       $("[data-action=sign]").disabled =
         readonly || !c.images.every((i) => i.seen) || c.images.length !== 2;
       refreshMask();
@@ -883,6 +885,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       };
     if ($("#iotaMorphology")) {
       const handleIota = (e) => {
+        if (state.busy || readonly) {
+          if (image) e.target.value = image.morphology || "";
+          return;
+        }
         if (image) image.morphology = e.target.value;
         state.dirty = true;
         changed();
@@ -892,6 +898,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     }
     if ($("#oradsScore")) {
       const handleOrads = (e) => {
+        if (state.busy || readonly) {
+          if (image) e.target.value = image.orads || "";
+          return;
+        }
         if (image) image.orads = e.target.value;
         state.dirty = true;
         changed();

@@ -87,6 +87,22 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED sau khi sửa.
   - Hồi quy: 303 passed, 2 skipped, 0 regressions trên toàn bộ test suite (bao gồm 7 test trong `tests/test_dicom_scope_guard.py`).
 
+### [FE-01] Khắc phục mất thay đổi lâm sàng và xóa nhầm bản nháp khi lưu đồng thời
+- **Mức độ nghiêm trọng**: BLOCKER
+- **Tập tin sửa đổi**: `frontend/app/viewer.js`, `frontend/app/review.js`, `tests/test_fe_01_save_race_guard.cjs`
+- **Nguyên nhân gốc (Root Cause)**:
+  1. Các trường chọn phân loại hình thái IOTA (`#iotaMorphology`) và phân tầng nguy cơ O-RADS (`#oradsScore`) trong `frontend/app/viewer.js` thiếu cơ chế kiểm tra `state.busy` và `readonly`, cho phép người dùng thay đổi lựa chọn trong lúc request lưu batch đang chạy ngầm hoặc khi ca bệnh ở chế độ chỉ đọc.
+  2. Trong `frontend/app/review.js`, khi request lưu batch hoàn tất, hệ thống tự động gọi `clearDraft()` và đặt `state.dirty = false` mà không kiểm tra xem người dùng có thực hiện thay đổi nào sau thời điểm chụp snapshot gửi lên máy chủ hay không. Kết quả là UI hiển thị giá trị mới (ví dụ O-RADS 5) trong khi DB chỉ lưu giá trị cũ (O-RADS 2), và cờ cảnh báo chưa lưu bị xóa sạch.
+- **Giải pháp**:
+  - Vô hiệu hóa (`disabled = true`) cả hai dropdown `#iotaMorphology` và `#oradsScore` khi ở chế độ `readonly`.
+  - Bổ sung busy guard `if (state.busy || readonly)` trong `handleIota` và `handleOrads` để từ chối can thiệp giá trị khi hệ thống đang bận ghi nhận phiên lưu.
+  - Trong `saveResearchReview`, trước khi xóa bản nháp, đối chiếu trạng thái lâm sàng hiện tại của ca bệnh với snapshot đã gửi; nếu phát hiện có thay đổi mới chưa lưu, giữ nguyên bản nháp và cờ `state.dirty = true` kèm thông báo lâm sàng rõ ràng cho bác sĩ.
+- **Kiểm thử xác minh**:
+  - Tái hiện: Chạy `artifacts/production-audit-phase1/frontend-save-race.cjs` trên Chrome headless thật, phát hiện O-RADS 2 được gửi trong khi UI là O-RADS 5 và `dirty=false, draft=null`.
+  - Xác nhận: Chạy lại probe trên Chrome thật và test `tests/test_fe_01_save_race_guard.cjs`, xác nhận select bị khóa khi bận/readonly và các thay đổi sau snapshot được bảo toàn trọn vẹn.
+  - Hồi quy: Toàn bộ suite Node (`frontend_review_logic.js`, `workspace_v2_logic.mjs`, `validation_files.cjs`) và pytest 303 passed, 2 skipped, 0 regressions.
+
+
 
 
 
