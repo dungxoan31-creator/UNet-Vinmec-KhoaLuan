@@ -573,3 +573,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_31_upload_case_deletion_race_prevents_orphan_image` (Fails với `ObjectDeletedError` và unhandled 500 trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (upload nhận đúng HTTP 404, file ảnh tạm trên đĩa bị xóa sạch và số lượng ảnh mồ côi trong CSDL bằng 0).
   - Hồi quy: 336 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [AI-03] Minh bạch định nghĩa hình học Caliper Bounding Proxy và cảnh báo đầu mút ngoài tổn thương
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/inference_engine.py`, `backend/services/source_measurements.py`
+- **Nguyên nhân gốc (Root Cause)**: Thuật toán đo tự động đường kính lớn nhất (`max_diameter_mm`) và trực giao (`ortho_diameter_mm`) sử dụng hình chữ nhật bao quanh nhỏ nhất `cv2.minAreaRect`. Đối với các tổn thương có hình dạng lõm (concave), tam giác hoặc đa giác không đều, các điểm đầu mút caliper vẽ từ trung điểm cạnh hình chữ nhật bao có thể rơi ra ngoài vùng mặt nạ thực tế (`binary_mask == 0`). Hệ thống trước đây không khai báo phương pháp đo đạc proxy, thiếu cảnh báo lâm sàng về việc một ảnh 2D đơn lẻ không thể xác định đường kính 3D lớn nhất trên mọi mặt cắt giải phẫu theo tiêu chuẩn O-RADS, và không gắn nhãn trạng thái đầu mút ngoài mặt nạ.
+- **Giải pháp**:
+  - Tại `InferenceEngine.extract_calipers_and_measurements`: Bổ sung kiểm tra vị trí từng điểm đầu mút caliper (`caliper_dmax` và `caliper_dorth`) đối với ma trận điểm ảnh `binary_mask`. Nếu có bất kỳ điểm nào rơi ra ngoài phạm vi hoặc ngoài vùng tổn thương, tự động gắn cờ `endpoints_outside_mask = True` trong từng phần tử `lesions`.
+  - Khai báo rõ ràng phương pháp đo và bản chất proxy trong cấu trúc phản hồi: `measurement_method = "external_contour_min_area_rectangle"`, `proxy_type = "oriented_bounding_box"`.
+  - Bổ sung cảnh báo lâm sàng bắt buộc `clinical_disclaimer` ("Automated 2D bounding proxy. Measurement represents in-plane oriented bounding box axes (minAreaRect), not full 3D clinical diameter. Caliper endpoints may extend outside concave lesion contours.").
+  - Đồng bộ các trường metadata `measurement_method`, `proxy_type`, và `clinical_disclaimer` vào dịch vụ `source_measurements.measure_source_mask`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_03_caliper_bounding_proxy_disclaimer_and_outside_mask_annotation` (Fails với `KeyError: 'measurement_method'` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (mặt nạ tam giác nhận diện chính xác `endpoints_outside_mask = True`, khai báo đầy đủ `measurement_method`, `proxy_type` và `clinical_disclaimer`).
+  - Hồi quy: 337 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
