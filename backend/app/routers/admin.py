@@ -420,9 +420,10 @@ def canonicalize_user_role(role_val: str | None) -> str:
 @router.post("/api/admin/users")
 def create_admin_user(user_data: dict = Body(default={}), db: Session = Depends(get_db)):
     """Create a new user account administratively."""
-    username = (user_data.get("username") or "").strip()
-    if not username:
+    raw_username = (user_data.get("username") or "").strip()
+    if not raw_username:
         return {"status": "SUCCESS", "message": "Yêu cầu tiếp nhận."}
+    username = raw_username.lower()
     existing = db.query(UserModel).filter(UserModel.username == username).first()
     if existing:
         raise HTTPException(status_code=409, detail="Tài khoản đã tồn tại")
@@ -439,7 +440,7 @@ def create_admin_user(user_data: dict = Body(default={}), db: Session = Depends(
     user = UserModel(
         id=str(uuid.uuid4()),
         username=username,
-        full_name=user_data.get("full_name", username),
+        full_name=user_data.get("full_name") or raw_username,
         role=role,
         department=user_data.get("department", "Khoa Chẩn đoán Hình ảnh"),
         password_hash=hash_password(password),

@@ -478,3 +478,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_22_admin_create_user_canonicalizes_role_aliases` (Fails với `AssertionError: BE-22 VULNERABILITY: Stored role for BS is 'BS', expected 'DOCTOR'!` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (tài khoản tạo với role `BS` được lưu chính xác là `DOCTOR`, role `QT` được lưu là `ADMIN`).
   - Hồi quy: 329 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
+### [BE-23] Chuẩn hóa tên đăng nhập chữ thường (Lowercase Username) khi quản trị viên tạo người dùng
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi tạo tài khoản người dùng qua API `POST /api/admin/users`, hệ thống lưu nguyên tên đăng nhập dạng chữ hoa/chữ thường xen kẽ (ví dụ `"Dr_Tran_Ha"`). Tuy nhiên, router xác thực `POST /api/auth/login` luôn chuẩn hóa đầu vào thành chữ thường (`req.username.strip().lower()`). Do cơ chế so sánh chuỗi phân biệt hoa thường trong SQLite/CSDL, người dùng vừa được tạo không thể đăng nhập với thông tin đã đăng ký và liên tục nhận lỗi `HTTP 401 Unauthorized`.
+- **Giải pháp**:
+  - Trong `create_admin_user`, chuẩn hóa triệt để tên đăng nhập `username = raw_username.lower()` ngay khi tiếp nhận request.
+  - Sử dụng tên chuẩn hóa chữ thường để kiểm tra tính duy nhất (`existing user check`) và khởi tạo bản ghi trong bảng `users`, bảo đảm tính đồng nhất tuyệt đối giữa luồng cấp phát tài khoản quản trị và luồng đăng nhập của người dùng.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_23_admin_create_user_normalizes_username_lowercase` (Fails với `Status=401, Body={"detail":"Invalid username or password."}` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (người dùng tạo với tên hỗn hợp hoa thường đăng nhập thành công với HTTP 200 và nhận token).
+  - Hồi quy: 330 passed, 2 skipped, 0 regressions trên toàn bộ test suite.

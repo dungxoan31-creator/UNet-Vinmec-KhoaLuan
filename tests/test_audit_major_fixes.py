@@ -910,6 +910,49 @@ def test_be_22_admin_create_user_canonicalizes_role_aliases(monkeypatch):
             )
 
 
+def test_be_23_admin_create_user_normalizes_username_lowercase(monkeypatch):
+    """BE-23: Admin user creation must normalize username to lowercase so the user can log in."""
+    import uuid
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    with SessionLocal() as db:
+        admin_user = db.query(UserModel).filter(UserModel.username == "admin").first()
+        if not admin_user:
+            admin_user = UserModel(id="u_admin", username="admin", full_name="Admin", role="ADMIN", is_active=True)
+            db.add(admin_user)
+            db.commit()
+        admin_uid = admin_user.id
+
+    with TestClient(app) as client:
+        token = create_access_token({"sub": "admin", "uid": admin_uid, "role": "ADMIN"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Create user with mixed case username
+        mixed_username = f"Dr_MixedCase_{uuid.uuid4().hex[:6]}"
+        create_resp = client.post(
+            "/api/admin/users",
+            headers=headers,
+            json={"username": mixed_username, "password": "Password123!", "role": "DOCTOR"},
+        )
+        assert create_resp.status_code == 200, f"Create user failed: {create_resp.text}"
+
+        # 2. Attempt login with the exact username used during creation
+        login_resp = client.post(
+            "/api/auth/login",
+            json={"username": mixed_username, "password": "Password123!"},
+        )
+        assert login_resp.status_code == 200, (
+            f"BE-23 VULNERABILITY: User created with mixed-case username cannot log in! Status={login_resp.status_code}, Body={login_resp.text}"
+        )
+
+
 
 
 
