@@ -1157,6 +1157,100 @@ def test_be_27_legacy_and_intermediate_telemetry_hash_timing_integrity(monkeypat
         assert resp_mid_exact.json()["duplicate_count"] == 1
 
 
+def test_be_28_concurrent_event_append_idempotency(monkeypatch):
+    """BE-28: Concurrent append of identical HITL events must be idempotent (both return 200, not 500)."""
+    import uuid
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy import event as sa_event
+    from sqlalchemy.orm import Session
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import (
+        HITLEventModel,
+        HITLSessionModel,
+        ImageModel,
+        PatientModel,
+        SessionLocal,
+        StudyModel,
+        UserModel,
+    )
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    doc_uname = f"doc_28_{uuid.uuid4().hex[:6]}"
+    doc_uid = f"u_doc_28_{uuid.uuid4().hex[:6]}"
+    study_id = f"st_28_{uuid.uuid4().hex[:6]}"
+    img_id = f"img_28_{uuid.uuid4().hex[:6]}"
+    session_id = f"hs_28_{uuid.uuid4().hex[:6]}"
+    pt_id = f"pt_28_{uuid.uuid4().hex[:6]}"
+
+    with SessionLocal() as db:
+        db.add(UserModel(id=doc_uid, username=doc_uname, full_name="Doc 28", role="DOCTOR", is_active=True))
+        db.add(PatientModel(id=pt_id, anonymized_pid=f"ANON_28_{uuid.uuid4().hex[:6]}"))
+        db.add(StudyModel(id=study_id, patient_id=pt_id, study_date="2026-10-18"))
+        db.add(ImageModel(id=img_id, study_id=study_id, filename="test.png", raw_path="data/test.png"))
+        db.add(
+            HITLSessionModel(
+                id=session_id,
+                study_id=study_id,
+                actor_id=doc_uname,
+                participant_code="tester28",
+                participant_role="clinician",
+                data_origin="live",
+            )
+        )
+        db.commit()
+
+    with TestClient(app) as client:
+        doc_token = create_access_token({"sub": doc_uname, "uid": doc_uid, "role": "DOCTOR"})
+        doc_headers = {"Authorization": f"Bearer {doc_token}"}
+
+        race_event = {
+            "event_id": str(uuid.uuid4()),
+            "task_id": "task-race-28",
+            "image_id": img_id,
+            "prediction_id": None,
+            "seq": 1,
+            "event_type": "PREDICTION_VIEWED",
+            "client_utc": "2026-10-18T12:00:00Z",
+            "elapsed_ms": 100.0,
+            "session_elapsed_ms": 100.0,
+            "payload": {"view": "split"},
+        }
+
+        barrier = Barrier(2)
+
+        def sync_flush(session_obj, *_args):
+            if any(
+                isinstance(x, HITLEventModel) and x.event_id == race_event["event_id"]
+                for x in session_obj.new
+            ):
+                barrier.wait(timeout=10)
+
+        sa_event.listen(Session, "before_flush", sync_flush)
+        try:
+            def send_append(_):
+                return client.post(
+                    f"/api/hitl/sessions/{session_id}/events",
+                    headers=doc_headers,
+                    json={"events": [race_event]},
+                ).status_code
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                status_codes = list(pool.map(send_append, range(2)))
+        finally:
+            sa_event.remove(Session, "before_flush", sync_flush)
+
+        assert status_codes == [200, 200], (
+            f"BE-28 VULNERABILITY: Concurrent event append failed with 500! Status codes: {status_codes}"
+        )
+
+
+
 
 
 

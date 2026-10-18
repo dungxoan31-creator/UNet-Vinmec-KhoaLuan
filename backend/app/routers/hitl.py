@@ -8,6 +8,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
@@ -22,6 +23,7 @@ from backend.db.database import (
 )
 from backend.schemas.schemas import (
     HITLEventBatch,
+    HITLEventItem,
     HITLSessionRequest,
     HITLSessionResponse,
 )
@@ -67,6 +69,41 @@ def create_hitl_session(
         "completed_at": None,
         "review_batch_id": None,
     }
+
+
+def _matches_existing_event(existing_ev: HITLEventModel, event: HITLEventItem, identity_hash: str) -> bool:
+    if existing_ev.payload_hash == identity_hash:
+        return True
+
+    mid_identity = {
+        "event_type": event.event_type,
+        "task_id": event.task_id,
+        "image_id": event.image_id,
+        "seq": event.seq,
+        "elapsed_ms": event.elapsed_ms,
+        "payload": event.payload or {},
+    }
+    mid_hash = hashlib.sha256(json.dumps(mid_identity, sort_keys=True).encode("utf-8")).hexdigest()
+    if existing_ev.payload_hash == mid_hash:
+        return bool(
+            existing_ev.prediction_id == event.prediction_id
+            and existing_ev.client_utc == event.client_utc
+            and abs(float(existing_ev.session_elapsed_ms) - float(event.session_elapsed_ms)) < 1e-4
+        )
+
+    legacy_hash = hashlib.sha256(json.dumps(event.payload or {}, sort_keys=True).encode("utf-8")).hexdigest()
+    if existing_ev.payload_hash == legacy_hash:
+        return bool(
+            existing_ev.event_type == event.event_type
+            and existing_ev.task_id == event.task_id
+            and existing_ev.seq == event.seq
+            and existing_ev.image_id == event.image_id
+            and existing_ev.prediction_id == event.prediction_id
+            and existing_ev.client_utc == event.client_utc
+            and abs(float(existing_ev.elapsed_ms) - float(event.elapsed_ms)) < 1e-4
+            and abs(float(existing_ev.session_elapsed_ms) - float(event.session_elapsed_ms)) < 1e-4
+        )
+    return False
 
 
 @router.post("/sessions/{session_id}/events")
@@ -152,51 +189,7 @@ def append_hitl_events(
         # Check event_id idempotency against DB
         existing_ev = db.query(HITLEventModel).filter(HITLEventModel.event_id == event.event_id).first()
         if existing_ev:
-            if existing_ev.session_id != session_id:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Xung đột event_id {event.event_id} với dữ liệu sự kiện khác.",
-                )
-
-            is_match = False
-            if existing_ev.payload_hash == identity_hash:
-                is_match = True
-            else:
-                # Intermediate identity format: (event_type, task_id, image_id, seq, elapsed_ms, payload)
-                mid_identity = {
-                    "event_type": event.event_type,
-                    "task_id": event.task_id,
-                    "image_id": event.image_id,
-                    "seq": event.seq,
-                    "elapsed_ms": event.elapsed_ms,
-                    "payload": event.payload or {},
-                }
-                mid_hash = hashlib.sha256(json.dumps(mid_identity, sort_keys=True).encode("utf-8")).hexdigest()
-                if existing_ev.payload_hash == mid_hash:
-                    if (
-                        existing_ev.prediction_id == event.prediction_id
-                        and existing_ev.client_utc == event.client_utc
-                        and abs(float(existing_ev.session_elapsed_ms) - float(event.session_elapsed_ms)) < 1e-4
-                    ):
-                        is_match = True
-                else:
-                    # Legacy payload-only hash: payload_hash only hashed event.payload
-                    legacy_hash = hashlib.sha256(json.dumps(event.payload or {}, sort_keys=True).encode("utf-8")).hexdigest()
-                    if existing_ev.payload_hash == legacy_hash:
-                        # BE-27: Must strictly enforce timing, sequence, and identifiers match
-                        if (
-                            existing_ev.event_type == event.event_type
-                            and existing_ev.task_id == event.task_id
-                            and existing_ev.seq == event.seq
-                            and existing_ev.image_id == event.image_id
-                            and existing_ev.prediction_id == event.prediction_id
-                            and existing_ev.client_utc == event.client_utc
-                            and abs(float(existing_ev.elapsed_ms) - float(event.elapsed_ms)) < 1e-4
-                            and abs(float(existing_ev.session_elapsed_ms) - float(event.session_elapsed_ms)) < 1e-4
-                        ):
-                            is_match = True
-
-            if not is_match:
+            if existing_ev.session_id != session_id or not _matches_existing_event(existing_ev, event, identity_hash):
                 raise HTTPException(
                     status_code=409,
                     detail=f"Xung đột event_id {event.event_id} với dữ liệu sự kiện khác.",
@@ -250,43 +243,116 @@ def append_hitl_events(
         if event.event_type == "SESSION_ABORTED":
             sess.status = "ABORTED"
 
-    db.flush()
+    try:
+        db.flush()
 
-    # Check session completion criteria
-    if sess.status != "ABORTED" and sess.review_batch_id:
-        batch_rec = db.query(ReviewBatchModel).filter(ReviewBatchModel.id == sess.review_batch_id).first()
-        if batch_rec:
-            # Query all distinct task_ids currently flushed in session
-            all_tasks = (
-                db.query(HITLEventModel.task_id)
-                .filter(HITLEventModel.session_id == session_id)
-                .distinct()
-                .all()
-            )
-            task_ids = {t[0] for t in all_tasks}
-
-            # Check matching CONFIRM_ACK events for all tasks
-            ack_events = (
-                db.query(HITLEventModel)
-                .filter(
-                    HITLEventModel.session_id == session_id,
-                    HITLEventModel.event_type == "CONFIRM_ACK",
+        # Check session completion criteria
+        if sess.status != "ABORTED" and sess.review_batch_id:
+            batch_rec = db.query(ReviewBatchModel).filter(ReviewBatchModel.id == sess.review_batch_id).first()
+            if batch_rec:
+                # Query all distinct task_ids currently flushed in session
+                all_tasks = (
+                    db.query(HITLEventModel.task_id)
+                    .filter(HITLEventModel.session_id == session_id)
+                    .distinct()
+                    .all()
                 )
-                .all()
-            )
-            ack_task_ids = {
-                a.task_id
-                for a in ack_events
-                if a.payload and a.payload.get("batch_request_id") == batch_rec.request_id
+                task_ids = {t[0] for t in all_tasks}
+
+                # Check matching CONFIRM_ACK events for all tasks
+                ack_events = (
+                    db.query(HITLEventModel)
+                    .filter(
+                        HITLEventModel.session_id == session_id,
+                        HITLEventModel.event_type == "CONFIRM_ACK",
+                    )
+                    .all()
+                )
+                ack_task_ids = {
+                    a.task_id
+                    for a in ack_events
+                    if a.payload and a.payload.get("batch_request_id") == batch_rec.request_id
+                }
+
+                if task_ids and task_ids.issubset(ack_task_ids):
+                    sess.status = "COMPLETED"
+                    sess.completed_at = now_utc
+                else:
+                    sess.status = "INCOMPLETE"
+
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        # BE-28: Handle concurrent duplicate append gracefully without 500
+        final_duplicate_count = 0
+        final_accepted_count = 0
+        for event in batch.events:
+            identity_data = {
+                "event_type": event.event_type,
+                "task_id": event.task_id,
+                "image_id": event.image_id,
+                "prediction_id": event.prediction_id,
+                "seq": event.seq,
+                "client_utc": event.client_utc,
+                "elapsed_ms": event.elapsed_ms,
+                "session_elapsed_ms": event.session_elapsed_ms,
+                "payload": event.payload or {},
             }
-
-            if task_ids and task_ids.issubset(ack_task_ids):
-                sess.status = "COMPLETED"
-                sess.completed_at = now_utc
+            identity_hash = hashlib.sha256(json.dumps(identity_data, sort_keys=True).encode("utf-8")).hexdigest()
+            existing_ev = db.query(HITLEventModel).filter(HITLEventModel.event_id == event.event_id).first()
+            if existing_ev:
+                if existing_ev.session_id != session_id or not _matches_existing_event(existing_ev, event, identity_hash):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Xung đột event_id {event.event_id} với dữ liệu sự kiện khác.",
+                    )
+                if existing_ev.payload_hash != identity_hash:
+                    existing_ev.payload_hash = identity_hash
+                final_duplicate_count += 1
             else:
-                sess.status = "INCOMPLETE"
+                existing_seq = (
+                    db.query(HITLEventModel)
+                    .filter(
+                        HITLEventModel.session_id == session_id,
+                        HITLEventModel.task_id == event.task_id,
+                        HITLEventModel.seq == event.seq,
+                    )
+                    .first()
+                )
+                if existing_seq and existing_seq.event_id != event.event_id:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Xung đột sequence {event.seq} của task {event.task_id}.",
+                    )
+                ev = HITLEventModel(
+                    id=str(uuid.uuid4()),
+                    event_id=event.event_id,
+                    session_id=session_id,
+                    task_id=event.task_id,
+                    image_id=event.image_id,
+                    prediction_id=event.prediction_id,
+                    seq=event.seq,
+                    event_type=event.event_type,
+                    client_utc=event.client_utc,
+                    elapsed_ms=event.elapsed_ms,
+                    session_elapsed_ms=event.session_elapsed_ms,
+                    payload_hash=identity_hash,
+                    payload=event.payload,
+                    actor_id=current_user.username,
+                    received_at=now_utc,
+                )
+                db.add(ev)
+                final_accepted_count += 1
 
-    db.commit()
+        if final_accepted_count > 0:
+            db.commit()
+
+        return {
+            "status": "SUCCESS",
+            "accepted_count": final_accepted_count,
+            "duplicate_count": final_duplicate_count,
+        }
+
     return {
         "status": "SUCCESS",
         "accepted_count": accepted_count,
