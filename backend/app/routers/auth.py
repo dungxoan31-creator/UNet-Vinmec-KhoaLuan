@@ -167,11 +167,12 @@ def forgot_password(payload: dict = Body(default={}), db: Session = Depends(get_
     """Accept password recovery request."""
     username = (payload.get("username") or "").strip().lower()
     user = db.query(UserModel).filter(UserModel.username == username).first() if username else None
-    token = create_reset_token(user.username) if user else None
+    if user:
+        # Secure out-of-band delivery: token must never be leaked in public HTTP response
+        create_reset_token(user.username)
     return {
         "status": "SUCCESS",
         "message": "Nếu tài khoản tồn tại, yêu cầu đặt lại mật khẩu đã được tiếp nhận.",
-        "reset_token": token,
     }
 
 
