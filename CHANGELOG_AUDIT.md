@@ -398,5 +398,18 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (cả chuỗi rỗng `""` và chuỗi chỉ chứa khoảng trắng `"    "` đều bị từ chối chính xác với HTTP 422).
   - Hồi quy: 323 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [BE-17] Kiểm tra hợp lệ và chuẩn hóa định dạng ngày khám (study_date) khi tạo ca bệnh
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/schemas/schemas.py`, `backend/app/routers/cases.py`
+- **Nguyên nhân gốc (Root Cause)**: Khi tạo ca bệnh mới (`POST /api/cases`), trường `study_date` không được kiểm tra tính hợp lệ về mặt lịch pháp và định dạng chuỗi. Hệ thống chấp nhận bất kỳ chuỗi văn bản tùy tiện nào (ví dụ `"invalid-date"`, `"2026-02-31"`) và lưu thẳng vào trường `StudyModel.study_date` (`HTTP 200`). Điều này làm hỏng tính toàn vẹn metadata thời gian khám, gây sai lệch khi lọc báo cáo, tìm kiếm theo khoảng ngày và trích xuất hồ sơ bệnh án.
+- **Giải pháp**:
+  - Trong `CreateCaseRequest`: Bổ sung `@field_validator("study_date")` phân tích cú pháp chuỗi ngày theo chuẩn `YYYY-MM-DD` hoặc ISO datetime (chuyển đổi chuẩn hóa về `YYYY-MM-DD`). Nếu chuỗi ngày không hợp lệ hoặc sai lịch pháp (như ngày 31 tháng 2), lập tức trả về lỗi kiểm thực Pydantic `ValueError`.
+  - Trong router `create_new_case`: Bổ sung khối kiểm tra định dạng an toàn trước khi lưu DB; nếu không truyền `study_date`, tự động lấy ngày hiện tại định dạng `YYYY-MM-DD`.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_17_create_case_rejects_invalid_study_date` (Fails với `AssertionError: BE-17 VULNERABILITY: Non-date text accepted! Status=200` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (chuỗi chữ không phải ngày và ngày không có trên lịch đều nhận lỗi HTTP 422; chuỗi ngày hợp lệ được lưu trữ và phản hồi chính xác).
+  - Hồi quy: 324 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 

@@ -598,3 +598,41 @@ def test_be_16_create_case_rejects_blank_pid(monkeypatch):
         )
 
 
+def test_be_17_create_case_rejects_invalid_study_date(monkeypatch):
+    """BE-17: Case creation must reject invalid study_date with HTTP 422 instead of storing invalid date."""
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import SessionLocal, UserModel
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    with SessionLocal() as db:
+        if not db.query(UserModel).filter(UserModel.username == "doc17").first():
+            db.add(UserModel(id="u_doc17", username="doc17", full_name="Doctor 17", role="DOCTOR", is_active=True))
+            db.commit()
+
+    with TestClient(app) as client:
+        token = create_access_token({"sub": "doc17", "uid": "u_doc17", "role": "DOCTOR"})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 1. Non-date text
+        resp1 = client.post("/api/cases", headers=headers, json={"patient_id": "PID-VALID-17A", "study_date": "invalid-date"})
+        assert resp1.status_code == 422, (
+            f"BE-17 VULNERABILITY: Non-date text accepted! Status={resp1.status_code}, Body={resp1.text}"
+        )
+
+        # 2. Out-of-bounds calendar date (e.g. Feb 31)
+        resp2 = client.post("/api/cases", headers=headers, json={"patient_id": "PID-VALID-17B", "study_date": "2026-02-31"})
+        assert resp2.status_code == 422, (
+            f"BE-17 VULNERABILITY: Calendar-invalid date accepted! Status={resp2.status_code}, Body={resp2.text}"
+        )
+
+        # 3. Valid date succeeds
+        resp3 = client.post("/api/cases", headers=headers, json={"patient_id": "PID-VALID-17C", "study_date": "2026-10-18"})
+        assert resp3.status_code == 200
+        assert resp3.json()["study_date"] == "2026-10-18"
+
+
+

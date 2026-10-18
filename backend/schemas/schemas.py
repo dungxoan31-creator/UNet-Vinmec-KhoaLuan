@@ -3,6 +3,7 @@ Pydantic API Schemas for Validation and Data Transfer in Ovarian Ultrasound AI S
 """
 
 import math
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
@@ -351,6 +352,23 @@ class CreateCaseRequest(BaseModel):
         if len(trimmed) > 64:
             raise ValueError("Mã định danh bệnh nhân (PID) không được vượt quá 64 ký tự.")
         return trimmed
+
+    @field_validator("study_date")
+    @classmethod
+    def validate_study_date(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        trimmed = v.strip()
+        if not trimmed:
+            raise ValueError("Ngày khám không được để trống khi đã cung cấp. Vui lòng cung cấp định dạng YYYY-MM-DD.")
+        try:
+            if "T" in trimmed:
+                parsed = datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
+                return parsed.strftime("%Y-%m-%d")
+            parsed = datetime.strptime(trimmed, "%Y-%m-%d")
+            return parsed.strftime("%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"Ngày khám '{v}' không đúng định dạng YYYY-MM-DD hợp lệ.")
 
 
 class CaseItem(BaseModel):

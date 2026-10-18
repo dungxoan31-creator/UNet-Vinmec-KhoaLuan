@@ -51,7 +51,16 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
             if req.study_code
             else f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
         )
-        study_date = req.study_date or datetime.now().strftime("%Y-%m-%d")
+        if req.study_date:
+            try:
+                if "T" in req.study_date:
+                    study_date = datetime.fromisoformat(req.study_date.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+                else:
+                    study_date = datetime.strptime(req.study_date.strip(), "%Y-%m-%d").strftime("%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(status_code=422, detail=f"Ngày khám '{req.study_date}' không đúng định dạng YYYY-MM-DD hợp lệ.")
+        else:
+            study_date = datetime.now().strftime("%Y-%m-%d")
 
         study = StudyModel(
             id=study_id,
