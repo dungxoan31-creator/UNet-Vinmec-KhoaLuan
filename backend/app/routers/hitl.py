@@ -2,14 +2,12 @@
 Authenticated HITL session and event ingestion endpoints (Task 12).
 """
 
-from datetime import UTC, datetime
 import hashlib
 import json
 import uuid
-from typing import Any
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from backend.app.routers.auth import get_current_user
@@ -154,19 +152,59 @@ def append_hitl_events(
         # Check event_id idempotency against DB
         existing_ev = db.query(HITLEventModel).filter(HITLEventModel.event_id == event.event_id).first()
         if existing_ev:
-            legacy_hash = hashlib.sha256(json.dumps(event.payload or {}, sort_keys=True).encode("utf-8")).hexdigest()
-            is_match = (existing_ev.payload_hash == identity_hash) or (
-                existing_ev.payload_hash == legacy_hash
-                and existing_ev.event_type == event.event_type
-                and existing_ev.task_id == event.task_id
-                and existing_ev.seq == event.seq
-                and existing_ev.image_id == event.image_id
-            )
-            if existing_ev.session_id != session_id or not is_match:
+            if existing_ev.session_id != session_id:
                 raise HTTPException(
                     status_code=409,
                     detail=f"Xung đột event_id {event.event_id} với dữ liệu sự kiện khác.",
                 )
+
+            is_match = False
+            if existing_ev.payload_hash == identity_hash:
+                is_match = True
+            else:
+                # Intermediate identity format: (event_type, task_id, image_id, seq, elapsed_ms, payload)
+                mid_identity = {
+                    "event_type": event.event_type,
+                    "task_id": event.task_id,
+                    "image_id": event.image_id,
+                    "seq": event.seq,
+                    "elapsed_ms": event.elapsed_ms,
+                    "payload": event.payload or {},
+                }
+                mid_hash = hashlib.sha256(json.dumps(mid_identity, sort_keys=True).encode("utf-8")).hexdigest()
+                if existing_ev.payload_hash == mid_hash:
+                    if (
+                        existing_ev.prediction_id == event.prediction_id
+                        and existing_ev.client_utc == event.client_utc
+                        and abs(float(existing_ev.session_elapsed_ms) - float(event.session_elapsed_ms)) < 1e-4
+                    ):
+                        is_match = True
+                else:
+                    # Legacy payload-only hash: payload_hash only hashed event.payload
+                    legacy_hash = hashlib.sha256(json.dumps(event.payload or {}, sort_keys=True).encode("utf-8")).hexdigest()
+                    if existing_ev.payload_hash == legacy_hash:
+                        # BE-27: Must strictly enforce timing, sequence, and identifiers match
+                        if (
+                            existing_ev.event_type == event.event_type
+                            and existing_ev.task_id == event.task_id
+                            and existing_ev.seq == event.seq
+                            and existing_ev.image_id == event.image_id
+                            and existing_ev.prediction_id == event.prediction_id
+                            and existing_ev.client_utc == event.client_utc
+                            and abs(float(existing_ev.elapsed_ms) - float(event.elapsed_ms)) < 1e-4
+                            and abs(float(existing_ev.session_elapsed_ms) - float(event.session_elapsed_ms)) < 1e-4
+                        ):
+                            is_match = True
+
+            if not is_match:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Xung đột event_id {event.event_id} với dữ liệu sự kiện khác.",
+                )
+
+            if existing_ev.payload_hash != identity_hash:
+                existing_ev.payload_hash = identity_hash
+
             duplicate_count += 1
             batch_seen_event_ids[event.event_id] = identity_hash
             continue

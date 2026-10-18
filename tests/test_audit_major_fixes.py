@@ -1017,6 +1017,147 @@ def test_be_26_patch_is_active_strict_validation_and_revocation(monkeypatch):
         )
 
 
+def test_be_27_legacy_and_intermediate_telemetry_hash_timing_integrity(monkeypatch):
+    """BE-27: Legacy and intermediate telemetry event hashes must enforce timing integrity on replay."""
+    import hashlib
+    import json
+    import uuid
+
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token
+    from backend.db.database import (
+        HITLEventModel,
+        HITLSessionModel,
+        ImageModel,
+        PatientModel,
+        SessionLocal,
+        StudyModel,
+        UserModel,
+    )
+
+    monkeypatch.setenv("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
+
+    doc_uname = f"doc_27_{uuid.uuid4().hex[:6]}"
+    doc_uid = f"u_doc_27_{uuid.uuid4().hex[:6]}"
+    study_id = f"st_27_{uuid.uuid4().hex[:6]}"
+    img_id = f"img_27_{uuid.uuid4().hex[:6]}"
+    session_id = f"hs_27_{uuid.uuid4().hex[:6]}"
+
+    pt_id = f"pt_27_{uuid.uuid4().hex[:6]}"
+    with SessionLocal() as db:
+        db.add(UserModel(id=doc_uid, username=doc_uname, full_name="Doc 27", role="DOCTOR", is_active=True))
+        db.add(PatientModel(id=pt_id, anonymized_pid=f"ANON_27_{uuid.uuid4().hex[:6]}"))
+        db.add(StudyModel(id=study_id, patient_id=pt_id, study_date="2026-10-18"))
+        db.add(ImageModel(id=img_id, study_id=study_id, filename="test.png", raw_path="data/test.png"))
+        db.add(
+            HITLSessionModel(
+                id=session_id,
+                study_id=study_id,
+                actor_id=doc_uname,
+                participant_code="tester27",
+                participant_role="clinician",
+                data_origin="live",
+            )
+        )
+        db.commit()
+
+    with TestClient(app) as client:
+        doc_token = create_access_token({"sub": doc_uname, "uid": doc_uid, "role": "DOCTOR"})
+        doc_headers = {"Authorization": f"Bearer {doc_token}"}
+
+        # Case 1: Legacy payload-only hash stored in DB
+        leg_event_id = str(uuid.uuid4())
+        leg_event = {
+            "event_id": leg_event_id,
+            "task_id": "task-legacy",
+            "image_id": img_id,
+            "prediction_id": None,
+            "seq": 1,
+            "event_type": "PREDICTION_VIEWED",
+            "client_utc": "2026-10-18T10:00:00Z",
+            "elapsed_ms": 1500.0,
+            "session_elapsed_ms": 2000.0,
+            "payload": {"view_mode": "overlay"},
+        }
+        legacy_hash = hashlib.sha256(json.dumps(leg_event["payload"], sort_keys=True).encode("utf-8")).hexdigest()
+        with SessionLocal() as db:
+            db.add(
+                HITLEventModel(
+                    id=str(uuid.uuid4()),
+                    session_id=session_id,
+                    actor_id=doc_uname,
+                    payload_hash=legacy_hash,
+                    **leg_event,
+                )
+            )
+            db.commit()
+
+        # 1a: Exact same replay must succeed (200, duplicate_count=1)
+        resp_exact = client.post(
+            f"/api/hitl/sessions/{session_id}/events",
+            headers=doc_headers,
+            json={"events": [leg_event]},
+        )
+        assert resp_exact.status_code == 200
+        assert resp_exact.json()["duplicate_count"] == 1
+
+        # 1b: Replay with mutated timing (elapsed_ms changed) MUST return 409 Conflict
+        mutated_timing_event = dict(leg_event, elapsed_ms=9999.0, client_utc="2099-01-01T00:00:00Z")
+        resp_mutated = client.post(
+            f"/api/hitl/sessions/{session_id}/events",
+            headers=doc_headers,
+            json={"events": [mutated_timing_event]},
+        )
+        assert resp_mutated.status_code == 409, (
+            f"BE-27 VULNERABILITY: Mutated timing accepted under legacy hash! Status={resp_mutated.status_code}"
+        )
+
+        # Case 2: Intermediate format hash stored in DB
+        mid_event_id = str(uuid.uuid4())
+        mid_event = {
+            "event_id": mid_event_id,
+            "task_id": "task-intermediate",
+            "image_id": img_id,
+            "prediction_id": None,
+            "seq": 2,
+            "event_type": "CORRECTION_START",
+            "client_utc": "2026-10-18T10:05:00Z",
+            "elapsed_ms": 3200.0,
+            "session_elapsed_ms": 5200.0,
+            "payload": {"tool": "brush"},
+        }
+        mid_identity = {
+            k: mid_event[k]
+            for k in ("event_type", "task_id", "image_id", "seq", "elapsed_ms", "payload")
+        }
+        mid_hash = hashlib.sha256(json.dumps(mid_identity, sort_keys=True).encode("utf-8")).hexdigest()
+        with SessionLocal() as db:
+            db.add(
+                HITLEventModel(
+                    id=str(uuid.uuid4()),
+                    session_id=session_id,
+                    actor_id=doc_uname,
+                    payload_hash=mid_hash,
+                    **mid_event,
+                )
+            )
+            db.commit()
+
+        # 2a: Exact replay of intermediate format event MUST succeed (200, duplicate_count=1)
+        resp_mid_exact = client.post(
+            f"/api/hitl/sessions/{session_id}/events",
+            headers=doc_headers,
+            json={"events": [mid_event]},
+        )
+        assert resp_mid_exact.status_code == 200, (
+            f"BE-27 REGRESSION: Intermediate format replay rejected with 409! Status={resp_mid_exact.status_code}"
+        )
+        assert resp_mid_exact.json()["duplicate_count"] == 1
+
+
+
 
 
 
