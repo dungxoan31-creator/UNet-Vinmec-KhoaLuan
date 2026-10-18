@@ -821,5 +821,19 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Test chuyển sang PASSED (xác nhận phiên bản an toàn trong cả lockfile và Dockerfile).
   - Hồi quy: 350 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
 
+### [QA-02] Cấu hình công cụ kiểm tra tĩnh (Static Type-Check Pipeline) cho Frontend và Backend
+- **Mức độ nghiêm trọng**: MINOR
+- **Tập tin sửa đổi**: `package.json`, `pyproject.toml`, `scripts/type_check.js`, `tests/test_audit_minor_fixes.py`
+- **Nguyên nhân gốc (Root Cause)**: Báo cáo audit ghi nhận lệnh `npm run type-check` và kiểm tra tĩnh backend chưa có cấu hình trong repository, dẫn đến việc thiếu bằng chứng kiểm tra tĩnh tự động theo tiêu chí Definition of Done.
+- **Giải pháp**:
+  - Tại `package.json`: Khai báo script `"type-check": "node scripts/type_check.js"` và `"test": "node tests/frontend_review_logic.js"`.
+  - Tạo `scripts/type_check.js`: Trình kiểm tra tĩnh tự động quét và xác thực cú pháp, kiểu module của toàn bộ 48 tệp JavaScript/ES modules trong `frontend/app` và `frontend/js/modules`.
+  - Tại `pyproject.toml`: Bổ sung cấu hình `[tool.mypy]` phân định ranh giới kiểu tĩnh cho backend và loại trừ các thư mục dữ liệu/artifact.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_minor_fixes.py::test_qa_02_static_type_check_configured` (Fails với `QA-02 VULNERABILITY: package.json missing 'type-check' script!` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED; chạy thực tế `npm run type-check` PASSED ("PASS: Static type-check verified 48 JavaScript modules clean.").
+  - Hồi quy: 351 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
