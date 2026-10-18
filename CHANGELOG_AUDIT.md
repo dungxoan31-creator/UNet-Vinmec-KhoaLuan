@@ -346,3 +346,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_ai_09_calibration_updates_provenance_spacing` (Fails với `AssertionError: AI-09 VULNERABILITY: provenance_json was not updated! provenance_json={'pixel_spacing_mm': 0.2...}` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (`provenance_json["pixel_spacing_mm"]` cập nhật lên 0.4, `original_inference_pixel_spacing_mm` bảo toàn 0.2 và có `calibration_history`).
   - Hồi quy: 319 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [BE-10] Phân tích và áp dụng bộ lọc mốc thời gian (Date Range Filter) cho sự kiện Audit
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/app/routers/admin.py`
+- **Nguyên nhân gốc (Root Cause)**: Endpoint quản trị `GET /api/admin/audit-events` định nghĩa các tham số query `from_date` (alias `from`) và `to_date` (alias `to`) nhưng hoàn toàn không xây dựng logic chuyển đổi và lọc trên trường `AuditLogModel.timestamp`. Khi quản trị viên hoặc các công cụ probe gửi yêu cầu lọc sự kiện theo khoảng ngày (ví dụ tìm sự cố trong tương lai hoặc trong một tháng cụ thể), truy vấn cơ sở dữ liệu bỏ qua hai tham số này và trả về toàn bộ dữ liệu audit hiện có (`HTTP 200` với kết quả ngoài khoảng thời gian yêu cầu).
+- **Giải pháp**:
+  - Xây dựng hàm chuẩn hóa mốc thời gian `parse_date_boundary(date_str, is_end_of_day)`: Hỗ trợ linh hoạt cả định dạng ngày `YYYY-MM-DD` (tự động mở rộng sang `00:00:00` cho cận dưới và `23:59:59.999999` cho cận trên) và chuỗi ISO datetime chuẩn hóa về UTC.
+  - Hỗ trợ đầy đủ các bí danh tham số thời gian phổ biến (`from`, `from_date`, `start_date`, `to`, `to_date`, `end_date`).
+  - Áp dụng các điều kiện lọc `AuditLogModel.timestamp >= from_dt` và `AuditLogModel.timestamp <= to_dt` trực tiếp vào truy vấn SQLAlchemy trước khi thực hiện đếm tổng số bản ghi và phân trang.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_10_audit_events_date_range_filtering` (Fails với `AssertionError: BE-10 VULNERABILITY: Future date filter ignored! Expected 0, got total=3` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (lọc ngày tương lai trả về đúng 0 bản ghi; lọc khoảng thời gian trong tháng trả về chính xác 1 bản ghi khớp điều kiện).
+  - Hồi quy: 320 passed, 2 skipped, 0 regressions trên toàn bộ test suite.

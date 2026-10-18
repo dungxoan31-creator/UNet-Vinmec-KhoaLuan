@@ -374,3 +374,82 @@ def test_ai_09_calibration_updates_provenance_spacing(tmp_path):
         assert pred_after.provenance_json.get("original_inference_pixel_spacing_mm") == 0.2
         assert "calibration_history" in pred_after.provenance_json
 
+
+def test_be_10_audit_events_date_range_filtering(tmp_path, monkeypatch):
+    """BE-10: get_audit_events must parse and apply 'from' and 'to' date filters to query results."""
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-long-random-signing-secret-123456")
+    from datetime import datetime
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.main import app
+    from backend.app.routers.auth import create_access_token, hash_password
+    from backend.db.database import AuditLogModel, Base, UserModel, get_db
+
+    engine_db = create_engine(f"sqlite:///{tmp_path / 'be10.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine_db)
+
+    with Session(engine_db) as db:
+        admin_u = UserModel(
+            id="u_adm",
+            username="admin_audit",
+            full_name="Admin Audit",
+            role="ADMIN",
+            is_active=True,
+            password_hash=hash_password("adminpass123"),
+        )
+        db.add(admin_u)
+
+        # Add 3 audit logs with distinct dates
+        log1 = AuditLogModel(
+            entity_name="test",
+            entity_id="1",
+            action_type="LOGIN",
+            actor_id="user1",
+            timestamp=datetime(2026, 1, 15, 10, 0, 0),
+        )
+        log2 = AuditLogModel(
+            entity_name="test",
+            entity_id="2",
+            action_type="READ",
+            actor_id="user2",
+            timestamp=datetime(2026, 5, 20, 12, 0, 0),
+        )
+        log3 = AuditLogModel(
+            entity_name="test",
+            entity_id="3",
+            action_type="UPDATE",
+            actor_id="user3",
+            timestamp=datetime(2026, 10, 18, 14, 0, 0),
+        )
+        db.add_all([log1, log2, log3])
+        db.commit()
+
+    def temporary_db():
+        with Session(engine_db) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            token = create_access_token({"sub": "admin_audit", "uid": "u_adm"})
+            headers = {"Authorization": f"Bearer {token}"}
+
+            # Filter for future dates (should return 0 results)
+            res_future = client.get("/api/admin/audit-events?from=2099-01-01&to=2099-01-02", headers=headers)
+            assert res_future.status_code == 200
+            data_future = res_future.json()
+            assert data_future["total"] == 0, (
+                f"BE-10 VULNERABILITY: Future date filter ignored! Expected 0, got total={data_future['total']}"
+            )
+
+            # Filter for May 2026 only
+            res_may = client.get("/api/admin/audit-events?from=2026-05-01&to=2026-05-31", headers=headers)
+            assert res_may.status_code == 200
+            data_may = res_may.json()
+            assert data_may["total"] == 1
+            assert data_may["items"][0]["action_type"] == "READ"
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine_db.dispose()

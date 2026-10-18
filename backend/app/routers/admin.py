@@ -133,6 +133,26 @@ _DEPARTMENTS = [
 ]
 
 
+def parse_date_boundary(date_str: str | None, is_end_of_day: bool = False) -> datetime | None:
+    if not date_str:
+        return None
+    raw = date_str.strip()
+    if not raw:
+        return None
+    try:
+        if len(raw) == 10:  # YYYY-MM-DD
+            dt = datetime.strptime(raw, "%Y-%m-%d")
+            if is_end_of_day:
+                return dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+            return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(UTC).replace(tzinfo=None)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
+
 @router.get("/api/admin/audit-events")
 def get_audit_events(
     page: int = 1,
@@ -141,7 +161,11 @@ def get_audit_events(
     actor: str | None = None,
     action: str | None = None,
     from_date: str | None = Query(None, alias="from"),
+    from_param: str | None = Query(None, alias="from_date"),
+    start_date: str | None = Query(None, alias="start_date"),
     to_date: str | None = Query(None, alias="to"),
+    to_param: str | None = Query(None, alias="to_date"),
+    end_date: str | None = Query(None, alias="end_date"),
     limit: int | None = None,
     offset: int | None = None,
     db: Session = Depends(get_db),
@@ -160,6 +184,17 @@ def get_audit_events(
             | (AuditLogModel.entity_id.ilike(search_fmt))
             | (AuditLogModel.details.ilike(search_fmt))
         )
+
+    # Date range filters (BE-10)
+    effective_from = from_date or from_param or start_date
+    effective_to = to_date or to_param or end_date
+    from_dt = parse_date_boundary(effective_from, is_end_of_day=False)
+    to_dt = parse_date_boundary(effective_to, is_end_of_day=True)
+    if from_dt:
+        query = query.filter(AuditLogModel.timestamp >= from_dt)
+    if to_dt:
+        query = query.filter(AuditLogModel.timestamp <= to_dt)
+
     total = query.count()
     if limit is not None:
         effective_limit = limit
