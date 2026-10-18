@@ -547,6 +547,16 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_be_29_rle_shape_rejects_floats_with_422` (Fails với `TypeError: expected a sequence of integers or a single integer, got '262144.0'` tại `InferenceEngine.rle_to_mask` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (request gửi `[512.0, 512.0]` bị từ chối ngay tại biên API với mã trạng thái `HTTP 422`).
   - Hồi quy: 334 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
-
-
-
+### [BE-30] Phát hiện trôi dạt nội dung ảnh gốc (Source Content Drift) và lưu vết hash trong Research Export
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/services/research_export.py`
+- **Nguyên nhân gốc (Root Cause)**: Trong quá trình xây dựng gói nghiên cứu `build_research_bundle`, hệ thống chỉ kiểm tra file ảnh gốc có tồn tại hay không (`os.path.isfile(image.raw_path)`). Nếu file ảnh trên đĩa bị thay đổi kích thước, bị ghi đè hoặc chỉnh sửa sau thời điểm tải lên (source content drift), hàm export vẫn tiếp tục chạy và sinh ra gói nghiên cứu với mặt nạ phân đoạn rà soát không còn khớp với ảnh nguồn mới, làm sai lệch kết quả đánh giá mô hình và vi phạm tính toàn vẹn nghiên cứu y khoa. Đồng thời, metadata xuất khẩu thiếu mã băm `source_sha256` của ảnh nguồn để thẩm định độc lập.
+- **Giải pháp**:
+  - Tại `build_research_bundle`: Tính mã băm SHA-256 thực tế của file ảnh nguồn trên đĩa (`current_source_sha256`).
+  - Nếu bản ghi `ImageModel` có lưu trữ `file_hash` ban đầu, đối chiếu nghiêm ngặt: nếu `current_source_sha256 != image.file_hash`, lập tức dừng quá trình xuất và ném lỗi `HTTP 409 Conflict` ("Phát hiện file ảnh gốc đã bị thay đổi nội dung (source content drift).").
+  - Kiểm tra đối chiếu độ phân giải nguồn: nếu chiều rộng hoặc chiều cao thực tế của ảnh nguồn bị thay đổi khác với `image.width` / `image.height`, ném `HTTP 409 Conflict`.
+  - Bổ sung trường `source_sha256` vào metadata của từng ảnh và trong khối `geometry` của gói nghiên cứu để đảm bảo khả năng kiểm toán và xác minh toàn vẹn độc lập.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_be_30_research_export_detects_source_content_drift` (Fails với `AssertionError: BE-30 VULNERABILITY: source_sha256 missing` và `Export succeeded with HTTP 200 despite source content drift` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (export hợp lệ sinh `source_sha256` chuẩn xác; khi file trên đĩa bị thay đổi kích thước/nội dung, export bị từ chối chính xác với HTTP 409).
+  - Hồi quy: 335 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
