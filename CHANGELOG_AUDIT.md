@@ -707,3 +707,17 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Tái hiện: `tests/test_audit_major_fixes.py::test_dep_01_through_05_and_ops_05_dependency_advisories_and_pinning` (Fails với `DEP-01..05 VULNERABILITY: monai declared as >=1.3.0, must be >= 1.6.0` trước khi sửa).
   - Xác nhận: Test chuyển sang PASSED (`requirements.txt` yêu cầu `monai>=1.6.1`, `requirements-lock.txt` cố định đầy đủ phiên bản và `Dockerfile` sử dụng tệp lockfile).
   - Hồi quy: 342 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+### [QA-01] Dọn dẹp cảnh báo linter tĩnh (Ruff Lint Cleanup) trên toàn bộ kho mã nguồn
+- **Mức độ nghiêm trọng**: MAJOR
+- **Tập tin sửa đổi**: `backend/`, `evaluation/`, `scripts/`, `tests/`, `pyproject.toml`
+- **Nguyên nhân gốc (Root Cause)**: Linter Ruff báo cáo hơn 160 lỗi phân tích tĩnh trên các module mã nguồn chính và kiểm thử (gồm unused imports F401, unsorted imports I001, biến gán không dùng F841, kiểu type annotation cũ UP006/UP035, và khoảng trắng dư thừa W293). Đồng thời, cấu hình `pyproject.toml` thiếu chỉ thị loại trừ các thư mục artifact kết quả dẫn xuất và thiếu per-file-ignores cho các tệp script kiểm thử cần thiết lập biến môi trường trước khi import module (`E402`).
+- **Giải pháp**:
+  - Dọn dẹp triệt để các biến và import không sử dụng trong `evaluation/`, `scripts/`, `tests/`.
+  - Chuẩn hóa thứ tự import theo chuẩn PEP 8 / isort.
+  - Cập nhật `pyproject.toml`: Bổ sung danh sách thư mục loại trừ `exclude = [".git", ".venv", "artifacts", "audit_fix_logs", "evaluation/milestone_3_*"]` và cấu hình `per-file-ignores` cho `E402` trên các tệp kiểm thử chuyên biệt (`tests/conftest.py`, `tests/serve_isolated_app.py`, `scripts/export_hitl_sessions.py`).
+  - Toàn bộ lệnh `ruff check .` chuyển trạng thái xanh tuyệt đối: 0 diagnostics.
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_major_fixes.py::test_qa_01_codebase_lint_cleanliness` (Fails với `QA-01 VULNERABILITY: Ruff lint errors detected` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED (`ruff check backend scripts tests evaluation` trả về exit code 0 với 0 lỗi).
+  - Hồi quy: 343 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
