@@ -300,6 +300,24 @@ def test_ai_02_dicom_rejects_non_2d_region_or_picks_correct_2d_region(tmp_path):
     )
 
 
+def test_ai_10_system_disclaims_clinical_production_and_enforces_ruo():
+    """AI-10: System must formally disclaim standalone clinical production readiness and enforce Research Use Only (RUO)."""
+    with TestClient(app) as client:
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # Clinical Safety Check: Must explicitly state Research Use Only
+        assert data.get("clinical_status") == "RESEARCH_USE_ONLY", (
+            f"AI-10 VULNERABILITY DETECTED: Missing or invalid clinical_status: {data.get('clinical_status')}"
+        )
+        assert "regulatory_disclaimer" in data, "AI-10 VULNERABILITY DETECTED: Missing regulatory disclaimer!"
+        caps = data.get("capabilities", {})
+        assert caps.get("clinical_production_ready") is False
+        assert caps.get("research_use_only") is True
+
+
+
 
 
 

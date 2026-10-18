@@ -7,8 +7,8 @@ from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from backend.app.config import SYSTEM_ENVIRONMENT, model_registry
-from backend.db.database import ImageModel, ReviewModel, StudyModel, get_db
 from backend.app.routers.auth import get_current_user
+from backend.db.database import ImageModel, ReviewModel, StudyModel, get_db
 from backend.schemas.schemas import DashboardStatsResponse
 
 router = APIRouter(tags=["System & Metrics"])
@@ -22,6 +22,8 @@ def get_system_capabilities() -> dict[str, bool]:
         "hitl_events": True,
         "manual_review": False,
         "remote_lease": False,
+        "clinical_production_ready": False,
+        "research_use_only": True,
     }
 
 
@@ -37,7 +39,13 @@ def health_check():
 
     return {
         "status": "healthy",
-        "system": "Ovarian ultrasound segmentation workstation",
+        "system": "Ovarian ultrasound segmentation workstation (Research Use Only - RUO)",
+        "clinical_status": "RESEARCH_USE_ONLY",
+        "regulatory_disclaimer": (
+            "Hệ thống là bản mẫu nghiên cứu thực nghiệm (Research Prototype / RUO), chưa được phê duyệt "
+            "làm thiết bị y tế độc lập (SaMD). Mọi phân đoạn và gợi ý đo đạc chỉ mang tính chất tham khảo, "
+            "quyết định chuyên môn thuộc về bác sĩ lâm sàng."
+        ),
         "primary_model": model_name,
         "environment": SYSTEM_ENVIRONMENT,
         "model_ready": is_ready,

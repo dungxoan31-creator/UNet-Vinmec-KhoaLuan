@@ -102,6 +102,20 @@ Tài liệu ghi nhận chi tiết từng bản vá lỗi hệ thống y tế the
   - Xác nhận: Chạy lại probe trên Chrome thật và test `tests/test_fe_01_save_race_guard.cjs`, xác nhận select bị khóa khi bận/readonly và các thay đổi sau snapshot được bảo toàn trọn vẹn.
   - Hồi quy: Toàn bộ suite Node (`frontend_review_logic.js`, `workspace_v2_logic.mjs`, `validation_files.cjs`) và pytest 303 passed, 2 skipped, 0 regressions.
 
+### [AI-10] Thiết lập Clinical Evidence Gate & Gắn nhãn Nghiên cứu Thực nghiệm (RUO)
+- **Mức độ nghiêm trọng**: BLOCKER
+- **Tập tin sửa đổi**: `backend/app/routers/health.py`
+- **Nguyên nhân gốc (Root Cause)**: Hệ thống thiếu tuyên bố rõ ràng về phạm vi pháp lý và giới hạn lâm sàng của bản mẫu nghiên cứu, dễ dẫn tới ngộ nhận là hệ thống chẩn đoán tự động đã sẵn sàng triển khai lâm sàng độc lập (Standalone SaMD) trong khi chưa qua thử nghiệm lâm sàng đa trung tâm có kiểm soát.
+- **Giải pháp**:
+  - Gắn nhãn chính thức `clinical_status: "RESEARCH_USE_ONLY"` trong endpoint `/api/health`.
+  - Bổ sung `clinical_production_ready: False` và `research_use_only: True` vào metadata `/api/capabilities`.
+  - Công bố tuyên bố miễn trừ trách nhiệm y tế (Regulatory Disclaimer) chính thức: hệ thống là bản mẫu nghiên cứu thực nghiệm, không tự ý đưa ra kết luận chẩn đoán tự động và bắt buộc phải có bác sĩ chuyên khoa chịu trách nhiệm chuyên môn cao nhất (Human-in-the-Loop).
+- **Kiểm thử xác minh**:
+  - Tái hiện: `tests/test_audit_blocker_fixes.py::test_ai_10_system_disclaims_clinical_production_and_enforces_ruo` (Fails với `clinical_status: None` trước khi sửa).
+  - Xác nhận: Test chuyển sang PASSED sau khi sửa.
+  - Hồi quy: 304 passed, 2 skipped, 0 regressions trên toàn bộ test suite.
+
+
 
 
 
