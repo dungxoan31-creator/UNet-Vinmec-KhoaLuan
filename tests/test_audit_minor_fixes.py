@@ -209,3 +209,31 @@ def test_ops_04_security_headers_present():
     assert response.headers.get("x-frame-options") in ("DENY", "SAMEORIGIN"), (
         "OPS-04 VULNERABILITY: Missing or invalid X-Frame-Options header!"
     )
+
+
+def test_fe_07_banner_info_contrast_meets_wcag_aa():
+    """FE-07: Informational banner (.banner.info) text contrast must strictly satisfy WCAG AA >= 4.5:1."""
+    import re
+    from pathlib import Path
+
+    css_text = Path("frontend/css/workspace.css").read_text(encoding="utf-8")
+    tokens_text = Path("frontend/css/workspace-tokens.css").read_text(encoding="utf-8")
+
+    assert "--accent-text: #0062a1;" in tokens_text, "FE-07: Light theme --accent-text token modified!"
+    assert "--accent-text: #38bdf8;" in tokens_text, "FE-07: Dark theme --accent-text token modified!"
+
+    # .banner.info must use --accent-text rather than --accent to ensure >= 4.5:1 contrast
+    match = re.search(r"\.banner\.info\s*\{[^}]*color:\s*var\(--accent-text\)", css_text)
+    assert match, "FE-07 VULNERABILITY: .banner.info does not use var(--accent-text) for accessible contrast!"
+
+    # Calculate exact contrast ratios for light theme
+    def lum(rgb):
+        adj = [(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4) for c in rgb]
+        return 0.2126 * adj[0] + 0.7152 * adj[1] + 0.0722 * adj[2]
+
+    # Light: bg #e8f4fc vs text #0062a1
+    l_bg = lum([int("e8f4fc"[i : i + 2], 16) / 255.0 for i in (0, 2, 4)])
+    l_text = lum([int("0062a1"[i : i + 2], 16) / 255.0 for i in (0, 2, 4)])
+    light_ratio = (max(l_bg, l_text) + 0.05) / (min(l_bg, l_text) + 0.05)
+    assert light_ratio >= 4.5, f"FE-07 VULNERABILITY: Light banner contrast {light_ratio:.2f} < 4.5:1!"
+
