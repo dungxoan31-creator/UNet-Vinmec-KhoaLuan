@@ -1,0 +1,19 @@
+{
+  "name": "ovarian-ultrasound-frontend",
+  "version": "1.2.0",
+  "scripts": {
+    "syntax-check": "node scripts/type_check.js",
+    "type-check": "node scripts/type_check.js",
+    "test": "node --test tests/*.mjs",
+    "test:e2e:workstation": "node tests/workstation_viewer_e2e.js",
+    "test:e2e:safety": "node tests/clinical_safety_e2e.js",
+    "test:e2e:roundtrip": "node tests/clinical_roundtrip_e2e.js",
+    "test:e2e:doctor": "node tests/doctor_workflow_e2e.js",
+    "test:e2e:live": "node tests/test_live_ui_features.js",
+    "test:e2e:comprehensive": "node tests/e2e/test_comprehensive_workstation.js",
+    "test:smoke": "node tests/browser_hitl_smoke.js"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

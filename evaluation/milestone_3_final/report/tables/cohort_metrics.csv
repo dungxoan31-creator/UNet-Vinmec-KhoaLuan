@@ -1,0 +1,1 @@
+run_id,run_kind,is_historical_replay,total_samples,dice_mean,dice_median,iou_mean,recall_mean,precision_mean,specificity_mean,hd95_px_mean

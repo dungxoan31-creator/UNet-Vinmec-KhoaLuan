@@ -1,0 +1,110 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 0.5053,
+    "train_dice": 0.3637,
+    "val_loss": 0.4493,
+    "val_dice": 0.5052,
+    "lr": 0.000983,
+    "is_best": true
+  },
+  {
+    "epoch": 2,
+    "train_loss": 0.3854,
+    "train_dice": 0.5632,
+    "val_loss": 0.4745,
+    "val_dice": 0.372,
+    "lr": 0.000933,
+    "is_best": false
+  },
+  {
+    "epoch": 3,
+    "train_loss": 0.3438,
+    "train_dice": 0.6098,
+    "val_loss": 0.4082,
+    "val_dice": 0.5057,
+    "lr": 0.000854,
+    "is_best": true
+  },
+  {
+    "epoch": 4,
+    "train_loss": 0.3039,
+    "train_dice": 0.6529,
+    "val_loss": 0.5112,
+    "val_dice": 0.3395,
+    "lr": 0.00075,
+    "is_best": false
+  },
+  {
+    "epoch": 5,
+    "train_loss": 0.2835,
+    "train_dice": 0.6771,
+    "val_loss": 0.3536,
+    "val_dice": 0.6061,
+    "lr": 0.00063,
+    "is_best": true
+  },
+  {
+    "epoch": 6,
+    "train_loss": 0.2546,
+    "train_dice": 0.7086,
+    "val_loss": 0.3555,
+    "val_dice": 0.5999,
+    "lr": 0.000501,
+    "is_best": false
+  },
+  {
+    "epoch": 7,
+    "train_loss": 0.2386,
+    "train_dice": 0.7284,
+    "val_loss": 0.4617,
+    "val_dice": 0.4637,
+    "lr": 0.000371,
+    "is_best": false
+  },
+  {
+    "epoch": 8,
+    "train_loss": 0.2226,
+    "train_dice": 0.7438,
+    "val_loss": 0.4151,
+    "val_dice": 0.5021,
+    "lr": 0.000251,
+    "is_best": false
+  },
+  {
+    "epoch": 9,
+    "train_loss": 0.2082,
+    "train_dice": 0.758,
+    "val_loss": 0.4094,
+    "val_dice": 0.5381,
+    "lr": 0.000147,
+    "is_best": false
+  },
+  {
+    "epoch": 10,
+    "train_loss": 0.1953,
+    "train_dice": 0.7729,
+    "val_loss": 0.3639,
+    "val_dice": 0.5733,
+    "lr": 6.8e-05,
+    "is_best": false
+  },
+  {
+    "epoch": 11,
+    "train_loss": 0.1862,
+    "train_dice": 0.7819,
+    "val_loss": 0.4148,
+    "val_dice": 0.5151,
+    "lr": 1.8e-05,
+    "is_best": false
+  },
+  {
+    "epoch": 12,
+    "train_loss": 0.1829,
+    "train_dice": 0.7858,
+    "val_loss": 0.3753,
+    "val_dice": 0.5541,
+    "lr": 1e-06,
+    "is_best": false
+  }
+]

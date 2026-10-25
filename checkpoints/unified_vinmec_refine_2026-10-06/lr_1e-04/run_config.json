@@ -1,0 +1,33 @@
+{
+  "seed": 42,
+  "batch_size": 2,
+  "epochs": 20,
+  "patience": 6,
+  "learning_rate": 0.0001,
+  "loss": "0.5 BCE + 0.5 Dice",
+  "optimizer": "AdamW(weight_decay=1e-4)",
+  "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
+  "architecture": "StandardUNet(base_filters=32)",
+  "augmentation": "HorizontalFlip, RandomBrightnessContrast, ShiftScaleRotate; train only",
+  "validation_metric": "mean per-image Dice at 512x512, threshold 0.5",
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "train_samples": 661,
+  "validation_samples": 541,
+  "test_samples_held_out": 402,
+  "best_epoch": 10,
+  "best_validation_dice": 0.6562989554652005,
+  "duration_seconds": 936.165,
+  "split_sha256": {
+    "train": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+    "val": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+    "test": "fbc1f55df5f09c784b2f2ce30705b2202b74d02ec83bdf3d2a5ced5c17f4af6f"
+  },
+  "checkpoint_best": "checkpoints/unified_vinmec_refine_2026-10-06/lr_1e-04/baseline_unet_best.pth",
+  "checkpoint_last": "checkpoints/unified_vinmec_refine_2026-10-06/lr_1e-04/baseline_unet_last.pth",
+  "checkpoint_best_sha256": "902d8f7bdbede4fa0cfa756929c1c0c44791a35bdb94214c8415eaec26d69801",
+  "checkpoint_last_sha256": "1f79b713596b55828cc09c67f8f6b2ab9c6bbaaec8e5fd4c5460d58f841ade0e",
+  "initial_checkpoint": "checkpoints/unified_vinmec_2026-10-06/baseline_unet_best.pth",
+  "initial_checkpoint_sha256": "509b050f633f765b03419d1615397557889c9c647dd24d500446fa3495d8198b",
+  "name": "lr_1e-04"
+}

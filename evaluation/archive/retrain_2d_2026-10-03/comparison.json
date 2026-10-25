@@ -1,0 +1,22 @@
+{
+  "split": "val",
+  "count": 123,
+  "threshold": 0.5,
+  "evaluation_resolution": "original image dimensions after inverse letterbox",
+  "previous": {
+    "checkpoint": "checkpoints/vinmec_unet_best.pth",
+    "evidence": "evaluation/retrain_2d_2026-10-03/previous_validation/summary.json",
+    "dice": 0.6051128973112392,
+    "iou": 0.4663527304868329,
+    "recall": 0.6511012533056388
+  },
+  "retrained": {
+    "checkpoint": "checkpoints/retrain_2d_2026-10-03_stable/vinmec_unet_best.pth",
+    "evidence": "evaluation/retrain_2d_2026-10-03/validation/summary.json",
+    "dice": 0.8233030566107864,
+    "iou": 0.7298131588877279,
+    "recall": 0.8653061598645447
+  },
+  "selected": "retrained",
+  "patient_split_status": "image-level only; verified patient IDs unavailable"
+}

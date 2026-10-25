@@ -1,0 +1,61 @@
+[project]
+name = "ovarian-ultrasound-ai"
+version = "1.2.0"
+description = "Ovarian Ultrasound AI Decision Support System"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [
+    ".git",
+    ".venv",
+    "artifacts",
+    "audit_fix_logs",
+    "evaluation/milestone_3_*",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "B008",  # Do not perform function call `Depends` in argument defaults (FastAPI standard)
+    "E501",  # Line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["E402"]
+"tests/serve_isolated_app.py" = ["E402"]
+"scripts/export_hitl_sessions.py" = ["E402"]
+"ai_training/train_unetplusplus_resnet34.py" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [".venv", "artifacts", "node_modules", ".git", ".ruff_cache", ".pytest_cache", "data", "dataset"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::starlette.testclient.StarletteDeprecationWarning",
+    "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+follow_imports = "silent"
+exclude = [
+    "artifacts",
+    "evaluation",
+    "dataset",
+]

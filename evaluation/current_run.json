@@ -1,0 +1,10 @@
+{
+  "summary_path": "evaluation/milestone_3_final/legacy_test_v1/summary.json",
+  "run_id": "legacy_test_v1",
+  "run_kind": "retrospective_test_replay",
+  "protocol_sha256": "7ca6c3791b4c2266fd1717276aaf4d2072798010a688851abca5f51f490474bb",
+  "manifest_sha256": "95a585259be3a0340d98d328e8f8eede8472936905a23a850ed23dda56eb54b4",
+  "checkpoint_sha256": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+  "status": "COMPLETE",
+  "label": "Retrospective Test Replay (402 samples)"
+}

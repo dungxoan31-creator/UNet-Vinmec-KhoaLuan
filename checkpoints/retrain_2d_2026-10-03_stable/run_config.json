@@ -1,0 +1,53 @@
+{
+  "seed": 42,
+  "epochs": 30,
+  "batch_size": 2,
+  "learning_rate": 0.0003,
+  "patience": 8,
+  "gradient_clip": 1.0,
+  "initialization": "random",
+  "model": "Standard U-Net",
+  "base_filters": 32,
+  "preprocessing": "grayscale, letterbox 512x512, CLAHE, divide by 255",
+  "loss": "0.5 BCE + 0.5 Dice",
+  "splits_dir": "ai_training/splits/vinmec_2d_retrain_2026-10-03",
+  "split_sha256": {
+    "train": "b97c7c0ea75c456f5f7889363ac5e8b6ddbc08a5a9f231a5760f0b513afbf833",
+    "val": "99b84bb894c8c8936ba1c9ff05f6daa160e3a7a796bbff40e5d1718e979717c8",
+    "test": "38959b3445f9537b9561db5001b7a7fd31a8ed335c0f3bc0c23294cbebf199bd"
+  },
+  "original_split_sha": {
+    "train": "b97c7c0ea75c456f5f7889363ac5e8b6ddbc08a5a9f231a5760f0b513afbf833",
+    "val": "99b84bb894c8c8936ba1c9ff05f6daa160e3a7a796bbff40e5d1718e979717c8",
+    "test": "38959b3445f9537b9561db5001b7a7fd31a8ed335c0f3bc0c23294cbebf199bd"
+  },
+  "original_split_archive_status": "training CSV files not located",
+  "pre_pid_split_sha": {
+    "train": "1a5a053659c14b061a687445ecc3e0f66a42ec1ad30ee89ef0135adbd1374e8c",
+    "val": "4d0a3e773dab1527f230e2c4f1792d1b9dbbc45f33ce0e68f57e0fb4b3689a93",
+    "test": "05aed7a0cf78be9fac159f9181eccfb4db3cbc9c75ffc1f52e28087930c037dc"
+  },
+  "pre_pid_split_archive": {
+    "train": "ai_training/splits/archive_pre_pid/train.csv",
+    "val": "ai_training/splits/archive_pre_pid/val.csv",
+    "test": "ai_training/splits/archive_pre_pid/test.csv"
+  },
+  "current_split_sha": {
+    "train": "2af2a0654150507309cbff2346db1951094164c07691294173a745c37a619e20",
+    "val": "adf08ad2224cff708da94bd8767510827a11f54b5535ff753aef173858da4d34",
+    "test": "8eb11aa587e285d86ab8baa25750e7448b507f43b35cb3321d5b569862cc9ae7"
+  },
+  "provenance_audit": {
+    "status": "frozen",
+    "frozen_on": "2026-10-04",
+    "conclusion": "Chấp nhận giới hạn truy vết bit-to-bit của lượt huấn luyện 03/10; toàn bộ quy trình kiểm thử và đánh giá từ 04/10 trở đi được chuẩn hóa trên current_split_sha và checkpoint 5e14be...",
+    "training_csv_bit_to_bit_reproducible": false,
+    "original_split_backup_status": "no matching CSV backup available, confirmed by project owner",
+    "evaluation_split_sha_reference": "current_split_sha",
+    "evaluation_checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
+    "evaluation_threshold": 0.5,
+    "evaluation_test_summary": "evaluation/retrain_2d_2026-10-03/test_summary.json"
+  },
+  "validation_metric": "mean per-image Dice at 512x512, threshold 0.5",
+  "patient_split_status": "partitioned by synthetic patient_id; source patient identity unavailable"
+}

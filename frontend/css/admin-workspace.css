@@ -1,0 +1,64 @@
+/* Scoped to the coordinator's Admin screen; uses the existing theme tokens. */
+#screenAdmin { color: var(--text); }
+#screenAdmin #adminModels { margin-block: 16px 24px; }
+#screenAdmin .admin-summary,
+#screenAdmin .admin-model dl { margin: 0; }
+#screenAdmin .admin-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    padding: 16px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+#screenAdmin dt { color: var(--muted); font-size: 12px; }
+#screenAdmin dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+#screenAdmin .admin-model-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+#screenAdmin .admin-model {
+    min-width: 0;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+#screenAdmin .admin-model h3 { margin: 0 0 16px; font-size: 16px; overflow-wrap: anywhere; }
+#screenAdmin .admin-model dl { display: grid; gap: 12px; }
+#screenAdmin #adminMessage,
+#screenAdmin #adminLogCount,
+#screenAdmin .admin-empty { color: var(--muted); overflow-wrap: anywhere; }
+#screenAdmin #adminMessage { margin-block: 12px; }
+#screenAdmin #adminActorFilter,
+#screenAdmin #adminActionFilter {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+#screenAdmin #adminActorFilter:focus-visible,
+#screenAdmin #adminActionFilter:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+#screenAdmin table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+#screenAdmin th,
+#screenAdmin td { padding: 12px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+#screenAdmin th { color: var(--muted); background: var(--background); font-weight: 600; }
+#screenAdmin td { border-bottom: 1px solid var(--border); }
+#screenAdmin th:nth-child(1) { width: 22%; }
+#screenAdmin th:nth-child(2),
+#screenAdmin th:nth-child(3) { width: 19%; }
+#screenAdmin .admin-log-details {
+    white-space: pre-wrap;
+    font: 12px/1.6 ui-monospace, Consolas, monospace;
+}
+#screenAdmin .admin-empty { padding: 20px 12px; text-align: center; }
+@media (max-width: 640px) {
+    #screenAdmin .admin-summary { grid-template-columns: 1fr; }
+    #screenAdmin th,
+    #screenAdmin td { padding: 8px 6px; font-size: 12px; }
+}

@@ -1,0 +1,430 @@
+"""
+Service for atomic batch review persistence, revision validation, and idempotency tracking.
+"""
+
+import hashlib
+import json
+import os
+import uuid
+from datetime import UTC, datetime
+from typing import Any
+
+from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import Session
+
+from backend.db.database import (
+    AuditLogModel,
+    HITLEventModel,
+    HITLSessionModel,
+    ImageModel,
+    PredictionModel,
+    ReviewBatchModel,
+    ReviewModel,
+    StudyModel,
+    UserModel,
+)
+from backend.schemas.schemas import BatchReviewRequest, DoctorReviewRequest
+from backend.services.case_lease_service import require_active_case_lease
+from backend.services.image_service import decode_ultrasound_image, get_image_calibration
+from backend.services.review_validation import validate_review_mask
+from backend.services.source_measurements import measure_source_mask
+
+_FINAL_REVIEW_STATUSES = {"SIGNED_PRELIM", "APPROVED", "LOCKED"}
+
+
+def compute_request_hash(request: BatchReviewRequest) -> str:
+    reviews_data = []
+    for r in request.reviews:
+        fb = r.hitl_feedback.model_dump() if r.hitl_feedback else {}
+        orads_val = getattr(r, "orads", None) or getattr(r, "orads_score", None)
+        morph_desc = getattr(r, "morphology_description", None)
+        if orads_val:
+            fb["orads"] = orads_val
+            fb["orads_score"] = orads_val
+        if morph_desc:
+            fb["morphology_description"] = morph_desc
+            fb["morphologyDesc"] = morph_desc
+
+        reviews_data.append({
+            "image_id": r.image_id,
+            "prediction_id": r.prediction_id,
+            "doctor_action": r.doctor_action,
+            "verified_mask_rle": r.verified_mask_rle,
+            "clinical_notes": r.clinical_notes,
+            "lesion_type": r.lesion_type,
+            "orads": orads_val,
+            "morphology_description": morph_desc,
+            "time_spent_seconds": r.time_spent_seconds,
+            "hitl_feedback": fb if fb else None,
+        })
+    reviews_data.sort(key=lambda x: x["image_id"])
+    canonical = {
+        "study_id": request.study_id,
+        "expected_revision": request.expected_revision,
+        "hitl_session_id": getattr(request, "hitl_session_id", None),
+        "reviews": reviews_data,
+    }
+    raw = json.dumps(canonical, sort_keys=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _claim_hitl_session_for_review(db: Session, sess: HITLSessionModel, review_batch_id: str) -> None:
+    rows_updated = (
+        db.query(HITLSessionModel)
+        .filter(
+            HITLSessionModel.id == sess.id,
+            HITLSessionModel.status.notin_(("COMPLETED", "ABORTED")),
+            HITLSessionModel.review_batch_id.is_(None),
+        )
+        .update(
+            {
+                HITLSessionModel.review_batch_id: review_batch_id,
+                HITLSessionModel.status: "INCOMPLETE",
+            },
+            synchronize_session=False,
+        )
+    )
+    if rows_updated == 0:
+        raise HTTPException(status_code=409, detail="HITL session changed or was linked by another request.")
+    db.refresh(sess, attribute_names=["status", "review_batch_id"])
+
+
+def persist_single_review(
+    db: Session,
+    review_req: DoctorReviewRequest,
+    user: UserModel,
+    *,
+    inference_engine,
+    image_preprocessor,
+) -> dict[str, Any]:
+    """Adapt the single-review contract to the same atomic persistence service."""
+    if review_req.expected_revision is None:
+        raise HTTPException(status_code=422, detail="Yêu cầu cung cấp expected_revision cho phiên rà soát.")
+    if not review_req.request_id:
+        raise HTTPException(status_code=422, detail="Yêu cầu cung cấp request_id cho phiên rà soát.")
+
+    study_id = review_req.study_id
+    if not study_id:
+        image = db.query(ImageModel).filter(ImageModel.id == review_req.image_id).first()
+        if not image:
+            raise HTTPException(status_code=404, detail="Không tìm thấy ảnh y tế tương ứng.")
+        study_id = image.study_id
+
+    batch_request = BatchReviewRequest(
+        study_id=study_id,
+        expected_revision=review_req.expected_revision,
+        request_id=review_req.request_id,
+        reviews=[review_req],
+        lease_token=review_req.lease_token,
+        page_instance_id=review_req.page_instance_id,
+    )
+    result = persist_review_batch(
+        db,
+        batch_request,
+        user,
+        allow_partial=True,
+        inference_engine=inference_engine,
+        image_preprocessor=image_preprocessor,
+    )
+    first_review = result["reviews"][0]
+    return {
+        "review_id": first_review["review_id"],
+        "image_id": first_review["image_id"],
+        "status": "SUCCESS",
+        "message": "Đã lưu mask rà soát và nhật ký thao tác.",
+        "is_ground_truth": False,
+        "reviewed_at": first_review.get("reviewed_at"),
+        "reviewer_id": user.username,
+    }
+
+
+def persist_review_batch(
+    db: Session,
+    request: BatchReviewRequest,
+    user: UserModel,
+    allow_partial: bool = False,
+    *,
+    inference_engine,
+    image_preprocessor,
+) -> dict[str, Any]:
+    if user.role != "DOCTOR":
+        raise HTTPException(status_code=403, detail="Chỉ bác sĩ (DOCTOR) mới có quyền lưu rà soát.")
+
+    current_hash = compute_request_hash(request)
+    req_id_str = str(request.request_id)
+
+    # 1. Idempotency Check
+    existing_batch = db.query(ReviewBatchModel).filter(ReviewBatchModel.request_id == req_id_str).first()
+    if existing_batch:
+        if existing_batch.actor_id != user.username:
+            raise HTTPException(status_code=409, detail="Request ID đã được sử dụng bởi người dùng khác.")
+        if existing_batch.request_hash != current_hash:
+            raise HTTPException(status_code=409, detail="Request ID đã tồn tại với nội dung khác.")
+        return existing_batch.response_json
+
+    # 2. Study Existence Check
+    study = db.query(StudyModel).filter(StudyModel.id == request.study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ca khảo sát.")
+    if study.status in _FINAL_REVIEW_STATUSES:
+        raise HTTPException(status_code=409, detail="Ca đã ký hoặc khóa, không thể thay đổi rà soát.")
+
+    require_active_case_lease(
+        db,
+        request.study_id,
+        user,
+        request.lease_token,
+        request.page_instance_id,
+    )
+
+    # 3. Optimistic Revision Guard
+    if study.review_revision != request.expected_revision:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Xung đột phiên bản rà soát: máy chủ đang ở bản {study.review_revision}, yêu cầu gửi {request.expected_revision}.",
+        )
+
+    # 3b. Optional HITL Session Validation
+    hitl_sess = None
+    if request.hitl_session_id:
+        hitl_sess = db.query(HITLSessionModel).filter(HITLSessionModel.id == request.hitl_session_id).first()
+        if not hitl_sess:
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên HITL.")
+        if hitl_sess.study_id != request.study_id:
+            raise HTTPException(status_code=422, detail="Phiên HITL không thuộc ca khảo sát.")
+        if hitl_sess.actor_id != user.username and user.role != "ADMIN":
+            raise HTTPException(status_code=403, detail="Chỉ người tạo phiên HITL mới có quyền liên kết rà soát.")
+
+    if hitl_sess and hitl_sess.status in {"COMPLETED", "ABORTED"}:
+        raise HTTPException(status_code=409, detail="A terminal HITL session cannot be linked to a new review batch.")
+    if hitl_sess and hitl_sess.review_batch_id:
+        raise HTTPException(status_code=409, detail="A HITL session can be linked to only one review batch.")
+
+    # 4. Review Set & Image Membership Validation
+    if not request.reviews:
+        raise HTTPException(status_code=422, detail="Danh sách rà soát rỗng.")
+
+    image_ids = [r.image_id for r in request.reviews]
+    if len(image_ids) != len(set(image_ids)):
+        raise HTTPException(status_code=422, detail="Trùng lặp ảnh trong yêu cầu rà soát.")
+
+    study_images = {img.id: img for img in study.images}
+    for r in request.reviews:
+        if r.image_id not in study_images:
+            raise HTTPException(status_code=422, detail="Ảnh không thuộc ca khảo sát.")
+
+    # 5. Laterality Guard
+    if study.ovary_side == "UNKNOWN" and len(request.reviews) > 1:
+        raise HTTPException(status_code=422, detail="Không thể xác nhận hai bên cho ca có vị trí buồng trứng không xác định.")
+
+    if study.ovary_side == "BOTH" and not allow_partial:
+        reviewed_lateralities = {study_images[r.image_id].laterality for r in request.reviews}
+        if not {"L", "R"}.issubset(reviewed_lateralities):
+            raise HTTPException(status_code=422, detail="Ca hai bên yêu cầu rà soát đầy đủ cả hai ảnh (trái và phải).")
+
+    # 6. Predictions & Mask Validation
+    engine_inst = inference_engine
+    validated_items = []
+    for r in request.reviews:
+        pred = db.query(PredictionModel).filter(PredictionModel.id == r.prediction_id).first()
+        if not pred:
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy bản dự đoán {r.prediction_id}.")
+        if pred.image_id != r.image_id:
+            raise HTTPException(status_code=422, detail="Dự đoán không thuộc ảnh tương ứng.")
+
+        verified_mask = engine_inst.rle_to_mask(r.verified_mask_rle)
+        predicted_mask = engine_inst.rle_to_mask(pred.raw_mask_rle)
+        validate_review_mask(r.doctor_action, verified_mask, predicted_mask)
+
+        img_rec = study_images[r.image_id]
+        validated_items.append((r, img_rec, pred))
+
+    # 7. Atomic Execution
+    try:
+        now_utc = datetime.now(UTC)
+        review_summaries = []
+
+        for r, img_rec, pred in validated_items:
+            decoded = decode_ultrasound_image(img_rec.raw_path) if (img_rec.raw_path and os.path.isfile(img_rec.raw_path)) else None
+            if decoded is not None:
+                meas = measure_source_mask(
+                    decoded,
+                    r.verified_mask_rle,
+                    image_preprocessor,
+                    engine_inst,
+                    get_image_calibration(img_rec),
+                )
+            else:
+                meas = {"max_diameter_mm": None, "ortho_diameter_mm": None, "total_area_cm2": None}
+
+            feedback = r.hitl_feedback.model_dump() if r.hitl_feedback is not None else {}
+            orads_val = getattr(r, "orads", None) or getattr(r, "orads_score", None)
+            morph_desc = getattr(r, "morphology_description", None)
+            if orads_val:
+                feedback["orads"] = orads_val
+                feedback["orads_score"] = orads_val
+            if morph_desc:
+                feedback["morphologyDesc"] = morph_desc
+                feedback["morphology_description"] = morph_desc
+            review_id = str(uuid.uuid4())
+
+            review_record = ReviewModel(
+                id=review_id,
+                image_id=r.image_id,
+                prediction_id=r.prediction_id,
+                doctor_id=user.username,
+                doctor_action=r.doctor_action,
+                verified_mask_rle=r.verified_mask_rle,
+                max_diameter_mm=meas["max_diameter_mm"],
+                ortho_diameter_mm=meas["ortho_diameter_mm"],
+                total_area_cm2=meas["total_area_cm2"],
+                lesion_type=r.lesion_type,
+                clinical_notes=r.clinical_notes,
+                time_spent_seconds=r.time_spent_seconds,
+                hitl_feedback=feedback if feedback else None,
+                is_official_ground_truth=False,
+                created_at=now_utc,
+            )
+            db.add(review_record)
+
+            audit = AuditLogModel(
+                entity_name="doctor_reviews",
+                entity_id=review_id,
+                action_type=f"DOCTOR_{r.doctor_action}",
+                actor_id=user.username,
+                details={
+                    "image_id": r.image_id,
+                    "time_spent_s": r.time_spent_seconds,
+                    "lesion_type": r.lesion_type,
+                    "dmax_mm": meas["max_diameter_mm"],
+                    "hitl_feedback": feedback if feedback else None,
+                    "study_id": study.id,
+                    "prediction_id": r.prediction_id,
+                    "batch_request_id": req_id_str,
+                },
+                timestamp=now_utc,
+            )
+            db.add(audit)
+
+            review_summaries.append({
+                "review_id": review_id,
+                "image_id": r.image_id,
+                "prediction_id": r.prediction_id,
+                "doctor_action": r.doctor_action,
+                "reviewed_at": now_utc.isoformat(),
+            })
+
+        new_revision = request.expected_revision + 1
+
+        all_reviewed_lateralities = set()
+        if study.ovary_side == "BOTH":
+            all_reviewed_lateralities = {
+                img.laterality for img in study.images
+                if img.reviews or img.id in {r.image_id for r in request.reviews}
+            }
+            new_status = "REVIEWED" if {"L", "R"}.issubset(all_reviewed_lateralities) else "PARTIALLY_REVIEWED"
+        else:
+            new_status = "REVIEWED"
+
+        # Atomic conditional update claiming the expected revision
+        rows_updated = db.query(StudyModel).filter(
+            StudyModel.id == study.id,
+            StudyModel.review_revision == request.expected_revision,
+            StudyModel.status.notin_(_FINAL_REVIEW_STATUSES),
+        ).update(
+            {
+                StudyModel.review_revision: new_revision,
+                StudyModel.status: new_status,
+            },
+            synchronize_session=False,
+        )
+
+        if rows_updated == 0:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"Xung đột phiên bản rà soát: ca đã được chỉnh sửa bởi phiên khác (kỳ vọng bản {request.expected_revision}).",
+            )
+
+        response_data = {
+            "status": "SUCCESS",
+            "study_id": study.id,
+            "review_revision": new_revision,
+            "reviews": review_summaries,
+            "message": "Đã lưu rà soát nghiên cứu thành công.",
+        }
+
+        batch_record = ReviewBatchModel(
+            id=str(uuid.uuid4()),
+            request_id=req_id_str,
+            actor_id=user.username,
+            study_id=study.id,
+            request_hash=current_hash,
+            response_json=response_data,
+            created_at=now_utc,
+        )
+        db.add(batch_record)
+        db.flush()
+
+        if hitl_sess:
+            _claim_hitl_session_for_review(db, hitl_sess, batch_record.id)
+
+            session_tasks = (
+                db.query(HITLEventModel.task_id, HITLEventModel.image_id)
+                .filter(HITLEventModel.session_id == hitl_sess.id)
+                .distinct()
+                .all()
+            )
+            for t_id, img_id in session_tasks:
+                prior_confirms = (
+                    db.query(func.count(HITLEventModel.id))
+                    .filter(
+                        HITLEventModel.session_id == hitl_sess.id,
+                        HITLEventModel.task_id == t_id,
+                        HITLEventModel.seq <= 0,
+                    )
+                    .scalar()
+                    or 0
+                )
+                ev = HITLEventModel(
+                    id=str(uuid.uuid4()),
+                    event_id=str(uuid.uuid4()),
+                    session_id=hitl_sess.id,
+                    task_id=t_id,
+                    image_id=img_id,
+                    seq=-prior_confirms,
+                    event_type="CONFIRM_SUCCEEDED",
+                    client_utc=now_utc.isoformat(),
+                    elapsed_ms=0.0,
+                    session_elapsed_ms=0.0,
+                    payload_hash=hashlib.sha256(
+                        json.dumps({
+                            "batch_request_id": req_id_str,
+                            "review_revision": new_revision,
+                        }, sort_keys=True).encode("utf-8")
+                    ).hexdigest(),
+                    payload={
+                        "batch_request_id": req_id_str,
+                        "review_revision": new_revision,
+                    },
+                    actor_id=user.username,
+                    received_at=now_utc,
+                )
+                db.add(ev)
+
+        db.commit()
+        return response_data
+    except HTTPException:
+        db.rollback()
+        raise
+    except (IntegrityError, OperationalError) as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Xung đột phiên bản rà soát hoặc xung đột khóa dữ liệu đồng thời.",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise

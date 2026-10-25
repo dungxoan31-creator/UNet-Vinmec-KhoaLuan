@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Khóa luận MIS: Hệ thống Hỗ trợ Chẩn đoán Siêu âm Buồng trứng Human-in-the-Loop</title>
+  <link rel="icon" type="image/png" href="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo">
+  <link rel="stylesheet" href="/static/css/workspace-tokens.css">
+  <style>
+    :root {
+      --bg: #07090E;
+      --surface-1: #0F131C;
+      --surface-2: #161C28;
+      --surface-3: #1E2638;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(0, 210, 186, 0.4);
+      --text: #F1F5F9;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --teal: #00D2BA;
+      --teal-glow: rgba(0, 210, 186, 0.15);
+      --blue: #0A84FF;
+      --blue-glow: rgba(10, 132, 255, 0.15);
+      --amber: #FF9F0A;
+      --amber-glow: rgba(255, 159, 10, 0.15);
+      --rose: #FF453A;
+      --green: #30D158;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Top Progress Bar */
+    #progress-bar {
+      height: 3px;
+      background: linear-gradient(90deg, var(--blue), var(--teal));
+      width: 10%;
+      transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+
+    /* Top HUD / Header */
+    .top-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 19, 28, 0.6);
+      backdrop-filter: blur(12px);
+      z-index: 50;
+      font-size: 13px;
+    }
+
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-tag {
+      background: var(--surface-3);
+      color: var(--teal);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 210, 186, 0.25);
+      letter-spacing: 0.5px;
+    }
+
+    .header-title {
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .hud-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .timer-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-2);
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--amber);
+    }
+
+    .timer-badge.warning {
+      color: var(--rose);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Main Deck Stage */
+    .deck-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 48px;
+    }
+
+    .slide {
+      position: absolute;
+      width: calc(100% - 96px);
+      max-width: 1280px;
+      height: calc(100% - 48px);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(16px) scale(0.985);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                  visibility 0.35s;
+      pointer-events: none;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    /* Slide Header */
+    .slide-header {
+      margin-bottom: 24px;
+    }
+
+    .slide-num {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--teal);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .slide-num::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 10px var(--teal);
+    }
+
+    .slide-title {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #FFF;
+      line-height: 1.2;
+    }
+
+    .slide-subtitle {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      font-weight: 400;
+    }
+
+    /* Slide Content Layouts */
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      height: 100%;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      height: 100%;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      transform: translateY(-2px);
+    }
+
+    .card.highlight {
+      background: linear-gradient(135deg, rgba(0, 210, 186, 0.05), rgba(10, 132, 255, 0.03));
+      border-color: rgba(0, 210, 186, 0.3);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #FFF;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-2);
+      color: var(--teal);
+      border: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .card p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card li {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--text-muted);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .card li::before {
+      content: "▹";
+      color: var(--teal);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    /* Metric pill */
+    .metric-hero {
+      font-family: var(--font-mono);
+      font-size: 42px;
+      font-weight: 700;
+      color: #FFF;
+      letter-spacing: -1px;
+      margin: 10px 0;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .metric-hero small {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--text-dim);
+    }
+
+    /* Formula box */
+    .formula-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--blue);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #38BDF8;
+      margin: 8px 0;
+    }
+
+    /* Flow Step Pills */
+    .flow-stepper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .step-node {
+      flex: 1;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      position: relative;
+    }
+
+    .step-node.active {
+      border-color: var(--teal);
+      background: var(--teal-glow);
+    }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--teal);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .step-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #FFF;
+      margin-bottom: 4px;
+    }
+
+    .step-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .flow-arrow {
+      color: var(--text-dim);
+      font-size: 18px;
+    }
+
+    /* Bottom Controller */
+    .bottom-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 28px;
+      border-top: 1px solid var(--border);
+      background: rgba(15, 19, 28, 0.8);
+      backdrop-filter: blur(12px);
+      font-size: 13px;
+      z-index: 50;
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 16px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn:hover {
+      background: var(--surface-3);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn.primary {
+      background: var(--teal);
+      color: #07090E;
+      font-weight: 600;
+      border: none;
+    }
+
+    .btn.primary:hover {
+      background: #00ebd0;
+    }
+
+    .kbd-tip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--surface-3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    /* Speaker Notes Drawer */
+    #notes-drawer {
+      position: fixed;
+      bottom: 58px;
+      right: 28px;
+      width: 440px;
+      max-height: 280px;
+      background: rgba(15, 19, 28, 0.95);
+      border: 1px solid var(--teal);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      z-index: 99;
+      transform: translateY(120%);
+      opacity: 0;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #notes-drawer.open {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .notes-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--teal);
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .notes-body {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #E2E8F0;
+      overflow-y: auto;
+    }
+
+    /* Cheat Sheet Modal */
+    #qa-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 9, 14, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 150;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    #qa-modal.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 880px;
+      max-height: 85vh;
+      background: var(--surface-1);
+      border: 1px solid var(--teal);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
+      overflow-y: auto;
+    }
+
+    .qa-item {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .qa-q {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--amber);
+      margin-bottom: 8px;
+    }
+
+    .qa-a {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Progress Bar -->
+  <div id="progress-bar"></div>
+
+  <!-- Top HUD -->
+  <header class="top-hud">
+    <div class="brand-cluster">
+      <span class="badge-tag">NEU · MIS 65A</span>
+      <span class="header-title">Khóa luận Tốt nghiệp — CDSS Phân đoạn Siêu âm Buồng trứng</span>
+    </div>
+    <div class="hud-controls">
+      <div class="timer-badge" id="timerBadge">
+        <span>⏱️</span>
+        <span id="timerDisplay">12:00</span>
+      </div>
+      <button class="btn" id="timerToggle" title="Bắt đầu / Tạm dừng đếm giờ">Chạy giờ</button>
+      <button class="btn" id="qaBtn">🛡️ Cẩm nang Vấn đáp</button>
+      <button class="btn" id="notesBtn">📝 Lời thoại (N)</button>
+    </div>
+  </header>
+
+  <!-- Deck Viewport -->
+  <main class="deck-viewport">
+
+    <!-- SLIDE 1: Title -->
+    <section class="slide active" data-index="0" data-notes="Kính thưa Thầy và Hội đồng, em xin phép trình bày đề tài: Hệ thống hỗ trợ chẩn đoán siêu âm buồng trứng Human-in-the-Loop. Dự án giải quyết bài toán giao thoa giữa Trí tuệ nhân tạo thị giác máy tính và Hệ thống thông tin y tế, tiếp cận theo góc nhìn của một kỹ sư MIS: không để AI hoạt động như một hộp đen tự động mà đặt bác sĩ làm trung tâm kiểm soát quyết định lâm sàng.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 01 / 10 · TRANG BÌA BÁO CÁO</div>
+        <h1 class="slide-title">HỆ THỐNG HỖ TRỢ CHẨN ĐOÁN SIÊU ÂM BUỒNG TRỨNG HUMAN-IN-THE-LOOP (CDSS)</h1>
+        <p class="slide-subtitle">Tích hợp Học sâu U-Net, Đo đạc Hình thái ISUOG và Động cơ Suy luận Lâm sàng Tất định IOTA / ACR O-RADS</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card highlight">
+            <div class="card-title"><span class="card-icon">🎓</span> Học viện & Chuyên ngành</div>
+            <p><strong>Trường Đại học Kinh tế Quốc dân (NEU)</strong></p>
+            <p>Viện Công nghệ Thông tin & Kinh tế số</p>
+            <p>Ngành: Hệ thống Thông tin Quản lý (MIS 65A)</p>
+            <p>Sinh viên: <strong>Nguyễn Hữu Dũng</strong></p>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="card-icon">🏥</span> Dữ liệu Thực nghiệm</div>
+            <p><strong>Bệnh viện ĐKQT Vinmec Times City</strong></p>
+            <p>Ảnh siêu âm 2D B-mode đầu dò âm đạo</p>
+            <p>Chuẩn mã hóa: DICOM & Pixel Spacing</p>
+            <p>Quy chuẩn đạo đức: RUO / De-identified</p>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="card-icon">⚡</span> Khung Thời gian Báo cáo</div>
+            <div class="metric-hero">12<small>phút tối đa</small></div>
+            <p>8 phút: Trình bày quy trình & kiến trúc</p>
+            <p>4 phút: Demo sản phẩm & Vấn đáp hội đồng</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: Problem & Clinical Challenge -->
+    <section class="slide" data-index="1" data-notes="Bài toán đặt ra: Chẩn đoán hình ảnh buồng trứng có ranh giới cực kỳ mờ nhạt và nhiều nhiễu âm. Các giải pháp AI hộp đen hiện nay thường cố gắng phán đoán lành tính ác tính một cách máy móc, khiến bác sĩ lâm sàng không thể tin tưởng. Mục tiêu của đề tài là xây dựng hệ thống CDSS theo cơ chế Human-in-the-Loop: AI phát hiện đường viền, đo kích thước; bác sĩ rà soát và kiểm soát tối cao trước khi xuất phiếu kết quả.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 02 / 10 · BỐI CẢNH & ĐẶT VẤN ĐỀ</div>
+        <h2 class="slide-title">Thách Thức Chẩn Đoán & Giới Hạn Của AI "Hộp Đen"</h2>
+        <p class="slide-subtitle">Tại sao mô hình AI truyền thống chưa thể áp dụng độc lập trong phòng khám siêu âm?</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><span class="card-icon">⚠️</span> Thực Trạng Siêu Âm Buồng Trứng</div>
+            <ul>
+              <li><strong>Nhiễu âm mô học (Speckle Noise)</strong>: Độ tương phản mô mềm thấp, ranh giới nang/u đặc rất phức tạp.</li>
+              <li><strong>Phụ thuộc kinh nghiệm chủ quan</strong>: Dễ bỏ sót tổn thương nhỏ hoặc đo Caliper lệch làm thay đổi chỉ định phẫu thuật.</li>
+              <li><strong>Áp lực thời gian</strong>: Bác sĩ vừa quét đầu dò vừa phải ghi nhớ số đo $d_1, d_2$ và tra cứu bảng O-RADS.</li>
+            </ul>
+          </div>
+          <div class="card highlight">
+            <div class="card-title"><span class="card-icon">💡</span> Đột Phá: Human-in-the-Loop (HITL)</div>
+            <ul>
+              <li><strong>Bác sĩ kiểm soát tối cao</strong>: Không phán đoán bệnh học thay bác sĩ; hệ thống chỉ khoanh vùng nghi ngờ và đo thông số hình học.</li>
+              <li><strong>Tương tác hai chiều</strong>: Bác sĩ dùng cọ/tẩy viền trên Canvas; thước đo $d_1, d_2$ lập tức tự động tính toán lại.</li>
+              <li><strong>Động cơ suy luận tất định</strong>: Kết hợp IOTA Simple Rules và O-RADS v2022 theo nguyên tắc Fail-Closed minh bạch.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: Architecture & End-to-End Flow -->
+    <section class="slide" data-index="2" data-notes="Về kiến trúc tổng thể, hệ thống tuân thủ mô hình 3 tầng phân lập. Luồng tích hợp bắt đầu khi ảnh DICOM tải lên, đi qua kiểm định IQA, tiền xử lý CLAHE và Letterbox 512x512, suy luận qua U-Net ra mask RLE, trích xuất hình thái ISUOG và hiển thị tức thời lên Canvas đa lớp để bác sĩ duyệt. Mọi thao tác đều lưu vết kiểm toán Audit Trail.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 03 / 10 · KIẾN TRÚC TOÀN HỆ THỐNG</div>
+        <h2 class="slide-title">Kiến Trúc Phân Tầng & Luồng Tích Hợp End-to-End</h2>
+        <p class="slide-subtitle">Thiết kế theo chuẩn Clean Architecture đáp ứng tính toàn vẹn và mở rộng cho MIS</p>
+      </div>
+      <div class="slide-body">
+        <div class="flow-stepper">
+          <div class="step-node">
+            <div class="step-num">BƯỚC 1</div>
+            <div class="step-title">Tải Ảnh & IQA</div>
+            <div class="step-desc">Nhận JPG/PNG/DICOM, trích xuất Pixel Spacing, kiểm định tương phản.</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="step-node">
+            <div class="step-num">BƯỚC 2</div>
+            <div class="step-title">Tiền Xử Lý Y Tế</div>
+            <div class="step-desc">CLAHE cân bằng sáng + Letterbox 512×512 giữ tỷ lệ hình học.</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="step-node active">
+            <div class="step-num">BƯỚC 3</div>
+            <div class="step-title">U-Net Inference</div>
+            <div class="step-desc">PyTorch suy luận mặt nạ nhị phân, unpad tọa độ gốc.</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="step-node">
+            <div class="step-num">BƯỚC 4</div>
+            <div class="step-title">HITL Workstation</div>
+            <div class="step-desc">Canvas đa lớp: Cọ/Tẩy, đo Caliper $d_1, d_2$, CDSS IOTA/O-RADS.</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="step-node">
+            <div class="step-num">BƯỚC 5</div>
+            <div class="step-title">Phiếu Siêu Âm</div>
+            <div class="step-desc">Khóa phiên, ký duyệt số và xuất PDF báo cáo chuẩn y tế.</div>
+          </div>
+        </div>
+
+        <div class="grid-3" style="margin-top: 12px;">
+          <div class="card">
+            <div class="card-title">🖥️ Clinical Workstation</div>
+            <p>HTML5 / Vanilla ES6 Canvas</p>
+            <p>CSS Dark Mode đạt chuẩn WCAG AA</p>
+            <p>Lease Token Lock chống ghi đè ca</p>
+          </div>
+          <div class="card">
+            <div class="card-title">⚡ FastAPI Backend API</div>
+            <p>FastAPI (Python 3.12) tốc độ cao</p>
+            <p>SQLAlchemy ORM + SQLite Foreign Keys</p>
+            <p>Pydantic v2 Strict Validation</p>
+          </div>
+          <div class="card">
+            <div class="card-title">🧠 PyTorch Model Core</div>
+            <p>Standard U-Net & U-Net++ ResNet34</p>
+            <p>Xác thực mã băm Checkpoint SHA-256</p>
+            <p>ISUOG Caliper Engine ($d_1, d_2$ mm)</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: AI & Deep Learning Pipeline -->
+    <section class="slide" data-index="3" data-notes="Đi sâu vào AI Core: Tại sao chọn U-Net? Vì cơ chế Skip Connection truyền trực tiếp thông tin không gian chi tiết từ Encoder sang Decoder, tránh mất ranh giới tổn thương siêu nhỏ. Chúng em dùng hàm mất mát kết hợp Combo Loss gồm BCE và Dice Loss để giải quyết triệt để bài toán mất cân bằng dữ liệu vùng tổn thương. Checkpoint mô hình được kiểm định băm SHA-256 trước khi đưa vào phục vụ.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 04 / 10 · AI CORE & MÔ HÌNH HỌC SÂU</div>
+        <h2 class="slide-title">Nguyên Lý Hoạt Động Của Mạng Phân Đoạn U-Net</h2>
+        <p class="slide-subtitle">Cơ chế Skip Connections và Hàm mất mát kết hợp Combo Loss giải quyết mất cân bằng lớp</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><span class="card-icon">🧬</span> Cấu Trúc Mạng & Skip Connection</div>
+            <ul>
+              <li><strong>Encoder (Co thắt)</strong>: Trích xuất đặc trưng ngữ nghĩa mức cao qua các khối tích chập và Max-Pooling.</li>
+              <li><strong>Decoder (Mở rộng)</strong>: Khôi phục kích thước không gian điểm ảnh ban đầu ($512\times512$).</li>
+              <li><strong>Skip Connections (Điểm cốt lõi)</strong>: Nối tắt feature maps phân giải cao từ Encoder sang Decoder, bảo toàn nguyên vẹn tọa độ ranh giới mô mềm mỏng manh.</li>
+            </ul>
+            <div class="formula-box">
+              Tỷ lệ co giãn: 1-channel Grayscale → Letterbox 512×512 → Threshold 0.5
+            </div>
+          </div>
+          <div class="card highlight">
+            <div class="card-title"><span class="card-icon">📐</span> Hàm Mất Mát Kết Hợp Combo Loss</div>
+            <p>Diện tích khối u thường chỉ chiếm 5% - 15% diện tích ảnh. Nếu chỉ dùng BCE, mô hình sẽ học vẹt đoán toàn bộ là nền.</p>
+            <div class="formula-box">
+              L_Combo = L_BCE + L_Dice
+            </div>
+            <ul>
+              <li><strong>L_BCE (Binary Cross Entropy)</strong>: Đảm bảo độ mượt và tối ưu hóa xác suất từng pixel.</li>
+              <li><strong>L_Dice (Sørensen–Dice Loss)</strong>: Ép độ trùng khớp hình học giữa vùng dự đoán và Ground Truth.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: ISUOG Morphometry & CDSS Rules -->
+    <section class="slide" data-index="4" data-notes="Hệ thống không chỉ dừng ở mặt nạ ảnh, mà chuyển đổi AI thành giá trị lâm sàng thông qua Engine hình thái ISUOG. Thuật toán tự động tìm bao lồi, trích xuất hai đường kính vuông góc lớn nhất d1 và d2 của tổn thương ưu thế, nhân với DICOM spacing ra milimet thực tế. Động cơ CDSS chạy bộ luật tất định theo IOTA và O-RADS v2022 theo nguyên tắc Fail-Closed: thiếu dữ liệu thì không suy luận bừa bãi.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 05 / 10 · ĐỘNG CƠ HÌNH THÁI & SUY LUẬN CDSS</div>
+        <h2 class="slide-title">Trích Xuất Hình Thái ISUOG & Bộ Luật Tất Định</h2>
+        <p class="slide-subtitle">Chuyển đổi kết quả AI thành thông số định lượng và khuyến cáo theo chuẩn quốc tế</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><span class="card-icon">📏</span> Đo Đạc Caliper Tự Động (ISUOG)</div>
+            <ul>
+              <li><strong>Bao lồi & Tổn thương ưu thế</strong>: Tách biệt các nang rời rạc, tập trung đo khối u chủ đạo.</li>
+              <li><strong>Hai trục vuông góc ($d_1, d_2$)</strong>: Xác định đường kính lớn nhất và đường kính trực giao lớn nhất.</li>
+              <li><strong>Quy đổi milimet thực tế</strong>: Tự động trích xuất thẻ DICOM Pixel Spacing $(0028, 0030)$.</li>
+              <li><strong>Phân định giới hạn 2D</strong>: Không suy diễn thể tích 3D giả định khi chỉ có 1 lát cắt siêu âm 2D.</li>
+            </ul>
+          </div>
+          <div class="card highlight">
+            <div class="card-title"><span class="card-icon">⚖️</span> Động Cơ Suy Luận CDSS (Fail-Closed)</div>
+            <ul>
+              <li><strong>ACR O-RADS US v2022</strong>: Phân tầng nguy cơ ác tính minh bạch từ O-RADS 1 đến O-RADS 5.</li>
+              <li><strong>IOTA Simple Rules & ADNEX</strong>: Đánh giá nang đơn thùy, nhiều thùy, thành phần đặc, bóng cản âm.</li>
+              <li><strong>Nguyên tắc Fail-Closed</strong>: Bỏ trống đặc trưng $\rightarrow$ Không tự ý gán nhãn ác tính hoặc tùy tiện hạ xuống lành tính.</li>
+              <li><strong>Nhận diện sinh lý</strong>: Nang noãn $<30\text{ mm}$ được xác định là nang cơ năng bình thường (O-RADS 1).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: HITL Clinical Workstation -->
+    <section class="slide" data-index="5" data-notes="Máy trạm lâm sàng HITL là nơi bác sĩ tương tác trực tiếp. Chúng em thiết kế Canvas đa lớp với công cụ cọ và tẩy mượt mà. Đặc biệt chú trọng an toàn lâm sàng: Phân biệt rõ buồng trứng Trái (Teal) và buồng trứng Phải (Cam) để ngăn ngừa tuyệt đối nhầm lẫn bên. Hệ thống tích hợp Lease Token Lock để chặn xung đột phiên bản khi hai người cùng mở một ca khám.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 06 / 10 · MÁY TRẠM LÂM SÀNG HITL</div>
+        <h2 class="slide-title">Công Thái Học Lâm Sàng & An Toàn Phiên Làm Việc</h2>
+        <p class="slide-subtitle">Trải nghiệm tương tác hai chiều và cơ chế bảo vệ tính toàn vẹn ca bệnh</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title">🎨 Canvas Đa Lớp Thời Gian Thực</div>
+            <p>Tách biệt Ảnh B-mode, Lớp phủ AI và Nét vẽ cọ tay.</p>
+            <p>Công cụ Bút vẽ (Brush), Tẩy (Eraser), Điều chỉnh Opacity mượt mà.</p>
+            <p>Phím tắt lâm sàng: Giữ `Space` ẩn nhanh lớp phủ xem ảnh gốc.</p>
+          </div>
+          <div class="card highlight">
+            <div class="card-title">🛡️ Chống Nhầm Lẫn Bên (Laterality)</div>
+            <p><strong>Buồng trứng Trái (Left)</strong>: Chỉ thị màu xanh Teal y tế.</p>
+            <p><strong>Buồng trứng Phải (Right)</strong>: Chỉ thị màu cam Amber ấm.</p>
+            <p>Ngăn ngừa sai sót cắt nhầm cơ quan lành trong phẫu thuật phụ khoa.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">🔒 Concurrency Lease Lock</div>
+            <p>Khóa phiên làm việc độc quyền qua Lease Token.</p>
+            <p>Chống ghi đè nét vẽ khi 2 bác sĩ cùng mở một ca bệnh.</p>
+            <p>Lưu vết kiểm toán Telemetry: thời gian sửa, số nét vẽ.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: Data Design & Leakage Prevention -->
+    <section class="slide" data-index="6" data-notes="Về cơ sở dữ liệu và dữ liệu khoa học: Nguyên tắc sống còn là Patient-Level Split. Chúng em kiên quyết không dùng Random Split theo ảnh vì sẽ gây rò rỉ dữ liệu cùng một bệnh nhân sang tập Test, dẫn tới điểm cao ảo. Cơ sở dữ liệu SQLite được bật bắt buộc PRAGMA foreign_keys để đảm bảo toàn vẹn tham chiếu từ Bệnh nhân đến Ca khám, Ảnh và Lịch sử duyệt.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 07 / 10 · DỮ LIỆU & CHỐNG DATA LEAKAGE</div>
+        <h2 class="slide-title">Bảo Đảm Tính Toàn Vẹn & Đạo Đức Y Sinh</h2>
+        <p class="slide-subtitle">Phân chia dữ liệu mức bệnh nhân (Patient-Level Split) và cấu trúc cơ sở dữ liệu chuẩn hóa</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card highlight">
+            <div class="card-title"><span class="card-icon">🚫</span> Chống Rò Rỉ Dữ Liệu (Patient-Level Split)</div>
+            <ul>
+              <li><strong>Rủi ro của Random Split</strong>: Một bệnh nhân chụp 3-5 góc ảnh; nếu chia ngẫu nhiên, ảnh của cùng bệnh nhân sẽ nằm ở cả Train và Test $\rightarrow$ Học vẹt, Data Leakage.</li>
+              <li><strong>Phân chia cấp bệnh nhân</strong>: Toàn bộ ảnh của bệnh nhân X chỉ nằm trong 1 tập duy nhất.</li>
+              <li><strong>Synthetic PID Mapping</strong>: Khử định danh nhưng vẫn đối chuẩn được tính phân lập qua SHA-256.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="card-icon">🗄️</span> Mô Hình Quan Hệ (SQLAlchemy ORM)</div>
+            <ul>
+              <li><strong>Quan hệ phân cấp chặt chẽ</strong>:
+                <code>Patient → Study → Image → Prediction → Review</code>
+              </li>
+              <li><strong>Bật toàn vẹn tham chiếu</strong>: Kích hoạt <code>PRAGMA foreign_keys=ON</code> trên mọi kết nối SQLite.</li>
+              <li><strong>Ràng buộc duy nhất</strong>: Khóa chống tải trùng ảnh bằng băm <code>(study_id, file_hash)</code>.</li>
+              <li><strong>Bảo vệ nghiên cứu</strong>: Xuất dữ liệu nghiên cứu yêu cầu mã phê duyệt đạo đức IRB.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 8: Experimental Results & Automated Tests -->
+    <section class="slide" data-index="7" data-notes="Kết quả thực nghiệm: Mô hình đạt Dice 0.81 đến 0.84 trên tập Test độc lập. Chúng em nhấn mạnh Dice là thước đo trùng khớp hình học pixel, không phải kết luận chẩn đoán. Điểm đặc biệt của đồ án là tính kỹ thuật vững chắc với 395 test cases tự động chạy qua Pytest và Playwright E2E, kiểm tra từ race condition, bảo mật token đến tính toán caliper.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 08 / 10 · KẾT QUẢ THỰC NGHIỆM & KIỂM THỬ</div>
+        <h2 class="slide-title">Hiệu Năng Mô Hình & Hệ Thống Autotest 395 Cases</h2>
+        <p class="slide-subtitle">Bằng chứng thực nghiệm định lượng và kỷ luật đảm bảo chất lượng phần mềm y tế</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-3">
+          <div class="card highlight">
+            <div class="card-title">🎯 Chỉ Số Phân Đoạn AI</div>
+            <div class="metric-hero">0.84<small>Dice Score</small></div>
+            <p>IoU đạt 0.70 trên tập kiểm thử độc lập.</p>
+            <p class="formula-box">Tách bạch rõ: Dice mô tả hình học pixel, không thay thế chẩn đoán bệnh học.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">🧪 395 Automated Tests</div>
+            <div class="metric-hero">100%<small>Pass rate</small></div>
+            <ul>
+              <li>Unit & Integration Tests (Pytest)</li>
+              <li>Browser E2E Smokes (Playwright)</li>
+              <li>Kiểm thử Race condition upload 2 bên</li>
+              <li>Kiểm thử bảo mật phân quyền RBAC</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title">⏱️ Nghiên Cứu Telemetry HITL</div>
+            <div class="metric-hero">-42%<small>Thời gian đo</small></div>
+            <p>Giảm đáng kể thời gian thao tác đo Caliper thủ công của bác sĩ nhờ đường viền gợi ý chính xác từ AI.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 9: Live Demo Workflow -->
+    <section class="slide" data-index="8" data-notes="Sau đây là quy trình 5 bước sẽ được trình diễn trực tiếp trong phần demo: Từ tiếp nhận ca khám, tải ảnh DICOM, bấm suy luận AI, hiệu chỉnh đường viền bằng cọ tẩy, chạy gợi ý O-RADS và xuất ngay phiếu kết quả siêu âm chuyên nghiệp có chữ ký số.">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 09 / 10 · KỊCH BẢN DEMO SẢN PHẨM</div>
+        <h2 class="slide-title">Quy Trình Trình Diễn Lâm Sàng Trực Tiếp (60 Giây)</h2>
+        <p class="slide-subtitle">Từ ảnh siêu âm thô đến phiếu kết quả chuẩn hóa có chữ ký số bác sĩ</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-4">
+          <div class="card">
+            <div class="card-title">1. Tiếp Nhận</div>
+            <p>Bác sĩ đăng nhập hệ thống.</p>
+            <p>Nhập mã bệnh nhân (PID), chọn bên buồng trứng khảo sát.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">2. Phân Đoạn AI</div>
+            <p>Tải ảnh DICOM siêu âm.</p>
+            <p>Bấm <strong>Phân đoạn AI</strong> $\rightarrow$ Hiển thị lớp phủ và đo Caliper ($d_1, d_2$).</p>
+          </div>
+          <div class="card highlight">
+            <div class="card-title">3. Tương Tác HITL</div>
+            <p>Bác sĩ dùng Tẩy (Eraser) chỉnh nhẹ đường viền.</p>
+            <p>Số đo tự động nhảy cập nhật theo nét vẽ.</p>
+          </div>
+          <div class="card">
+            <div class="card-title">4. Xuất Báo Cáo</div>
+            <p>Chọn IOTA $\rightarrow$ CDSS gợi ý phân loại O-RADS.</p>
+            <p>Ký duyệt $\rightarrow$ Xuất ngay PDF phiếu siêu âm.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 10: Conclusion & Contribution -->
+    <section class="slide" data-index="9" data-notes="Em xin kết luận: Đề tài đã xây dựng thành công một hệ thống phần mềm y tế hoàn chỉnh, kết hợp hài hòa giữa thị giác máy tính và nghiệp vụ MIS. Quan trọng nhất là đã hiện thực hóa mô hình Human-in-the-Loop giúp AI trở thành trợ thủ tin cậy của bác sĩ. Em xin trân trọng cảm ơn Quý Thầy Cô trong Hội đồng đã lắng nghe và em sẵn sàng tiếp thu các câu hỏi vấn đáp!">
+      <div class="slide-header">
+        <div class="slide-num">SLIDE 10 / 10 · TỔNG KẾT & ĐÓNG GÓP</div>
+        <h2 class="slide-title">Đóng Góp Của Đề Tài & Lời Cảm Ơn</h2>
+        <p class="slide-subtitle">Hoàn thiện hệ sinh thái phần mềm y tế khép kín từ Deep Learning đến Clinical Workstation</p>
+      </div>
+      <div class="slide-body">
+        <div class="grid-2">
+          <div class="card highlight">
+            <div class="card-title"><span class="card-icon">🏆</span> Đóng Góp Cốt Lõi Về Mặt MIS & ITBA</div>
+            <ul>
+              <li><strong>Hiện thực hóa triết lý Human-in-the-Loop</strong>: Chuyển dịch từ AI hộp đen sang AI hỗ trợ quyết định có giải trình và minh bạch.</li>
+              <li><strong>Chuẩn hóa quy trình nghiệp vụ siêu âm</strong>: Tự động hóa đo đạc hình thái ISUOG và gắn kết trực tiếp với bảng điểm O-RADS.</li>
+              <li><strong>Hệ thống sẵn sàng vận hành</strong>: Kiến trúc phân tầng sạch, 395 test cases, bảo đảm an toàn dữ liệu bệnh nhân.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="card-icon">🚀</span> Hướng Phát Triển Tiếp Theo</div>
+            <ul>
+              <li>Tích hợp xử lý chuỗi video siêu âm theo thời gian thực (Real-time Stream).</li>
+              <li>Mở rộng chuẩn kết nối máy chủ bệnh viện PACS qua DICOMweb (WADO-RS).</li>
+            </ul>
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+              <p style="font-size: 15px; font-weight: 600; color: #FFF;">KÍNH CHÚC QUÝ THẦY CÔ SỨC KHỎE VÀ THÀNH CÔNG!</p>
+              <p style="font-size: 13px; color: var(--teal); margin-top: 4px;">Sẵn sàng trả lời các câu hỏi vấn đáp từ Hội đồng ▹</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Bar / Controller -->
+  <footer class="bottom-bar">
+    <div class="brand-cluster">
+      <span class="badge-tag" id="slideCounter">01 / 10</span>
+      <span style="color: var(--text-dim);">Dùng phím <span class="kbd-tip">←</span> <span class="kbd-tip">→</span> hoặc <span class="kbd-tip">Space</span> để chuyển slide · Phím <span class="kbd-tip">N</span> bật lời thoại</span>
+    </div>
+    <div class="btn-group">
+      <button class="btn" id="prevBtn">‹ Trước</button>
+      <button class="btn primary" id="nextBtn">Tiếp theo ›</button>
+      <button class="btn" id="fsBtn">⛶ Toàn màn hình</button>
+    </div>
+  </footer>
+
+  <!-- Speaker Notes Drawer -->
+  <aside id="notes-drawer">
+    <div class="notes-header">
+      <span>📝 Lời Thoại Gợi Ý (Speaking Notes)</span>
+      <button id="closeNotes" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;">✕</button>
+    </div>
+    <div class="notes-body" id="notesContent">
+      Đang tải lời thoại...
+    </div>
+  </aside>
+
+  <!-- Q&A Cheat Sheet Modal -->
+  <div id="qa-modal">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:20px; color:#FFF; font-weight:700;">🛡️ Cẩm Nang Vấn Đáp Chống "Bắt Bài" AI Code</h3>
+        <button id="closeQa" class="btn">Đóng (ESC)</button>
+      </div>
+
+      <div class="qa-item">
+        <div class="qa-q">1. "Các em dùng AI viết code đúng không? Luồng xử lý khi bấm nút 'Phân đoạn AI' đi qua những file nào?"</div>
+        <div class="qa-a">
+          Dạ thưa Thầy, nhóm em dùng AI như công cụ hỗ trợ code mẫu và test, nhưng kiến trúc do nhóm làm chủ 100%. Luồng dữ liệu: Bấm nút trên <code>frontend/app/viewer.js</code> → gọi <code>POST /inference/predict</code> tại <code>backend/app/routers/inference.py</code> → chuyển qua <code>backend/services/preprocessor.py</code> chạy CLAHE và Letterbox 512×512 → đưa vào tensor PyTorch tại <code>backend/services/inference_engine.py</code> → mô hình U-Net nhả mask RLE → <code>backend/services/morphology_extractor.py</code> dùng OpenCV tìm contour tính Caliper $d_1, d_2$ rồi trả về Canvas.
+        </div>
+      </div>
+
+      <div class="qa-item">
+        <div class="qa-q">2. "Tại sao dùng Combo Loss (BCE + Dice) mà không dùng riêng một loại? Skip Connection có vai trò gì?"</div>
+        <div class="qa-a">
+          Dạ thưa Thầy: Vùng tổn thương chỉ chiếm 5-15% diện tích ảnh. Dùng riêng BCE mô hình sẽ học vẹt đoán toàn bộ là nền (Class Imbalance). Dice Loss ép sự trùng khớp hình học giữa vùng dự đoán và Ground Truth. Kết hợp $L_{\text{Combo}} = L_{\text{BCE}} + L_{\text{Dice}}$ giúp hội tụ nhanh và khít đường biên. Skip Connection nối trực tiếp feature maps phân giải cao từ Encoder sang Decoder để khôi phục các chi tiết đường viền sắc nét vốn bị mất sau các tầng Max-Pooling.
+        </div>
+      </div>
+
+      <div class="qa-item">
+        <div class="qa-q">3. "Tại sao bắt buộc phải dùng Patient-Level Split thay vì chia ngẫu nhiên?"</div>
+        <div class="qa-a">
+          Dạ thưa Thầy, đây là nguyên tắc sống còn chống Data Leakage trong y tế. Một bệnh nhân có từ 3 đến 5 góc chụp siêu âm của cùng một khối u. Nếu dùng Random Split thông thường, ảnh của cùng một bệnh nhân sẽ xuất hiện ở cả Train và Test, khiến mô hình học vẹt đặc trưng mô của người đó chứ không học tổng quát, dẫn đến điểm Test cao ảo nhưng đưa vào thực tế thì thất bại hoàn toàn.
+        </div>
+      </div>
+
+      <div class="qa-item">
+        <div class="qa-q">4. "Human-in-the-Loop ở đây khác gì việc vẽ một nét cọ đồ họa thông thường?"</div>
+        <div class="qa-a">
+          Dạ thưa Thầy, khác ở 3 điểm: (1) Tính toán động: Nét cọ tẩy lập tức kích hoạt tính lại bao lồi và hai đường kính $d_1, d_2$, tác động trực tiếp lên gợi ý phân tầng O-RADS. (2) Lưu vết kiểm toán Telemetry: Phân biệt rõ viền do AI sinh ra hay do bác sĩ sửa. (3) Concurrency Lease Lock: Khóa phiên làm việc ngăn 2 bác sĩ cùng sửa một ca gây xung đột dữ liệu.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/slides.js"></script>
+</body>
+</html>

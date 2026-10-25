@@ -1,0 +1,14 @@
+{
+  "study_status": "NOT_CONDUCTED",
+  "participant_counts": {
+    "total_unique": 0,
+    "clinicians": 0,
+    "technical_testers": 0,
+    "other": 0
+  },
+  "participants": [],
+  "items": {},
+  "overall_clinician_median": null,
+  "overall_clinician_iqr": null,
+  "feedback": []
+}

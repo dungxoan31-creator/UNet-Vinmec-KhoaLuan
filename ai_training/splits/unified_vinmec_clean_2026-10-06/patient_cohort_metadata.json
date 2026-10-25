@@ -1,0 +1,40 @@
+{
+  "benchmark_title": "Synthetic Ovarian Ultrasound Technical Benchmark Cohort",
+  "benchmark_tag": "[SIMULATED - TECHNICAL BENCHMARK ONLY]",
+  "source_patient_identity_verified": false,
+  "label_provenance_verified": false,
+  "clinical_metadata_is_synthetic": true,
+  "seed": 42,
+  "total_images": 1604,
+  "synthetic_patient_ids": 928,
+  "split_statistics": {
+    "train": {
+      "images": 661,
+      "synthetic_patient_ids": 376,
+      "images_per_synthetic_id_avg": 1.76
+    },
+    "val": {
+      "images": 541,
+      "synthetic_patient_ids": 324,
+      "images_per_synthetic_id_avg": 1.67
+    },
+    "test": {
+      "images": 402,
+      "synthetic_patient_ids": 228,
+      "images_per_synthetic_id_avg": 1.76
+    }
+  },
+  "synthetic_group_overlap_count": 0,
+  "synthetic_patient_disjointness_verified": true,
+  "orads_distribution": {
+    "1": 162,
+    "2": 437,
+    "3": 256,
+    "4": 45,
+    "5": 28
+  },
+  "menopausal_distribution": {
+    "PREMENOPAUSAL": 747,
+    "POSTMENOPAUSAL": 181
+  }
+}

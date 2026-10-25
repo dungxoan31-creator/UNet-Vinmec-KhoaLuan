@@ -1,0 +1,52 @@
+{
+  "architecture": "Standard U-Net (base_filters=32), trained from random initialization",
+  "seed": 42,
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "batch_size": 2,
+  "epochs_requested": 30,
+  "epochs_completed": 30,
+  "patience": 6,
+  "learning_rate": 0.0001,
+  "optimizer": "AdamW(weight_decay=1e-4)",
+  "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
+  "loss": "0.5 BCEWithLogits + 0.5 SoftDice",
+  "input": "Grayscale CLAHE Letterbox 512x512, scaled to [0,1], then grayscale ImageNet normalization",
+  "gray_normalization": {
+    "mean": 0.449,
+    "std": 0.226
+  },
+  "augmentation": "Existing synchronized image-mask train transforms from OvarianUltrasoundDataset",
+  "threshold": 0.5,
+  "selection_metric": "mean per-image Validation Dice",
+  "split_dir": "ai_training\\splits\\unified_vinmec_clean_2026-10-06",
+  "train_count": 661,
+  "validation_count": 541,
+  "test_split_accessed": false,
+  "train_csv_sha256": "a8a8c4067aa911613f79ecd26f01707fce1101df36176bfe4b3228b869ea32f4",
+  "validation_csv_sha256": "d0296b00651bace33bca4a2c1c7f8c260eb6817e3bc624b77acc252b3f907f7b",
+  "manifest_sha256": "272a3a51079b2da053529e086c27d08bb45ba1484bc6f502a863314358be32d6",
+  "best_epoch": 28,
+  "train_metrics_at_best_epoch": {
+    "loss": 0.16204493648390908,
+    "dice": 0.8071452656791809,
+    "iou": 0.7090841487737629,
+    "recall": 0.8766250697425292,
+    "precision": 0.8002284497315693,
+    "specificity": 0.9818592296065072
+  },
+  "best_validation": {
+    "loss": 0.21961614190705822,
+    "dice": 0.7382963800324255,
+    "iou": 0.6264159313408234,
+    "recall": 0.8159412157372357,
+    "precision": 0.7444243564351346,
+    "specificity": 0.9738785461445172
+  },
+  "duration_seconds": 1800.52,
+  "best_checkpoint": "checkpoints\\standard_unet_gray_imagenet_norm_2026-10-06\\standard_unet_best.pth",
+  "best_checkpoint_sha256": "1269a7d3a251df25ae25a4d6c146f667201c8063c90a9c26e59e3a9eefa71879",
+  "last_checkpoint": "checkpoints\\standard_unet_gray_imagenet_norm_2026-10-06\\standard_unet_last.pth",
+  "last_checkpoint_sha256": "e32456c2bc5d622c1598bbd2e83eabb0deda4205c76226b3966f117caa3ae665",
+  "comparison_caveat": "Normalization, optimizer, loss, augmentation, split, threshold, and training budget match the U-Net++ run. Encoder initialization differs: Standard U-Net starts randomly; U-Net++ uses ImageNet-pretrained ResNet34."
+}

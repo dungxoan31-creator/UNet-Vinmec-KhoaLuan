@@ -1,0 +1,71 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*$py.class
+.ruff_cache/
+.pytest_cache/
+
+# Local databases & logs
+ovarian_ai.db
+*.sqlite3
+*.log
+*.tmp
+*.bak
+*.copy
+*~
+
+# Temporary artifacts & AI subagent logs
+artifacts/
+.superpowers/
+Maiil/
+
+# Runtime uploads & temporary reports (preserve folders via .gitkeep)
+data/uploads/*
+!data/uploads/.gitkeep
+data/reports/*
+!data/reports/.gitkeep
+
+# System backups and archives (preserve folder via .gitkeep)
+backups/*
+!backups/.gitkeep
+*.tar.gz
+*.zip
+*.7z
+
+# Large pre-trained checkpoints (tracked via Git LFS or external storage)
+*.pth
+checkpoints/**/*.pth
+checkpoints/*.pth
+dataset/
+dataset_backup_archive/
+ai_training/experiments/*/*.pth
+ai_training/models/
+ai_training/dataset_preview/
+ai_training/evaluation_samples/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+node_modules/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Office and documents
+*.docx
+*.xlsx
+*.pptx
+theo-mau-*/
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+.aider*
+
+# Cleanup review staging
+REVIEW_BEFORE_DELETE/

@@ -1,0 +1,11 @@
+{
+  "model": "Standard U-Net",
+  "checkpoint": "checkpoints/vinmec_unet_best.pth",
+  "checkpoint_sha256": "5c8d40f64b49f76dd0cb0ece250a9fb39ccfc1bbdd6bbba10ad1d9f9f1f540f0",
+  "threshold": 0.5,
+  "selection_split": "val",
+  "selection_count": 123,
+  "selection_dice_mean": 0.6051128973112392,
+  "selection_evidence": "evaluation/vinmec_unet_val/summary.json",
+  "patient_split_status": "image-level only; patient IDs unavailable"
+}
