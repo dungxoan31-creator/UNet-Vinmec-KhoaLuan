@@ -99,6 +99,7 @@ def test_create_case_endpoint_returns_422_for_unknown_request_fields(doctor_acce
     with TestClient(app) as client:
         response = client.post(
             "/api/cases",
+            headers={"Idempotency-Key": "caa19b3f-0c12-4b47-bc7a-8a47ca5609a7"},
             json={"patient_id": "PID-CONTRACT", "study_date": "2026-10-21", "patient_name": "unexpected"},
         )
 

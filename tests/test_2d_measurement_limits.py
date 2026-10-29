@@ -45,3 +45,29 @@ def test_empty_mask_has_no_zero_mm_measurements_without_calibration():
     assert result["max_diameter_mm"] is None
     assert result["ortho_diameter_mm"] is None
     assert result["total_area_cm2"] is None
+
+
+def test_mixed_size_regions_expose_filtered_region_warning():
+    import cv2
+    mask = np.zeros((128, 128), dtype=np.uint8)
+    cv2.rectangle(mask, (10, 10), (40, 40), 1, -1)
+    cv2.rectangle(mask, (80, 80), (84, 84), 1, -1)
+    result = InferenceEngine.__new__(InferenceEngine).extract_calipers_and_measurements(mask, 0.2)
+    assert len(result["lesions"]) == 1
+    assert len(result["filtered_components"]) == 1
+    assert result["warning"] and "dưới ngưỡng" in result["warning"]
+
+
+def test_mixed_size_source_measurement_retains_warning():
+    import cv2
+
+    from backend.services.preprocessor import UltrasoundPreprocessor
+    from backend.services.source_measurements import measure_source_mask
+    mask = np.zeros((512, 512), dtype=np.uint8)
+    cv2.rectangle(mask, (10, 10), (40, 40), 1, -1)
+    cv2.rectangle(mask, (80, 80), (84, 84), 1, -1)
+    engine = InferenceEngine.__new__(InferenceEngine)
+    result = measure_source_mask(mask, engine.mask_to_rle(mask), UltrasoundPreprocessor(), engine,
+        {"pixel_spacing_mm": 0.2, "calibrated": True, "calibration_source": "MANUAL"})
+    assert result["exclusion_reason"] == "some_components_below_min_area"
+    assert "dưới ngưỡng" in result["warning"]

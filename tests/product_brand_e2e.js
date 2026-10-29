@@ -24,19 +24,34 @@ fs.mkdirSync(screenshotDir, { recursive: true });
       logo: document.querySelector('.vinmec-logo').naturalWidth,
     }));
     assert.match(branding.font, /^Inter/);
-    assert.equal(branding.primary, '#0076c0');
+    assert.equal(branding.primary, '#187DBB');
     assert.equal(branding.fontLoaded, true);
     assert.ok(branding.logo > 0);
     for (const width of [1440, 1024, 390]) {
       await page.setViewportSize({width, height:900});
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      const passwordGeometry = await page.evaluate(() => {
+        const input = document.querySelector('#authForm [name=password]').getBoundingClientRect();
+        const button = document.querySelector('#showPassword').getBoundingClientRect();
+        return { delta: Math.abs((input.top + input.bottom - button.top - button.bottom) / 2),
+          buttonTop: button.top, buttonBottom: button.bottom, inputTop: input.top, inputBottom: input.bottom };
+      });
+      assert.ok(passwordGeometry.delta <= 1, JSON.stringify(passwordGeometry));
       await page.screenshot({path:`${screenshotDir}/login-${width}.png`, fullPage:true});
     }
+    await page.locator('#showPassword').click();
+    assert.equal(await page.locator('#authForm [name=password]').getAttribute('type'), 'text');
+    await page.locator('#showPassword').click();
+    assert.equal(await page.locator('#authForm [name=password]').getAttribute('type'), 'password');
     await page.setViewportSize({width:1440,height:1000});
     await page.locator('[name=username]').fill('doctor');
     await page.locator('[name=password]').fill(process.env.APP_DOCTOR_PASSWORD || 'doctor-local-test-2026');
     await page.locator('#authForm button[type=submit]').click();
     await page.locator('#dashData .metrics').waitFor();
+    await page.locator('#collapseNav').click();
+    assert.ok(await page.getByRole('link', {name: 'Tùy chọn'}).isVisible(),
+      'Collapsed navigation must retain an accessible name for preferences');
+    await page.locator('#collapseNav').click();
     assert.doesNotMatch(await page.locator('body').innerText(), /demo|minh họa|bản mẫu|thử nghiệm/i);
     await page.screenshot({path:`${screenshotDir}/dashboard.png`,fullPage:true});
     const token = await page.evaluate(() => sessionStorage.getItem('ova.token'));

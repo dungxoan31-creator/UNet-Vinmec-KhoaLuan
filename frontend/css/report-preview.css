@@ -1,126 +1,629 @@
-/* Scoped report preview; load after prototype.css. The sheet may span multiple A4 pages. */
-#reportPreviewModal {
-    box-sizing: border-box;
-    width: min(960px, calc(100vw - 32px));
-    max-width: none;
-    max-height: calc(100dvh - 32px);
-    padding: 24px;
-    overflow: auto;
-    border: 1px solid var(--border, #dce3e9);
-    border-radius: 12px;
-    background: var(--background, #f3f5f7);
-    color: var(--text, #153247);
+.report {
+  width: min(210mm, calc(100% - 32px));
+  margin: 0 auto 24px;
+  color: #161616;
+  font: 14px/1.5 "Segoe UI", Arial, sans-serif;
+  overflow-wrap: anywhere;
 }
-#reportPreviewModal::backdrop { background: #10283d99; }
-#reportPreviewModal > :not(#reportPreviewContent) { max-width: 210mm; margin-inline: auto; }
-#reportPreviewModal .dialog-heading { margin-bottom: 16px; }
-#reportPreviewModal .button-row { display: flex; flex-wrap: wrap; gap: 12px; }
-#reportFacility { max-width: 100%; min-height: 44px; margin-bottom: 16px; }
-#reportPreviewError:empty { display: none; }
-#reportPreviewContent { min-width: 0; }
-#reportPreviewContent[aria-busy="true"] { padding: 32px 0; text-align: center; }
-#reportPreviewContent .research-report,
-#researchReportPrintRoot .research-report {
-    box-sizing: border-box;
-    width: 210mm;
-    min-height: 297mm;
-    max-width: 100%;
-    padding: 14mm;
-    margin: 0 auto;
-    background: #fff;
-    color: #172f41;
-    font: 12px/1.55 "Segoe UI", Arial, sans-serif;
-    overflow-wrap: anywhere;
+
+.report-synthetic-demo-banner {
+  margin: 6px 0 10px;
+  padding: 8px 10px;
+  border: 2px solid #7a5a12;
+  background: #fff0bb;
+  color: #241c08;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: center;
+  letter-spacing: 0.025em;
 }
-.research-report * { box-sizing: border-box; }
-.research-report .research-report-header {
-    display: flex;
-    gap: 18px;
-    align-items: center;
-    border-bottom: 2px solid #0875b5;
-    padding-bottom: 16px;
+
+.report,
+.report * {
+  box-sizing: border-box;
 }
-.research-report-header > div { min-width: 0; }
-.research-report-header > img { flex: 0 0 112px; object-fit: contain; }
-.research-report h1 { margin: 4px 0 6px; font-size: 21px; line-height: 1.3; letter-spacing: 0; }
-.research-report h2 { margin: 0 0 9px; color: #075c90; font-size: 14px; line-height: 1.4; }
-.research-report p { margin: 6px 0; font-size: inherit; }
-.research-report .research-report-kicker { font-size: 11px; color: #596e80; }
-.research-report .research-report-notice { padding: 10px 12px; margin: 14px 0 18px; background: #eef5fa; border-left: 3px solid #0875b5; font-weight: 600; }
-.research-report section { margin-top: 18px; }
-.research-report-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin: 0; }
-.research-report-meta > div { min-width: 0; }
-.research-report-meta dt { color: #596e80; font-size: 11px; }
-.research-report-meta dd { margin: 2px 0 0; font-weight: 600; }
-.research-report figure { margin: 0; }
-.research-report-image-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
-.research-report-image-pair > figure { min-width: 0; }
-.research-report-image img { display: block; width: auto; height: auto; max-width: 100%; max-height: 82mm; margin: 0 auto; object-fit: contain; filter: none; }
-.research-report figcaption { margin-top: 7px; text-align: center; color: #596e80; font-size: 10px; }
-.research-report .research-report-image-space { text-align: center; color: #596e80; font-size: 10px; }
-.research-report .research-report-calibration { margin-bottom: 10px; color: #654c1c; font-size: 11px; }
-.research-report-table-wrap { max-width: 100%; }
-.research-report table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
-.research-report th, .research-report td { padding: 8px; white-space: normal; text-align: left; border: 1px solid #dce3e9; vertical-align: top; }
-.research-report th { background: #eef5fa; color: #172f41; font-weight: 600; font-size: 11px; }
-.research-report .research-report-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
-.research-report .research-report-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #dce3e9; color: #43596b; font-size: 10px; }
-#researchReportPrintRoot { display: none; }
+
+.report-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 297mm;
+  margin: 0 auto 20px;
+  padding: 13mm;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+}
+
+.report h1,
+.report h2,
+.report h3,
+.report p,
+.report dl,
+.report figure {
+  margin-top: 0;
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #4a4a4a;
+}
+
+.report-header .vinmec-logo {
+  display: block;
+  width: 80px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.report-header h1,
+.report-evidence-header h1 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+}
+
+.report-patient-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr);
+  gap: 10px 22px;
+  padding: 13px 0;
+  border-bottom: 1px solid #b8b8b8;
+}
+
+.report-patient-line p {
+  min-width: 0;
+  margin: 0;
+}
+
+.report-patient-line strong,
+.report-case-block dd {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-block {
+  margin-top: 19px;
+}
+
+.report-block h2,
+.report-patient-guidance h2,
+.report-note-block h2,
+.report-support h2,
+.report-evidence-unassigned > h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.report-case-block dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  margin: 0;
+  padding: 11px 0;
+  border-top: 1px solid #b8b8b8;
+  border-bottom: 1px solid #b8b8b8;
+}
+
+.report-case-block dl > div,
+.report-measurements > div,
+.report-observations > div,
+.report-support dl > div {
+  min-width: 0;
+}
+
+.report-case-block dt,
+.report-measurements dt,
+.report-observations dt,
+.report-support dt {
+  color: #4d4d4d;
+  font-size: 12px;
+}
+
+.report-case-block dd,
+.report-measurements dd,
+.report-observations dd,
+.report-support dd {
+  margin: 2px 0 0;
+}
+
+.report-results-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid #777;
+  border-bottom: 1px solid #777;
+}
+
+.report-result-side {
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.report-result-side + .report-result-side {
+  border-left: 1px solid #b8b8b8;
+}
+
+.report-result-side h3,
+.report-evidence-side h3 {
+  margin: 0 0 10px;
+  padding: 7px 9px;
+  border-left: 3px solid #4a4a4a;
+  background: #f1f2f3;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+.report-result-entry + .report-result-entry {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid #d4d4d4;
+}
+
+.report-entry-index {
+  margin: 0 0 5px;
+  color: #4d4d4d;
+  font-size: 12px;
+}
+
+.report-measurements {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 14px;
+  margin: 0;
+  padding: 0 0 10px;
+  border-bottom: 1px solid #dedede;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-measurements dd {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.report-measurement-note,
+.report-no-measurement,
+.report-missing-side {
+  margin: 6px 0 0;
+  color: #3f3f3f;
+  font-size: 12px;
+}
+
+.report-observations {
+  display: grid;
+  gap: 9px;
+  margin: 10px 0 0;
+}
+
+.report-observations dd {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.report-unassigned {
+  margin-top: 10px;
+  border-top: 1px solid #b8b8b8;
+}
+
+.report-note-block {
+  margin-top: 18px;
+  padding: 10px 0;
+  border-top: 1px solid #777;
+  border-bottom: 1px solid #777;
+}
+
+.report-ruo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-top: 9px;
+  padding: 7px 10px;
+  border: 1px solid #8a5b00;
+  background: #fff6df;
+  color: #382600;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.report-ruo-banner strong {
+  font-size: 12px;
+}
+
+.report-case-block small {
+  display: block;
+  margin-top: 4px;
+  color: #4d4d4d;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.report-clinical-review-status {
+  margin: 0 0 6px;
+  color: #333;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.report-note-block p,
+.report-note-block ul {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.report-note-block ul {
+  padding-left: 18px;
+}
+
+.report-note-block li + li {
+  margin-top: 3px;
+}
+
+.report-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #777;
+  color: #333;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-evidence-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #4a4a4a;
+}
+
+.report-evidence-header .report-patient-line {
+  grid-template-columns: auto auto;
+  gap: 8px 18px;
+  padding: 0;
+  border: 0;
+}
+
+.report-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.report-evidence-grid.single-column {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.report-evidence-side {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.report-evidence-side + .report-evidence-side {
+  border-left: 1px solid #b8b8b8;
+}
+
+.report-evidence-grid.single-column .report-evidence-side {
+  padding-inline: 0;
+}
+
+.report-evidence-grid.single-column .report-evidence-side + .report-evidence-side {
+  border-left: 0;
+}
+
+.report-evidence-side h3 {
+  margin-bottom: 8px;
+}
+
+.report-overlay-status {
+  margin: 0 0 9px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.report-evidence-entry {
+  min-width: 0;
+}
+
+.report-evidence-entry .report-observations dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.report-image-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.report-image-pair figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.report-image-pair img {
+  display: block;
+  width: 100%;
+  height: 66mm;
+  object-fit: contain;
+  background: #1d1d1d;
+  border: 1px solid #b8b8b8;
+}
+
+.report-image-pair figcaption {
+  margin-top: 4px;
+  color: #333;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+}
+
+.report-evidence-unassigned {
+  margin-top: 14px;
+  padding-top: 11px;
+  border-top: 1px solid #b8b8b8;
+}
+
+.report-support {
+  margin-top: 12px;
+  padding-top: 9px;
+  border-top: 1px solid #777;
+}
+
+.report-support dl {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.report-support dd {
+  overflow-wrap: anywhere;
+}
+
+.report-image-notes {
+  margin-top: 12px;
+}
+
+.report .mono {
+  font-family: Consolas, "Courier New", monospace;
+}
 
 @media screen and (max-width: 720px) {
-    #reportPreviewModal { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 16px; border-radius: 8px; }
-    #reportPreviewContent .research-report { min-height: 0; padding: 24px 18px; }
-    .research-report .research-report-header { flex-wrap: wrap; gap: 10px; }
-    .research-report h1 { font-size: 19px; }
-    .research-report-meta { grid-template-columns: 1fr; }
-    .research-report-image-pair { grid-template-columns: 1fr; }
-    .research-report th, .research-report td { padding: 6px 4px; font-size: 10px; }
-    .research-report-image img { max-height: 65mm; }
+  .report {
+    width: calc(100% - 16px);
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+
+  .report-page {
+    min-height: 0;
+    margin-bottom: 12px;
+    padding: 18px 15px;
+  }
+
+  .report-header {
+    gap: 10px;
+  }
+
+  .report-header .vinmec-logo {
+    width: 62px;
+    height: 40px;
+  }
+
+  .report-header h1,
+  .report-evidence-header h1 {
+    font-size: 16px;
+  }
+
+  .report-patient-line {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+
+  .report-patient-line p:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .report-case-block dl {
+    gap: 8px 12px;
+  }
+
+  .report-results-grid,
+  .report-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-result-side,
+  .report-evidence-side {
+    padding: 10px 0;
+  }
+
+  .report-result-side + .report-result-side,
+  .report-evidence-side + .report-evidence-side {
+    border-top: 1px solid #b8b8b8;
+    border-left: 0;
+  }
+
+  .report-evidence-header {
+    display: block;
+  }
+
+  .report-evidence-header .report-patient-line {
+    margin-top: 8px;
+  }
+
+  .report-image-pair img {
+    height: auto;
+    max-height: 58vh;
+  }
+
+  .report-image-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .report-footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .report-footer span:last-child {
+    grid-column: 1 / -1;
+    text-align: right;
+  }
 }
 
-@page { size: A4 portrait; margin: 14mm; }
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
 @media print {
-    html:has(body.research-report-printing), body.research-report-printing {
-        display: block !important;
-        width: auto !important;
-        height: auto !important;
-        min-height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-        background: #fff !important;
-    }
-    body.research-report-printing > :not(#researchReportPrintRoot),
-    body.research-report-printing #reportPreviewModal { display: none !important; }
-    body.research-report-printing #researchReportPrintRoot {
-        display: block !important;
-        position: static !important;
-        width: 100% !important;
-        height: auto !important;
-        overflow: visible !important;
-        background: #fff !important;
-    }
-    #researchReportPrintRoot .research-report {
-        width: 100%;
-        max-width: none;
-        min-height: 0;
-        height: auto;
-        padding: 0;
-        margin: 0;
-        overflow: visible;
-        box-shadow: none;
-        border: 0;
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-    }
-    #researchReportPrintRoot button, #researchReportPrintRoot select { display: none !important; }
-    #researchReportPrintRoot section { break-inside: auto; }
-    #researchReportPrintRoot h2 { break-after: avoid; }
-    #researchReportPrintRoot .research-report-header,
-    #researchReportPrintRoot .research-report-image,
-    #researchReportPrintRoot .research-report-meta > div,
-    #researchReportPrintRoot tr,
-    #researchReportPrintRoot .research-report-footer { break-inside: avoid; }
-    #researchReportPrintRoot thead { display: table-header-group; }
-    #researchReportPrintRoot .research-report-notes { overflow: visible; orphans: 3; widows: 3; }
+  body {
+    background: #fff;
+  }
+
+  body > *:not(#printRoot) {
+    display: none !important;
+  }
+
+  #printRoot {
+    display: block !important;
+  }
+
+  #printRoot .report {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    overflow: visible;
+  }
+
+  #printRoot .report-page {
+    width: 100%;
+    min-height: 273mm;
+    margin: 0;
+    padding: 4mm 0;
+    border: 0;
+    background: #fff;
+  }
+
+  #printRoot .report-page + .report-page {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  #printRoot .report-header,
+  #printRoot .report-patient-line,
+  #printRoot .report-case-block,
+  #printRoot .report-result-side,
+  #printRoot .report-evidence-side,
+  #printRoot .report-image-pair figure,
+  #printRoot .report-support,
+  #printRoot .report-ruo-banner,
+  #printRoot .report-synthetic-demo-banner,
+  #printRoot .report-note-block,
+  #printRoot .report-footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  #printRoot .report-image-pair img {
+    width: 100%;
+    height: 62mm;
+    max-height: 62mm;
+    object-fit: contain;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  #printRoot .report-evidence-side {
+    padding-block: 0 8px;
+  }
+
+  #printRoot .report-evidence-header {
+    padding-bottom: 6px;
+  }
+
+  #printRoot .report-evidence-grid {
+    margin-top: 8px;
+  }
+
+  #printRoot .report-evidence-side h3 {
+    margin-bottom: 4px;
+    padding: 4px 7px;
+  }
+
+  #printRoot .report-overlay-status {
+    margin-bottom: 4px;
+  }
+
+  #printRoot .report-image-pair {
+    gap: 6px;
+  }
+
+  #printRoot .report-support {
+    margin-top: 8px;
+    padding-top: 6px;
+  }
+
+  #printRoot .report-support dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 12px;
+  }
+
+  #printRoot .report-support dl > div:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #printRoot .report-support dl > div:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  #printRoot .report-support dl > div:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  #printRoot .report-image-notes {
+    margin-top: 8px;
+    padding-block: 6px;
+    font-size: 12px;
+  }
+
+  #printRoot .report-image-notes li + li {
+    margin-top: 1px;
+  }
+
+  #printRoot .report-ruo-banner {
+    margin-top: 6px;
+    padding: 6px 8px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  #printRoot .report-synthetic-demo-banner {
+    margin: 4px 0 6px;
+    padding: 5px 7px;
+    font-size: 10px;
+  }
+
+  #printRoot .report-footer {
+    margin-top: auto;
+  }
+
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }

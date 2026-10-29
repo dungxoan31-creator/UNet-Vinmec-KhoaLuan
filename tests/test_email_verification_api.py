@@ -572,3 +572,80 @@ def test_registration_rejects_invalid_email_without_persisting_user(tmp_path, mo
     finally:
         app.dependency_overrides.pop(get_db, None)
         engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("initial_attempts", "expected_attempts", "expected_statuses"),
+    [(0, 2, [400, 400]), (4, 5, [429, 429])],
+)
+def test_concurrent_wrong_email_codes_are_counted_without_lost_updates(
+    tmp_path, monkeypatch, initial_attempts, expected_attempts, expected_statuses
+):
+    monkeypatch.setenv("APP_JWT_SECRET", "test-only-secret-for-email-verification-123456")
+    from backend.app.main import app
+    from backend.app.routers import auth
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'concurrent-email-verification-attempts.db'}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+    Base.metadata.create_all(engine)
+    email = "doctor@example.org"
+    now = datetime.now(UTC).replace(tzinfo=None)
+    with Session(engine) as db:
+        db.add(
+            UserModel(
+                id="doctor-1",
+                username="doctor",
+                full_name="Research Clinician",
+                role="DOCTOR",
+                email=email,
+                email_verified=False,
+                is_active=False,
+            )
+        )
+        db.add(
+            EmailVerificationChallengeModel(
+                id="challenge-1",
+                email=email,
+                code_digest=auth._email_code_digest(email, "123456"),
+                expires_at=now + timedelta(minutes=5),
+                attempts=initial_attempts,
+                resend_count=0,
+                last_sent_at=now,
+            )
+        )
+        db.commit()
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    both_requests_loaded_challenge = Barrier(2)
+
+    def wrong_digest(_email, _code):
+        both_requests_loaded_challenge.wait(timeout=10)
+        return "invalid-test-digest"
+
+    monkeypatch.setattr(auth, "_email_code_digest", wrong_digest)
+
+    def submit_wrong_code(code):
+        with TestClient(app, raise_server_exceptions=False) as client:
+            return client.post(
+                "/api/auth/verify-email",
+                json={"email": email, "code": code},
+            )
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            responses = list(workers.map(submit_wrong_code, ("111111", "222222")))
+
+        assert [response.status_code for response in responses] == expected_statuses
+        with Session(engine) as db:
+            challenge = db.get(EmailVerificationChallengeModel, "challenge-1")
+            assert challenge is not None
+            assert challenge.attempts == expected_attempts
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()

@@ -20,7 +20,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from ai_training.dataset_loader import OvarianUltrasoundDataset
-from ai_training.train_baseline_unet import ComboLoss, validate_training_split_identity
+from ai_training.train_baseline_unet import ComboLoss, validate_training_split_integrity
 
 GRAY_MEAN = 0.449
 GRAY_STD = 0.226
@@ -130,7 +130,6 @@ def train(
     learning_rate: float = 1e-4,
     patience: int = 6,
     seed: int = 42,
-    allow_unverified_split: bool = False,
 ) -> dict:
     random.seed(seed)
     np.random.seed(seed)
@@ -140,19 +139,13 @@ def train(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    patient_verified = True
-    try:
-        validate_training_split_identity(split_dir)
-    except ValueError as e:
-        if not allow_unverified_split:
-            raise
-        patient_verified = False
-        print(f"[CAUTION] Exploratory training on unverified patient split: {e}", flush=True)
+    split_integrity = validate_training_split_integrity(split_dir)
 
     manifest_path = split_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     train_csv = split_dir / "train.csv"
     val_csv = split_dir / "val.csv"
+    test_csv = split_dir / "test.csv"
     train_dataset = OvarianUltrasoundDataset(str(train_csv), is_train=True, seed=seed)
     val_dataset = OvarianUltrasoundDataset(str(val_csv), is_train=False)
     validate_splits(train_dataset, val_dataset, manifest)
@@ -244,16 +237,20 @@ def train(
         "threshold": 0.5,
         "selection_metric": "mean per-image Validation Dice",
         "split_dir": str(split_dir),
+        "split_integrity": split_integrity,
+        "split_level": "image-level",
+        "patient_level_independence_verified": False,
         "train_count": len(train_dataset),
         "validation_count": len(val_dataset),
-        "test_split_accessed": False,
+        "test_split_integrity_inspected": split_integrity["test_split_integrity_inspected"],
+        "test_split_used_for_training_or_selection": False,
         "train_csv_sha256": sha256_file(train_csv),
         "validation_csv_sha256": sha256_file(val_csv),
+        "test_csv_sha256": sha256_file(test_csv),
         "manifest_sha256": sha256_file(manifest_path),
         "baseline_standard_unet_validation_dice": BASELINE_VALIDATION_DICE,
         "best_epoch": best_epoch,
-        "patient_level_verified": patient_verified,
-        "split_validation_note": "patient_level_verified" if patient_verified else "exploratory_unverified_patient_split",
+        "split_validation_note": "image-level source image/mask integrity checked; patient identity unavailable",
         "train_metrics_at_best_epoch": history[best_epoch - 1]["train"],
         "best_validation": history[best_epoch - 1]["validation"],
         "duration_seconds": round(duration, 2),
@@ -276,11 +273,6 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--patience", type=int, default=6)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument(
-        "--allow-unverified-split",
-        action="store_true",
-        help="Allow exploratory training without verified patient IDs (enforces image SHA-256 separation only)",
-    )
     args = parser.parse_args()
     train(
         split_dir=args.split_dir,
@@ -290,7 +282,6 @@ def main() -> None:
         learning_rate=args.learning_rate,
         patience=args.patience,
         seed=args.seed,
-        allow_unverified_split=args.allow_unverified_split,
     )
 
 

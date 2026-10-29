@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Khóa luận MIS: Hệ thống Hỗ trợ Chẩn đoán Siêu âm Buồng trứng Human-in-the-Loop</title>
-  <link rel="icon" type="image/png" href="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo">
+  <title>Khóa luận MIS: Prototype RUO hỗ trợ rà soát siêu âm buồng trứng</title>
   <link rel="stylesheet" href="/static/css/workspace-tokens.css">
   <style>
     :root {
@@ -555,7 +554,7 @@
   <header class="top-hud">
     <div class="brand-cluster">
       <span class="badge-tag">NEU · MIS 65A</span>
-      <span class="header-title">Khóa luận Tốt nghiệp — CDSS Phân đoạn Siêu âm Buồng trứng</span>
+      <span class="header-title">Prototype nghiên cứu RUO · chưa xác thực lâm sàng</span>
     </div>
     <div class="hud-controls">
       <div class="timer-badge" id="timerBadge">
@@ -572,11 +571,11 @@
   <main class="deck-viewport">
 
     <!-- SLIDE 1: Title -->
-    <section class="slide active" data-index="0" data-notes="Kính thưa Thầy và Hội đồng, em xin phép trình bày đề tài: Hệ thống hỗ trợ chẩn đoán siêu âm buồng trứng Human-in-the-Loop. Dự án giải quyết bài toán giao thoa giữa Trí tuệ nhân tạo thị giác máy tính và Hệ thống thông tin y tế, tiếp cận theo góc nhìn của một kỹ sư MIS: không để AI hoạt động như một hộp đen tự động mà đặt bác sĩ làm trung tâm kiểm soát quyết định lâm sàng.">
+    <section class="slide active" data-index="0" data-notes="Kính thưa Thầy và Hội đồng, em xin trình bày prototype nghiên cứu RUO hỗ trợ rà soát ảnh siêu âm buồng trứng theo quy trình Human-in-the-Loop. Hệ thống tạo mặt nạ phân đoạn để người dùng rà soát; đầu ra chưa được xác thực lâm sàng, không phải chẩn đoán và không được dùng để quyết định chăm sóc bệnh nhân. Dữ liệu cục bộ được kiểm tra cho khóa luận là MMOTU ở mức ảnh; workspace này không có ảnh/mặt nạ Vinmec và không có kết quả hiệu năng Vinmec.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 01 / 10 · TRANG BÌA BÁO CÁO</div>
-        <h1 class="slide-title">HỆ THỐNG HỖ TRỢ CHẨN ĐOÁN SIÊU ÂM BUỒNG TRỨNG HUMAN-IN-THE-LOOP (CDSS)</h1>
-        <p class="slide-subtitle">Tích hợp Học sâu U-Net, Đo đạc Hình thái ISUOG và Động cơ Suy luận Lâm sàng Tất định IOTA / ACR O-RADS</p>
+        <h1 class="slide-title">PROTOTYPE NGHIÊN CỨU RUO HỖ TRỢ RÀ SOÁT SIÊU ÂM BUỒNG TRỨNG HUMAN-IN-THE-LOOP</h1>
+        <p class="slide-subtitle">Prototype RUO: phân đoạn ảnh và công cụ rà soát; chưa xác thực lâm sàng, không đưa ra chẩn đoán</p>
       </div>
       <div class="slide-body">
         <div class="grid-3">
@@ -588,11 +587,11 @@
             <p>Sinh viên: <strong>Nguyễn Hữu Dũng</strong></p>
           </div>
           <div class="card">
-            <div class="card-title"><span class="card-icon">🏥</span> Dữ liệu Thực nghiệm</div>
-            <p><strong>Bệnh viện ĐKQT Vinmec Times City</strong></p>
-            <p>Ảnh siêu âm 2D B-mode đầu dò âm đạo</p>
-            <p>Chuẩn mã hóa: DICOM & Pixel Spacing</p>
-            <p>Quy chuẩn đạo đức: RUO / De-identified</p>
+            <div class="card-title"><span class="card-icon">🧪</span> Phạm Vi Dữ Liệu & Sử Dụng</div>
+            <p>Dữ liệu mô hình cục bộ: MMOTU 2D, phân chia ở mức ảnh.</p>
+            <p>Không có ảnh/mặt nạ Vinmec trong workspace này; không báo cáo hiệu năng Vinmec.</p>
+            <p>Patient-level independence chưa được xác minh.</p>
+            <p><strong>RUO · Không dùng cho quyết định chăm sóc bệnh nhân.</strong></p>
           </div>
           <div class="card">
             <div class="card-title"><span class="card-icon">⚡</span> Khung Thời gian Báo cáo</div>
@@ -605,10 +604,10 @@
     </section>
 
     <!-- SLIDE 2: Problem & Clinical Challenge -->
-    <section class="slide" data-index="1" data-notes="Bài toán đặt ra: Chẩn đoán hình ảnh buồng trứng có ranh giới cực kỳ mờ nhạt và nhiều nhiễu âm. Các giải pháp AI hộp đen hiện nay thường cố gắng phán đoán lành tính ác tính một cách máy móc, khiến bác sĩ lâm sàng không thể tin tưởng. Mục tiêu của đề tài là xây dựng hệ thống CDSS theo cơ chế Human-in-the-Loop: AI phát hiện đường viền, đo kích thước; bác sĩ rà soát và kiểm soát tối cao trước khi xuất phiếu kết quả.">
+    <section class="slide" data-index="1" data-notes="Prototype chỉ tạo gợi ý phân đoạn để người dùng rà soát. Mặt nạ không xác định bản chất nang/u, không đo mức nguy cơ ác tính và không thay thế đánh giá chuyên môn. CDSS RUO chỉ chạy khi người dùng nhập descriptor; kết quả không phải chẩn đoán hay khuyến nghị xử trí.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 02 / 10 · BỐI CẢNH & ĐẶT VẤN ĐỀ</div>
-        <h2 class="slide-title">Thách Thức Chẩn Đoán & Giới Hạn Của AI "Hộp Đen"</h2>
+        <h2 class="slide-title">Bối Cảnh Bài Toán & Giới Hạn Của AI</h2>
         <p class="slide-subtitle">Tại sao mô hình AI truyền thống chưa thể áp dụng độc lập trong phòng khám siêu âm?</p>
       </div>
       <div class="slide-body">
@@ -617,16 +616,16 @@
             <div class="card-title"><span class="card-icon">⚠️</span> Thực Trạng Siêu Âm Buồng Trứng</div>
             <ul>
               <li><strong>Nhiễu âm mô học (Speckle Noise)</strong>: Độ tương phản mô mềm thấp, ranh giới nang/u đặc rất phức tạp.</li>
-              <li><strong>Phụ thuộc kinh nghiệm chủ quan</strong>: Dễ bỏ sót tổn thương nhỏ hoặc đo Caliper lệch làm thay đổi chỉ định phẫu thuật.</li>
+              <li><strong>Khác biệt khi mô tả/đo</strong>: Có thể ảnh hưởng các bước đánh giá tiếp theo; tác động này chưa được nghiên cứu trong đề tài.</li>
               <li><strong>Áp lực thời gian</strong>: Bác sĩ vừa quét đầu dò vừa phải ghi nhớ số đo $d_1, d_2$ và tra cứu bảng O-RADS.</li>
             </ul>
           </div>
           <div class="card highlight">
-            <div class="card-title"><span class="card-icon">💡</span> Đột Phá: Human-in-the-Loop (HITL)</div>
+            <div class="card-title"><span class="card-icon">💡</span> Workflow Human-in-the-Loop (HITL)</div>
             <ul>
-              <li><strong>Bác sĩ kiểm soát tối cao</strong>: Không phán đoán bệnh học thay bác sĩ; hệ thống chỉ khoanh vùng nghi ngờ và đo thông số hình học.</li>
-              <li><strong>Tương tác hai chiều</strong>: Bác sĩ dùng cọ/tẩy viền trên Canvas; thước đo $d_1, d_2$ lập tức tự động tính toán lại.</li>
-              <li><strong>Động cơ suy luận tất định</strong>: Kết hợp IOTA Simple Rules và O-RADS v2022 theo nguyên tắc Fail-Closed minh bạch.</li>
+              <li><strong>Gợi ý phân đoạn RUO</strong>: Mặt nạ là đầu ra hình học cần được rà soát; không xác định mô học hay nguy cơ ác tính.</li>
+              <li><strong>Rà soát có lưu</strong>: Cọ/tẩy sửa bản nháp; số đo và đối chiếu theo vùng chỉ dùng trên review đã lưu, còn hiệu lực.</li>
+              <li><strong>CDSS nghiên cứu</strong>: IOTA/O-RADS cần descriptor do người dùng nhập; đầu ra chưa được chuyên gia xác thực và không phải chẩn đoán.</li>
             </ul>
           </div>
         </div>
@@ -634,11 +633,11 @@
     </section>
 
     <!-- SLIDE 3: Architecture & End-to-End Flow -->
-    <section class="slide" data-index="2" data-notes="Về kiến trúc tổng thể, hệ thống tuân thủ mô hình 3 tầng phân lập. Luồng tích hợp bắt đầu khi ảnh DICOM tải lên, đi qua kiểm định IQA, tiền xử lý CLAHE và Letterbox 512x512, suy luận qua U-Net ra mask RLE, trích xuất hình thái ISUOG và hiển thị tức thời lên Canvas đa lớp để bác sĩ duyệt. Mọi thao tác đều lưu vết kiểm toán Audit Trail.">
+    <section class="slide" data-index="2" data-notes="Luồng prototype: tải ảnh được hỗ trợ, tiền xử lý, tạo mặt nạ phân đoạn, rà soát và lưu review. Inference production trả segmentation; không gắn chẩn đoán tự động. Báo cáo là bản nháp RUO không ký số. PostgreSQL chưa được hỗ trợ hoặc kiểm thử; bằng chứng hiện tại dùng SQLite cách ly.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 03 / 10 · KIẾN TRÚC TOÀN HỆ THỐNG</div>
         <h2 class="slide-title">Kiến Trúc Phân Tầng & Luồng Tích Hợp End-to-End</h2>
-        <p class="slide-subtitle">Thiết kế theo chuẩn Clean Architecture đáp ứng tính toàn vẹn và mở rộng cho MIS</p>
+        <p class="slide-subtitle">Phân ranh giao diện, API, model và persistence; snapshot hiện tại dùng SQLite</p>
       </div>
       <div class="slide-body">
         <div class="flow-stepper">
@@ -656,33 +655,33 @@
           <div class="flow-arrow">→</div>
           <div class="step-node active">
             <div class="step-num">BƯỚC 3</div>
-            <div class="step-title">U-Net Inference</div>
+            <div class="step-title">U-Net++ Inference</div>
             <div class="step-desc">PyTorch suy luận mặt nạ nhị phân, unpad tọa độ gốc.</div>
           </div>
           <div class="flow-arrow">→</div>
           <div class="step-node">
             <div class="step-num">BƯỚC 4</div>
             <div class="step-title">HITL Workstation</div>
-            <div class="step-desc">Canvas đa lớp: Cọ/Tẩy, đo Caliper $d_1, d_2$, CDSS IOTA/O-RADS.</div>
+            <div class="step-desc">Canvas rà soát; caliper/CDSS chỉ theo vùng review đã lưu và snapshot hiện hành.</div>
           </div>
           <div class="flow-arrow">→</div>
           <div class="step-node">
             <div class="step-num">BƯỚC 5</div>
-            <div class="step-title">Phiếu Siêu Âm</div>
-            <div class="step-desc">Khóa phiên, ký duyệt số và xuất PDF báo cáo chuẩn y tế.</div>
+            <div class="step-title">Bản Nháp RUO</div>
+            <div class="step-desc">Xuất/in bản nháp có nhãn nghiên cứu; không ký số, không phát hành chăm sóc.</div>
           </div>
         </div>
 
         <div class="grid-3" style="margin-top: 12px;">
           <div class="card">
-            <div class="card-title">🖥️ Clinical Workstation</div>
+            <div class="card-title">🖥️ Giao Diện Prototype</div>
             <p>HTML5 / Vanilla ES6 Canvas</p>
-            <p>CSS Dark Mode đạt chuẩn WCAG AA</p>
-            <p>Lease Token Lock chống ghi đè ca</p>
+            <p>Canvas tối; chưa có đánh giá khả năng sử dụng với bác sĩ.</p>
+            <p>Lease/revision có kiểm thử trên SQLite; chưa xác minh PostgreSQL đa người dùng.</p>
           </div>
           <div class="card">
             <div class="card-title">⚡ FastAPI Backend API</div>
-            <p>FastAPI (Python 3.12) tốc độ cao</p>
+            <p>FastAPI backend service (Python 3.12)</p>
             <p>SQLAlchemy ORM + SQLite Foreign Keys</p>
             <p>Pydantic v2 Strict Validation</p>
           </div>
@@ -690,18 +689,18 @@
             <div class="card-title">🧠 PyTorch Model Core</div>
             <p>Standard U-Net & U-Net++ ResNet34</p>
             <p>Xác thực mã băm Checkpoint SHA-256</p>
-            <p>ISUOG Caliper Engine ($d_1, d_2$ mm)</p>
+            <p>Caliper hình học RUO; mm chỉ khi có calibration hợp lệ.</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- SLIDE 4: AI & Deep Learning Pipeline -->
-    <section class="slide" data-index="3" data-notes="Đi sâu vào AI Core: Tại sao chọn U-Net? Vì cơ chế Skip Connection truyền trực tiếp thông tin không gian chi tiết từ Encoder sang Decoder, tránh mất ranh giới tổn thương siêu nhỏ. Chúng em dùng hàm mất mát kết hợp Combo Loss gồm BCE và Dice Loss để giải quyết triệt để bài toán mất cân bằng dữ liệu vùng tổn thương. Checkpoint mô hình được kiểm định băm SHA-256 trước khi đưa vào phục vụ.">
+    <section class="slide" data-index="3" data-notes="Checkpoint candidate hiện tại là U-Net++ với ResNet34 và scSE. Metadata chọn mô hình ghi nhận threshold 0.40 và horizontal-flip TTA. Loss của checkpoint là Advanced Hybrid Loss, không phải Combo Loss Dice+BCE theo scope dự án; đây là điểm chưa tuân thủ cần xử lý riêng, không được đổi nhãn để che sai khác. Các chỉ số được chọn trên validation mức ảnh, không phải test độc lập hay bằng chứng lâm sàng.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 04 / 10 · AI CORE & MÔ HÌNH HỌC SÂU</div>
         <h2 class="slide-title">Nguyên Lý Hoạt Động Của Mạng Phân Đoạn U-Net</h2>
-        <p class="slide-subtitle">Cơ chế Skip Connections và Hàm mất mát kết hợp Combo Loss giải quyết mất cân bằng lớp</p>
+        <p class="slide-subtitle">Candidate U-Net++/ResNet34/scSE · threshold 0.40 · horizontal-flip TTA · nghiên cứu mức ảnh</p>
       </div>
       <div class="slide-body">
         <div class="grid-2">
@@ -710,21 +709,21 @@
             <ul>
               <li><strong>Encoder (Co thắt)</strong>: Trích xuất đặc trưng ngữ nghĩa mức cao qua các khối tích chập và Max-Pooling.</li>
               <li><strong>Decoder (Mở rộng)</strong>: Khôi phục kích thước không gian điểm ảnh ban đầu ($512\times512$).</li>
-              <li><strong>Skip Connections (Điểm cốt lõi)</strong>: Nối tắt feature maps phân giải cao từ Encoder sang Decoder, bảo toàn nguyên vẹn tọa độ ranh giới mô mềm mỏng manh.</li>
+              <li><strong>Skip Connections</strong>: Truyền đặc trưng không gian từ Encoder sang Decoder; không bảo đảm contour dự đoán chính xác.</li>
             </ul>
             <div class="formula-box">
-              Tỷ lệ co giãn: 1-channel Grayscale → Letterbox 512×512 → Threshold 0.5
+              Tiền xử lý: ảnh grayscale → CLAHE → Letterbox 512×512 → TTA lật ngang → threshold 0.40
             </div>
           </div>
           <div class="card highlight">
-            <div class="card-title"><span class="card-icon">📐</span> Hàm Mất Mát Kết Hợp Combo Loss</div>
-            <p>Diện tích khối u thường chỉ chiếm 5% - 15% diện tích ảnh. Nếu chỉ dùng BCE, mô hình sẽ học vẹt đoán toàn bộ là nền.</p>
+            <div class="card-title"><span class="card-icon">📐</span> Loss Của Checkpoint Được Chọn</div>
+            <p>Metadata checkpoint ghi nhận Advanced Hybrid Loss: 0.5 Focal-Tversky + 0.3 SoftDice + 0.2 BCE.</p>
             <div class="formula-box">
-              L_Combo = L_BCE + L_Dice
+              Scope yêu cầu: Combo Loss = BCE + Dice
             </div>
             <ul>
-              <li><strong>L_BCE (Binary Cross Entropy)</strong>: Đảm bảo độ mượt và tối ưu hóa xác suất từng pixel.</li>
-              <li><strong>L_Dice (Sørensen–Dice Loss)</strong>: Ép độ trùng khớp hình học giữa vùng dự đoán và Ground Truth.</li>
+              <li>Checkpoint hiện tại chưa khớp loss yêu cầu; đây là blocker tuân thủ scope.</li>
+              <li>Validation mức ảnh không chứng minh độc lập theo bệnh nhân hoặc hiệu năng lâm sàng.</li>
             </ul>
           </div>
         </div>
@@ -732,30 +731,30 @@
     </section>
 
     <!-- SLIDE 5: ISUOG Morphometry & CDSS Rules -->
-    <section class="slide" data-index="4" data-notes="Hệ thống không chỉ dừng ở mặt nạ ảnh, mà chuyển đổi AI thành giá trị lâm sàng thông qua Engine hình thái ISUOG. Thuật toán tự động tìm bao lồi, trích xuất hai đường kính vuông góc lớn nhất d1 và d2 của tổn thương ưu thế, nhân với DICOM spacing ra milimet thực tế. Động cơ CDSS chạy bộ luật tất định theo IOTA và O-RADS v2022 theo nguyên tắc Fail-Closed: thiếu dữ liệu thì không suy luận bừa bãi.">
+    <section class="slide" data-index="4" data-notes="Caliper lưu theo vùng review và tọa độ ảnh nguồn; kết quả mm chỉ có khi calibration hợp lệ. Độ chính xác chưa được đối chiếu với phantom hoặc bộ tham chiếu được chuyên gia duyệt, nên không tuyên bố tuân thủ ISUOG. IOTA, O-RADS và ADNEX là các luồng RUO riêng cần dữ liệu do người dùng nhập/xác nhận; chưa có bộ ca được chuyên gia phê duyệt và không phát hành chẩn đoán hay khuyến nghị xử trí.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 05 / 10 · ĐỘNG CƠ HÌNH THÁI & SUY LUẬN CDSS</div>
-        <h2 class="slide-title">Trích Xuất Hình Thái ISUOG & Bộ Luật Tất Định</h2>
-        <p class="slide-subtitle">Chuyển đổi kết quả AI thành thông số định lượng và khuyến cáo theo chuẩn quốc tế</p>
+        <h2 class="slide-title">Caliper Theo Vùng & Đối Chiếu Quy Tắc RUO</h2>
+        <p class="slide-subtitle">Đầu ra hỗ trợ rà soát; chưa xác nhận độ chính xác đo hoặc tính phù hợp lâm sàng</p>
       </div>
       <div class="slide-body">
         <div class="grid-2">
           <div class="card">
-            <div class="card-title"><span class="card-icon">📏</span> Đo Đạc Caliper Tự Động (ISUOG)</div>
+            <div class="card-title"><span class="card-icon">📏</span> Caliper Hình Học Theo Vùng</div>
             <ul>
-              <li><strong>Bao lồi & Tổn thương ưu thế</strong>: Tách biệt các nang rời rạc, tập trung đo khối u chủ đạo.</li>
-              <li><strong>Hai trục vuông góc ($d_1, d_2$)</strong>: Xác định đường kính lớn nhất và đường kính trực giao lớn nhất.</li>
-              <li><strong>Quy đổi milimet thực tế</strong>: Tự động trích xuất thẻ DICOM Pixel Spacing $(0028, 0030)$.</li>
-              <li><strong>Phân định giới hạn 2D</strong>: Không suy diễn thể tích 3D giả định khi chỉ có 1 lát cắt siêu âm 2D.</li>
+              <li>Đo D1/D2 gắn với vùng và review revision đã lưu.</li>
+              <li>Tọa độ đo gắn với ảnh nguồn; mm chỉ khi calibration hợp lệ.</li>
+              <li>Không tự gán vùng là nang/u hoặc xác định hình thái mô học.</li>
+              <li>Độ chính xác chưa được đối chiếu với phantom/bộ tham chiếu chuyên môn.</li>
             </ul>
           </div>
           <div class="card highlight">
-            <div class="card-title"><span class="card-icon">⚖️</span> Động Cơ Suy Luận CDSS (Fail-Closed)</div>
+            <div class="card-title"><span class="card-icon">⚖️</span> IOTA / O-RADS / ADNEX RUO</div>
             <ul>
-              <li><strong>ACR O-RADS US v2022</strong>: Phân tầng nguy cơ ác tính minh bạch từ O-RADS 1 đến O-RADS 5.</li>
-              <li><strong>IOTA Simple Rules & ADNEX</strong>: Đánh giá nang đơn thùy, nhiều thùy, thành phần đặc, bóng cản âm.</li>
-              <li><strong>Nguyên tắc Fail-Closed</strong>: Bỏ trống đặc trưng $\rightarrow$ Không tự ý gán nhãn ác tính hoặc tùy tiện hạ xuống lành tính.</li>
-              <li><strong>Nhận diện sinh lý</strong>: Nang noãn $<30\text{ mm}$ được xác định là nang cơ năng bình thường (O-RADS 1).</li>
+              <li>Descriptor được người dùng nhập/xác nhận; mask không tự xác lập đặc trưng lâm sàng.</li>
+              <li>Các rule engine chạy trong phạm vi nghiên cứu; chưa được kiểm định bằng bộ ca chuyên gia duyệt.</li>
+              <li>Kết quả không phải chẩn đoán, phân loại cuối cùng hay khuyến nghị xử trí.</li>
+              <li>Độ phù hợp với guideline cần được chuyên gia lâm sàng xác nhận.</li>
             </ul>
           </div>
         </div>
@@ -763,62 +762,62 @@
     </section>
 
     <!-- SLIDE 6: HITL Clinical Workstation -->
-    <section class="slide" data-index="5" data-notes="Máy trạm lâm sàng HITL là nơi bác sĩ tương tác trực tiếp. Chúng em thiết kế Canvas đa lớp với công cụ cọ và tẩy mượt mà. Đặc biệt chú trọng an toàn lâm sàng: Phân biệt rõ buồng trứng Trái (Teal) và buồng trứng Phải (Cam) để ngăn ngừa tuyệt đối nhầm lẫn bên. Hệ thống tích hợp Lease Token Lock để chặn xung đột phiên bản khi hai người cùng mở một ca khám.">
+    <section class="slide" data-index="5" data-notes="Đây là giao diện prototype. Chưa có nghiên cứu usability với bác sĩ và chưa đo thời gian thao tác hoặc frame latency. Nhãn bên chỉ là gợi ý thị giác, không ngăn nhầm bên; cần đối chiếu nguồn ảnh và hồ sơ. Lease token cùng revision check có kiểm thử trong harness SQLite, nhưng chưa có kiểm chứng đa người dùng với PostgreSQL hoặc vận hành bệnh viện.">
       <div class="slide-header">
-        <div class="slide-num">SLIDE 06 / 10 · MÁY TRẠM LÂM SÀNG HITL</div>
-        <h2 class="slide-title">Công Thái Học Lâm Sàng & An Toàn Phiên Làm Việc</h2>
-        <p class="slide-subtitle">Trải nghiệm tương tác hai chiều và cơ chế bảo vệ tính toàn vẹn ca bệnh</p>
+        <div class="slide-num">SLIDE 06 / 10 · PROTOTYPE HITL</div>
+        <h2 class="slide-title">Công Cụ Rà Soát & Giới Hạn Bảo Vệ Phiên</h2>
+        <p class="slide-subtitle">Tính năng giao diện đã có không đồng nghĩa usability hoặc an toàn lâm sàng đã được xác nhận</p>
       </div>
       <div class="slide-body">
         <div class="grid-3">
           <div class="card">
-            <div class="card-title">🎨 Canvas Đa Lớp Thời Gian Thực</div>
+            <div class="card-title">🎨 Canvas Đa Lớp</div>
             <p>Tách biệt Ảnh B-mode, Lớp phủ AI và Nét vẽ cọ tay.</p>
-            <p>Công cụ Bút vẽ (Brush), Tẩy (Eraser), Điều chỉnh Opacity mượt mà.</p>
-            <p>Phím tắt lâm sàng: Giữ `Space` ẩn nhanh lớp phủ xem ảnh gốc.</p>
+            <p>Có cọ, tẩy và chỉnh opacity cho lớp phủ.</p>
+            <p>Độ trễ/độ mượt chưa được benchmark; chưa có đánh giá người dùng bác sĩ.</p>
           </div>
           <div class="card highlight">
-            <div class="card-title">🛡️ Chống Nhầm Lẫn Bên (Laterality)</div>
+            <div class="card-title">🛡️ Hiển Thị Bên Khảo Sát</div>
             <p><strong>Buồng trứng Trái (Left)</strong>: Chỉ thị màu xanh Teal y tế.</p>
             <p><strong>Buồng trứng Phải (Right)</strong>: Chỉ thị màu cam Amber ấm.</p>
-            <p>Ngăn ngừa sai sót cắt nhầm cơ quan lành trong phẫu thuật phụ khoa.</p>
+            <p>Nhãn bên không bảo đảm đúng bên và không thay thế đối chiếu ảnh gốc/hồ sơ.</p>
           </div>
           <div class="card">
             <div class="card-title">🔒 Concurrency Lease Lock</div>
-            <p>Khóa phiên làm việc độc quyền qua Lease Token.</p>
-            <p>Chống ghi đè nét vẽ khi 2 bác sĩ cùng mở một ca bệnh.</p>
-            <p>Lưu vết kiểm toán Telemetry: thời gian sửa, số nét vẽ.</p>
+            <p>Lease token và optimistic revision checks được triển khai.</p>
+            <p>Kiểm thử hiện có trên SQLite; PostgreSQL và tải đa người dùng chưa được kiểm chứng.</p>
+            <p>Chưa có số liệu telemetry chứng minh giảm thời gian thao tác.</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- SLIDE 7: Data Design & Leakage Prevention -->
-    <section class="slide" data-index="6" data-notes="Về cơ sở dữ liệu và dữ liệu khoa học: Nguyên tắc sống còn là Patient-Level Split. Chúng em kiên quyết không dùng Random Split theo ảnh vì sẽ gây rò rỉ dữ liệu cùng một bệnh nhân sang tập Test, dẫn tới điểm cao ảo. Cơ sở dữ liệu SQLite được bật bắt buộc PRAGMA foreign_keys để đảm bảo toàn vẹn tham chiếu từ Bệnh nhân đến Ca khám, Ảnh và Lịch sử duyệt.">
+    <section class="slide" data-index="6" data-notes="Dataset cục bộ dùng split mức ảnh và khử trùng lặp SHA-256. Dataset không có patient ID phù hợp để xác minh patient-level independence; không tạo patient ID tổng hợp. Vì vậy không diễn giải chỉ số image-level thành đánh giá độc lập theo bệnh nhân. Database của prototype là SQLite; kết quả này không chứng minh PostgreSQL hoặc phê duyệt đạo đức của cơ sở.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 07 / 10 · DỮ LIỆU & CHỐNG DATA LEAKAGE</div>
-        <h2 class="slide-title">Bảo Đảm Tính Toàn Vẹn & Đạo Đức Y Sinh</h2>
-        <p class="slide-subtitle">Phân chia dữ liệu mức bệnh nhân (Patient-Level Split) và cấu trúc cơ sở dữ liệu chuẩn hóa</p>
+        <h2 class="slide-title">Phạm Vi Dữ Liệu & Truy Vết</h2>
+        <p class="slide-subtitle">Image-level split đã khử trùng lặp; patient-level independence chưa xác minh</p>
       </div>
       <div class="slide-body">
         <div class="grid-2">
           <div class="card highlight">
-            <div class="card-title"><span class="card-icon">🚫</span> Chống Rò Rỉ Dữ Liệu (Patient-Level Split)</div>
+            <div class="card-title"><span class="card-icon">🚫</span> Giới Hạn Phân Chia Dataset</div>
             <ul>
-              <li><strong>Rủi ro của Random Split</strong>: Một bệnh nhân chụp 3-5 góc ảnh; nếu chia ngẫu nhiên, ảnh của cùng bệnh nhân sẽ nằm ở cả Train và Test $\rightarrow$ Học vẹt, Data Leakage.</li>
-              <li><strong>Phân chia cấp bệnh nhân</strong>: Toàn bộ ảnh của bệnh nhân X chỉ nằm trong 1 tập duy nhất.</li>
-              <li><strong>Synthetic PID Mapping</strong>: Khử định danh nhưng vẫn đối chuẩn được tính phân lập qua SHA-256.</li>
+              <li>Train/validation tách ở mức ảnh; có kiểm tra SHA-256 trùng lặp.</li>
+              <li>Không có patient ID nguồn để kiểm chứng phân lập theo bệnh nhân.</li>
+              <li>Không tạo PID tổng hợp; patient-level independence và test độc lập còn BLOCKED.</li>
             </ul>
           </div>
           <div class="card">
             <div class="card-title"><span class="card-icon">🗄️</span> Mô Hình Quan Hệ (SQLAlchemy ORM)</div>
             <ul>
-              <li><strong>Quan hệ phân cấp chặt chẽ</strong>:
+              <li><strong>Mô hình dữ liệu prototype</strong>:
                 <code>Patient → Study → Image → Prediction → Review</code>
               </li>
-              <li><strong>Bật toàn vẹn tham chiếu</strong>: Kích hoạt <code>PRAGMA foreign_keys=ON</code> trên mọi kết nối SQLite.</li>
-              <li><strong>Ràng buộc duy nhất</strong>: Khóa chống tải trùng ảnh bằng băm <code>(study_id, file_hash)</code>.</li>
-              <li><strong>Bảo vệ nghiên cứu</strong>: Xuất dữ liệu nghiên cứu yêu cầu mã phê duyệt đạo đức IRB.</li>
+              <li>SQLite foreign keys và khử trùng lặp upload theo study có kiểm thử kỹ thuật.</li>
+              <li>PostgreSQL chưa được cài đặt hoặc kiểm thử tích hợp.</li>
+              <li>Mã phê duyệt nhập vào phần mềm không thay thế xác minh/cho phép của hội đồng đạo đức.</li>
             </ul>
           </div>
         </div>
@@ -826,87 +825,87 @@
     </section>
 
     <!-- SLIDE 8: Experimental Results & Automated Tests -->
-    <section class="slide" data-index="7" data-notes="Kết quả thực nghiệm: Mô hình đạt Dice 0.81 đến 0.84 trên tập Test độc lập. Chúng em nhấn mạnh Dice là thước đo trùng khớp hình học pixel, không phải kết luận chẩn đoán. Điểm đặc biệt của đồ án là tính kỹ thuật vững chắc với 395 test cases tự động chạy qua Pytest và Playwright E2E, kiểm tra từ race condition, bảo mật token đến tính toán caliper.">
+    <section class="slide" data-index="7" data-notes="Checkpoint được chọn có Dice 0.8351 và IoU 0.7526 trên 541 ảnh validation mức ảnh; đây là metric pixel-mask dùng để chọn mô hình, không phải test độc lập. Patient identity chưa xác minh, clinician validation chưa thực hiện. Snapshot kiểm thử phần mềm ngày 2026-10-29 gồm Python 1.269 passed, 0 skipped và frontend 118 passed; E2E dùng harness localhost/SQLite với fixture tổng hợp. Các test kỹ thuật không phải xác thực lâm sàng. Chưa có nghiên cứu người dùng nên không có bằng chứng giảm thời gian đo.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 08 / 10 · KẾT QUẢ THỰC NGHIỆM & KIỂM THỬ</div>
-        <h2 class="slide-title">Hiệu Năng Mô Hình & Hệ Thống Autotest 395 Cases</h2>
-        <p class="slide-subtitle">Bằng chứng thực nghiệm định lượng và kỷ luật đảm bảo chất lượng phần mềm y tế</p>
+        <h2 class="slide-title">Kết Quả Validation & Bằng Chứng Kiểm Thử Kỹ Thuật</h2>
+        <p class="slide-subtitle">Snapshot 2026-10-29 · số liệu mô hình là image-level validation, không phải đánh giá lâm sàng</p>
       </div>
       <div class="slide-body">
         <div class="grid-3">
           <div class="card highlight">
-            <div class="card-title">🎯 Chỉ Số Phân Đoạn AI</div>
-            <div class="metric-hero">0.84<small>Dice Score</small></div>
-            <p>IoU đạt 0.70 trên tập kiểm thử độc lập.</p>
-            <p class="formula-box">Tách bạch rõ: Dice mô tả hình học pixel, không thay thế chẩn đoán bệnh học.</p>
+            <div class="card-title">🎯 Chỉ Số Chọn Checkpoint</div>
+            <div class="metric-hero">0.8351<small>Mean Dice · validation</small></div>
+            <p>IoU 0.7526 · 541 ảnh · mức ảnh · threshold 0.40.</p>
+            <p class="formula-box">Validation đã dùng để chọn mô hình; patient-level independence chưa xác minh, test độc lập BLOCKED.</p>
           </div>
           <div class="card">
-            <div class="card-title">🧪 395 Automated Tests</div>
-            <div class="metric-hero">100%<small>Pass rate</small></div>
+            <div class="card-title">🧪 Snapshot Test Kỹ Thuật</div>
+            <div class="metric-hero">1.269<small>Python passed</small></div>
             <ul>
-              <li>Unit & Integration Tests (Pytest)</li>
-              <li>Browser E2E Smokes (Playwright)</li>
-              <li>Kiểm thử Race condition upload 2 bên</li>
-              <li>Kiểm thử bảo mật phân quyền RBAC</li>
+              <li>Python: 1.269 passed, 0 skipped.</li>
+              <li>Frontend unit: 118 passed.</li>
+              <li>E2E: harness localhost/SQLite, fixture tổng hợp.</li>
+              <li>Test kỹ thuật không chứng minh clinical safety.</li>
             </ul>
           </div>
           <div class="card">
-            <div class="card-title">⏱️ Nghiên Cứu Telemetry HITL</div>
-            <div class="metric-hero">-42%<small>Thời gian đo</small></div>
-            <p>Giảm đáng kể thời gian thao tác đo Caliper thủ công của bác sĩ nhờ đường viền gợi ý chính xác từ AI.</p>
+            <div class="card-title">⏱️ Hiệu Quả Lâm Sàng & Usability</div>
+            <div class="metric-hero">CHƯA<small>được đo lường</small></div>
+            <p>Chưa có nghiên cứu người dùng bác sĩ hoặc đối chiếu phantom; chưa có bằng chứng về độ chính xác đo hay tiết kiệm thời gian.</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- SLIDE 9: Live Demo Workflow -->
-    <section class="slide" data-index="8" data-notes="Sau đây là quy trình 5 bước sẽ được trình diễn trực tiếp trong phần demo: Từ tiếp nhận ca khám, tải ảnh DICOM, bấm suy luận AI, hiệu chỉnh đường viền bằng cọ tẩy, chạy gợi ý O-RADS và xuất ngay phiếu kết quả siêu âm chuyên nghiệp có chữ ký số.">
+    <section class="slide" data-index="8" data-notes="Demo được giới hạn ở localhost RUO và fixture tổng hợp đã allowlist. Dùng mã ca synthetic, không nhập thông tin bệnh nhân hoặc ảnh khám thật. CDSS chỉ đối chiếu descriptor nhập rõ ràng theo vùng/review hiện hành. PDF là bản nháp có nhãn tổng hợp/RUO, không chữ ký số và không phát hành cho chăm sóc bệnh nhân.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 09 / 10 · KỊCH BẢN DEMO SẢN PHẨM</div>
-        <h2 class="slide-title">Quy Trình Trình Diễn Lâm Sàng Trực Tiếp (60 Giây)</h2>
-        <p class="slide-subtitle">Từ ảnh siêu âm thô đến phiếu kết quả chuẩn hóa có chữ ký số bác sĩ</p>
+        <h2 class="slide-title">Demo RUO Cách Ly Với Fixture Tổng Hợp</h2>
+        <p class="slide-subtitle">Không dùng ảnh/người bệnh thật · không ký số hoặc phát hành kết quả chăm sóc</p>
       </div>
       <div class="slide-body">
         <div class="grid-4">
           <div class="card">
-            <div class="card-title">1. Tiếp Nhận</div>
-            <p>Bác sĩ đăng nhập hệ thống.</p>
-            <p>Nhập mã bệnh nhân (PID), chọn bên buồng trứng khảo sát.</p>
+            <div class="card-title">1. Tạo Ca Demo</div>
+            <p>Đăng nhập tài khoản kiểm thử trên localhost.</p>
+            <p>Dùng mã ca DEMO-SYNTHETIC; không nhập PID, tuổi hoặc ghi chú bệnh nhân.</p>
           </div>
           <div class="card">
             <div class="card-title">2. Phân Đoạn AI</div>
-            <p>Tải ảnh DICOM siêu âm.</p>
-            <p>Bấm <strong>Phân đoạn AI</strong> $\rightarrow$ Hiển thị lớp phủ và đo Caliper ($d_1, d_2$).</p>
+            <p>Tải fixture tổng hợp đã allowlist.</p>
+            <p>Chạy phân đoạn RUO; kiểm tra mask trên ảnh gốc.</p>
           </div>
           <div class="card highlight">
             <div class="card-title">3. Tương Tác HITL</div>
-            <p>Bác sĩ dùng Tẩy (Eraser) chỉnh nhẹ đường viền.</p>
-            <p>Số đo tự động nhảy cập nhật theo nét vẽ.</p>
+            <p>Người kiểm thử sửa mask và lưu review.</p>
+            <p>Caliper/CDSS chỉ theo vùng và revision hiện hành; mm cần calibration hợp lệ.</p>
           </div>
           <div class="card">
-            <div class="card-title">4. Xuất Báo Cáo</div>
-            <p>Chọn IOTA $\rightarrow$ CDSS gợi ý phân loại O-RADS.</p>
-            <p>Ký duyệt $\rightarrow$ Xuất ngay PDF phiếu siêu âm.</p>
+            <div class="card-title">4. Bản Nháp Nghiên Cứu</div>
+            <p>Nhập descriptor để chạy đối chiếu CDSS RUO; không phải chẩn đoán.</p>
+            <p>Xuất/in PDF nháp có nhãn dữ liệu tổng hợp; không chữ ký hoặc phát hành.</p>
           </div>
         </div>
       </div>
     </section>
 
     <!-- SLIDE 10: Conclusion & Contribution -->
-    <section class="slide" data-index="9" data-notes="Em xin kết luận: Đề tài đã xây dựng thành công một hệ thống phần mềm y tế hoàn chỉnh, kết hợp hài hòa giữa thị giác máy tính và nghiệp vụ MIS. Quan trọng nhất là đã hiện thực hóa mô hình Human-in-the-Loop giúp AI trở thành trợ thủ tin cậy của bác sĩ. Em xin trân trọng cảm ơn Quý Thầy Cô trong Hội đồng đã lắng nghe và em sẵn sàng tiếp thu các câu hỏi vấn đáp!">
+    <section class="slide" data-index="9" data-notes="Kết luận: đã xây dựng prototype RUO tích hợp phân đoạn, review HITL, lưu caliper theo vùng và CDSS theo descriptor/revision. Bằng chứng hiện có giới hạn ở test kỹ thuật trên harness SQLite và fixture tổng hợp. PostgreSQL, kiểm định đo bằng phantom, bộ ca CDSS chuyên gia duyệt, patient-level independence, đánh giá rủi ro và phê duyệt cơ sở vẫn BLOCKED. Chưa đủ căn cứ cho hospital UAT, thử nghiệm lâm sàng hoặc sử dụng chăm sóc bệnh nhân. Em xin cảm ơn Hội đồng.">
       <div class="slide-header">
         <div class="slide-num">SLIDE 10 / 10 · TỔNG KẾT & ĐÓNG GÓP</div>
         <h2 class="slide-title">Đóng Góp Của Đề Tài & Lời Cảm Ơn</h2>
-        <p class="slide-subtitle">Hoàn thiện hệ sinh thái phần mềm y tế khép kín từ Deep Learning đến Clinical Workstation</p>
+        <p class="slide-subtitle">Prototype nghiên cứu đã tích hợp một số luồng kỹ thuật; các cổng lâm sàng còn BLOCKED</p>
       </div>
       <div class="slide-body">
         <div class="grid-2">
           <div class="card highlight">
             <div class="card-title"><span class="card-icon">🏆</span> Đóng Góp Cốt Lõi Về Mặt MIS & ITBA</div>
             <ul>
-              <li><strong>Hiện thực hóa triết lý Human-in-the-Loop</strong>: Chuyển dịch từ AI hộp đen sang AI hỗ trợ quyết định có giải trình và minh bạch.</li>
-              <li><strong>Chuẩn hóa quy trình nghiệp vụ siêu âm</strong>: Tự động hóa đo đạc hình thái ISUOG và gắn kết trực tiếp với bảng điểm O-RADS.</li>
-              <li><strong>Hệ thống sẵn sàng vận hành</strong>: Kiến trúc phân tầng sạch, 395 test cases, bảo đảm an toàn dữ liệu bệnh nhân.</li>
+              <li><strong>Prototype HITL</strong>: Người dùng có thể rà soát và lưu chỉnh sửa mặt nạ theo workflow RUO.</li>
+              <li><strong>Liên kết kỹ thuật</strong>: Caliper/CDSS theo vùng và revision; chưa xác nhận lâm sàng hoặc guideline conformity.</li>
+              <li><strong>Giới hạn phát hành</strong>: Chỉ scripted localhost demo với dữ liệu tổng hợp; clinical use và hospital UAT BLOCKED.</li>
             </ul>
           </div>
           <div class="card">
@@ -959,30 +958,30 @@
       </div>
 
       <div class="qa-item">
-        <div class="qa-q">1. "Các em dùng AI viết code đúng không? Luồng xử lý khi bấm nút 'Phân đoạn AI' đi qua những file nào?"</div>
+        <div class="qa-q">1. "Inference hiện trả về gì và phần nào không chạy tự động?"</div>
         <div class="qa-a">
-          Dạ thưa Thầy, nhóm em dùng AI như công cụ hỗ trợ code mẫu và test, nhưng kiến trúc do nhóm làm chủ 100%. Luồng dữ liệu: Bấm nút trên <code>frontend/app/viewer.js</code> → gọi <code>POST /inference/predict</code> tại <code>backend/app/routers/inference.py</code> → chuyển qua <code>backend/services/preprocessor.py</code> chạy CLAHE và Letterbox 512×512 → đưa vào tensor PyTorch tại <code>backend/services/inference_engine.py</code> → mô hình U-Net nhả mask RLE → <code>backend/services/morphology_extractor.py</code> dùng OpenCV tìm contour tính Caliper $d_1, d_2$ rồi trả về Canvas.
+          Luồng hiện tại: viewer gửi ảnh đến API inference; backend tiền xử lý rồi trả mặt nạ phân đoạn và provenance. Đường inference production cố ý không phát sinh chẩn đoán. Người dùng rà soát và lưu review; các endpoint riêng lưu caliper/CDSS theo vùng và revision. CDSS cần descriptor nhập rõ ràng. Bằng chứng hiện tại là RUO với SQLite và fixture tổng hợp.
         </div>
       </div>
 
       <div class="qa-item">
-        <div class="qa-q">2. "Tại sao dùng Combo Loss (BCE + Dice) mà không dùng riêng một loại? Skip Connection có vai trò gì?"</div>
+        <div class="qa-q">2. "Checkpoint hiện tại dùng loss nào và điểm nào chưa khớp scope?"</div>
         <div class="qa-a">
-          Dạ thưa Thầy: Vùng tổn thương chỉ chiếm 5-15% diện tích ảnh. Dùng riêng BCE mô hình sẽ học vẹt đoán toàn bộ là nền (Class Imbalance). Dice Loss ép sự trùng khớp hình học giữa vùng dự đoán và Ground Truth. Kết hợp $L_{\text{Combo}} = L_{\text{BCE}} + L_{\text{Dice}}$ giúp hội tụ nhanh và khít đường biên. Skip Connection nối trực tiếp feature maps phân giải cao từ Encoder sang Decoder để khôi phục các chi tiết đường viền sắc nét vốn bị mất sau các tầng Max-Pooling.
+          Metadata của checkpoint được chọn ghi Advanced Hybrid Loss (0.5 Focal-Tversky + 0.3 SoftDice + 0.2 BCE), trong khi scope dự án yêu cầu Combo Loss Dice+BCE. Đây là sai khác chưa được khắc phục; không được trình bày checkpoint như thể đã huấn luyện bằng Combo Loss.
         </div>
       </div>
 
       <div class="qa-item">
-        <div class="qa-q">3. "Tại sao bắt buộc phải dùng Patient-Level Split thay vì chia ngẫu nhiên?"</div>
+        <div class="qa-q">3. "Dữ liệu hiện được chia thế nào và có thể kết luận gì?"</div>
         <div class="qa-a">
-          Dạ thưa Thầy, đây là nguyên tắc sống còn chống Data Leakage trong y tế. Một bệnh nhân có từ 3 đến 5 góc chụp siêu âm của cùng một khối u. Nếu dùng Random Split thông thường, ảnh của cùng một bệnh nhân sẽ xuất hiện ở cả Train và Test, khiến mô hình học vẹt đặc trưng mô của người đó chứ không học tổng quát, dẫn đến điểm Test cao ảo nhưng đưa vào thực tế thì thất bại hoàn toàn.
+          Split hiện có ở mức ảnh và đã kiểm tra SHA-256 trùng lặp. Dataset không có patient ID để xác minh patient-level independence; chúng em không tạo PID tổng hợp. Vì vậy metric image-level không chứng minh hiệu năng độc lập theo bệnh nhân.
         </div>
       </div>
 
       <div class="qa-item">
         <div class="qa-q">4. "Human-in-the-Loop ở đây khác gì việc vẽ một nét cọ đồ họa thông thường?"</div>
         <div class="qa-a">
-          Dạ thưa Thầy, khác ở 3 điểm: (1) Tính toán động: Nét cọ tẩy lập tức kích hoạt tính lại bao lồi và hai đường kính $d_1, d_2$, tác động trực tiếp lên gợi ý phân tầng O-RADS. (2) Lưu vết kiểm toán Telemetry: Phân biệt rõ viền do AI sinh ra hay do bác sĩ sửa. (3) Concurrency Lease Lock: Khóa phiên làm việc ngăn 2 bác sĩ cùng sửa một ca gây xung đột dữ liệu.
+          Người dùng sửa mask nháp rồi lưu review; phép đo gắn với vùng/revision và cần calibration hợp lệ để hiển thị mm. CDSS nhận descriptor do người dùng nhập, không suy ra từ mask. Lease/revision checks có kiểm thử trên SQLite, nhưng chưa xác nhận đa người dùng với PostgreSQL hoặc vận hành bệnh viện. Chưa có usability study hay telemetry chứng minh giảm thời gian thao tác.
         </div>
       </div>
 

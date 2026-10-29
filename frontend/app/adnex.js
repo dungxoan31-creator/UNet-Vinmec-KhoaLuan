@@ -7,6 +7,48 @@ const OUTCOMES = [
   ["stage_ii_iv_primary_malignancy", "Ung thư xâm lấn giai đoạn II–IV"],
   ["secondary_metastatic", "Di căn thứ phát đến buồng trứng"],
 ];
+const PROBABILITY_TOLERANCE = 1e-6;
+
+export function isRenderableAdnexEvaluation(evaluation) {
+  if (
+    !evaluation ||
+    typeof evaluation !== "object" ||
+    evaluation.status !== "EVALUATED_RUO" ||
+    evaluation.eligibility_status !== "ELIGIBLE" ||
+    !["WITH_CA125", "WITHOUT_CA125"].includes(evaluation.model_variant) ||
+    !evaluation.probabilities ||
+    typeof evaluation.probabilities !== "object" ||
+    Array.isArray(evaluation.probabilities)
+  )
+    return false;
+
+  const expectedKeys = OUTCOMES.map(([key]) => key).sort();
+  const actualKeys = Object.keys(evaluation.probabilities).sort();
+  if (
+    actualKeys.length !== expectedKeys.length ||
+    actualKeys.some((key, index) => key !== expectedKeys[index])
+  )
+    return false;
+
+  const values = OUTCOMES.map(([key]) => evaluation.probabilities[key]);
+  if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 1))
+    return false;
+
+  const declaredTotal = evaluation.total_malignancy_probability;
+  if (
+    !Number.isFinite(declaredTotal) ||
+    declaredTotal < 0 ||
+    declaredTotal > 1
+  )
+    return false;
+
+  const probabilityTotal = values.reduce((sum, value) => sum + value, 0);
+  const malignancyTotal = values.slice(1).reduce((sum, value) => sum + value, 0);
+  return (
+    Math.abs(probabilityTotal - 1) <= PROBABILITY_TOLERANCE &&
+    Math.abs(malignancyTotal - declaredTotal) <= PROBABILITY_TOLERANCE
+  );
+}
 
 export function adnexPanelMarkup(disabled = false) {
   return `<details id="adnexPanel" class="adnex-panel">
@@ -168,10 +210,17 @@ export function bindAdnexPanel(root, { getContext, canEvaluate, routeSignal }) {
   };
 
   const renderEvaluation = (evaluation) => {
-    if (evaluation?.status !== "EVALUATED_RUO" || !evaluation.probabilities) {
+    if (evaluation?.status !== "EVALUATED_RUO") {
       showStatus(
         evaluation?.reason || "Thiếu dữ liệu hợp lệ; chưa tính xác suất.",
         "NOT_EVALUATED",
+      );
+      return;
+    }
+    if (!isRenderableAdnexEvaluation(evaluation)) {
+      showStatus(
+        "Response ADNEX không hợp lệ; đã ẩn các xác suất.",
+        "ERROR",
       );
       return;
     }

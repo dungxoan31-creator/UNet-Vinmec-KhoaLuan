@@ -52,11 +52,15 @@ def test_admin_case_metadata_api_returns_only_operational_fields(tmp_path, monke
             assert body["items"][0]["study_code"] == "STUDY-001"
             assert set(body["items"][0]) == {
                 "study_code",
+                "visit_no",
                 "status",
                 "department",
                 "created_at",
                 "version",
             }
+            assert len(body["items"][0]["visit_no"]) == 6
+            assert body["items"][0]["visit_no"].isascii()
+            assert body["items"][0]["visit_no"].isdigit()
             assert "SENSITIVE-PID" not in response.text
             assert "Sensitive clinical indication" not in response.text
     finally:
@@ -95,6 +99,16 @@ def test_admin_audit_apis_redact_details_and_do_not_search_them(tmp_path, monkey
                         "checkpoint": "C:/private/model.pt",
                     },
                 ),
+                AuditLogModel(
+                    entity_name="user_feedback",
+                    entity_id="feedback-1",
+                    action_type="USER_FEEDBACK",
+                    actor_id="admin-audit-id",
+                    details={
+                        "title": "Synthetic privacy regression",
+                        "message": "PATIENT-ID-MARKER-MUST-NOT-LEAK",
+                    },
+                ),
             ]
         )
         db.commit()
@@ -117,9 +131,10 @@ def test_admin_audit_apis_redact_details_and_do_not_search_them(tmp_path, monkey
                 response = client.get(path, headers=headers)
                 assert response.status_code == 200
                 assert "AUDIT-PHI-SECRET" not in response.text
+                assert "PATIENT-ID-MARKER-MUST-NOT-LEAK" not in response.text
                 body = response.json()
                 items = body if isinstance(body, list) else body["items"]
-                assert items[0]["details"] is None
+                assert all(item["details"] is None for item in items)
 
             filtered = client.get(
                 "/api/admin/audit-events",
@@ -128,6 +143,13 @@ def test_admin_audit_apis_redact_details_and_do_not_search_them(tmp_path, monkey
             )
             assert filtered.status_code == 200
             assert filtered.json()["total"] == 0
+            feedback_filtered = client.get(
+                "/api/admin/audit-events",
+                params={"q": "PATIENT-ID-MARKER-MUST-NOT-LEAK"},
+                headers=headers,
+            )
+            assert feedback_filtered.status_code == 200
+            assert feedback_filtered.json()["total"] == 0
 
             for path in (
                 "/api/admin/audit-logs?limit=-1",

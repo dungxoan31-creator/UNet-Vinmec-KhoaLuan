@@ -6,6 +6,9 @@ import {
   isFastAdvanceShortcut,
   isHelpShortcut,
   isOverlayToggleShortcut,
+  getOradsShortcutValue,
+  isAutoZoomShortcut,
+  isUndoShortcut,
 } from "../frontend/app/viewer-shortcuts.js";
 
 test("Ctrl+P and Meta+P open the report hash for the active study", () => {
@@ -85,3 +88,30 @@ test("isHelpShortcut detects ? key and rejects editable inputs", () => {
   assert.equal(isHelpShortcut({ key: "?", target: editable }), false);
 });
 
+test("getOradsShortcutValue assigns O-RADS 1 through 5, rejecting editable targets", () => {
+  assert.equal(getOradsShortcutValue({ key: "1" }), "O-RADS 1");
+  assert.equal(getOradsShortcutValue({ key: "2" }), "O-RADS 2");
+  assert.equal(getOradsShortcutValue({ key: "3" }), "O-RADS 3");
+  assert.equal(getOradsShortcutValue({ key: "4" }), "O-RADS 4");
+  assert.equal(getOradsShortcutValue({ key: "5" }), "O-RADS 5");
+  assert.equal(getOradsShortcutValue({ key: "2", altKey: true }), "O-RADS 2");
+  assert.equal(getOradsShortcutValue({ key: "0", altKey: true }), "O-RADS 0");
+
+  assert.equal(getOradsShortcutValue({ key: "9" }), null);
+  assert.equal(getOradsShortcutValue({ key: "1", ctrlKey: true }), null);
+  const editable = { closest: () => ({}) };
+  assert.equal(getOradsShortcutValue({ key: "1", target: editable }), null);
+});
+
+test("isAutoZoomShortcut detects plain A and a", () => {
+  assert.equal(isAutoZoomShortcut({ key: "a" }), true);
+  assert.equal(isAutoZoomShortcut({ key: "A" }), true);
+  assert.equal(isAutoZoomShortcut({ key: "a", ctrlKey: true }), false);
+});
+
+test("isUndoShortcut detects plain Z or Ctrl+Z", () => {
+  assert.equal(isUndoShortcut({ key: "z" }), true);
+  assert.equal(isUndoShortcut({ key: "Z" }), true);
+  assert.equal(isUndoShortcut({ key: "z", ctrlKey: true }), true);
+  assert.equal(isUndoShortcut({ key: "z", altKey: true }), false);
+});

@@ -2,11 +2,21 @@
 Service for atomic batch review persistence, revision validation, and idempotency tracking.
 """
 
+import errno
 import hashlib
 import json
+import logging
+import math
 import os
+import stat
+import tempfile
+import time
 import uuid
+from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from fastapi import HTTPException
@@ -15,6 +25,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from backend.db.database import (
+    ActiveLearningQueueModel,
     AuditLogModel,
     HITLEventModel,
     HITLSessionModel,
@@ -32,6 +43,402 @@ from backend.services.review_validation import validate_review_mask
 from backend.services.source_measurements import measure_source_mask
 
 _FINAL_REVIEW_STATUSES = {"SIGNED_PRELIM", "APPROVED", "LOCKED"}
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_LEGACY_ACTIVE_LEARNING_QUEUE_PATH = (
+    _PROJECT_ROOT / "metadata" / "active_learning_queue.jsonl"
+)
+
+
+def _resolve_active_learning_queue_path(
+    *, project_root: Path | str | None = None, data_dir: Path | str | None = None
+) -> Path:
+    """Place legacy review exports with runtime data, never in source metadata."""
+    root = Path(project_root) if project_root is not None else _PROJECT_ROOT
+    configured_data_dir = data_dir if data_dir is not None else os.environ.get("APP_DATA_DIR")
+    if configured_data_dir is None:
+        runtime_dir = root / "data"
+    else:
+        runtime_dir = Path(configured_data_dir)
+        if not runtime_dir.is_absolute():
+            runtime_dir = root / runtime_dir
+    return runtime_dir / "active_learning_queue.jsonl"
+
+
+ACTIVE_LEARNING_QUEUE_PATH = _resolve_active_learning_queue_path()
+_LEGACY_QUEUE_LOCK = RLock()
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class LegacyActiveLearningCleanupResult:
+    removed_count: int
+    complete: bool
+
+
+class LegacyActiveLearningCleanupTransaction:
+    """Hold queue locks and backups until the caller's database transaction settles."""
+
+    def __init__(self, result, lock_stack, updates):
+        self.result = result
+        self._lock_stack = lock_stack
+        self._updates = updates
+        self._closed = False
+
+    @property
+    def complete(self):
+        return self.result.complete
+
+    def finalize(self):
+        if self._closed:
+            return True
+        cleanup_complete = True
+        for update in self._updates:
+            for key in ("replacement_path", "backup_path"):
+                temporary_path = update.get(key)
+                if temporary_path is None:
+                    continue
+                try:
+                    temporary_path.unlink()
+                    update[key] = None
+                except FileNotFoundError:
+                    update[key] = None
+                except OSError as exc:
+                    cleanup_complete = False
+                    logger.critical(
+                        "Could not remove active-learning cleanup backup after database commit.",
+                        extra={
+                            "legacy_queue_cleanup_failure": True,
+                            "error_type": type(exc).__name__,
+                        },
+                    )
+        self._close()
+        return cleanup_complete
+
+    def rollback(self):
+        if self._closed:
+            return True
+        rollback_complete = True
+        for update in reversed(self._updates):
+            if not update.get("applied"):
+                continue
+            backup_path = update.get("backup_path")
+            if backup_path is None:
+                rollback_complete = False
+                continue
+            try:
+                os.replace(backup_path, update["queue_path"])
+                update["backup_path"] = None
+                update["applied"] = False
+            except OSError as exc:
+                rollback_complete = False
+                logger.critical(
+                    "Could not restore active-learning export after an uncommitted case deletion.",
+                    extra={
+                        "legacy_queue_cleanup_rollback_failure": True,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+        self.result = LegacyActiveLearningCleanupResult(
+            removed_count=(
+                sum(update["removed"] for update in self._updates if update.get("applied"))
+                if not rollback_complete else 0
+            ),
+            complete=False,
+        )
+        self._remove_temporary_files(preserve_applied_backups=True)
+        self._close()
+        return rollback_complete
+
+    def _remove_temporary_files(self, *, preserve_applied_backups):
+        for update in self._updates:
+            temporary_paths = [update.get("replacement_path")]
+            if not (preserve_applied_backups and update.get("applied")):
+                temporary_paths.append(update.get("backup_path"))
+            for temporary_path in temporary_paths:
+                if temporary_path is None:
+                    continue
+                try:
+                    temporary_path.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    logger.error(
+                        "Could not remove a temporary active-learning export file.",
+                        extra={
+                            "legacy_queue_cleanup_failure": True,
+                            "error_type": type(exc).__name__,
+                        },
+                    )
+
+    def _close(self):
+        if self._closed:
+            return
+        self._closed = True
+        self._lock_stack.close()
+
+
+@contextmanager
+def _legacy_queue_file_lock(queue_path: Path):
+    """Coordinate legacy JSONL append/rewrite operations across worker processes."""
+    lock_path = queue_path.with_name(f"{queue_path.name}.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _LEGACY_QUEUE_LOCK, open(lock_path, "a+b") as lock_file:
+        if os.name == "nt":
+            import msvcrt
+
+            # The byte-range lock works on an empty file; initialize no bytes
+            # before acquiring it, so competing processes cannot race the setup.
+            deadline = time.monotonic() + 5.0
+            while True:
+                lock_file.seek(0)
+                try:
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as exc:
+                    if exc.errno not in {errno.EACCES, errno.EAGAIN, errno.EDEADLK} or time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.025)
+            try:
+                yield
+            finally:
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def _review_diagnosis_overrides(db: Session, review_request: DoctorReviewRequest) -> dict[str, Any]:
+    """Capture new or changed clinician descriptors relative to the prior saved review."""
+    previous = (
+        db.query(ReviewModel)
+        .filter(ReviewModel.image_id == review_request.image_id)
+        .order_by(ReviewModel.created_at.desc(), ReviewModel.id.desc())
+        .first()
+    )
+
+    def clinical_value(value: Any, *, lesion_type: bool = False) -> str | None:
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if lesion_type and normalized.casefold() in {"chưa đánh giá", "unspecified"}:
+            return None
+        return normalized
+
+    previous_feedback = previous.hitl_feedback if previous and isinstance(previous.hitl_feedback, dict) else {}
+    current_values = {
+        "lesion_type": clinical_value(review_request.lesion_type, lesion_type=True),
+        "orads": clinical_value(review_request.orads or review_request.orads_score),
+        "morphology_description": clinical_value(review_request.morphology_description),
+    }
+    previous_values = {
+        "lesion_type": clinical_value(previous.lesion_type, lesion_type=True) if previous else None,
+        "orads": clinical_value(
+            previous_feedback.get("orads") or previous_feedback.get("orads_score")
+            if previous else None
+        ),
+        "morphology_description": clinical_value(
+            previous_feedback.get("morphologyDesc") or previous_feedback.get("morphology_description")
+            if previous else None
+        ),
+    }
+    changed = {
+        key: value
+        for key, value in current_values.items()
+        if value != previous_values[key] and (value is not None or previous_values[key] is not None)
+    }
+    changed.update(getattr(review_request, "clinician_overrides", None) or {})
+    return changed
+
+
+def log_active_learning_sample(
+    image_id: str,
+    prediction_id: str,
+    doctor_action: str,
+    verified_mask_rle: dict[str, Any],
+    lesion_type: str,
+    clinician_overrides: dict[str, Any] | None = None,
+    actor_id: str = "UNVERIFIED_REVIEWER",
+) -> dict[str, Any]:
+    """Write a legacy JSONL export; review persistence uses the transactional DB queue."""
+    record = {
+        "timestamp": datetime.now(UTC).isoformat(),
+        "image_id": image_id,
+        "prediction_id": prediction_id,
+        "doctor_action": doctor_action,
+        "lesion_type": lesion_type,
+        "clinician_overrides": clinician_overrides or {},
+        "verified_mask_rle": verified_mask_rle,
+        "actor_id": actor_id,
+    }
+    queue_path = Path(ACTIVE_LEARNING_QUEUE_PATH)
+    with _legacy_queue_file_lock(queue_path):
+        queue_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(queue_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+    return record
+
+
+def prepare_legacy_active_learning_cleanup(
+    image_ids: list[str],
+) -> LegacyActiveLearningCleanupTransaction:
+    """Stage JSONL cleanup and retain backups/locks until DB commit or rollback."""
+    target_image_ids = set(image_ids)
+    if not target_image_ids:
+        return LegacyActiveLearningCleanupTransaction(
+            LegacyActiveLearningCleanupResult(removed_count=0, complete=True),
+            ExitStack(),
+            [],
+        )
+
+    queue_paths = [
+        Path(ACTIVE_LEARNING_QUEUE_PATH),
+        Path(_LEGACY_ACTIVE_LEARNING_QUEUE_PATH),
+    ]
+    unique_paths = []
+    seen_paths = set()
+    for queue_path in queue_paths:
+        normalized_path = os.path.normcase(str(queue_path.resolve(strict=False)))
+        if normalized_path not in seen_paths:
+            seen_paths.add(normalized_path)
+            unique_paths.append(queue_path)
+
+    lock_stack = ExitStack()
+    updates = []
+    cleanup_complete = True
+    try:
+        for queue_path in sorted(unique_paths, key=lambda item: os.path.normcase(str(item.resolve(strict=False)))):
+            lock_stack.enter_context(_legacy_queue_file_lock(queue_path))
+
+        for queue_path in unique_paths:
+            if not _active_learning_queue_file_exists(queue_path):
+                continue
+            original_bytes = queue_path.read_bytes()
+            kept_lines = []
+            removed = 0
+            malformed_records = False
+            for line in original_bytes.splitlines(keepends=True):
+                if not line.strip():
+                    kept_lines.append(line)
+                    continue
+                try:
+                    record = json.loads(line.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    malformed_records = True
+                    kept_lines.append(line)
+                    continue
+                if (
+                    not isinstance(record, dict)
+                    or not isinstance(record.get("image_id"), str)
+                    or not record["image_id"].strip()
+                ):
+                    malformed_records = True
+                    kept_lines.append(line)
+                    continue
+                if record["image_id"] in target_image_ids:
+                    removed += 1
+                else:
+                    kept_lines.append(line)
+
+            if malformed_records:
+                cleanup_complete = False
+                logger.error(
+                    "Cannot safely prune active-learning export with unidentified rows.",
+                    extra={
+                        "legacy_queue_cleanup_failure": True,
+                        "error_type": "UnidentifiedQueueRow",
+                    },
+                )
+            elif removed:
+                updates.append({
+                    "queue_path": queue_path,
+                    "original_bytes": original_bytes,
+                    "replacement_bytes": b"".join(kept_lines),
+                    "removed": removed,
+                    "replacement_path": None,
+                    "backup_path": None,
+                    "applied": False,
+                })
+
+        if cleanup_complete:
+            for update in updates:
+                for key, contents, suffix in (
+                    ("replacement_path", update["replacement_bytes"], ".tmp"),
+                    ("backup_path", update["original_bytes"], ".bak"),
+                ):
+                    descriptor, temporary_name = tempfile.mkstemp(
+                        prefix=f"{update['queue_path'].name}.",
+                        suffix=suffix,
+                        dir=update["queue_path"].parent,
+                    )
+                    update[key] = Path(temporary_name)
+                    with os.fdopen(descriptor, "wb") as temporary_file:
+                        temporary_file.write(contents)
+                        temporary_file.flush()
+                        os.fsync(temporary_file.fileno())
+            try:
+                for update in updates:
+                    os.replace(update["replacement_path"], update["queue_path"])
+                    update["replacement_path"] = None
+                    update["applied"] = True
+            except OSError as exc:
+                cleanup_complete = False
+                logger.error(
+                    "Could not atomically prune all active-learning exports.",
+                    extra={
+                        "legacy_queue_cleanup_failure": True,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+    except OSError as exc:
+        cleanup_complete = False
+        logger.error(
+            "Could not prepare active-learning export cleanup.",
+            extra={"legacy_queue_cleanup_failure": True, "error_type": type(exc).__name__},
+        )
+
+    result = LegacyActiveLearningCleanupResult(
+        removed_count=sum(update["removed"] for update in updates) if cleanup_complete else 0,
+        complete=cleanup_complete,
+    )
+    return LegacyActiveLearningCleanupTransaction(result, lock_stack, updates)
+
+
+def remove_legacy_active_learning_samples(
+    image_ids: list[str],
+) -> LegacyActiveLearningCleanupResult:
+    """Remove samples immediately, rolling back every export if any file fails."""
+    transaction = prepare_legacy_active_learning_cleanup(image_ids)
+    if not transaction.complete:
+        transaction.rollback()
+        return transaction.result
+    if not transaction.finalize():
+        return LegacyActiveLearningCleanupResult(
+            removed_count=transaction.result.removed_count,
+            complete=False,
+        )
+    return transaction.result
+
+
+def _active_learning_queue_file_exists(queue_path: Path) -> bool:
+    try:
+        queue_stat = os.stat(queue_path)
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISREG(queue_stat.st_mode):
+        raise OSError(errno.EINVAL, "Active-learning queue path is not a regular file")
+    return True
+
 
 
 def compute_request_hash(request: BatchReviewRequest) -> str:
@@ -52,11 +459,13 @@ def compute_request_hash(request: BatchReviewRequest) -> str:
             "prediction_id": r.prediction_id,
             "doctor_action": r.doctor_action,
             "verified_mask_rle": r.verified_mask_rle,
+            "manual_calipers": [item.model_dump() for item in r.manual_calipers],
             "clinical_notes": r.clinical_notes,
             "lesion_type": r.lesion_type,
             "orads": orads_val,
             "morphology_description": morph_desc,
             "time_spent_seconds": r.time_spent_seconds,
+            "clinician_overrides": getattr(r, "clinician_overrides", None),
             "hitl_feedback": fb if fb else None,
         })
     reviews_data.sort(key=lambda x: x["image_id"])
@@ -177,6 +586,7 @@ def persist_review_batch(
         user,
         request.lease_token,
         request.page_instance_id,
+        allow_reviewed=True,
     )
 
     # 3. Optimistic Revision Guard
@@ -217,7 +627,12 @@ def persist_review_batch(
 
     # 5. Laterality Guard
     if study.ovary_side == "UNKNOWN" and len(request.reviews) > 1:
-        raise HTTPException(status_code=422, detail="Không thể xác nhận hai bên cho ca có vị trí buồng trứng không xác định.")
+        study_lateralities = {img.laterality for img in study.images}
+        if None in study_lateralities or len(study_lateralities) > 1:
+            raise HTTPException(status_code=422, detail="Không thể xác nhận hai bên cho ca có vị trí buồng trứng không xác định.")
+
+    if not allow_partial and set(image_ids) != set(study_images):
+        raise HTTPException(status_code=422, detail="Cần rà soát từng ảnh của ca trước khi xác nhận toàn bộ khảo sát.")
 
     if study.ovary_side == "BOTH" and not allow_partial:
         reviewed_lateralities = {study_images[r.image_id].laterality for r in request.reviews}
@@ -239,6 +654,14 @@ def persist_review_batch(
         validate_review_mask(r.doctor_action, verified_mask, predicted_mask)
 
         img_rec = study_images[r.image_id]
+        source_width = img_rec.width or 512
+        source_height = img_rec.height or 512
+        for caliper in r.manual_calipers:
+            if any(
+                x >= source_width or y >= source_height
+                for x, y in caliper.points
+            ):
+                raise HTTPException(status_code=422, detail="Caliper points must lie within the source image.")
         validated_items.append((r, img_rec, pred))
 
     # 7. Atomic Execution
@@ -247,6 +670,7 @@ def persist_review_batch(
         review_summaries = []
 
         for r, img_rec, pred in validated_items:
+            calibration = get_image_calibration(img_rec)
             decoded = decode_ultrasound_image(img_rec.raw_path) if (img_rec.raw_path and os.path.isfile(img_rec.raw_path)) else None
             if decoded is not None:
                 meas = measure_source_mask(
@@ -254,12 +678,39 @@ def persist_review_batch(
                     r.verified_mask_rle,
                     image_preprocessor,
                     engine_inst,
-                    get_image_calibration(img_rec),
+                    calibration,
                 )
             else:
                 meas = {"max_diameter_mm": None, "ortho_diameter_mm": None, "total_area_cm2": None}
 
             feedback = r.hitl_feedback.model_dump() if r.hitl_feedback is not None else {}
+            # Snapshot only server-derived measurement context with the reviewed mask.
+            # Older reviews lacking this field remain explicitly unknown.
+            feedback["measurement_context"] = {
+                "version": 1,
+                "status": "AVAILABLE" if meas.get("measurement_method") else "UNAVAILABLE",
+                "warning": meas.get("warning"),
+                "exclusion_reason": meas.get("exclusion_reason"),
+                "measurement_method": meas.get("measurement_method"),
+                "diameter_reference": meas.get("diameter_reference"),
+                "calibration_source": calibration["calibration_source"],
+            }
+            manual_measurements = {}
+            if r.manual_calipers:
+                for caliper in r.manual_calipers:
+                    (x1, y1), (x2, y2) = caliper.points
+                    distance_px = math.dist((x1, y1), (x2, y2))
+                    spacing = calibration["pixel_spacing_mm"]
+                    distance_mm = distance_px * spacing if spacing is not None else None
+                    manual_measurements[caliper.label] = {
+                        "points": [list(caliper.points[0]), list(caliper.points[1])],
+                        "diameter_px": round(distance_px, 2),
+                        "diameter_mm": round(distance_mm, 2) if distance_mm is not None else None,
+                        "calibrated": distance_mm is not None,
+                        "calibration_source": calibration["calibration_source"] if distance_mm is not None else "NONE",
+                    }
+                feedback["manual_measurements"] = manual_measurements
+                feedback["manual_calipers"] = [item.model_dump() for item in r.manual_calipers]
             orads_val = getattr(r, "orads", None) or getattr(r, "orads_score", None)
             morph_desc = getattr(r, "morphology_description", None)
             if orads_val:
@@ -268,6 +719,9 @@ def persist_review_batch(
             if morph_desc:
                 feedback["morphologyDesc"] = morph_desc
                 feedback["morphology_description"] = morph_desc
+            clinician_overrides = _review_diagnosis_overrides(db, r)
+            if clinician_overrides:
+                feedback["clinician_overrides"] = clinician_overrides
             review_id = str(uuid.uuid4())
 
             review_record = ReviewModel(
@@ -277,8 +731,10 @@ def persist_review_batch(
                 doctor_id=user.username,
                 doctor_action=r.doctor_action,
                 verified_mask_rle=r.verified_mask_rle,
-                max_diameter_mm=meas["max_diameter_mm"],
-                ortho_diameter_mm=meas["ortho_diameter_mm"],
+                max_diameter_mm=(manual_measurements.get("D1", {}).get("diameter_mm")
+                                 if "D1" in manual_measurements else meas["max_diameter_mm"]),
+                ortho_diameter_mm=(manual_measurements.get("D2", {}).get("diameter_mm")
+                                   if "D2" in manual_measurements else meas["ortho_diameter_mm"]),
                 total_area_cm2=meas["total_area_cm2"],
                 lesion_type=r.lesion_type,
                 clinical_notes=r.clinical_notes,
@@ -288,6 +744,31 @@ def persist_review_batch(
                 created_at=now_utc,
             )
             db.add(review_record)
+            # The queue row has a database FK to this review; flush the parent
+            # before inserting its child while keeping both in the same transaction.
+            db.flush()
+            has_diag_override = bool(clinician_overrides)
+            if r.doctor_action == "MODIFIED" or has_diag_override:
+                db.add(
+                    ActiveLearningQueueModel(
+                        review_id=review_id,
+                        study_id=study.id,
+                        image_id=r.image_id,
+                        prediction_id=r.prediction_id,
+                        sample={
+                            "timestamp": now_utc.isoformat(),
+                            "study_id": study.id,
+                            "image_id": r.image_id,
+                            "prediction_id": r.prediction_id,
+                            "doctor_action": r.doctor_action,
+                            "lesion_type": r.lesion_type,
+                            "clinician_overrides": clinician_overrides,
+                            "verified_mask_rle": r.verified_mask_rle,
+                            "actor_id": user.username,
+                        },
+                        created_at=now_utc,
+                    )
+                )
 
             audit = AuditLogModel(
                 entity_name="doctor_reviews",
@@ -318,15 +799,14 @@ def persist_review_batch(
 
         new_revision = request.expected_revision + 1
 
-        all_reviewed_lateralities = set()
-        if study.ovary_side == "BOTH":
-            all_reviewed_lateralities = {
-                img.laterality for img in study.images
-                if img.reviews or img.id in {r.image_id for r in request.reviews}
-            }
-            new_status = "REVIEWED" if {"L", "R"}.issubset(all_reviewed_lateralities) else "PARTIALLY_REVIEWED"
-        else:
-            new_status = "REVIEWED"
+        submitted_ids = {r.image_id for r in request.reviews}
+        reviewed_ids = {img.id for img in study.images if img.reviews} | submitted_ids
+        all_images_reviewed = bool(study_images) and set(study_images).issubset(reviewed_ids)
+        reviewed_lateralities = {
+            img.laterality for img in study.images if img.id in reviewed_ids
+        }
+        sides_complete = study.ovary_side != "BOTH" or {"L", "R"}.issubset(reviewed_lateralities)
+        new_status = "REVIEWED" if all_images_reviewed and sides_complete else "PARTIALLY_REVIEWED"
 
         # Atomic conditional update claiming the expected revision
         rows_updated = db.query(StudyModel).filter(

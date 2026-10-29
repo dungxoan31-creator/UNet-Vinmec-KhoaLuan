@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -35,6 +36,38 @@ def test_dockerfile_copy_sources_exist_in_the_build_context():
 
     assert sources
     assert all((PROJECT_ROOT / source).exists() for source in sources)
+
+
+def test_http_access_logs_do_not_record_query_values():
+    dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    launcher = (PROJECT_ROOT / "scripts" / "run_prototype.ps1").read_text(encoding="utf-8")
+    nginx = (PROJECT_ROOT / "nginx.conf").read_text(encoding="utf-8")
+    isolated_server = (PROJECT_ROOT / "tests" / "serve_isolated_app.py").read_text(encoding="utf-8")
+
+    assert "--no-access-log" in dockerfile
+    assert "--no-access-log" in launcher
+    assert "access_log=False" in isolated_server
+    match = re.search(r"log_format\s+privacy_safe\s+(.+?);", nginx, re.DOTALL)
+    assert match is not None
+    log_format = match.group(1)
+    variables = set(re.findall(r"\$[A-Za-z0-9_]+", log_format))
+    assert "$uri" in variables
+    assert "$request" not in variables
+    assert "$args" not in variables
+    assert "$http_referer" not in variables
+    assert "access_log /var/log/nginx/access.log privacy_safe;" in nginx
+
+
+def test_docker_uvicorn_bind_uses_the_host_checked_by_synthetic_demo_startup():
+    dockerfile = (PROJECT_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    normalized = re.sub(r"\s+", " ", dockerfile.replace("\\\n", " "))
+    command_line = next(line.strip() for line in dockerfile.splitlines() if line.strip().startswith("CMD ["))
+    command = json.loads(command_line.removeprefix("CMD "))
+
+    assert "HOST=0.0.0.0" in normalized
+    assert command[:2] == ["sh", "-c"]
+    assert '--host "$HOST"' in command[2]
+    assert '--port "$PORT"' in command[2]
 
 
 def test_docker_image_installs_the_cpu_pytorch_pair_from_the_official_index():

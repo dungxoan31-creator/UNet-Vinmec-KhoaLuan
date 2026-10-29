@@ -22,7 +22,7 @@
 ## 3. ECC - EXPLICIT CONTEXT & CONSTRAINTS (Tuân thủ Ràng buộc & Đặc tả Miền)
 * **Không đoán mò Schema / Code Logic**: Phải kiểm tra file nguồn trực tiếp trước khi gọi API, sử dụng biến hoặc chỉnh sửa cấu trúc dữ liệu.
 * **Chuẩn hóa Tri thức Y tế**: Tuân thủ tuyệt đối các chuẩn y khoa quốc tế đã định nghĩa trong dự án (IOTA Simple Rules/ADNEX, ACR O-RADS US v2022, ISUOG morphology lexicon).
-* **Bảo toàn Phạm vi Cốt lõi (Core Scope)**: Giữ vững các cam kết nghiệp vụ: Patient-Level Data Split (chống Data Leakage), Letterbox 512×512 Resize, Combo Loss ($L_{\text{Dice}} + L_{\text{BCE}}$), và cơ chế rà soát Human-in-the-Loop (HITL).
+* **Bảo toàn Phạm vi Cốt lõi (Core Scope)**: Dùng image-level split có khử trùng lặp SHA-256 cho huấn luyện/thử nghiệm mô hình; không yêu cầu patient ID và không tạo patient ID giả. Phải ghi rõ patient-level independence chưa được xác minh, không diễn giải metric image-level thành kết quả độc lập theo bệnh nhân hoặc bằng chứng lâm sàng. Giữ Letterbox 512×512 Resize, Combo Loss ($L_{\text{Dice}} + L_{\text{BCE}}$), và cơ chế rà soát Human-in-the-Loop (HITL).
 
 ---
 

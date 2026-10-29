@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
+from backend.app.config import SYNTHETIC_DEMO_MODE
 from backend.app.security import get_current_user, require_clinical
 from backend.db.database import (
     HITLEventModel,
@@ -77,6 +78,7 @@ def create_hitl_session(
         current_user,
         lease_token,
         page_instance_id,
+        allow_reviewed=True,
     )
 
     session_id = str(uuid.uuid4())
@@ -87,8 +89,8 @@ def create_hitl_session(
         study_id=req.study_id,
         actor_id=current_user.username,
         participant_code=req.participant_code,
-        participant_role=req.participant_role,
-        data_origin=req.data_origin,
+        participant_role="technical_tester" if SYNTHETIC_DEMO_MODE else req.participant_role,
+        data_origin="demo" if SYNTHETIC_DEMO_MODE else req.data_origin,
         status="IN_PROGRESS",
         created_at=now_utc,
     )
@@ -169,13 +171,11 @@ def append_hitl_events(
         current_user,
         lease_token,
         page_instance_id,
+        allow_reviewed=True,
     )
 
     if any(event.event_type == "SESSION_ABORTED" for event in batch.events[:-1]):
         raise HTTPException(status_code=409, detail="SESSION_ABORTED must be the final event in a batch.")
-
-    # Event count boundary check: max 10,000 events per session
-    existing_count = db.query(HITLEventModel).filter(HITLEventModel.session_id == session_id).count()
 
     study_img_ids = {img.id for img in sess.study.images}
     accepted_count = 0
@@ -262,6 +262,13 @@ def append_hitl_events(
         if not write_claimed:
             _claim_hitl_session_for_append(db, sess)
             write_claimed = True
+            # Read the quota only after acquiring the session write lock. A count
+            # captured before the lock can be stale after another append commits.
+            existing_count = (
+                db.query(HITLEventModel)
+                .filter(HITLEventModel.session_id == session_id)
+                .count()
+            )
 
         # Check (session_id, task_id, seq) uniqueness against DB
         existing_seq = (
@@ -344,9 +351,10 @@ def append_hitl_events(
         db.commit()
     except IntegrityError:
         db.rollback()
-        # BE-28: Handle concurrent duplicate append gracefully without 500
-        final_duplicate_count = 0
-        final_accepted_count = 0
+        # A rolled-back batch must not be partially re-applied outside the
+        # session lock and without re-running lifecycle/quota checks. Treat an
+        # integrity error as an idempotent replay only when the full batch is
+        # already present and exactly matches the submitted events.
         for event in batch.events:
             identity_data = {
                 "event_type": event.event_type,
@@ -361,16 +369,7 @@ def append_hitl_events(
             }
             identity_hash = hashlib.sha256(json.dumps(identity_data, sort_keys=True).encode("utf-8")).hexdigest()
             existing_ev = db.query(HITLEventModel).filter(HITLEventModel.event_id == event.event_id).first()
-            if existing_ev:
-                if existing_ev.session_id != session_id or not _matches_existing_event(existing_ev, event, identity_hash):
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"Xung đột event_id {event.event_id} với dữ liệu sự kiện khác.",
-                    )
-                if existing_ev.payload_hash != identity_hash:
-                    existing_ev.payload_hash = identity_hash
-                final_duplicate_count += 1
-            else:
+            if existing_ev is None:
                 existing_seq = (
                     db.query(HITLEventModel)
                     .filter(
@@ -385,33 +384,20 @@ def append_hitl_events(
                         status_code=409,
                         detail=f"Xung đột sequence {event.seq} của task {event.task_id}.",
                     )
-                ev = HITLEventModel(
-                    id=str(uuid.uuid4()),
-                    event_id=event.event_id,
-                    session_id=session_id,
-                    task_id=event.task_id,
-                    image_id=event.image_id,
-                    prediction_id=event.prediction_id,
-                    seq=event.seq,
-                    event_type=event.event_type,
-                    client_utc=event.client_utc,
-                    elapsed_ms=event.elapsed_ms,
-                    session_elapsed_ms=event.session_elapsed_ms,
-                    payload_hash=identity_hash,
-                    payload=event.payload,
-                    actor_id=current_user.username,
-                    received_at=now_utc,
+                raise HTTPException(
+                    status_code=409,
+                    detail="Batch sự kiện chưa được xác nhận là đã lưu; gửi lại nguyên batch để thử lại.",
                 )
-                db.add(ev)
-                final_accepted_count += 1
-
-        if final_accepted_count > 0:
-            db.commit()
+            if existing_ev.session_id != session_id or not _matches_existing_event(existing_ev, event, identity_hash):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Xung đột event_id {event.event_id} với dữ liệu sự kiện khác.",
+                )
 
         return {
             "status": "SUCCESS",
-            "accepted_count": final_accepted_count,
-            "duplicate_count": final_duplicate_count,
+            "accepted_count": 0,
+            "duplicate_count": len(batch.events),
         }
 
     return {
@@ -463,7 +449,20 @@ def ingest_ui_events(
     """
     now_utc = datetime.now(UTC)
     records = []
+    case_ids = {item.case_id for item in batch.events if item.case_id}
+    existing_case_ids = set()
+    if case_ids:
+        existing_case_ids = {
+            row[0]
+            for row in db.query(StudyModel.id).filter(StudyModel.id.in_(case_ids)).all()
+        }
+    discarded_unknown_case = 0
     for item in batch.events:
+        if item.case_id and item.case_id not in existing_case_ids:
+            # A buffered browser batch can arrive after an admin has deleted its
+            # case. Drop stale events instead of returning a database FK 500.
+            discarded_unknown_case += 1
+            continue
         record = UIEventModel(
             id=str(uuid.uuid4()),
             case_id=item.case_id,
@@ -479,4 +478,8 @@ def ingest_ui_events(
         db.add_all(records)
         db.commit()
 
-    return {"status": "SUCCESS", "received": len(records)}
+    return {
+        "status": "SUCCESS",
+        "received": len(records),
+        "discarded_unknown_case": discarded_unknown_case,
+    }

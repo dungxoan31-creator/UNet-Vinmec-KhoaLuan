@@ -1,8 +1,8 @@
 import csv
 import json
-from urllib.parse import quote
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
@@ -154,83 +154,56 @@ def _write_current_run_pointer(evaluation_root, summary_path):
     return pointer
 
 
-def test_workstation_bundle_rejects_dataset_paths_outside_project_root(
-    tmp_path, monkeypatch, doctor_access
-):
+def test_sample_source_resolver_rejects_paths_outside_project_root(tmp_path, monkeypatch):
     project = tmp_path / "project"
     project.mkdir()
     (tmp_path / "outside.jpg").write_bytes(b"private image bytes")
     (tmp_path / "outside.png").write_bytes(b"private mask bytes")
-    index = tmp_path / "samples.csv"
-    _write_sample_index(
-        index,
-        case_id="fixture-case",
-        image_path="../outside.jpg",
-        mask_path="../outside.png",
-    )
     monkeypatch.setattr(evaluation, "BASE_DIR", str(project))
-    monkeypatch.setattr(evaluation, "PER_IMAGE_CSV_PATH", str(index))
-    monkeypatch.setattr(evaluation, "PRED_MASKS_DIR", str(project / "predictions"))
-
-    with TestClient(app) as client:
-        response = client.get("/api/evaluation/samples/fixture-case/workstation-bundle")
-
-    assert response.status_code == 404
+    with pytest.raises(HTTPException) as error:
+        evaluation._resolve_sample_source("../outside.jpg")
+    assert error.value.status_code == 404
 
 
-def test_workstation_bundle_rejects_project_files_outside_dataset_root(
-    tmp_path, monkeypatch, doctor_access
-):
+def test_sample_source_resolver_rejects_project_files_outside_dataset_root(tmp_path, monkeypatch):
     project = tmp_path / "project"
     private_file = project / "backend" / ".env"
     private_file.parent.mkdir(parents=True)
     private_file.write_text("private configuration", encoding="utf-8")
-    index = tmp_path / "samples.csv"
-    _write_sample_index(
-        index,
-        case_id="fixture-case",
-        image_path="backend/.env",
-        mask_path="dataset/mask.png",
-    )
     monkeypatch.setattr(evaluation, "BASE_DIR", str(project))
-    monkeypatch.setattr(evaluation, "PER_IMAGE_CSV_PATH", str(index))
-    monkeypatch.setattr(evaluation, "PRED_MASKS_DIR", str(project / "predictions"))
-
-    with TestClient(app) as client:
-        response = client.get("/api/evaluation/samples/fixture-case/workstation-bundle")
-
-    assert response.status_code == 404
+    with pytest.raises(HTTPException) as error:
+        evaluation._resolve_sample_source("backend/.env")
+    assert error.value.status_code == 404
 
 
-def test_prediction_download_rejects_traversal_in_case_id(
-    tmp_path, monkeypatch, doctor_access
-):
+def test_prediction_mask_resolver_rejects_traversal_in_case_id(tmp_path, monkeypatch):
     project = tmp_path / "project"
     prediction_dir = project / "evaluation" / "predictions"
     prediction_dir.mkdir(parents=True)
     (project / "evaluation" / "outside.png").write_bytes(b"private prediction bytes")
-    dataset = project / "dataset"
-    dataset.mkdir()
-    (dataset / "image.jpg").write_bytes(b"image")
-    (dataset / "mask.png").write_bytes(b"mask")
-    case_id = "..\\outside"
-    index = tmp_path / "samples.csv"
-    _write_sample_index(
-        index,
-        case_id=case_id,
-        image_path="dataset/image.jpg",
-        mask_path="dataset/mask.png",
-    )
     monkeypatch.setattr(evaluation, "BASE_DIR", str(project))
-    monkeypatch.setattr(evaluation, "PER_IMAGE_CSV_PATH", str(index))
     monkeypatch.setattr(evaluation, "PRED_MASKS_DIR", str(prediction_dir))
+    with pytest.raises(HTTPException) as error:
+        evaluation._resolve_prediction_mask("..\\outside")
+    assert error.value.status_code == 404
 
-    with TestClient(app) as client:
-        response = client.get(
-            f"/api/evaluation/samples/{quote(case_id, safe='')}/download/prediction"
+
+def test_sample_source_resolver_does_not_alias_missing_legacy_source_to_other_dataset(
+    tmp_path, monkeypatch
+):
+    project = tmp_path / "project"
+    relocated = project / "dataset" / "2d" / "images" / "sample.jpg"
+    relocated.parent.mkdir(parents=True)
+    relocated.write_bytes(b"different dataset image")
+    monkeypatch.setattr(evaluation, "BASE_DIR", str(project))
+
+    with pytest.raises(HTTPException) as error:
+        evaluation._resolve_sample_source(
+            "dataset/Vinmec_2D/train/train_image/sample.jpg"
         )
 
-    assert response.status_code == 404
+    assert error.value.status_code == 503
+    assert error.value.detail == "Evaluation sample source files are unavailable."
 
 
 def test_metrics_does_not_read_summary_outside_evaluation_root(
@@ -379,10 +352,9 @@ def test_evaluation_samples_reject_malformed_metrics_and_counts(
     )
     monkeypatch.setattr(evaluation, "PER_IMAGE_CSV_PATH", str(index))
 
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/api/evaluation/samples")
-
-    assert response.status_code == 503
+    with pytest.raises(HTTPException) as error:
+        evaluation._read_evaluation_sample_rows()
+    assert error.value.status_code == 503
 
 
 def test_evaluation_samples_reject_missing_metric_columns(
@@ -398,13 +370,12 @@ def test_evaluation_samples_reject_missing_metric_columns(
     )
     monkeypatch.setattr(evaluation, "PER_IMAGE_CSV_PATH", str(index))
 
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get("/api/evaluation/samples")
+    with pytest.raises(HTTPException) as error:
+        evaluation._read_evaluation_sample_rows()
+    assert error.value.status_code == 503
 
-    assert response.status_code == 503
 
-
-def test_evaluation_sample_list_fails_closed_when_source_data_is_not_mounted(
+def test_evaluation_sample_list_fails_closed_when_provenance_is_unverified(
     tmp_path, monkeypatch, doctor_access
 ):
     project = tmp_path / "project"
@@ -423,7 +394,7 @@ def test_evaluation_sample_list_fails_closed_when_source_data_is_not_mounted(
         response = client.get("/api/evaluation/samples")
 
     assert response.status_code == 503
-    assert response.json()["detail"] == "Evaluation sample source files are unavailable."
+    assert "provenance" in response.json()["detail"].lower()
 
 
 def test_workstation_bundle_rejects_out_of_range_benchmark_metric(
@@ -446,12 +417,9 @@ def test_workstation_bundle_rejects_out_of_range_benchmark_metric(
     monkeypatch.setattr(evaluation, "PER_IMAGE_CSV_PATH", str(index))
     monkeypatch.setattr(evaluation, "PRED_MASKS_DIR", str(project / "predictions"))
 
-    with TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get(
-            "/api/evaluation/samples/fixture-case/workstation-bundle"
-        )
-
-    assert response.status_code == 503
+    with pytest.raises(HTTPException) as error:
+        evaluation._read_evaluation_sample_rows()
+    assert error.value.status_code == 503
 
 
 @pytest.mark.parametrize(
@@ -469,13 +437,19 @@ def test_workstation_bundle_rejects_out_of_range_benchmark_metric(
         ("test", '{"mean_per_image":{"dice":-0.1}}'),
     ],
 )
-def test_metrics_fail_closed_on_malformed_summary_artifacts(
+def test_metrics_withhold_legacy_values_without_reading_archive_artifacts(
     tmp_path, monkeypatch, doctor_access, artifact, payload
 ):
     files = _write_metrics_fixture(tmp_path, monkeypatch)
     files[artifact].write_text(payload, encoding="utf-8")
 
-    with TestClient(app, raise_server_exceptions=False) as client:
+    with TestClient(app) as client:
         response = client.get("/api/evaluation/metrics")
 
-    assert response.status_code == 503
+    assert response.status_code == 200
+    result = response.json()
+    assert result["archived_split_status"]["status"] == "BLOCKED"
+    assert result["validation"]["count"] is None
+    assert result["validation"]["dice_mean"] is None
+    assert result["test"]["count"] is None
+    assert result["test"]["dice_mean"] is None

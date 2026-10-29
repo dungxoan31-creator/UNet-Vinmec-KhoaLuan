@@ -8,8 +8,7 @@ Supported Datasets:
 5. PCOSGen (Polycystic Ovary Syndrome 4,668 images)
 
 Clinical Integrity:
-- Keeps Physiological Follicles (<30mm / PCOS) mapped to O-RADS 1.
-- Keeps Neoplastic Lesions (MMOTU, OvaTUS) mapped to O-RADS 2-5 segmentation targets.
+- Does not infer lesion type or O-RADS category from a dataset name or mask alone.
 - Preserves zero-leakage isolation from the local Vinmec benchmark cohort.
 """
 
@@ -41,25 +40,25 @@ class ExternalDatasetConfig:
     modality: str  # e.g., "2D B-Mode", "CEUS", "Multi-Modal"
     has_pixel_masks: bool
     clinical_focus: ClinicalCategory
-    default_orads_tier: int  # 1 for follicles/normal, 2-5 for tumors
+    default_orads_tier: int | None  # None means no per-sample O-RADS evidence is available
 
 
 SUPPORTED_EXTERNAL_DATASETS = {
     "mmotu": ExternalDatasetConfig(
         name="MMOTU",
-        citation_source="Li et al., 2022 (PubMed Central / Springer)",
-        modality="2D B-Mode + CEUS",
+        citation_source="Zhao et al., 2022 (arXiv:2207.06799); official MMOTU dataset",
+        modality="2D ultrasound (B-mode and color Doppler images)",
         has_pixel_masks=True,
-        clinical_focus=ClinicalCategory.BENIGN_NEOPLASM,
-        default_orads_tier=2,
+        clinical_focus=ClinicalCategory.UNSPECIFIED_LESION,
+        default_orads_tier=None,
     ),
     "ovatus": ExternalDatasetConfig(
         name="OvaTUS",
         citation_source="Sigmlab & Bệnh viện Phụ sản Trung ương (Hà Nội)",
         modality="2D B-Mode",
         has_pixel_masks=True,
-        clinical_focus=ClinicalCategory.BENIGN_NEOPLASM,
-        default_orads_tier=2,
+        clinical_focus=ClinicalCategory.UNSPECIFIED_LESION,
+        default_orads_tier=None,
     ),
     "shaun_spinelli_otu": ExternalDatasetConfig(
         name="ShaunSpinelli/OTU_2D",
@@ -67,7 +66,7 @@ SUPPORTED_EXTERNAL_DATASETS = {
         modality="2D B-Mode",
         has_pixel_masks=True,
         clinical_focus=ClinicalCategory.UNSPECIFIED_LESION,
-        default_orads_tier=2,
+        default_orads_tier=None,
     ),
     "hanan_saadat": ExternalDatasetConfig(
         name="HananSaadat/ovarian_ultrasound_dataset",
@@ -75,7 +74,7 @@ SUPPORTED_EXTERNAL_DATASETS = {
         modality="2D B-Mode",
         has_pixel_masks=False,
         clinical_focus=ClinicalCategory.NORMAL_PHYSIOLOGICAL,
-        default_orads_tier=1,
+        default_orads_tier=None,
     ),
     "pcosgen": ExternalDatasetConfig(
         name="PCOSGen",
@@ -83,7 +82,7 @@ SUPPORTED_EXTERNAL_DATASETS = {
         modality="2D B-Mode",
         has_pixel_masks=False,
         clinical_focus=ClinicalCategory.NORMAL_PHYSIOLOGICAL,
-        default_orads_tier=1,
+        default_orads_tier=None,
     ),
 }
 
@@ -151,6 +150,7 @@ class ExternalUltrasoundAdapter(Dataset):
             "dataset_name": self.config.name,
             "clinical_focus": self.config.clinical_focus.value,
             "orads_tier": item.get("orads_tier", self.config.default_orads_tier),
-            "label": item.get("label", "normal" if self.config.default_orads_tier == 1 else "neoplasm"),
+            "label": item.get("global_category", item.get("label")),
+            "global_category_id": item.get("global_category_id"),
             "image_id": item.get("sample_id", Path(image_path).stem),
         }

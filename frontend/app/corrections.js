@@ -1,4 +1,4 @@
-import { state } from "./state.js";
+import { state, setBusy } from "./state.js";
 import { request } from "./api.js";
 import { encode } from "./coordinates.js";
 
@@ -27,7 +27,7 @@ export async function saveCorrection() {
     !state.editing.allowed
   )
     return;
-  state.busy = true;
+  setBusy(true);
   const operation = Symbol();
   state.operation = operation;
   try {
@@ -59,7 +59,7 @@ export async function saveCorrection() {
     toast(e.message, true);
   } finally {
     if (state.operation === operation) {
-      state.busy = false;
+      setBusy(false);
       state.operation = null;
     }
   }

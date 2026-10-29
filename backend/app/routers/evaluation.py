@@ -16,10 +16,18 @@ import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 
+from backend.app.config import SYNTHETIC_DEMO_MODE
 from backend.app.security import require_clinical
-from backend.core.dataset_paths import resolve_dataset_path
 
 router = APIRouter()
+
+
+def _deny_benchmark_sample_access_in_synthetic_demo():
+    if SYNTHETIC_DEMO_MODE:
+        raise HTTPException(
+            status_code=403,
+            detail="Benchmark case images are unavailable in synthetic-only demo mode.",
+        )
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 VAL_SUMMARY_PATH = os.path.join(BASE_DIR, "evaluation", "archive", "retrain_2d_2026-10-03", "validation", "summary.json")
@@ -35,6 +43,26 @@ EVALUATION_SAMPLE_COUNT_FIELDS = ("tp", "fp", "fn", "tn")
 EVALUATION_SAMPLE_REQUIRED_FIELDS = frozenset(
     ("case_id", "image_path", "mask_path", *EVALUATION_SAMPLE_METRIC_FIELDS, *EVALUATION_SAMPLE_COUNT_FIELDS)
 )
+LEGACY_ARCHIVE_BLOCK_REASON = (
+    "Legacy evaluation provenance is unverified; archived metrics and samples are withheld."
+)
+
+
+def _legacy_archive_status() -> dict[str, Any]:
+    """Keep the pre-v2 archive unavailable until its source chain is reviewed and bound."""
+    return {
+        "status": "BLOCKED",
+        "metrics_available": False,
+        "samples_available": False,
+        "manifest_available": Path(SPLIT_MANIFEST_PATH).is_file(),
+        "reason": LEGACY_ARCHIVE_BLOCK_REASON,
+    }
+
+
+def _require_legacy_archive_available() -> None:
+    status = _legacy_archive_status()
+    if status["status"] != "AVAILABLE":
+        raise HTTPException(status_code=503, detail=status["reason"])
 
 
 def _read_file_b64(path: str) -> str:
@@ -70,7 +98,7 @@ def _resolve_sample_source(recorded_path: str) -> Path:
     ):
         raise HTTPException(status_code=404, detail="Evaluation artifact not accessible.")
 
-    resolved = _resolve_project_artifact(resolve_dataset_path(Path(BASE_DIR), normalized))
+    resolved = _resolve_project_artifact(Path(BASE_DIR) / relative)
     dataset_root = (Path(BASE_DIR) / "dataset").resolve()
     try:
         resolved.relative_to(dataset_root)
@@ -116,48 +144,6 @@ def _resolve_prediction_mask(case_id: str) -> Path:
 
 def _reject_nonfinite_json_constant(value: str):
     raise ValueError(f"Non-finite JSON constant: {value}")
-
-
-def _read_json_object(path: str) -> dict[str, Any]:
-    if not os.path.isfile(path):
-        return {}
-    try:
-        with open(path, encoding="utf-8") as source:
-            value = json.load(source, parse_constant=_reject_nonfinite_json_constant)
-    except (OSError, RecursionError, UnicodeError, ValueError) as exc:
-        raise HTTPException(status_code=503, detail="Evaluation metrics artifacts are invalid.") from exc
-    if not isinstance(value, dict):
-        raise HTTPException(status_code=503, detail="Evaluation metrics artifacts are invalid.")
-    return value
-
-
-def _read_object_field(source: dict[str, Any], field: str) -> dict[str, Any]:
-    value = source.get(field, {})
-    if not isinstance(value, dict):
-        raise HTTPException(status_code=503, detail="Evaluation metrics artifacts are invalid.")
-    return value
-
-
-def _validate_optional_metrics(source: dict[str, Any], fields: tuple[str, ...]):
-    for field in fields:
-        value = source.get(field)
-        if value is None:
-            continue
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise HTTPException(status_code=503, detail="Evaluation metrics artifacts are invalid.")
-        try:
-            valid = math.isfinite(value) and 0.0 <= value <= 1.0
-        except OverflowError:
-            valid = False
-        if not valid:
-            raise HTTPException(status_code=503, detail="Evaluation metrics artifacts are invalid.")
-
-
-def _validate_optional_counts(source: dict[str, Any], fields: tuple[str, ...]):
-    for field in fields:
-        value = source.get(field)
-        if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
-            raise HTTPException(status_code=503, detail="Evaluation metrics artifacts are invalid.")
 
 
 def _validate_current_run_summary(pointer: dict[str, Any], summary: dict[str, Any]):
@@ -251,28 +237,8 @@ def _validate_current_run_summary(pointer: dict[str, Any], summary: dict[str, An
 @router.get("/metrics")
 def get_evaluation_metrics():
     """
-    Returns train, validation, and test dataset scientific metrics.
+    Returns the current run plus an explicit blocked state for the unverified legacy archive.
     """
-    val_data = _read_json_object(VAL_SUMMARY_PATH)
-    test_data = _read_json_object(TEST_METRICS_PATH)
-    split_manifest = _read_json_object(SPLIT_MANIFEST_PATH)
-    val_clin = _read_object_field(val_data, "clinical_summary")
-    test_metrics = _read_object_field(test_data, "mean_per_image")
-    split_counts = _read_object_field(split_manifest, "counts")
-    _validate_optional_metrics(
-        val_data, ("dice_mean_all_cases", "iou_mean_all_cases", "recall_mean_all_cases")
-    )
-    _validate_optional_metrics(
-        val_clin,
-        ("foreground_dice_std", "foreground_iou_std", "precision_mean", "specificity_all_cases"),
-    )
-    _validate_optional_metrics(
-        test_metrics,
-        ("dice", "iou", "recall", "precision", "specificity_background_pixels", "specificity_normal_cases"),
-    )
-    _validate_optional_counts(val_data, ("count",))
-    _validate_optional_counts(test_data, ("test_count",))
-    _validate_optional_counts(split_counts, ("train",))
     # Expose pointer availability separately so a stale pointer cannot imply a completed run.
     current_run = None
     current_run_status = {
@@ -280,7 +246,9 @@ def get_evaluation_metrics():
         "status": "NO_POINTER",
         "artifact_available": False,
     }
-    if os.path.exists(CURRENT_RUN_PATH):
+    if SYNTHETIC_DEMO_MODE:
+        current_run_status["status"] = "SYNTHETIC_DEMO_BLOCKED"
+    elif os.path.exists(CURRENT_RUN_PATH):
         current_run_status["status"] = "INVALID_POINTER"
         try:
             with open(CURRENT_RUN_PATH, encoding="utf-8") as f:
@@ -360,39 +328,40 @@ def get_evaluation_metrics():
 
     return {
         "schema_version": 2,
+        "archived_split_status": _legacy_archive_status(),
         "train": {
-            "count": split_counts.get("train"),
-            "dataset": "Vinmec 2D retraining split; source patient IDs unavailable",
-            "loss_function": "0.5 BCE + 0.5 Dice",
+            "count": None,
+            "dataset": "Historical archive (source provenance unverified)",
+            "loss_function": None,
         },
         "validation": {
-            "count": val_data.get("count"),
-            "dice_mean": val_data.get("dice_mean_all_cases"),
-            "dice_std": val_clin.get("foreground_dice_std"),
-            "iou_mean": val_data.get("iou_mean_all_cases"),
-            "iou_std": val_clin.get("foreground_iou_std"),
-            "recall_mean": val_data.get("recall_mean_all_cases"),
-            "precision_mean": val_clin.get("precision_mean"),
-            "specificity": val_clin.get("specificity_all_cases"),
-            "checkpoint_sha256": val_data.get("checkpoint_sha256"),
+            "count": None,
+            "dice_mean": None,
+            "dice_std": None,
+            "iou_mean": None,
+            "iou_std": None,
+            "recall_mean": None,
+            "precision_mean": None,
+            "specificity": None,
+            "checkpoint_sha256": None,
+            "dataset": "Historical archive (source provenance unverified)",
         },
         "test": {
-            "count": test_data.get("test_count"),
-            "dice_mean": test_metrics.get("dice"),
-            "iou_mean": test_metrics.get("iou"),
-            "recall_mean": test_metrics.get("recall"),
-            "precision_mean": test_metrics.get("precision"),
-            "specificity": test_metrics.get("specificity_background_pixels"),
-            "specificity_normal_cases": test_metrics.get("specificity_normal_cases"),
-            "checkpoint_sha256": test_data.get("checkpoint_sha256"),
-            "patient_level_independence_verified": test_data.get("patient_level_independence_verified", False),
-            "dataset": "Vinmec 2D source Test; image-level evidence",
+            "count": None,
+            "dice_mean": None,
+            "iou_mean": None,
+            "recall_mean": None,
+            "precision_mean": None,
+            "specificity": None,
+            "specificity_normal_cases": None,
+            "checkpoint_sha256": None,
+            "patient_level_independence_verified": False,
+            "dataset": "Historical archive (source provenance unverified)",
         },
         "current_run": current_run,
         "current_run_status": current_run_status,
         "historical_runs": {
-            "validation_2026-10-03": {"count": val_data.get("count"), "dice_mean": val_data.get("dice_mean_all_cases")},
-            "test_2026-10-03": {"count": test_data.get("test_count"), "dice_mean": test_metrics.get("dice")},
+            "status": "BLOCKED",
         },
         "evidence_status": evidence_status,
     }
@@ -445,7 +414,10 @@ def _read_evaluation_sample_rows() -> list[dict[str, Any]] | None:
     return rows
 
 
-@router.get("/samples", dependencies=[Depends(require_clinical)])
+@router.get(
+    "/samples",
+    dependencies=[Depends(require_clinical), Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
+)
 def get_evaluation_samples(
     category: str | None = None,
     limit: int = Query(default=100, ge=1, le=200),
@@ -454,6 +426,7 @@ def get_evaluation_samples(
     """
     Returns list of validation benchmark samples with failure categories.
     """
+    _require_legacy_archive_available()
     rows = _read_evaluation_sample_rows()
     if rows is None:
         return []
@@ -504,11 +477,15 @@ def get_evaluation_samples(
     return page_samples
 
 
-@router.get("/samples/{case_id}/workstation-bundle", dependencies=[Depends(require_clinical)])
+@router.get(
+    "/samples/{case_id}/workstation-bundle",
+    dependencies=[Depends(require_clinical), Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
+)
 def get_sample_workstation_bundle(case_id: str):
     """
     Loads complete bundle for a benchmark sample to render in the Doctor Workstation.
     """
+    _require_legacy_archive_available()
     rows = _read_evaluation_sample_rows()
     if rows is None:
         raise HTTPException(status_code=404, detail="Dataset evaluation records not found.")
@@ -556,12 +533,15 @@ def get_sample_workstation_bundle(case_id: str):
         "provenance": {
             "model_name": "Standard U-Net (Baseline)",
             "checkpoint_sha256": "5e14be07240966f74de91d3467edbf88a08ca07b6577081787c6abd6dede494e",
-            "dataset_source": "Vinmec 2D Validation; source patient IDs unavailable",
+            "dataset_source": "Historical archive; source provenance unverified",
         },
     }
 
 
-@router.get("/samples/{case_id}/download/{artifact_type}", dependencies=[Depends(require_clinical)])
+@router.get(
+    "/samples/{case_id}/download/{artifact_type}",
+    dependencies=[Depends(require_clinical), Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
+)
 def download_evaluation_artifact(case_id: str, artifact_type: str):
     """
     UC-75: Download specific evaluation artifact (image, ground_truth, prediction, overlay).
@@ -574,6 +554,7 @@ def download_evaluation_artifact(case_id: str, artifact_type: str):
             detail=f"Loại artifact '{artifact_type}' không hợp lệ. Chọn một trong: {', '.join(sorted(valid_types))}",
         )
 
+    _require_legacy_archive_available()
     rows = _read_evaluation_sample_rows()
     if rows is None:
         raise HTTPException(status_code=404, detail="Dataset evaluation records not found.")

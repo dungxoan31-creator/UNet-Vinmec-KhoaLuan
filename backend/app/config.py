@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 
+from backend.core.synthetic_demo import load_synthetic_demo_configuration
 from backend.services.model_service import ModelRegistry
 from backend.services.preprocessor import UltrasoundPreprocessor
 from backend.services.report_generator import MedicalReportGenerator
@@ -24,6 +25,10 @@ else:
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
 FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
+SYNTHETIC_DEMO_MODE, SYNTHETIC_DEMO_ALLOWED_UPLOAD_SHA256 = load_synthetic_demo_configuration(
+    PROJECT_ROOT,
+    DATA_DIR,
+)
 # The active checkpoint is selected by the manifest below and hash-verified before loading.
 
 
@@ -63,7 +68,7 @@ os.makedirs(FRONTEND_DIR, exist_ok=True)
 # Product identity
 SYSTEM_NAME = "Hệ thống Hỗ trợ Phân đoạn Siêu âm Buồng trứng Human-in-the-Loop"
 SYSTEM_ENVIRONMENT = os.environ.get("APP_ENVIRONMENT", "LOCAL")
-CLINICAL_FACILITY = "Bệnh viện Đa khoa Quốc tế Vinmec Times City"
+CLINICAL_FACILITY = "Chưa cấu hình cơ sở"
 DISCLAIMER = (
     "Hệ thống hỗ trợ phân đoạn đường viền và đo lường kích thước tổn thương buồng trứng (Caliper/Area), "
     "không thay thế chẩn đoán chuyên môn của bác sĩ. Kết quả cần được bác sĩ rà soát và xác nhận."

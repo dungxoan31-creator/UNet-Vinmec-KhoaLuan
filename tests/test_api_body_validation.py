@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -195,6 +196,30 @@ def test_candidate_metadata_can_be_removed_but_serving_models_are_protected(auth
     assert protected.status_code == 409
 
 
+def test_case_creation_accepts_explicit_surgically_absent_contralateral(authenticated_api):
+    from fastapi.testclient import TestClient
+
+    client, engine, _, doctor = authenticated_api
+    with TestClient(app) as strict_client:
+        response = strict_client.post(
+            "/api/cases",
+            headers={**doctor, "Idempotency-Key": str(uuid4())},
+            json={
+                "patient_id": "SYNTHETIC-UNILATERAL-001",
+                "study_date": "2026-10-27",
+                "active_ovary_side": "LEFT",
+                "contralateral_status": "SURGICALLY_ABSENT",
+            },
+        )
+    assert response.status_code == 200, response.text
+    assert response.json()["ovary_side"] == "LEFT"
+    assert response.json()["contralateral_status"] == "SURGICALLY_ABSENT"
+    with Session(engine) as db:
+        study = db.get(StudyModel, response.json()["study_id"])
+        assert study.ovary_side == "LEFT"
+        assert study.contralateral_status == "SURGICALLY_ABSENT"
+
+
 @pytest.mark.parametrize("unsupported_role", ["TK", "SECRETARY"])
 @pytest.mark.parametrize("operation", ["create", "update"])
 def test_admin_cannot_assign_roles_without_an_active_api_boundary(
@@ -226,13 +251,95 @@ def test_admin_cannot_assign_roles_without_an_active_api_boundary(
     "path",
     ["/api/cases", "/api/workspace/cases"],
 )
-@pytest.mark.parametrize("query", ["limit=0", "limit=101", "offset=-1", "offset=10001"])
+@pytest.mark.parametrize("query", ["limit=0", "limit=101", "offset=-1"])
 def test_case_list_rejects_out_of_range_pagination(authenticated_api, path, query):
     client, _, _, doctor = authenticated_api
 
     response = client.get(f"{path}?{query}", headers=doctor)
 
     assert response.status_code == 422
+
+
+def test_case_history_offset_is_not_capped_at_ten_thousand(authenticated_api):
+    client, _, _, doctor = authenticated_api
+
+    for path in ("/api/cases", "/api/workspace/cases"):
+        response = client.get(f"{path}?limit=10&offset=10001", headers=doctor)
+        assert response.status_code == 200, response.text
+        assert response.json() == []
+
+
+def test_workspace_search_returns_total_and_applies_stable_server_sort(authenticated_api):
+    client, engine, _, doctor = authenticated_api
+    case_values = [
+        ("worklist-a", "WORKLIST-A", "ANALYZED", "2026-10-20"),
+        ("worklist-b", "WORKLIST-B", "PENDING", "2026-10-22"),
+        ("worklist-c", "WORKLIST-C", "REVIEWED", "2026-10-21"),
+        ("worklist-d", "WORKLIST-D", "PARTIALLY_REVIEWED", "2026-10-23"),
+    ]
+    with Session(engine) as db:
+        for patient_id, study_code, status, study_date in case_values:
+            db.add(
+                PatientModel(
+                    id=f"patient-{patient_id}",
+                    anonymized_pid=f"PID-{patient_id}",
+                )
+            )
+            db.add(
+                StudyModel(
+                    id=patient_id,
+                    patient_id=f"patient-{patient_id}",
+                    study_code=study_code,
+                    status=status,
+                    study_date=study_date,
+                )
+            )
+        db.commit()
+
+    response = client.post(
+        "/api/workspace/cases/search",
+        headers=doctor,
+        json={
+            "limit": 2,
+            "offset": 1,
+            "sort": "status",
+            "direction": "asc",
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total"] == 4
+    assert len(body["items"]) == 2
+    assert [item["status"] for item in body["items"]] == [
+        "PARTIALLY_REVIEWED",
+        "PENDING",
+    ]
+
+    patient_response = client.post(
+        "/api/workspace/cases/search",
+        headers=doctor,
+        json={"patient_id": "PID-worklist-b", "limit": 10},
+    )
+    assert patient_response.status_code == 200, patient_response.text
+    assert patient_response.json()["total"] == 1
+    assert patient_response.json()["items"][0]["study_id"] == "worklist-b"
+
+    summary_response = client.get(
+        "/api/workspace/dashboard/summary?date=2026-10-20&queue=doctor",
+        headers=doctor,
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["counts"]["today"] == 1
+    assert summary["counts"]["pending"] == 4
+    assert "rejected" not in summary["counts"]
+    assert {item["study_id"] for item in summary["items"]} == {
+        "worklist-a",
+        "worklist-b",
+        "worklist-c",
+        "worklist-d",
+    }
 
 
 def test_case_list_defaults_to_bounded_pages_and_supports_offsets(authenticated_api):
@@ -313,6 +420,33 @@ def test_admin_configuration_is_not_updated_when_atomic_save_fails(authenticated
     assert settings.status_code == department.status_code == 500
     assert admin_router._ADMIN_SETTINGS == previous_settings
     assert admin_router._DEPARTMENTS == previous_departments
+
+
+def test_admin_facility_defaults_are_neutral_until_explicitly_configured(
+    authenticated_api, monkeypatch, tmp_path,
+):
+    client, _engine, admin, _doctor = authenticated_api
+    from backend.app.routers import admin as admin_router
+
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(admin_router, "_ADMIN_SETTINGS", dict(admin_router._DEFAULT_ADMIN_SETTINGS))
+
+    defaults = client.get("/api/admin/settings", headers=admin)
+    assert defaults.status_code == 200
+    assert defaults.json()["hospital_name"] == "Chưa cấu hình"
+    assert defaults.json()["report_header"] == "BẢN NGHIÊN CỨU RUO · CHƯA CẤU HÌNH CƠ SỞ"
+    metadata = client.get("/api/admin/metadata", headers=admin)
+    assert metadata.status_code == 200
+    assert metadata.json()["hospital_name"] == "Chưa cấu hình"
+
+    configured = client.put(
+        "/api/admin/settings",
+        headers=admin,
+        json={"hospital_name": "Approved Demo Site", "report_header": "APPROVED DEMO SITE"},
+    )
+    assert configured.status_code == 200, configured.text
+    assert configured.json()["settings"]["hospital_name"] == "Approved Demo Site"
+    assert configured.json()["settings"]["report_header"] == "APPROVED DEMO SITE"
 
 
 def test_department_codes_are_unique_and_missing_delete_is_404(authenticated_api):

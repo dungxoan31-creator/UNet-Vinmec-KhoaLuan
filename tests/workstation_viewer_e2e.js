@@ -6,6 +6,7 @@ const path = require("node:path");
 const net = require("node:net");
 const { spawn } = require("node:child_process");
 const { chromium } = require(process.env.PLAYWRIGHT_CORE_PATH || "playwright-core");
+const { ensureSyntheticFixtures } = require("./helpers/synthetic_fixtures.cjs");
 
 const root = path.resolve(__dirname, "..");
 const caseId = "synthetic-ui-e2e-study";
@@ -18,7 +19,9 @@ const chromePath = process.env.CHROME_PATH ||
   (process.platform === "win32"
     ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
     : undefined);
-let syntheticPng = "";
+const syntheticPng = "data:image/png;base64," + fs.readFileSync(ensureSyntheticFixtures().left).toString("base64");
+const syntheticLetterboxPng = "data:image/png;base64," + fs.readFileSync(ensureSyntheticFixtures().letterbox).toString("base64");
+const syntheticColorDopplerPng = fs.readFileSync(ensureSyntheticFixtures().colorDoppler);
 const calls = { measurements: [], calibrations: [], adnex: [], candidates: [], hitlEvents: [], mockedWrites: [], blockedWrites: [] };
 const reviewBatchGate = {
   enabled: false,
@@ -28,9 +31,48 @@ const reviewBatchGate = {
   release: null,
   payload: null,
 };
+
+function waitForChildExit(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(child.exitCode !== null || child.signalCode !== null);
+    }, timeoutMs);
+    child.once("exit", onExit);
+  });
+}
+
+async function stopChild(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = waitForChildExit(child, 3000);
+  child.kill();
+  if (await exited) return;
+  const forceExited = waitForChildExit(child, 3000);
+  child.kill("SIGKILL");
+  if (!(await forceExited)) throw new Error("Workstation E2E server did not exit; runtime data was retained.");
+}
+
+function removeRuntime(runtime) {
+  const absolute = path.resolve(runtime);
+  const tempRoot = path.resolve(os.tmpdir());
+  const relative = path.relative(tempRoot, absolute);
+  if (path.isAbsolute(relative) || relative.startsWith("..") || path.dirname(relative) !== "." ||
+      !path.basename(absolute).startsWith("clinical-workstation-e2e-")) {
+    throw new Error("Refusing to remove a runtime outside the exact workstation E2E temp directory.");
+  }
+  fs.rmSync(absolute, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+  if (fs.existsSync(absolute)) throw new Error("Workstation E2E runtime remains after cleanup.");
+}
 const errors = [];
 const apiTrace = [];
 const calibratedImages = new Set();
+let rejectNextCalibration = false;
+let expectedCalibrationHttpError = false;
 
 function rectangleMaskRle(x0 = 224, y0 = 224, x1 = 288, y1 = 288) {
   const mask = new Uint8Array(512 * 512);
@@ -96,8 +138,10 @@ function syntheticCase() {
     images: ["L", "R"].map((laterality) => ({
       image_id: `synthetic-image-${laterality}`,
       laterality,
-      width: 512,
-      height: 512,
+      width: laterality === "L" ? 640 : 512,
+      height: laterality === "L" ? 480 : 512,
+      source: laterality === "L" ? syntheticLetterboxPng : syntheticPng,
+      sourceIsModel: true,
       prediction: {
         prediction_id: `synthetic-prediction-${laterality}`,
         rle_mask: rectangleMaskRle(),
@@ -154,19 +198,28 @@ async function startIsolatedServer() {
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const deadline = Date.now() + 90_000;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null)
-      throw new Error(`Isolated app exited before readiness.\n${serverOutput}`);
-    try {
-      const response = await fetch(`${baseUrl}/api/health/live`);
-      if (response.ok) return { child, baseUrl, runtime };
-    } catch {
-      // Wait for the isolated test server to bind its local port.
+  try {
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null)
+        throw new Error(`Isolated app exited before readiness.\n${serverOutput}`);
+      try {
+        const response = await fetch(`${baseUrl}/api/health/live`);
+        if (response.ok) return { child, baseUrl, runtime };
+      } catch {
+        // Wait for the isolated test server to bind its local port.
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    throw new Error(`Isolated app did not become ready.\n${serverOutput}`);
+  } catch (error) {
+    try {
+      await stopChild(child);
+      removeRuntime(runtime);
+    } catch (cleanupError) {
+      throw new AggregateError([error, cleanupError], "Workstation E2E setup and cleanup both failed.");
+    }
+    throw error;
   }
-  child.kill();
-  throw new Error(`Isolated app did not become ready.\n${serverOutput}`);
 }
 
 async function waitForPaint(page) {
@@ -283,6 +336,19 @@ async function test_research_candidate_preview_apply_undo(page, calls, apiTrace)
     const image = window.__e2eState.case.images.find((item) => item.laterality === window.__e2eState.side);
     return { mask: Array.from(image.mask), historyLength: image.history.length };
   }), duringSave, "even a dispatched click cannot change the mask after the save snapshot");
+  const blockedDrawPoint = await page.locator("#viewport").evaluate((canvas, target) => {
+    const transform = canvas.getContext("2d").getTransform();
+    const dpr = devicePixelRatio || 1;
+    const scale = transform.a / dpr;
+    const rect = canvas.getBoundingClientRect();
+    return { x: rect.left + transform.e / dpr + target.x * scale,
+      y: rect.top + transform.f / dpr + target.y * scale };
+  }, { x: 100, y: 100 });
+  await page.mouse.click(blockedDrawPoint.x, blockedDrawPoint.y);
+  assert.deepEqual(await page.evaluate(() => {
+    const image = window.__e2eState.case.images.find((item) => item.laterality === window.__e2eState.side);
+    return { mask: Array.from(image.mask), historyLength: image.history.length };
+  }), duringSave, "a browser pointer click during the pending save cannot mutate the snapshotted mask");
   assert.deepEqual(reviewBatchGate.payload.reviews[0].verified_mask_rle,
     encodeMaskRle(duringSave.mask), "the delayed save retains the exact snapshotted mask bytes");
 
@@ -472,6 +538,7 @@ async function test_overlay_visibility_button_and_o_shortcut_preserve_mask_and_d
 
   await page.locator('[data-action="layer-1"]').click();
   await waitForOverlay(false);
+  await page.locator("#viewport").focus();
   await page.keyboard.down("Space");
   await page.keyboard.press("o");
   await waitForPaint(page);
@@ -510,28 +577,21 @@ async function main() {
   let browser;
   try {
     browser = await chromium.launch({ headless: true, ...(chromePath ? { executablePath: chromePath } : {}) });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
-    syntheticPng = await page.evaluate(() => {
-      const source = document.createElement("canvas");
-      source.width = source.height = 512;
-      const context = source.getContext("2d");
-      const gradient = context.createLinearGradient(0, 0, 512, 512);
-      gradient.addColorStop(0, "#1c2c37");
-      gradient.addColorStop(1, "#b8c4c8");
-      context.fillStyle = gradient;
-      context.fillRect(0, 0, 512, 512);
-      context.beginPath();
-      context.arc(256, 256, 92, 0, Math.PI * 2);
-      context.fillStyle = "#24313a";
-      context.fill();
-      context.strokeStyle = "#dce8ea";
-      context.lineWidth = 8;
-      context.stroke();
-      return source.toDataURL("image/png");
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 960 },
+      hasTouch: true,
     });
+    const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
-      if (message.type() === "error") errors.push(message.text());
+      if (message.type() === "error") {
+        const expected409 = "Failed to load resource: the server responded with a status of 409 (Conflict)";
+        if (expectedCalibrationHttpError && message.text() === expected409) {
+          expectedCalibrationHttpError = false;
+          return;
+        }
+        errors.push(message.text());
+      }
     });
 
     await page.route("**/api/**", async (route) => {
@@ -572,9 +632,11 @@ async function main() {
         return json(route, response.body, response.status);
       }
       if (imageId?.[2] === "viewer-source" && method === "GET")
-        return json(route, { image_id: imageId[1], original_image_base64: syntheticPng });
+        return json(route, { image_id: imageId[1], original_image_base64: imageId[1].endsWith("-L") ? syntheticLetterboxPng : syntheticPng });
       if (imageId?.[2] === "source.png" && method === "GET")
-        return route.fulfill({ contentType: "image/png", body: Buffer.from(syntheticPng.split(",")[1], "base64") });
+        return route.fulfill({ contentType: "image/png", body: imageId[1].endsWith("-L")
+          ? syntheticColorDopplerPng
+          : Buffer.from(syntheticPng.split(",")[1], "base64") });
       if (imageId?.[2] === "measurements" && method === "POST") {
         const payload = request.postDataJSON();
         calls.measurements.push({ imageId: imageId[1], hasMask: Array.isArray(payload.rle_mask?.counts) });
@@ -594,10 +656,15 @@ async function main() {
         });
       }
       if (imageId?.[2] === "calibrate" && method === "POST") {
-        calibratedImages.add(imageId[1]);
-        calls.calibrations.push(Number(url.searchParams.get("pixel_spacing_mm")));
+        const requestedSpacing = Number(url.searchParams.get("pixel_spacing_mm"));
+        calls.calibrations.push(requestedSpacing);
         calls.mockedWrites.push(`${method} ${pathName}`);
-        return json(route, { status: "CALIBRATED", pixel_spacing_mm: Number(url.searchParams.get("pixel_spacing_mm")) });
+        if (rejectNextCalibration) {
+          rejectNextCalibration = false;
+          return json(route, { detail: "Synthetic calibration rejected: invalid stored provenance." }, 409);
+        }
+        calibratedImages.add(imageId[1]);
+        return json(route, { status: "CALIBRATED", image_id: imageId[1], pixel_spacing_mm: requestedSpacing });
       }
       if (pathName === "/api/v1/cdss/evaluate" && method === "POST") {
         calls.adnex.push(request.postDataJSON());
@@ -605,6 +672,7 @@ async function main() {
         return json(route, {
           adnex_evaluation: {
             status: "EVALUATED_RUO",
+            eligibility_status: "ELIGIBLE",
             model_variant: "WITHOUT_CA125",
             probabilities: {
               benign: 0.8,
@@ -613,7 +681,7 @@ async function main() {
               stage_ii_iv_primary_malignancy: 0.03,
               secondary_metastatic: 0.02,
             },
-            total_malignancy_probability: 0.1,
+            total_malignancy_probability: 0.2,
           },
         });
       }
@@ -653,6 +721,8 @@ async function main() {
     });
 
     await page.goto(`${server.baseUrl}/#login`, { waitUntil: "networkidle" });
+    assert.equal(await page.locator(".ruo-safety-banner").isVisible(), true);
+    assert.match(await page.locator(".ruo-safety-banner").innerText(), /không dùng cho chăm sóc bệnh nhân/i);
     await page.locator("#authForm [name=username]").fill("doctor");
     await page.locator("#authForm [name=password]").fill(doctorPassword);
     await page.locator("#authForm button[type=submit]").click();
@@ -674,10 +744,65 @@ async function main() {
       }, null, 2));
       throw error;
     }
-    await page.waitForFunction(() =>
-      window.__e2eState?.case?.study_id === window.__e2eStudyId &&
-      window.__e2eState.case.images.find((image) => image.laterality === "L")?.seen === true,
-    );
+    try {
+      await page.waitForFunction(() => {
+        const canvas = document.querySelector('#viewport');
+        const selector = document.querySelector('#viewerImageSelect');
+        const rect = canvas?.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        return window.__e2eState?.case?.study_id === window.__e2eStudyId &&
+          window.__e2eState.case.images.find((image) => image.laterality === "L")?.seen === true &&
+          selector?.disabled === false && selector.value === 'synthetic-image-L' &&
+          canvas?.width === Math.round(rect.width * dpr) &&
+          canvas?.height === Math.round(rect.height * dpr);
+      });
+    } catch (error) {
+      console.error(JSON.stringify({
+        initialViewerState: await page.evaluate(() => ({
+          route: window.__e2eState?.route,
+          side: window.__e2eState?.side,
+          images: window.__e2eState?.case?.images?.map((image) => ({
+            image_id: image.image_id,
+            seen: image.seen,
+            sourceIsModel: image.sourceIsModel,
+            sourcePrefix: image.source?.slice(0, 32),
+          })),
+          selectedImage: document.querySelector("#viewerImageSelect")?.value,
+          summary: document.querySelector("#viewerImageSummary")?.textContent,
+          toast: document.querySelector(".toast")?.textContent,
+        })),
+        apiTrace: apiTrace.slice(-12),
+        errors,
+        timeout: error.message,
+      }, null, 2));
+      throw error;
+    }
+    assert.ok(apiTrace.includes("GET /api/images/synthetic-image-L/source.png"),
+      "Viewer must load the decoded source image, not the grayscale model-preprocessed payload");
+    assert.equal(await page.evaluate(() => window.__e2eState.case.images[0].sourceIsModel), true,
+      "Full-resolution decoded sources must be discarded after drawing instead of cached for the whole case");
+    const dopplerCanvasProbe = await page.evaluate(() => {
+      const canvas = document.querySelector("#viewport");
+      const rect = canvas.getBoundingClientRect();
+      const scale = Math.min(rect.width / 512, rect.height / 512) * 0.94;
+      const modelX = 80;
+      const modelY = 176;
+      const dpr = window.devicePixelRatio || 1;
+      const x = Math.round(((rect.width - 512 * scale) / 2 + modelX * scale) * dpr);
+      const y = Math.round(((rect.height - 512 * scale) / 2 + modelY * scale) * dpr);
+      return {
+        pixel: Array.from(canvas.getContext("2d").getImageData(x, y, 1, 1).data),
+        rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        bitmap: { width: canvas.width, height: canvas.height },
+        sample: { x, y, modelX, modelY, scale, dpr },
+        side: window.__e2eState.side,
+        label: document.querySelector('#sideLabel')?.textContent,
+      };
+    });
+    assert.ok(dopplerCanvasProbe.pixel[0] > dopplerCanvasProbe.pixel[2] + 100,
+      `Raw color source must preserve the synthetic Doppler color on Canvas: ${JSON.stringify(dopplerCanvasProbe)}`);
+    assert.equal(await page.locator("[data-macro]").count(), 0,
+      "Unvalidated one-click templates must not overwrite clinical assessment or follow-up");
     assert.equal(await page.locator("#calibrationBadge").textContent(), "");
     const initialReviewState = await page.evaluate(() => {
       const { state } = { state: window.__e2eState };
@@ -720,7 +845,7 @@ async function main() {
     await page.locator("#adnexAge").fill("45");
     await page.locator("#adnexOncology").selectOption("false");
     await page.locator("#adnexPersistent").selectOption("true");
-    await page.locator("#adnexSurgery").selectOption("false");
+    await page.locator("#adnexSurgery").selectOption("true");
     await page.locator("#adnexComplete").selectOption("true");
     await page.locator("#adnexPhysiologic").selectOption("false");
     await page.locator("#adnexDiameter").fill("40");
@@ -737,7 +862,7 @@ async function main() {
       age_years: 45,
       is_oncology_center: false,
       is_persistent_adnexal_mass: true,
-      surgery_indicated: false,
+      surgery_indicated: true,
       assessment_source: "clinician",
       modality: "ultrasound_2d",
       ultrasound_exam_complete: true,
@@ -750,6 +875,7 @@ async function main() {
       physiologic_follicle_confirmed: false,
     });
     assert.equal(await page.locator("#adnexTotalMalignancyProbability").isVisible(), true);
+    assert.match(await page.locator("#adnexTotalMalignancyProbability").textContent(), /20\s*%/);
     await page.locator("#adnexVariant").selectOption("WITH_CA125");
     await page.locator("#adnexEvaluate").click();
     assert.equal(calls.adnex.length, 1, "CA-125 is required for the selected variant");
@@ -771,6 +897,19 @@ async function main() {
     await page.locator('[data-chip="Bóng cản âm"]').click();
     assert.equal(await page.locator("#notes").inputValue(), "Synthetic E2E note only");
     assert.equal(await page.locator("#oradsScore").inputValue(), "O-RADS 3");
+    const draftBeforeReselect = await page.evaluate(() => [
+      document.querySelector("#notes").value,
+      document.querySelector("#iotaMorphology").value,
+      document.querySelector("#oradsScore").value,
+      document.querySelector("#morphology").value,
+    ]);
+    await page.locator('[data-action="side-L"]').click();
+    assert.deepEqual(await page.evaluate(() => [
+      document.querySelector("#notes").value,
+      document.querySelector("#iotaMorphology").value,
+      document.querySelector("#oradsScore").value,
+      document.querySelector("#morphology").value,
+    ]), draftBeforeReselect, "reselecting the active side preserves all visible clinical inputs");
     await page.locator('[data-action="side-R"]').click();
     await page.waitForFunction(() => window.__e2eState.side === "R");
     assert.equal(await page.locator("#notes").inputValue(), "", "Clinical text must not copy to the other side");
@@ -791,11 +930,14 @@ async function main() {
     const maskPixel = await centerPixel();
     assert.ok(maskPixel[1] > 100 && maskPixel[2] > 100,
       "Mask layer displays the synthetic lesion overlay at the active opacity");
+    await page.locator("#viewport").focus();
     await page.keyboard.down("Space");
     await waitForPaint(page);
     const rawPixel = await centerPixel();
     await page.keyboard.up("Space");
     assert.notDeepEqual(rawPixel.slice(0, 3), maskPixel.slice(0, 3), "Space is a momentary raw-image peek, not approval");
+    assert.ok(rawPixel.slice(0, 3).every((channel) => channel < 60),
+      "the known synthetic lesion center remains aligned under the 640×480 source's 512×512 letterbox");
     assert.equal(calls.mockedWrites.some((entry) => entry.includes("/reviews/")), false);
     assert.equal(calls.mockedWrites.some((entry) => entry.includes("sign-preliminary")), false);
     await page.locator('[data-action="layer-2"]').click();
@@ -844,6 +986,165 @@ async function main() {
             if (x < 103 || x >= 109 || y < 103 || y >= 109) image.mask[y * 512 + x] = 1;
       }
     }, pattern);
+
+    const touchCdp = await context.newCDPSession(page);
+    const touchScreenPoint = (target) => page.locator("#viewport").evaluate((canvas, modelPoint) => {
+      const transform = canvas.getContext("2d").getTransform();
+      const dpr = devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: rect.left + transform.e / dpr + modelPoint.x * transform.a / dpr,
+        y: rect.top + transform.f / dpr + modelPoint.y * transform.d / dpr,
+      };
+    }, target);
+    const waitForCanvasFit = () => page.waitForFunction(() => {
+      const canvas = document.querySelector("#viewport");
+      const transform = canvas.getContext("2d").getTransform();
+      const dpr = devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const scale = Math.min(rect.width / 512, rect.height / 512) * 0.94;
+      const x = (rect.width - 512 * scale) / 2;
+      const y = (rect.height - 512 * scale) / 2;
+      return Math.abs(transform.a / dpr - scale) < 0.01 &&
+        Math.abs(transform.d / dpr - scale) < 0.01 &&
+        Math.abs(transform.e / dpr - x) < 1 &&
+        Math.abs(transform.f / dpr - y) < 1;
+    }, null, { timeout: 5000 });
+    const dispatchTouch = (type, points) => touchCdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: points.map(({ id, point }) => ({
+        id,
+        x: point.x,
+        y: point.y,
+        radiusX: 1,
+        radiusY: 1,
+        force: 1,
+      })),
+    });
+
+    await page.locator("#viewport").evaluate((canvas) => {
+      window.__touchPointerTrace = [];
+      for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel", "lostpointercapture"])
+        canvas.addEventListener(type, (event) => window.__touchPointerTrace.push({
+          type,
+          id: event.pointerId,
+          pointerType: event.pointerType,
+          isPrimary: event.isPrimary,
+          x: event.clientX,
+          y: event.clientY,
+        }));
+    });
+    await setMaskFixture("empty");
+    await page.locator('[data-tool="brush"]').click();
+    await page.locator('[data-tool="fit"]').click();
+    await waitForCanvasFit();
+    const primaryTouchStart = await touchScreenPoint({ x: 120, y: 120 });
+    const primaryTouchIndex = 120 * 512 + 180;
+    await dispatchTouch("touchStart", [{ id: 1, point: primaryTouchStart }]);
+    assert.equal(await page.locator("body").evaluate((body) => body.classList.contains("drawing")), true,
+      "primary touch starts a brush gesture");
+    const pane = page.locator("#pane");
+    const paneLayout = await pane.evaluate((element) => ({ flex: element.style.flex, width: element.getBoundingClientRect().width }));
+    const matrixBeforeResize = await page.locator("#viewport").evaluate((canvas) => {
+      const transform = canvas.getContext("2d").getTransform();
+      return transform.e / (devicePixelRatio || 1);
+    });
+    await pane.evaluate((element) => { element.style.flex = "0 0 60vw"; });
+    await page.waitForFunction((width) => Math.abs(document.querySelector("#pane").getBoundingClientRect().width - width) > 80,
+      paneLayout.width, { timeout: 5000 });
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const matrixDuringResize = await page.locator("#viewport").evaluate((canvas) => {
+      const transform = canvas.getContext("2d").getTransform();
+      return transform.e / (devicePixelRatio || 1);
+    });
+    assert.ok(Math.abs(matrixDuringResize - matrixBeforeResize) < 1,
+      "pane resize defers auto-fit while a pointer owns the brush gesture");
+    const secondaryTouchStart = await touchScreenPoint({ x: 360, y: 360 });
+    const primaryTouchEnd = await touchScreenPoint({ x: 180, y: 120 });
+    await dispatchTouch("touchStart", [
+      { id: 1, point: primaryTouchStart },
+      { id: 2, point: secondaryTouchStart },
+    ]);
+    assert.equal(await page.locator("body").evaluate((body) => body.classList.contains("drawing")), true,
+      "secondary touch does not replace the primary brush gesture");
+    await dispatchTouch("touchEnd", [{ id: 2, point: secondaryTouchStart }]);
+    assert.equal(await page.locator("body").evaluate((body) => body.classList.contains("drawing")), true,
+      "secondary pointerup does not end the primary brush gesture");
+    await dispatchTouch("touchMove", [{ id: 1, point: primaryTouchEnd }]);
+    assert.equal(await page.evaluate((index) => window.__e2eState.case.images
+      .find((image) => image.laterality === window.__e2eState.side).mask[index], primaryTouchIndex), 1,
+    "primary touch keeps painting after secondary pointerup");
+    await dispatchTouch("touchEnd", [{ id: 1, point: primaryTouchEnd }]);
+    await pane.evaluate((element, flex) => { element.style.flex = flex; }, paneLayout.flex);
+    await waitForCanvasFit();
+    await waitForPaint(page);
+    const touchPointerTrace = await page.evaluate(() => window.__touchPointerTrace);
+    const maskAfterSecondaryTouch = await page.evaluate((index) => {
+      const image = window.__e2eState.case.images.find((item) => item.laterality === window.__e2eState.side);
+      return image.mask[index];
+    }, primaryTouchIndex);
+    const touchDowns = touchPointerTrace.filter((event) => event.type === "pointerdown");
+    const secondaryPointerUp = touchPointerTrace.findIndex((event) =>
+      event.type === "pointerup" && event.id === touchDowns[1]?.id);
+    const primaryMoveAfterSecondaryUp = touchPointerTrace.findIndex((event, index) =>
+      index > secondaryPointerUp && event.type === "pointermove" && event.id === touchDowns[0]?.id);
+    assert.equal(touchDowns.length, 2, "the touch input produces two distinct browser pointerdown events");
+    assert.equal(touchDowns[0].isPrimary, true);
+    assert.equal(touchDowns[1].isPrimary, false);
+    assert.ok(secondaryPointerUp >= 0 && primaryMoveAfterSecondaryUp > secondaryPointerUp,
+      `the secondary pointer ends before the primary continues: ${JSON.stringify(touchPointerTrace)}`);
+    assert.equal(maskAfterSecondaryTouch, 1,
+      `ending a secondary touch cannot cancel the primary brush stroke: ${JSON.stringify(touchPointerTrace)}`);
+    console.log("PASS: touch brush drag keeps the owning pointer through secondary touch end");
+
+    await setMaskFixture("empty");
+    await page.locator('[data-tool="fit"]').click();
+    await waitForCanvasFit();
+    const cancelPoint = await touchScreenPoint({ x: 240, y: 240 });
+    await dispatchTouch("touchStart", [{ id: 3, point: cancelPoint }]);
+    await dispatchTouch("touchCancel", []);
+    await waitForPaint(page);
+    const cancelledPointerTrace = await page.evaluate(() => window.__touchPointerTrace);
+    const cancelledDown = [...cancelledPointerTrace].reverse().find((event) => event.type === "pointerdown");
+    assert.ok(cancelledDown && cancelledPointerTrace.some((event) =>
+      event.type === "pointercancel" && event.id === cancelledDown.id),
+    `touch cancellation reaches the owning pointer: ${JSON.stringify(cancelledPointerTrace)}`);
+    assert.equal(await page.locator("body").evaluate((body) => body.classList.contains("drawing")), false,
+      "pointer cancellation ends the active drawing gesture");
+    assert.equal(await page.evaluate((index) => window.__e2eState.case.images
+      .find((image) => image.laterality === window.__e2eState.side).mask[index], 240 * 512 + 240), 1,
+    "the partial stroke before pointer cancellation remains in the draft");
+    console.log("PASS: pointercancel ends the partial touch stroke and clears drawing state");
+
+    await setMaskFixture("empty");
+    await page.locator('[data-tool="fit"]').click();
+    await waitForCanvasFit();
+    const penStart = await touchScreenPoint({ x: 280, y: 280 });
+    const penEnd = await touchScreenPoint({ x: 340, y: 280 });
+    const dispatchPen = (type, point, buttons) => touchCdp.send("Input.dispatchMouseEvent", {
+      type,
+      x: point.x,
+      y: point.y,
+      button: type === "mouseMoved" ? "none" : "left",
+      buttons,
+      pointerType: "pen",
+      force: buttons ? 0.7 : 0,
+    });
+    await dispatchPen("mouseMoved", penStart, 0);
+    await dispatchPen("mousePressed", penStart, 1);
+    await dispatchPen("mouseMoved", penEnd, 1);
+    await dispatchPen("mouseReleased", penEnd, 0);
+    await waitForPaint(page);
+    const penTrace = await page.evaluate(() => window.__touchPointerTrace.filter((event) => event.pointerType === "pen"));
+    assert.ok(penTrace.some((event) => event.type === "pointerdown") &&
+      penTrace.some((event) => event.type === "pointermove") &&
+      penTrace.some((event) => event.type === "pointerup"),
+    `stylus input produces a complete pen pointer stroke: ${JSON.stringify(penTrace)}`);
+    assert.equal(await page.evaluate((index) => window.__e2eState.case.images
+      .find((image) => image.laterality === window.__e2eState.side).mask[index], 280 * 512 + 340), 1,
+    "stylus drag paints the expected model coordinate");
+    console.log("PASS: pen pointer drag paints the expected source-mask coordinate");
+
     const initialMaskCount = await maskCount();
     const box = await page.locator("#viewport").boundingBox();
     const point = { x: box.x + box.width * 0.72, y: box.y + box.height * 0.72 };
@@ -858,6 +1159,100 @@ async function main() {
     await page.locator('[data-tool="erase"]').click();
     await page.mouse.click(point.x, point.y);
     assert.ok(await maskCount() < paintedMaskCount, "Eraser removes mask pixels");
+
+    const transformedTarget = { x: 100, y: 100 };
+    await page.locator('[data-tool="fit"]').click();
+    await waitForPaint(page);
+    const fitScale = await page.locator("#viewport").evaluate((element) => {
+      const transform = element.getContext("2d").getTransform();
+      return transform.a / (devicePixelRatio || 1);
+    });
+    const canvasBox = await page.locator("#viewport").boundingBox();
+    const zoomAt = { x: canvasBox.x + canvasBox.width * 0.4, y: canvasBox.y + canvasBox.height * 0.4 };
+    await page.mouse.move(zoomAt.x, zoomAt.y);
+    await page.mouse.wheel(0, -360);
+    await waitForPaint(page);
+    const zoomScale = await page.locator("#viewport").evaluate((element) => {
+      const transform = element.getContext("2d").getTransform();
+      return transform.a / (devicePixelRatio || 1);
+    });
+    assert.ok(zoomScale > fitScale, "wheel zoom increases the view transform before drawing");
+    await page.locator('[data-tool="pan"]').click();
+    const panStart = { x: canvasBox.x + canvasBox.width * 0.55, y: canvasBox.y + canvasBox.height * 0.55 };
+    await page.mouse.move(panStart.x, panStart.y);
+    await page.mouse.down();
+    await page.mouse.move(panStart.x + 31, panStart.y + 23, { steps: 3 });
+    await page.mouse.up();
+    await waitForPaint(page);
+    await page.locator('[data-tool="brush"]').click();
+    const transformedScreenPoint = await page.locator("#viewport").evaluate((element, target) => {
+      const transform = element.getContext("2d").getTransform();
+      const dpr = devicePixelRatio || 1;
+      const scale = transform.a / dpr;
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left + transform.e / dpr + target.x * scale,
+        y: rect.top + transform.f / dpr + target.y * scale, scale };
+    }, transformedTarget);
+    const transformedTargetIndex = transformedTarget.y * 512 + transformedTarget.x;
+    assert.equal(await page.evaluate((index) => window.__e2eState.case.images
+      .find((image) => image.laterality === window.__e2eState.side).mask[index], transformedTargetIndex), 0,
+    "the chosen transformed test coordinate starts outside the lesion mask");
+    const transformedBaseline = await maskCount();
+    await page.mouse.click(transformedScreenPoint.x, transformedScreenPoint.y);
+    assert.equal(await page.evaluate((index) => window.__e2eState.case.images
+      .find((image) => image.laterality === window.__e2eState.side).mask[index], transformedTargetIndex), 1,
+    `brush edits the model pixel beneath the cursor after zoom/pan; viewScale=${transformedScreenPoint.scale}`);
+    await page.locator('[data-tool="erase"]').click();
+    await page.mouse.click(transformedScreenPoint.x, transformedScreenPoint.y);
+    assert.equal(await page.evaluate((index) => window.__e2eState.case.images
+      .find((image) => image.laterality === window.__e2eState.side).mask[index], transformedTargetIndex), 0,
+    "eraser removes pixels at the same source coordinate after zoom/pan");
+    assert.equal(await maskCount(), transformedBaseline,
+      "zoom/pan drawing and erasing do not leave stray mask pixels");
+
+    const sourceImageDimensions = await page.evaluate(() => {
+      const image = window.__e2eState.case.images.find((item) => item.laterality === window.__e2eState.side);
+      return [image.width, image.height];
+    });
+    assert.deepEqual(sourceImageDimensions, [640, 480], "the caliper fixture must retain its decoded non-square dimensions");
+    const expectedSourcePoints = [[120, 160], [420, 160]];
+    const letterbox = { left: 0, top: 64, width: 512, height: 384 };
+    const expectedModelPoints = expectedSourcePoints.map(([x, y]) => [
+      letterbox.left + x * letterbox.width / sourceImageDimensions[0],
+      letterbox.top + y * letterbox.height / sourceImageDimensions[1],
+    ]);
+    const transformedSourcePoint = (modelPoint) => page.locator("#viewport").evaluate((element, target) => {
+      const transform = element.getContext("2d").getTransform();
+      const dpr = devicePixelRatio || 1;
+      const rect = element.getBoundingClientRect();
+      return {
+        x: rect.left + transform.e / dpr + target[0] * transform.a / dpr,
+        y: rect.top + transform.f / dpr + target[1] * transform.d / dpr,
+      };
+    }, modelPoint);
+    const sourceCaliperScreenPoints = await Promise.all(expectedModelPoints.map(transformedSourcePoint));
+    const sourceCaliperCanvas = await page.locator("#viewport").boundingBox();
+    for (const point of sourceCaliperScreenPoints) {
+      assert.ok(point.x > sourceCaliperCanvas.x && point.x < sourceCaliperCanvas.x + sourceCaliperCanvas.width &&
+        point.y > sourceCaliperCanvas.y && point.y < sourceCaliperCanvas.y + sourceCaliperCanvas.height,
+      `the non-square caliper point must remain visible after zoom/pan: ${JSON.stringify(point)}`);
+    }
+    await page.locator('[data-tool="caliper-d1"]').click();
+    await page.mouse.click(sourceCaliperScreenPoints[0].x, sourceCaliperScreenPoints[0].y);
+    await page.mouse.click(sourceCaliperScreenPoints[1].x, sourceCaliperScreenPoints[1].y);
+    const persistedSourceCaliper = await page.evaluate(() => {
+      const image = window.__e2eState.case.images.find((item) => item.laterality === window.__e2eState.side);
+      return image.manualCalipers?.find((caliper) => caliper.label === "D1") || null;
+    });
+    assert.ok(persistedSourceCaliper, "the D1 caliper must be retained in the active image draft");
+    assert.deepEqual(persistedSourceCaliper.points.map((point) => point.map(Math.round)), expectedSourcePoints,
+      "caliper clicks on a 640×480 image must persist decoded-source coordinates after zoom/pan and letterboxing");
+    assert.ok(Math.abs(Math.hypot(
+      persistedSourceCaliper.points[1][0] - persistedSourceCaliper.points[0][0],
+      persistedSourceCaliper.points[1][1] - persistedSourceCaliper.points[0][1],
+    ) - 300) < 1, "the non-square source-coordinate caliper length must remain 300 px");
+    console.log("PASS: 640×480 source caliper preserves source coordinates and length through letterbox, zoom and pan");
+
     await page.locator('[data-tool="pan"]').click();
     assert.equal(await page.locator("#viewport").evaluate((element) => getComputedStyle(element).cursor), "grab");
     await page.locator('[data-tool="fit"]').click();
@@ -936,18 +1331,151 @@ async function main() {
     await page.locator('#modal input[name="pixels"]').fill("20");
     await page.locator('#modal input[name="mm"]').fill("10");
     await page.locator('#modal button[type="submit"]').click();
-    await page.waitForFunction(() => document.querySelector("#calibrationBadge")?.textContent === "Nhập tay");
+    await page.waitForFunction(() => document.querySelector("#calibrationBadge")?.textContent
+      .toLocaleLowerCase().includes("nhập tay"));
     assert.deepEqual(calls.calibrations, [0.5], "Manual calibration is sent only from an explicit physician input");
     console.log("PASS: image adjustments, reset and explicit manual calibration");
 
+    await page.locator(".tool-more > summary").click();
+    await page.locator('[data-tool="reset"]').click();
+    await page.locator('#modal button[value="confirm"]').click();
+    await page.locator(".tool-more > summary").click();
+    assert.equal(await maskCount(), 4096, "The error-path calibration check uses the restored synthetic mask.");
+
+    rejectNextCalibration = true;
+    expectedCalibrationHttpError = true;
+    const measurementCountBeforeRejectedCalibration = calls.measurements.length;
+    const rejectedCalibrationResponse = page.waitForResponse((response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/images/synthetic-image-L/calibrate");
+    await page.locator('[data-action="calibrate"]').click();
+    await page.locator('#modal input[name="pixels"]').fill("40");
+    await page.locator('#modal input[name="mm"]').fill("10");
+    await page.locator('#modal button[type="submit"]').click();
+    const rejectedCalibration = await rejectedCalibrationResponse;
+    assert.equal(rejectedCalibration.status(), 409, await rejectedCalibration.text());
+    await page.waitForFunction(() => [...document.querySelectorAll("#toasts .toast.danger")]
+      .some((toast) => toast.textContent.includes("Synthetic calibration rejected")));
+    await page.waitForFunction(() => document.querySelector("#d1")?.textContent.includes("mm"));
+    const calibrationAfterRejection = await page.evaluate(() => {
+      const image = window.__e2eState.case.images.find((item) => item.image_id === "synthetic-image-L");
+      return {
+        imageSpacing: image.pixel_spacing_mm,
+        measurementSpacing: image.measurements?.pixel_spacing_mm,
+        serverMaxDiameterMm: image.measurements?.max_diameter_mm,
+        dmax: document.querySelector("#d1")?.textContent,
+      };
+    });
+    assert.equal(calls.calibrations.at(-1), 0.25);
+    assert.ok(calls.measurements.length > measurementCountBeforeRejectedCalibration,
+      "The viewer refreshes the server-confirmed measurement after a rejected calibration.");
+    assert.equal(calibrationAfterRejection.imageSpacing, 0.5,
+      "A rejected calibration must not replace the last server-confirmed image spacing.");
+    assert.equal(calibrationAfterRejection.measurementSpacing, 0.5,
+      "A rejected calibration must not mark the rejected spacing as current measurement provenance.");
+    assert.equal(calibrationAfterRejection.serverMaxDiameterMm, 32,
+      "The viewer keeps the server measurement returned for the previously confirmed calibration.");
+    assert.match(calibrationAfterRejection.dmax, /mm/,
+      "The existing clinician caliper remains visible with the last confirmed physical scale.");
+    expectedCalibrationHttpError = false;
+    await page.locator('#modal button[value="cancel"]').click();
+    console.log("PASS: rejected manual calibration shows an error and retains the last confirmed measurements");
+
     await page.locator("#viewerAdjustments > summary").click();
     await page.locator(".view-more summary").click();
+    await page.evaluate(() => {
+      const createImageBitmap = window.createImageBitmap.bind(window);
+      window.__comparisonBitmapCreateCount = 0;
+      window.__restoreComparisonBitmapProbe = () => { window.createImageBitmap = createImageBitmap; };
+      window.createImageBitmap = async (...args) => {
+        window.__comparisonBitmapCreateCount += 1;
+        return createImageBitmap(...args);
+      };
+    });
     await page.locator('[data-action="bilateral"]').click();
-    await page.locator("#secondPane").waitFor({ state: "visible" });
+    await page.waitForTimeout(750);
+    const comparisonEarlyState = await page.evaluate(() => ({
+      hidden: document.querySelector('#secondPane')?.hidden,
+      bitmapCreates: window.__comparisonBitmapCreateCount,
+      toast: document.querySelector('#toasts')?.innerText,
+      menuOpen: document.querySelector('.view-more')?.open,
+    }));
+    if (comparisonEarlyState.hidden)
+      console.log(`DIAGNOSTIC bilateral comparison pending after click: ${JSON.stringify(comparisonEarlyState)}`);
+    await page.locator("#secondPane").waitFor({ state: "visible" }).catch(async error => {
+      const debug = await page.evaluate(async () => {
+        const { state } = await import('/static/app/state.js');
+        return {
+          route: state.route,
+          side: state.side,
+          selectedImageId: document.querySelector('#viewerImageSelect')?.value,
+          images: state.case?.images?.map(image => ({ id: image.image_id, side: image.laterality,
+            hasSource: Boolean(image.source), width: image.width, height: image.height })),
+          secondPaneHidden: document.querySelector('#secondPane')?.hidden,
+          secondPaneLabel: document.querySelector('#secondPane .canvas-label')?.textContent,
+          toast: document.querySelector('.toast')?.textContent,
+          alerts: Array.from(document.querySelectorAll('[role="alert"], .toast, .banner'))
+            .map(node => node.textContent.trim()).filter(Boolean),
+          comparisonBitmapCreateCount: window.__comparisonBitmapCreateCount,
+          comparisonMenuOpen: document.querySelector('.view-more')?.open,
+        };
+      });
+      throw new Error(`Bilateral comparison did not render: ${JSON.stringify({ debug, errors, apiTrace: apiTrace.slice(-12), timeout: error.message })}`);
+    });
+    await page.evaluate(() => window.__restoreComparisonBitmapProbe());
     assert.equal(await page.locator("#secondPane .canvas-label").textContent(), "Bên còn lại · chỉ xem");
     await page.locator(".view-more summary").click();
     await page.locator('[data-action="compare"]').click();
     assert.equal(await page.locator("#secondPane .canvas-label").textContent(), "Ảnh gốc");
+    await page.locator(".view-more summary").click();
+    await page.locator('[data-action="compare"]').click();
+    await page.waitForFunction(() => document.querySelector("#secondPane").hidden);
+    await page.evaluate(() => {
+      const createImageBitmap = window.createImageBitmap.bind(window);
+      const drawImage = CanvasRenderingContext2D.prototype.drawImage;
+      const close = ImageBitmap.prototype.close;
+      const bitmaps = new WeakSet();
+      window.__comparisonBitmapProbe = { bitmaps, createCount: 0, closeCount: 0, failNextDraw: true };
+      window.createImageBitmap = async (...args) => {
+        const bitmap = await createImageBitmap(...args);
+        window.__comparisonBitmapProbe.createCount += 1;
+        bitmaps.add(bitmap);
+        return bitmap;
+      };
+      CanvasRenderingContext2D.prototype.drawImage = function (source, ...args) {
+        if (bitmaps.has(source) && window.__comparisonBitmapProbe.failNextDraw) {
+          window.__comparisonBitmapProbe.failNextDraw = false;
+          throw new Error("Injected comparison draw failure.");
+        }
+        return drawImage.call(this, source, ...args);
+      };
+      ImageBitmap.prototype.close = function (...args) {
+        if (bitmaps.has(this)) window.__comparisonBitmapProbe.closeCount += 1;
+        return close.apply(this, args);
+      };
+      window.__restoreComparisonBitmapProbe = () => {
+        window.createImageBitmap = createImageBitmap;
+        CanvasRenderingContext2D.prototype.drawImage = drawImage;
+        ImageBitmap.prototype.close = close;
+      };
+    });
+    await page.locator(".view-more summary").click();
+    await page.locator('[data-action="bilateral"]').click();
+    await page.locator(".toast").filter({ hasText: "Injected comparison draw failure." }).waitFor();
+    const failedComparisonState = await page.evaluate(() => ({
+      created: window.__comparisonBitmapProbe.createCount,
+      closed: window.__comparisonBitmapProbe.closeCount,
+      secondPaneHidden: document.querySelector("#secondPane")?.hidden,
+    }));
+    assert.deepEqual(failedComparisonState, { created: 1, closed: 1, secondPaneHidden: true },
+      "A failed comparison draw must close its bitmap and leave the comparison pane hidden");
+    await page.evaluate(() => window.__restoreComparisonBitmapProbe());
+    console.log("PASS: comparison bitmap is closed and the pane stays hidden after a draw failure");
+    await page.locator(".view-more summary").click();
+    await page.locator('[data-action="bilateral"]').click();
+    await page.locator("#secondPane").waitFor({ state: "visible" });
+    await page.locator(".view-more summary").click();
+    await page.locator('[data-action="compare"]').click();
     await page.locator(".view-more summary").click();
     await page.locator('[data-action="compare"]').click();
     await page.waitForFunction(() => document.querySelector("#secondPane").hidden);
@@ -957,11 +1485,32 @@ async function main() {
     assert.equal(await page.locator("#researchTab").getAttribute("aria-selected"), "true");
     console.log("PASS: same-screen bilateral reference and accessible panel tabs");
 
+    if (process.env.E2E_SCREENSHOT_DIR) {
+      fs.mkdirSync(process.env.E2E_SCREENSHOT_DIR, { recursive: true });
+      await page.locator("#clinicalTab").click();
+    }
     for (const width of [1440, 1024, 768, 390]) {
       await page.setViewportSize({ width, height: 900 });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true,
         `No horizontal overflow at ${width}px`);
       assert.equal(await page.locator("#viewport").isVisible(), true);
+      if (width === 390) {
+        assert.ok((await page.locator("#viewerImageSelect").boundingBox()).width >= 60,
+          "The image selector must retain space for its selected image label");
+        assert.equal(await page.locator("#viewerImageSelectCurrent").textContent(), "Ảnh 1");
+        assert.match(await page.locator("#viewerImageSelect").getAttribute("aria-label"), /Trái · 1 · synthetic-image-L/);
+        for (const action of ["panel-toggle", "save-review", "quick-print"]) {
+          const button = page.locator(`[data-action="${action}"]`);
+          const rect = await button.boundingBox();
+          assert.ok(rect && rect.x >= 0 && rect.x + rect.width <= width,
+            `${action} must remain reachable within the mobile viewport`);
+        }
+        await page.locator('[data-action="panel-toggle"]').click();
+        assert.equal(await page.locator(".viewer-panel").isVisible(), true);
+        await page.locator('[data-action="panel-toggle"]').click();
+      }
+      if (process.env.E2E_SCREENSHOT_DIR && [1440, 390].includes(width))
+        await page.screenshot({ path: path.join(process.env.E2E_SCREENSHOT_DIR, `viewer-${width}.png`) });
     }
     await page.setViewportSize({ width: 1440, height: 960 });
     await test_orads_quick_pick_respects_readonly_and_does_not_write(page, calls);
@@ -991,8 +1540,14 @@ async function main() {
       runtime: server.runtime,
     }));
   } finally {
-    await browser?.close();
-    server.child.kill();
+    try {
+      await browser?.close();
+    } finally {
+      await stopChild(server.child);
+      removeRuntime(server.runtime);
+      assert.equal(fs.existsSync(server.runtime), false,
+        "The synthetic workstation database, uploads, and reports must be removed after the test.");
+    }
   }
 }
 

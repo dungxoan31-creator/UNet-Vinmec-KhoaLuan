@@ -6,16 +6,17 @@
  * 4. Full segmentation, measurements, and viewer loading
  */
 
-const { chromium } = require('playwright-core');
 const assert = require('node:assert/strict');
-const path = require('node:path');
+const { startIsolatedBrowser } = require('./helpers/isolated_browser.cjs');
+const { waitForAppState } = require('./helpers/app_state_wait.cjs');
 
-const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-const chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+let base = '';
 
 function clinicalWriteCount(requests) {
   return requests.filter(({ method, path: pathname }) =>
-    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && pathname !== '/api/cases/search',
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+    pathname !== '/api/cases/search' &&
+    pathname !== '/api/workspace/cases/search',
   ).length;
 }
 
@@ -23,13 +24,14 @@ function clinicalMutationCount(requests) {
   return requests.filter(({ method, path: pathname }) =>
     ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
     pathname !== '/api/cases/search' &&
+    pathname !== '/api/workspace/cases/search' &&
     pathname !== '/api/v1/cdss/evaluate' &&
     pathname !== '/api/v1/segment/candidate' &&
     !/^\/api\/images\/[^/]+\/measurements$/.test(pathname),
   ).length;
 }
 
-async function test_cdss_panel_is_explicit_ruo_and_does_not_persist(page, studyId, doctorToken, requests) {
+async function test_cdss_requires_a_saved_region_and_sends_no_defaults(page, requests) {
   const panel = page.locator('#cdssPanel');
   await panel.waitFor();
   await panel.locator('summary').first().click();
@@ -37,86 +39,14 @@ async function test_cdss_panel_is_explicit_ruo_and_does_not_persist(page, studyI
     selects.every(select => select.value === ''),
   );
   assert.equal(unanswered, true, 'all clinical descriptors, IOTA rules and context begin unanswered');
-
-  const beforeResponse = await page.request.get(base + '/api/cases/' + studyId, {
-    headers: { Authorization: 'Bearer ' + doctorToken },
-  });
-  const before = await beforeResponse.json();
-  const mutationsBefore = clinicalMutationCount(requests);
   const requestTraceBefore = requests.length;
-
-  const emptyRequestWait = page.waitForRequest(request =>
-    request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/cdss/evaluate',
+  assert.equal(await page.locator('#cdssEvaluate').isDisabled(), true,
+    'CDSS must remain unavailable until the clinician selects a persisted, confirmed region.');
+  assert.match(await page.locator('#cdssRegionStatus').textContent(), /Chọn một vùng đã xác nhận/);
+  const cdssCalls = requests.slice(requestTraceBefore).filter(({ path: pathname }) =>
+    pathname.includes('/cdss-assessments') || pathname === '/api/v1/cdss/evaluate',
   );
-  const emptyResponseWait = page.waitForResponse(response =>
-    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/cdss/evaluate',
-  );
-  await page.locator('#cdssEvaluate').click();
-  const [emptyRequest, emptyResponse] = await Promise.all([emptyRequestWait, emptyResponseWait]);
-  const emptyBody = emptyRequest.postDataJSON();
-  const emptyResult = await emptyResponse.json();
-  assert.deepEqual(emptyBody.vision_findings, {}, 'empty controls do not send fabricated descriptors');
-  assert.equal(emptyResult.status, 'INSUFFICIENT_DATA');
-  assert.equal(emptyResult.orads_stratification.category, null);
-  assert.match(await page.locator('#cdssResult').textContent(), /Còn thiếu/);
-  assert.doesNotMatch(await page.locator('#cdssResult').textContent(), /O-RADS 2/);
-
-  const values = {
-    assessment_source: 'clinician',
-    modality: 'ultrasound_2d',
-    ultrasound_exam_complete: 'true',
-    max_diameter_mm: '45',
-    locules_count: '1',
-    has_solid_component: 'false',
-    papillary_projections_count: '0',
-    fluid_echogenicity: 'anechoic',
-    acoustic_shadowing: 'false',
-    wall_irregular: 'false',
-    color_score: '1',
-    has_ascites: 'false',
-    has_peritoneal_nodules: 'false',
-  };
-  for (const [name, value] of Object.entries(values)) {
-    const control = page.locator(`#cdssForm [name="${name}"]`);
-    const tag = await control.evaluate(element => element.tagName.toLowerCase());
-    if (tag === 'select') await control.selectOption(value);
-    else await control.fill(value);
-  }
-
-  const matchedRequestWait = page.waitForRequest(request =>
-    request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/cdss/evaluate',
-  );
-  const matchedResponseWait = page.waitForResponse(response =>
-    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/cdss/evaluate',
-  );
-  await page.locator('#cdssEvaluate').click();
-  const [matchedRequest, matchedResponse] = await Promise.all([matchedRequestWait, matchedResponseWait]);
-  const matchedBody = matchedRequest.postDataJSON();
-  const matchedResult = await matchedResponse.json();
-  assert.equal(matchedBody.vision_findings.max_diameter_mm, 45);
-  assert.equal(matchedBody.vision_findings.has_solid_component, false);
-  assert.equal(matchedResult.status, 'RULE_MATCHED');
-  assert.equal(matchedResult.orads_stratification.category, 'O-RADS 2');
-  const matchedText = await page.locator('#cdssResult').textContent();
-  assert.match(matchedText, /O-RADS 2/);
-  assert.match(matchedText, /RUO/);
-
-  const afterResponse = await page.request.get(base + '/api/cases/' + studyId, {
-    headers: { Authorization: 'Bearer ' + doctorToken },
-  });
-  const after = await afterResponse.json();
-  assert.equal(after.status, before.status);
-  assert.equal(after.review_revision, before.review_revision);
-  assert.deepEqual(after.images.map(image => image.review ?? null), before.images.map(image => image.review ?? null));
-  const newClinicalMutations = requests.slice(requestTraceBefore).filter(({ method, path: pathname }) =>
-    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
-    pathname !== '/api/cases/search' &&
-    pathname !== '/api/v1/cdss/evaluate' &&
-    pathname !== '/api/v1/segment/candidate' &&
-    !/^\/api\/images\/[^/]+\/measurements$/.test(pathname),
-  );
-  assert.equal(clinicalMutationCount(requests), mutationsBefore,
-    `RUO evaluation does not create review, sign-off, or other clinical mutations; new requests: ${JSON.stringify(newClinicalMutations)}`);
+  assert.deepEqual(cdssCalls, [], 'an unscoped assessment must not be sent or persisted');
 }
 
 async function test_grid_reuses_filtered_rows_thumbnails_and_case_route(page, studyId, reviewedStudy, requests) {
@@ -156,16 +86,13 @@ async function test_grid_reuses_filtered_rows_thumbnails_and_case_route(page, st
   assert.equal(await page.locator('#caseResults [data-worklist-card]').count(), 1,
     'resetting the filter restores only the matching API row');
 
-  const selection = card.locator('.case-select');
-  await selection.check();
   await page.locator('#caseTableView').click();
   await page.locator('#caseResults .table-wrap').waitFor();
-  assert.equal(await page.locator('#caseResults .case-select').isChecked(), true,
-    'table and grid share the existing selection set');
+  assert.equal(await page.locator('#caseResults .case-select, #selectAll, [data-action="export-selected"]').count(), 0,
+    'RUO worklist must not expose unsupported bulk selection/export controls.');
+  assert.match(await page.locator('[data-export-status="disabled"]').innerText(), /đang bị khóa trên máy chủ RUO/i);
   await gridButton.click();
   await page.locator(`#caseResults [data-worklist-card="${studyId}"]`).waitFor();
-  assert.equal(await card.locator('.case-select').isChecked(), true);
-  await card.locator('.case-select').uncheck();
   assert.equal(await card.locator('.worklist-grid-open').getAttribute('href'), `#viewer/${studyId}`);
   assert.equal(thumbnailReadCount(), readsBeforeViewSwitch,
     'filter restore and repeated view switches do not reload the same thumbnails');
@@ -194,7 +121,99 @@ async function test_grid_display_never_marks_reviewed_or_bulk_signs(page, studyI
   assert.equal(afterStudy.review_revision, beforeStudy.review_revision, 'thumbnail display does not create a review revision');
 }
 
+async function test_worklist_thumbnail_failure_recovers_after_refresh(page, studyId, imageId, studyCode, doctorToken, requests, errors, httpFailures) {
+  const imagePath = `/api/images/${encodeURIComponent(imageId)}/source.png`;
+  const routePattern = `**${imagePath}`;
+  const failureCountBefore = httpFailures.length;
+  const consoleErrorCountBefore = errors.length;
+  const mutationsBefore = requests.filter(({ method }) =>
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method),
+  ).length;
+  const studyBeforeResponse = await page.request.get(base + '/api/cases/' + studyId, {
+    headers: { Authorization: 'Bearer ' + doctorToken },
+  });
+  assert.equal(studyBeforeResponse.status(), 200);
+  const studyBefore = await studyBeforeResponse.json();
+  let failOnce = true;
+  await page.route(routePattern, async route => {
+    if (failOnce && route.request().method() === 'GET') {
+      failOnce = false;
+      return route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'temporary synthetic thumbnail failure' }),
+      });
+    }
+    return route.continue();
+  });
+
+  await page.evaluate(id => { location.hash = `#viewer/${encodeURIComponent(id)}`; }, studyId);
+  await page.locator('#viewport').waitFor({ timeout: 15000 });
+  await page.evaluate(() => { location.hash = '#cases'; });
+  await page.locator('[data-action="refresh-cases"]').waitFor({ timeout: 15000 });
+  await page.waitForFunction(() =>
+    document.querySelectorAll('#caseResults .case-thumb-placeholder[role="img"][aria-label="Chưa tải được ảnh xem trước"]').length === 1,
+  null, { timeout: 15000 });
+
+  assert.equal(failOnce, false, 'the isolated thumbnail request must be fault-injected once');
+  const injectedFailures = httpFailures.slice(failureCountBefore);
+  assert.equal(injectedFailures.length, 1, JSON.stringify(injectedFailures));
+  assert.equal(injectedFailures[0].status, 503);
+  assert.equal(new URL(injectedFailures[0].url).pathname, imagePath);
+  const injectedConsoleErrors = errors.slice(consoleErrorCountBefore);
+  assert.equal(injectedConsoleErrors.length, 1, JSON.stringify(injectedConsoleErrors));
+  assert.match(injectedConsoleErrors[0], /503.*Service Unavailable/i);
+  errors.splice(consoleErrorCountBefore, 1);
+
+  const attemptsBeforeRetry = requests.filter(request =>
+    request.method === 'GET' && request.path === imagePath,
+  ).length;
+  await page.locator('[data-action="refresh-cases"]').click();
+  await page.waitForFunction(id => {
+    const image = [...document.querySelectorAll('#caseResults img[data-thumb]')]
+      .find(candidate => candidate.dataset.thumb === id);
+    return image?.complete && image.naturalWidth > 0;
+  }, imageId, { timeout: 15000 });
+  const attemptsAfterRetry = requests.filter(request =>
+    request.method === 'GET' && request.path === imagePath,
+  ).length;
+  assert.equal(attemptsAfterRetry, attemptsBeforeRetry + 1,
+    'refresh retries the failed preview request instead of keeping a cached rejection');
+
+  httpFailures.splice(failureCountBefore, 1);
+  await page.unroute(routePattern);
+  await page.locator('#caseSearch').fill(studyCode);
+  await page.waitForFunction(() =>
+    document.querySelector('#caseResults .pagination span')?.textContent.startsWith('1 ca'),
+  null, { timeout: 15000 });
+  await page.locator('#caseGridView').click();
+  await page.locator(`#caseResults [data-worklist-card="${studyId}"]`).waitFor();
+
+  const mutations = requests.filter(({ method }) =>
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method),
+  ).slice(mutationsBefore);
+  const leasePath = `/api/workspace/cases/${studyId}/lease`;
+  const unexpectedMutations = mutations.filter(({ method, path: pathname }) =>
+    !(pathname === leasePath && ['POST', 'DELETE'].includes(method)) &&
+    !(pathname === '/api/hitl/sessions' && method === 'POST') &&
+    !(pathname === '/api/cases/search' && method === 'POST') &&
+    !(pathname === '/api/workspace/cases/search' && method === 'POST'),
+  );
+  assert.deepEqual(unexpectedMutations, [],
+    'thumbnail failure and refresh must not submit review, sign, or status changes');
+  const studyAfterResponse = await page.request.get(base + '/api/cases/' + studyId, {
+    headers: { Authorization: 'Bearer ' + doctorToken },
+  });
+  assert.equal(studyAfterResponse.status(), 200);
+  const studyAfter = await studyAfterResponse.json();
+  assert.equal(studyAfter.status, studyBefore.status);
+  assert.equal(studyAfter.review_revision, studyBefore.review_revision);
+}
+
 async function test_research_report_preview_renders_html_like_text_as_inert(page, study, requests) {
+  const draftPanel = page.locator('.research-report-draft');
+  if (!(await draftPanel.evaluate(element => element.open)))
+    await draftPanel.locator('summary').click();
   const right = study.images.find(image => image.laterality === 'R');
   const writesBefore = clinicalWriteCount(requests);
   const clinicalStateBefore = await page.evaluate(async () => {
@@ -209,8 +228,8 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
   await page.locator('#researchDraftSide').selectOption(right.image_id);
   const draft = page.locator('#researchDraftText');
   const generated = await draft.inputValue();
-  assert.ok(generated.includes('Nang noãn sinh lý, kích thước < 30mm (O-RADS 1).'),
-    'the expanded clinical dot-phrase is preserved in report draft');
+  assert.ok(generated.includes('Mô tả nang noãn: kích thước 24 mm, nội dung trống và thành mỏng trong dữ liệu tổng hợp.'),
+    'the completed clinical dot-phrase is preserved in report draft');
   assert.ok(generated.includes('<img src=x onerror=alert(1)>'),
     'the clinician literal is included as draft text');
   assert.equal(await page.locator('.research-report-draft img, .research-report-draft script').count(), 0,
@@ -251,11 +270,12 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
 }
 
 (async () => {
-  console.log('[Test Live UI] Starting browser verification on ' + base + '...');
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: chromePath,
-  });
+  const server = await startIsolatedBrowser();
+  base = server.base;
+  const doctorPassword = server.password;
+  const adminPassword = server.adminPassword;
+  const browser = server.browser;
+  console.log('[Test Live UI] Starting isolated browser verification on ' + base + '...');
 
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = [];
@@ -268,11 +288,19 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
   });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', message => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (message.type() === 'error') {
+      errors.push(message.text());
+      console.log('[Browser console error]', JSON.stringify({ text: message.text(), location: message.location() }));
+    }
   });
   page.on('response', response => {
-    if (response.status() >= 400)
+    if (response.status() >= 400) {
       httpFailures.push({ status: response.status(), url: response.url() });
+      console.log('[Browser HTTP failure]', JSON.stringify({ status: response.status(), url: response.url() }));
+    }
+  });
+  page.on('requestfailed', request => {
+    console.log('[Browser request failed]', JSON.stringify({ url: request.url(), error: request.failure()?.errorText }));
   });
 
   try {
@@ -281,6 +309,11 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     // ==========================================
     await page.goto(base + '/#login');
     await page.locator('#authForm').waitFor({ timeout: 10000 });
+    assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'),
+      '/static/assets/brand/vinmec-logo.png?v=20261029-vinmec-tab',
+      'the browser tab must use the supplied VINMEC logo');
+    assert.ok(browserRequests.some(request => request.path === '/static/assets/brand/vinmec-logo.png'),
+      'the RUO app must load its local VINMEC tab logo');
     assert.equal(await page.locator('[data-action^=quick-]').count(), 0, 'Quick-login shortcuts must not exist');
     assert.doesNotMatch(await page.locator('body').innerText(), /doctor-local-test-2026|admin-local-test-2026/);
 
@@ -347,7 +380,7 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     // 3. Sign in with operator-provisioned test account
     // ==========================================
     await page.locator('[name=username]').fill('doctor');
-    await page.locator('[name=password]').fill(process.env.APP_DOCTOR_PASSWORD || 'doctor-local-test-2026');
+    await page.locator('[name=password]').fill(doctorPassword);
     await page.locator('#authForm button[type=submit]').click();
     await page.locator('h1').filter({ hasText: 'Tổng quan' }).waitFor({ timeout: 10000 });
     console.log('[Test Live UI] Email verification UI and provisioned login verified.');
@@ -390,10 +423,9 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
 
     // Viewport canvas should load after inference completes
     await page.locator('#viewport').waitFor({ timeout: 120000 });
-    await page.waitForFunction(async () => {
-      const { state } = await import('/static/app/state.js');
-      return state.case?.images?.some(image => image.laterality === 'L' && image.seen === true);
-    }, null, { timeout: 30000 });
+    await waitForAppState(page, snapshot => snapshot.case?.images?.some(
+      image => image.laterality === 'L' && image.seen === true),
+    { timeout: 30000, message: 'left synthetic image viewed' });
 
     const studyId = await page.evaluate(async () => {
       const { state } = await import('/static/app/state.js');
@@ -412,9 +444,7 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     const leftPrediction = initialCase.images.find(image => image.laterality === 'L')?.prediction;
     const hasUncertaintyMap = Boolean(leftPrediction?.uncertainty_map_base64);
     await page.locator('#researchTab').click();
-    await test_cdss_panel_is_explicit_ruo_and_does_not_persist(
-      page, studyId, doctorToken, browserRequests,
-    );
+    await test_cdss_requires_a_saved_region_and_sends_no_defaults(page, browserRequests);
     const uncertaintyToggle = page.locator('#uncertaintyToggle');
     assert.equal(await uncertaintyToggle.isEnabled(), hasUncertaintyMap,
       'The entropy control must follow map availability: ' + await page.locator('#uncertaintyInfo').textContent());
@@ -480,9 +510,23 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     assert.match(expandedNotes, /Mô tả nang noãn: \[bác sĩ xác nhận/,
       'Dot-phrase .nang1 opens a neutral template requiring clinician completion');
     assert.doesNotMatch(expandedNotes, /O-RADS\s*\d/iu);
+    const reviewBatchCountBeforePlaceholderSave = browserRequests.filter(request =>
+      request.method === 'POST' && request.path === '/api/reviews/batch').length;
+    await page.locator('[data-action="save-review"]').click();
+    await page.locator('#toasts .toast').filter({ hasText: 'hoàn tất các chỗ trống' }).waitFor({ timeout: 5000 });
+    assert.equal(await page.locator('#reviewContentWarning').isVisible(), true,
+      'an unresolved dot-phrase must display the review warning');
+    assert.equal(browserRequests.filter(request =>
+      request.method === 'POST' && request.path === '/api/reviews/batch').length,
+    reviewBatchCountBeforePlaceholderSave,
+    'an unresolved dot-phrase must not reach the review API');
 
-    // Combine expanded phrase with HTML-like injection probe to verify safe sanitization
-    await page.locator('#notes').fill('Bác sĩ ghi nhận mô tả trên ảnh tổng hợp. <img src=x onerror=alert(1)>');
+    // Complete the neutral template, then combine it with an HTML-like probe.
+    const completedNotes = expandedNotes.replace(
+      '[bác sĩ xác nhận kích thước, hình thái và bối cảnh]',
+      'kích thước 24 mm, nội dung trống và thành mỏng trong dữ liệu tổng hợp',
+    );
+    await page.locator('#notes').fill(`${completedNotes}\nBác sĩ ghi nhận mô tả trên ảnh tổng hợp. <img src=x onerror=alert(1)>`);
     await page.locator('#notes').dispatchEvent('input');
 
     await page.evaluate(async id => {
@@ -503,14 +547,12 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     const batchBody = await batchResponse.json();
     assert.equal(batchBody.status, 'SUCCESS');
     assert.equal(batchBody.review_revision, 1);
-    await page.waitForFunction(async () => {
-      const { state } = await import('/static/app/state.js');
-      return state.case?.status === 'REVIEWED' && state.case.review_revision > 0 && !state.busy;
-    }, null, { timeout: 30000 });
-    await page.waitForFunction(async id => {
-      const { state } = await import('/static/app/state.js');
-      return state.case?.study_id === id && state.route === 'viewer' && !state.busy;
-    }, studyId, { timeout: 10000 });
+    await waitForAppState(page, snapshot => snapshot.case?.status === 'REVIEWED' &&
+      snapshot.case.review_revision > 0 && !snapshot.busy,
+    { timeout: 30000, message: 'review persisted in frontend state' });
+    await waitForAppState(page, snapshot => snapshot.case?.study_id === studyId &&
+      snapshot.route === 'viewer' && !snapshot.busy,
+    { timeout: 10000, message: 'viewer route restored after review' });
     await page.waitForFunction(() => window.__reviewNextCaseDispatched === true, null, { timeout: 10000 });
 
     const reviewedResponse = await page.request.get(base + '/api/cases/' + studyId, {
@@ -530,10 +572,9 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     console.log('[Test Live UI] Bilateral research review persisted with doctor attribution.');
 
     await page.evaluate(() => { location.hash = '#cases'; });
-    await page.waitForFunction(async () => {
-      const { state } = await import('/static/app/state.js');
-      return location.hash === '#cases' && state.route === 'cases' && !state.busy;
-    }, null, { timeout: 15000 });
+    await waitForAppState(page, snapshot => snapshot.dom.hash === '#cases' &&
+      snapshot.route === 'cases' && !snapshot.busy,
+    { timeout: 15000, message: 'worklist navigation' });
     const navState = await page.evaluate(async () => {
       const { state } = await import('/static/app/state.js');
       return {
@@ -550,6 +591,11 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     const gridState = await test_grid_reuses_filtered_rows_thumbnails_and_case_route(
       page, studyId, reviewedStudy, browserRequests,
     );
+    await test_worklist_thumbnail_failure_recovers_after_refresh(
+      page, studyId, reviewedStudy.images[0].image_id, reviewedStudy.study_code,
+      doctorToken, browserRequests, errors, httpFailures,
+    );
+    gridState.writesBefore = clinicalWriteCount(browserRequests);
     await test_grid_display_never_marks_reviewed_or_bulk_signs(
       page, studyId, doctorToken, browserRequests, gridState,
     );
@@ -557,18 +603,17 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     await openCaseLink.waitFor({ timeout: 15000 });
     await openCaseLink.click();
     await page.locator('#viewport').waitFor({ timeout: 30000 });
-    await page.waitForFunction(async id => {
-      const { state } = await import('/static/app/state.js');
-      return state.case?.study_id === id && state.editing?.allowed === true;
-    }, studyId, { timeout: 30000 });
+    await waitForAppState(page, snapshot => snapshot.case?.study_id === studyId &&
+      snapshot.editing?.allowed === true,
+    { timeout: 30000, message: 'worklist case lease acquired' });
     console.log('[Test Live UI] Worklist search reopened the persisted case under an active lease.');
 
     await page.evaluate(id => { location.hash = `#report/${id}`; }, studyId);
     await page.locator('#reportData .report').waitFor({ timeout: 30000 });
-    assert.equal(await page.locator('#reportData .report-images img').count(), 6);
+    assert.equal(await page.locator('#reportData .report-image-pair img').count(), 4);
     const reportText = await page.locator('#reportData .report').innerText();
-    assert.match(reportText, /Bản nghiên cứu RUO/);
-    assert.match(reportText, /Chưa có chữ ký số xác thực/);
+    assert.match(reportText, /BẢN NGHIÊN CỨU \(RUO\)/i);
+    assert.match(reportText, /Chưa có chữ ký số/i);
     assert.match(reportText, /Chưa hiệu chuẩn/);
     await test_research_report_preview_renders_html_like_text_as_inert(page, reviewedStudy, browserRequests);
     await page.evaluate(() => {
@@ -580,7 +625,6 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     console.log('[Test Live UI] Report preview and browser print path remain research-only.');
 
     // Cleanup created study
-    const adminPassword = process.env.APP_ADMIN_PASSWORD || 'admin-local-test-2026';
     const authR = await page.request.post(base + '/api/auth/login', {
       data: { username: 'admin', password: adminPassword },
     });
@@ -598,7 +642,6 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     let cleanupError = null;
     if (createdStudyId) {
       try {
-        const adminPassword = process.env.APP_ADMIN_PASSWORD || 'admin-local-test-2026';
         const authR = await page.request.post(base + '/api/auth/login', {
           data: { username: 'admin', password: adminPassword },
         });
@@ -614,7 +657,7 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
         cleanupError = error;
       }
     }
-    await browser.close();
+    await server.close();
     if (cleanupError) throw cleanupError;
   }
 })().catch((e) => {

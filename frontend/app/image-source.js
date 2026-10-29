@@ -18,3 +18,14 @@ export async function imageSourceBlob(source) {
   );
   return new Blob([bytes], { type: mimeType });
 }
+
+export async function imageSourceBitmap(source) {
+  if (source.startsWith("blob:")) {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = source;
+    await image.decode();
+    return createImageBitmap(image);
+  }
+  return createImageBitmap(await imageSourceBlob(source));
+}

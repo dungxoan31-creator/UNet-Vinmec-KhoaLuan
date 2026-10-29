@@ -5,11 +5,13 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.app.routers import cases
 from backend.db.database import (
+    ActiveLearningQueueModel,
     AuditLogModel,
     Base,
     ImageModel,
@@ -17,6 +19,7 @@ from backend.db.database import (
     PredictionModel,
     ReviewModel,
     StudyModel,
+    UIEventModel,
 )
 
 
@@ -24,6 +27,18 @@ def _case_database(tmp_path, image_paths, monkeypatch):
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir(exist_ok=True)
     monkeypatch.setattr(cases, "UPLOAD_DIR", str(upload_dir), raising=False)
+    from backend.services import review_service
+
+    monkeypatch.setattr(
+        review_service,
+        "ACTIVE_LEARNING_QUEUE_PATH",
+        tmp_path / "runtime-active-learning.jsonl",
+    )
+    monkeypatch.setattr(
+        review_service,
+        "_LEGACY_ACTIVE_LEARNING_QUEUE_PATH",
+        tmp_path / "legacy-active-learning.jsonl",
+    )
 
     engine = create_engine(f"sqlite:///{tmp_path / 'case-delete.sqlite3'}")
     Base.metadata.create_all(engine)
@@ -60,6 +75,15 @@ def test_delete_preserves_case_and_upload_when_database_commit_fails(tmp_path, m
     image = upload_dir / "image.png"
     image.write_bytes(b"image")
     engine, sessions, study_id = _case_database(tmp_path, [image], monkeypatch)
+    from backend.services import review_service
+
+    runtime_queue = tmp_path / "runtime-active-learning.jsonl"
+    legacy_queue = tmp_path / "legacy-active-learning.jsonl"
+    sample = '{"image_id":"image-0","actor_id":"doctor"}\n'
+    runtime_queue.write_text(sample, encoding="utf-8")
+    legacy_queue.write_text(sample, encoding="utf-8")
+    monkeypatch.setattr(review_service, "ACTIVE_LEARNING_QUEUE_PATH", runtime_queue)
+    monkeypatch.setattr(review_service, "_LEGACY_ACTIVE_LEARNING_QUEUE_PATH", legacy_queue)
     try:
         with sessions() as db:
             def fail_commit():
@@ -80,6 +104,8 @@ def test_delete_preserves_case_and_upload_when_database_commit_fails(tmp_path, m
                 == 0
             )
         assert image.exists()
+        assert runtime_queue.read_text(encoding="utf-8") == sample
+        assert legacy_queue.read_text(encoding="utf-8") == sample
     finally:
         engine.dispose()
 
@@ -118,6 +144,15 @@ def test_delete_commit_acknowledgement_failure_reconciles_persisted_delete(tmp_p
     image = upload_dir / "image.png"
     image.write_bytes(b"image")
     engine, sessions, study_id = _case_database(tmp_path, [image], monkeypatch)
+    from backend.services import review_service
+
+    runtime_queue = tmp_path / "runtime-active-learning.jsonl"
+    legacy_queue = tmp_path / "legacy-active-learning.jsonl"
+    sample = '{"image_id":"image-0","actor_id":"doctor"}\n'
+    runtime_queue.write_text(sample, encoding="utf-8")
+    legacy_queue.write_text(sample, encoding="utf-8")
+    monkeypatch.setattr(review_service, "ACTIVE_LEARNING_QUEUE_PATH", runtime_queue)
+    monkeypatch.setattr(review_service, "_LEGACY_ACTIVE_LEARNING_QUEUE_PATH", legacy_queue)
     try:
         with sessions() as db:
             real_commit = db.commit
@@ -134,8 +169,14 @@ def test_delete_commit_acknowledgement_failure_reconciles_persisted_delete(tmp_p
             result = _delete_case(study_id, db)
 
         assert result["status"] == "SUCCESS"
+        assert result["active_learning_cleanup"] == "COMPLETE"
         assert result["file_cleanup"] == "COMPLETE"
+        assert result["active_learning_cleanup"] == "COMPLETE"
         assert not image.exists()
+        assert runtime_queue.read_text(encoding="utf-8") == ""
+        assert legacy_queue.read_text(encoding="utf-8") == ""
+        assert not list(tmp_path.glob("*active-learning.jsonl.*.bak"))
+        assert not list(tmp_path.glob("*active-learning.jsonl.*.tmp"))
         with sessions() as db:
             assert db.get(StudyModel, study_id) is None
             assert db.query(AuditLogModel).filter_by(
@@ -178,6 +219,119 @@ def test_delete_removes_owned_upload_after_database_commit(tmp_path, monkeypatch
         with sessions() as db:
             pending_model = getattr(importlib.import_module("backend.db.database"), "PendingFileDeletionModel")
             assert db.query(pending_model).count() == 0
+    finally:
+        engine.dispose()
+
+
+def test_delete_removes_active_learning_samples_with_their_case(tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+    image = upload_dir / "reviewed.png"
+    image.write_bytes(b"reviewed image")
+    engine, sessions, study_id = _case_database(tmp_path, [image], monkeypatch)
+    from backend.services import review_service
+
+    runtime_queue = tmp_path / "runtime-active-learning.jsonl"
+    legacy_queue = tmp_path / "legacy-active-learning.jsonl"
+    runtime_queue.write_text(
+        '{"image_id":"image-0","actor_id":"doctor"}\n'
+        '{"image_id":"runtime-another-case-image","actor_id":"doctor"}\n',
+        encoding="utf-8",
+    )
+    legacy_queue.write_text(
+        '{"image_id":"image-0","actor_id":"doctor"}\n'
+        '{"image_id":"another-case-image","actor_id":"doctor"}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(review_service, "ACTIVE_LEARNING_QUEUE_PATH", runtime_queue)
+    monkeypatch.setattr(
+        review_service,
+        "_LEGACY_ACTIVE_LEARNING_QUEUE_PATH",
+        legacy_queue,
+    )
+    try:
+        with sessions() as db:
+            review = ReviewModel(
+                id="review-0",
+                image_id="image-0",
+                prediction_id=None,
+                doctor_action="MODIFIED",
+                verified_mask_rle={"shape": [512, 512], "first_val": 0, "counts": [262144]},
+            )
+            db.add(review)
+            db.flush()
+            db.add(
+                ActiveLearningQueueModel(
+                    review_id=review.id,
+                    study_id=study_id,
+                    image_id="image-0",
+                    prediction_id=None,
+                    sample={"image_id": "image-0", "actor_id": "doctor"},
+                )
+            )
+            db.commit()
+            assert db.query(ActiveLearningQueueModel).count() == 1
+
+        with sessions() as db:
+            result = _delete_case(study_id, db)
+            assert result["status"] == "SUCCESS"
+            assert result["active_learning_cleanup"] == "COMPLETE"
+
+        with sessions() as db:
+            assert db.query(ActiveLearningQueueModel).count() == 0
+            assert db.query(ReviewModel).count() == 0
+        assert legacy_queue.read_text(encoding="utf-8").splitlines() == [
+            '{"image_id":"another-case-image","actor_id":"doctor"}'
+        ]
+        assert runtime_queue.read_text(encoding="utf-8").splitlines() == [
+            '{"image_id":"runtime-another-case-image","actor_id":"doctor"}'
+        ]
+        assert not image.exists()
+    finally:
+        engine.dispose()
+
+
+def test_delete_rolls_back_if_active_learning_export_cleanup_fails(tmp_path, monkeypatch):
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+    image = upload_dir / "reviewed.png"
+    image.write_bytes(b"reviewed image")
+    engine, sessions, study_id = _case_database(tmp_path, [image], monkeypatch)
+    from backend.services import review_service
+
+    runtime_queue = tmp_path / "runtime-active-learning.jsonl"
+    legacy_queue = tmp_path / "legacy-active-learning.jsonl"
+    sample = '{"image_id":"image-0","actor_id":"doctor"}\n'
+    runtime_queue.write_text(sample, encoding="utf-8")
+    legacy_queue.write_text(sample, encoding="utf-8")
+    monkeypatch.setattr(review_service, "ACTIVE_LEARNING_QUEUE_PATH", runtime_queue)
+    monkeypatch.setattr(
+        review_service,
+        "_LEGACY_ACTIVE_LEARNING_QUEUE_PATH",
+        legacy_queue,
+    )
+    real_replace = review_service.os.replace
+
+    def fail_legacy_replace(source, destination):
+        if Path(destination) == legacy_queue:
+            raise PermissionError("simulated legacy export lock")
+        return real_replace(source, destination)
+
+    try:
+        monkeypatch.setattr(review_service.os, "replace", fail_legacy_replace)
+        with sessions() as db:
+            with pytest.raises(HTTPException) as error:
+                _delete_case(study_id, db)
+            assert error.value.status_code == 503
+            assert "linked review export cleanup" in error.value.detail
+
+        with sessions() as db:
+            assert db.get(StudyModel, study_id) is not None
+            assert db.query(ImageModel).filter_by(study_id=study_id).count() == 1
+            assert db.query(AuditLogModel).filter_by(action_type="CLINICAL_CASE_DELETE").count() == 0
+        assert image.exists()
+        assert runtime_queue.read_text(encoding="utf-8") == sample
+        assert legacy_queue.read_text(encoding="utf-8") == sample
     finally:
         engine.dispose()
 
@@ -355,5 +509,31 @@ def test_delete_case_removes_reviews_before_referenced_predictions(tmp_path, mon
             assert db.get(PredictionModel, prediction_id) is None
             assert db.get(ReviewModel, review_id) is None
         assert not image_path.exists()
+    finally:
+        engine.dispose()
+
+
+def test_delete_case_removes_case_linked_ui_telemetry_before_study(tmp_path, monkeypatch):
+    engine, sessions, study_id = _case_database(tmp_path, [], monkeypatch)
+    try:
+        with sessions() as db:
+            db.add(
+                UIEventModel(
+                    id="event-1",
+                    case_id=study_id,
+                    user_id="test-admin",
+                    event_type="case_open",
+                    payload_json={"source": "synthetic-test"},
+                    t_ms=1.0,
+                )
+            )
+            db.commit()
+
+            result = _delete_case(study_id, db)
+
+            assert result["status"] == "SUCCESS"
+            assert db.get(StudyModel, study_id) is None
+            assert db.query(UIEventModel).filter_by(case_id=study_id).count() == 0
+            assert db.query(UIEventModel).filter_by(id="event-1").count() == 0
     finally:
         engine.dispose()

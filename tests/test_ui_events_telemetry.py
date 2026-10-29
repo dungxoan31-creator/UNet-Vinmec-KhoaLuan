@@ -134,3 +134,28 @@ def test_post_ui_events_batch(auth_headers, test_study):
         summary = generate_kpi_summary(db)
         assert summary["total_cases"] >= 1
         assert summary["avg_t_total_sec"] > 0
+
+
+def test_post_ui_events_discards_batch_entries_for_deleted_cases(auth_headers):
+    client = TestClient(app)
+    response = client.post(
+        "/api/hitl/events",
+        json={
+            "events": [
+                {
+                    "case_id": "deleted-synthetic-study",
+                    "event": "case_open",
+                    "t_ms": 1729860000000.0,
+                    "payload": {"source": "synthetic-test"},
+                }
+            ]
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "status": "SUCCESS",
+        "received": 0,
+        "discarded_unknown_case": 1,
+    }

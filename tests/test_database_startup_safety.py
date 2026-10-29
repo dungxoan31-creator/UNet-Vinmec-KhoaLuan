@@ -4,6 +4,40 @@ from threading import Barrier
 import pytest
 
 
+def test_legacy_studies_receive_stable_unique_visit_numbers(tmp_path):
+    import sqlite3
+
+    from backend.db.database import _migrate_visit_numbers_on_connection
+
+    path = tmp_path / "legacy-visit-numbers.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE studies (id TEXT PRIMARY KEY)")
+        connection.executemany(
+            "INSERT INTO studies (id) VALUES (?)",
+            [("legacy-study-a",), ("legacy-study-b",)],
+        )
+        _migrate_visit_numbers_on_connection(connection.cursor())
+        first_numbers = dict(connection.execute("SELECT id, visit_no FROM studies"))
+        assert set(first_numbers.values()) == {"000001", "000002"}
+        assert connection.execute(
+            "SELECT next_value FROM visit_number_sequences WHERE id = 1"
+        ).fetchone() == (3,)
+
+        connection.execute("DELETE FROM studies WHERE id = 'legacy-study-b'")
+        _migrate_visit_numbers_on_connection(connection.cursor())
+        assert dict(connection.execute("SELECT id, visit_no FROM studies")) == {
+            "legacy-study-a": "000001"
+        }
+        assert connection.execute(
+            "SELECT next_value FROM visit_number_sequences WHERE id = 1"
+        ).fetchone() == (3,)
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO studies (id, visit_no) VALUES ('duplicate', '000001')"
+            )
+
+
 def test_init_db_stops_before_migration_when_metadata_creation_fails(tmp_path, monkeypatch):
     from backend.db import database
 

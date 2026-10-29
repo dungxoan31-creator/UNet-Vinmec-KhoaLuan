@@ -27,14 +27,15 @@ from backend.models.attention_unet import AttentionUNet
 from backend.models.unet import StandardUNet
 
 
-def _build_model(model_kind, device):
-    if model_kind == "unetplusplus":
+def _build_model(model_kind, device, decoder_attention_type=None):
+    if model_kind in ("unetplusplus", "unetplusplus_scse"):
         model = smp.UnetPlusPlus(
             encoder_name="resnet34",
             encoder_weights=None,
             in_channels=1,
             classes=1,
             activation=None,
+            decoder_attention_type=decoder_attention_type,
         )
     elif model_kind == "standard":
         model = StandardUNet(in_channels=1, num_classes=1, base_filters=32)
@@ -114,6 +115,7 @@ class InferenceEngine:
         apply_morphology=False,
         expected_checkpoint_sha256=None,
         model_version=None,
+        decoder_attention_type=None,
     ):
         self.device = device if device else ("cuda" if torch.cuda.is_available() else "cpu")
         self.threshold = float(threshold)
@@ -140,7 +142,12 @@ class InferenceEngine:
             raise ValueError("input_normalization.std must be greater than zero")
         # Auto-detect architecture from path if not explicitly standard_unet or attention_unet
         is_standard = False
-        is_unetplusplus = architecture in {"unetplusplus", "unetplusplus_resnet34"}
+        is_unetplusplus = architecture in {
+            "unetplusplus",
+            "unetplusplus_resnet34",
+            "unetplusplus_resnet34_scse",
+            "unetplusplus_scse",
+        }
         if architecture == "standard_unet":
             is_standard = True
         elif is_unetplusplus or architecture == "attention_unet":
@@ -152,9 +159,12 @@ class InferenceEngine:
             elif "baseline" in lower_base or "unet_best" in lower_base:
                 is_standard = True
 
+        self.decoder_attention_type = decoder_attention_type or (
+            "scse" if "scse" in str(architecture).lower() else None
+        )
         self.model_kind = "unetplusplus" if is_unetplusplus else ("standard" if is_standard else "attention")
-        self.model = self._build_on_selected_device(self.model_kind)
-        self._set_model_identity(self.model_kind)
+        self.model = self._build_on_selected_device(self.model_kind, self.decoder_attention_type)
+        self._set_model_identity(self.model_kind, self.decoder_attention_type)
         self.model.eval()
 
         if model_weights_path and os.path.exists(model_weights_path):
@@ -164,12 +174,23 @@ class InferenceEngine:
                     device="cpu",
                     expected_checksum=self.expected_checkpoint_sha256,
                 )
+                if is_unetplusplus:
+                    has_scse = any("attention.cSE" in k or "attention.sSE" in k for k in state_dict.keys())
+                    target_attn = "scse" if has_scse else None
+                    if target_attn != self.decoder_attention_type:
+                        self.decoder_attention_type = target_attn
+                        self.model = self._build_on_selected_device(self.model_kind, self.decoder_attention_type)
+                        self._set_model_identity(self.model_kind, self.decoder_attention_type)
+                        self.model.eval()
                 try:
                     self.model.load_state_dict(state_dict, strict=True)
                 except Exception as load_error:
                     if _is_cuda_runtime_failure(load_error) and self._is_cuda_device():
                         self._record_cpu_fallback(load_error)
-                        self.model = _build_model(self.model_kind, "cpu")
+                        try:
+                            self.model = _build_model(self.model_kind, "cpu", decoder_attention_type=self.decoder_attention_type)
+                        except TypeError:
+                            self.model = _build_model(self.model_kind, "cpu")
                         try:
                             self.model.load_state_dict(state_dict, strict=True)
                             load_error = None
@@ -205,19 +226,32 @@ class InferenceEngine:
         self.device = "cpu"
         print(f"[InferenceEngine] CUDA failed; continuing on CPU: {self.device_fallback_reason}")
 
-    def _build_on_selected_device(self, model_kind):
+    def _build_on_selected_device(self, model_kind, decoder_attention_type=None):
         try:
+            if decoder_attention_type is not None:
+                return _build_model(model_kind, self.device, decoder_attention_type=decoder_attention_type)
+            return _build_model(model_kind, self.device)
+        except TypeError:
             return _build_model(model_kind, self.device)
         except Exception as exc:
             if not self._is_cuda_device():
                 raise
             self._record_cpu_fallback(exc)
+            if decoder_attention_type is not None:
+                try:
+                    return _build_model(model_kind, "cpu", decoder_attention_type=decoder_attention_type)
+                except TypeError:
+                    return _build_model(model_kind, "cpu")
             return _build_model(model_kind, "cpu")
 
-    def _set_model_identity(self, model_kind):
-        if model_kind == "unetplusplus":
-            self.architecture_name = "U-Net++ (ResNet34 ImageNet)"
-            self.model_name = "U-Net++ + ResNet34 ImageNet encoder"
+    def _set_model_identity(self, model_kind, decoder_attention_type=None):
+        if model_kind in ("unetplusplus", "unetplusplus_scse"):
+            if decoder_attention_type == "scse":
+                self.architecture_name = "U-Net++ (ResNet34 ImageNet + scSE Attention)"
+                self.model_name = "U-Net++ + ResNet34 ImageNet encoder + scSE attention"
+            else:
+                self.architecture_name = "U-Net++ (ResNet34 ImageNet)"
+                self.model_name = "U-Net++ + ResNet34 ImageNet encoder"
         elif model_kind == "standard":
             self.architecture_name = "Standard U-Net (Baseline)"
             self.model_name = "Standard U-Net (Baseline)"
@@ -415,6 +449,11 @@ class InferenceEngine:
         finally:
             if use_cuda:
                 self._end_cuda_forward()
+                if torch.cuda.is_available() and self._is_cuda_device():
+                    try:
+                        torch.cuda.empty_cache()
+                    except Exception:
+                        pass
 
     def _forward_probabilities_on_current_device(self, tensor_512: torch.Tensor) -> np.ndarray:
         tensor_gpu = self.prepare_model_input(tensor_512)
@@ -433,6 +472,8 @@ class InferenceEngine:
             else:
                 logits = self.model(tensor_gpu)
                 probs = self._sigmoid_finite_logits(logits).squeeze().cpu().numpy()
+                del logits
+        del tensor_gpu
         if torch.cuda.is_available() and self._is_cuda_device():
             torch.cuda.synchronize()
         t1 = time.perf_counter()
@@ -534,6 +575,15 @@ class InferenceEngine:
                 "has_lesion": False,
                 "total_lesions": 0,
                 "lesions": [],
+                "follicles": {
+                    "count": 0,
+                    "count_in_range": 0 if calibrated else None,
+                    "diameters_px": [],
+                    "diameters_mm": None,
+                    "analysis_status": "SUCCEEDED",
+                    "region_semantics": "UNCONFIRMED",
+                    "diameter_method": "equivalent_area_diameter",
+                },
                 "max_diameter_mm": None,
                 "ortho_diameter_mm": None,
                 "d3_mm": None,
@@ -649,6 +699,12 @@ class InferenceEngine:
             max_d_overall_px = dominant["max_diameter_px"]
             ortho_d_overall_px = dominant["ortho_diameter_px"]
             has_lesion = True
+            if filtered_components:
+                warning = (
+                    f"Mask có {len(filtered_components)} vùng dưới ngưỡng lọc diện tích (50 px²); "
+                    "tổng diện tích không bao gồm các vùng này. Cần bác sĩ rà soát từng vùng."
+                )
+                exclusion_reason = "some_components_below_min_area"
         elif filtered_components:
             dominant = filtered_components[0]
             max_d_overall = dominant["max_diameter_mm"]
@@ -670,11 +726,42 @@ class InferenceEngine:
             ortho_d_overall_px = 0.0
             has_lesion = False
 
+        follicles_data = {
+            "count": 0,
+            "count_in_range": 0 if calibrated else None,
+            "diameters_px": [],
+            "diameters_mm": None,
+            "analysis_status": "SUCCEEDED",
+            "region_semantics": "UNCONFIRMED",
+            "diameter_method": "equivalent_area_diameter",
+        }
+        if binary_mask.sum() > 0:
+            try:
+                from backend.services.morphology_extractor import separate_and_count_follicles
+                follicles_data = separate_and_count_follicles(
+                    binary_mask,
+                    pixel_spacing_mm=pixel_spacing_mm if calibrated else None,
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("Mask region separation failed")
+                follicles_data = {
+                    "count": None,
+                    "count_in_range": None,
+                    "diameters_px": None,
+                    "diameters_mm": None,
+                    "analysis_status": "FAILED",
+                    "error_code": "REGION_SEPARATION_FAILED",
+                    "region_semantics": "UNCONFIRMED",
+                    "diameter_method": "equivalent_area_diameter",
+                }
+
         return {
             "has_lesion": has_lesion,
             "total_lesions": len(lesions) if lesions else len(filtered_components),
             "lesions": lesions,
             "filtered_components": filtered_components,
+            "follicles": follicles_data,
             "exclusion_reason": exclusion_reason,
             "warning": warning,
             "max_diameter_mm": round(max_d_overall, 2) if max_d_overall is not None else None,
@@ -694,8 +781,9 @@ class InferenceEngine:
             ),
         }
 
+    @staticmethod
     def generate_overlay_base64(
-        self, gray_512: np.ndarray, binary_mask: np.ndarray, measurements: dict, alpha: float = 0.35
+        gray_512: np.ndarray, binary_mask: np.ndarray, measurements: dict, alpha: float = 0.35
     ) -> str:
         """
         Generates a semi-transparent color overlay image with caliper lines and returns as Base64 PNG.
@@ -854,3 +942,79 @@ class InferenceEngine:
 
 
     predict = run_inference
+
+
+
+def synthesize_multibranch_findings(
+    study_id: str,
+    side: str,
+    pixel_spacing_mm: float | None = None,
+    lesion_measurements: dict | None = None,
+    ovary_measurements: dict | None = None,
+    follicle_measurements: dict | None = None,
+    lesion_probs: dict | None = None,
+    img_gray = None,
+    binary_mask = None,
+    ood_score: float | None = None,
+    patient_context: dict | None = None,
+    clinician_findings: dict | None = None,
+) -> dict:
+    from backend.services.cdss_engine import CDSSReasoningEngine
+    from backend.services.diagnostic_engine import DiagnosticReasoningEngine
+
+    diag_engine = DiagnosticReasoningEngine()
+    cdss_engine = CDSSReasoningEngine()
+
+    lm = lesion_measurements or {}
+    om = ovary_measurements
+    fm = follicle_measurements
+
+    # 1. Estimate features if image and mask are available
+    if img_gray is not None and binary_mask is not None:
+        estimated_features = diag_engine.estimate_orads_features(
+            img_gray=img_gray,
+            binary_mask=binary_mask,
+            pixel_spacing_mm=pixel_spacing_mm,
+        )
+    else:
+        estimated_features = {}
+
+    # A mask-derived count for one image is not a validated whole-ovary FNPO.
+    # Keep PCOM assessment unavailable until a clinician confirms the complete
+    # acquisition and the measured follicle set.
+    pcos_res = None
+
+    # 3. Fuse 8-class probabilities + features + abstain logic
+    ai_diag = diag_engine.fuse_and_evaluate(
+        lesion_probs=lesion_probs,
+        estimated_features=estimated_features,
+        ood_score=ood_score,
+        pcos_suggestion=pcos_res,
+    )
+
+    # 4. Integrate into CDSS Reasoning Engine
+    cdss_result = None
+    if clinician_findings is not None:
+        try:
+            cdss_result = cdss_engine.evaluate_case(
+                vision_findings=clinician_findings,
+                patient_context=patient_context,
+            )
+            ai_diag["cdss_raw"] = cdss_result
+            category = (cdss_result.get("orads_stratification") or {}).get("category")
+            if cdss_result.get("status") == "RULE_MATCHED" and category is not None:
+                ai_diag["orads_suggested"]["category"] = category
+        except Exception:
+            cdss_result = None
+
+    return {
+        "study_id": study_id,
+        "side": side,
+        "pixel_spacing_mm": pixel_spacing_mm,
+        "ovary": om,
+        "follicles": fm,
+        "lesion": lm,
+        "ai_diagnosis": ai_diag,
+        "review_status": "PENDING",
+        "clinician_overrides": {},
+    }

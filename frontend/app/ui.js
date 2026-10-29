@@ -18,6 +18,7 @@ const paths = {
     "M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3m18 0v-3a4 4 0 0 0-3-4M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8m8-7a4 4 0 0 1 0 7",
   chart: "M4 3v18h17M8 16v-4m5 4V7m5 9V4",
   settings: "M4 7h16M4 17h16M8 4v6m8 4v6",
+  ruler: "M4 20 20 4M7 17l3 3m-1-7 3 3m1-7 3 3m1-7 3 3",
   bell: "M18 8a6 6 0 0 0-12 0c0 8-3 8-3 10h18c0-2-3-2-3-10m-11 13h4",
   search: "M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14m5-2 6 6",
   arrow: "M4 12h16m-6-6 6 6-6 6",
@@ -47,7 +48,7 @@ export const badge = (status) =>
 export const field = (label, name, type = "text", value = "", extra = "") =>
   `<label class="field">${esc(label)}<input name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}></label>`;
 export const pageHead = (title, description = "", actions = "") =>
-  `<div class="page-heading"><div><p class="eyebrow">KHÔNG GIAN LÀM VIỆC</p><h1>${esc(title)}</h1>${description ? `<p class="muted">${esc(description)}</p>` : ""}</div><div class="actions">${actions}</div></div>`;
+  `<div class="page-heading"><div><h1>${esc(title)}</h1>${description ? `<p class="muted">${esc(description)}</p>` : ""}</div><div class="actions">${actions}</div></div>`;
 export const empty = (
   title = "Chưa có dữ liệu",
   detail = "Dữ liệu sẽ xuất hiện tại đây khi có bản ghi phù hợp.",

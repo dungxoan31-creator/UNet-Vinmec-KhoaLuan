@@ -503,6 +503,26 @@ test("test_candidate_apply_telemetry_is_allowlisted", async () => {
   tracker.reset();
 });
 
+test("HITL event flush is not tied to the current route abort signal", async () => {
+  const requests = [];
+  const tracker = createTracker({
+    request: async (path, options) => {
+      requests.push({ path, options });
+      return { id: "session-1" };
+    },
+    storage: null,
+  });
+  await tracker.startSession("study-a");
+  tracker.startTask("image-left", "prediction-left");
+  tracker.startStroke("image-left");
+  tracker.commitEdit("image-left", { tool: "brush", changed_pixels: 1 });
+  await tracker.flush();
+  const eventRequest = requests.find(item => item.path.endsWith("/events"));
+  assert.ok(eventRequest);
+  assert.equal(eventRequest.options.signal, null);
+  tracker.reset();
+});
+
 test("test_candidate_apply_telemetry_keeps_bounded_transform_provenance", async () => {
   const tracker = createTracker({
     now: () => 100,

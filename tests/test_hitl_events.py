@@ -467,7 +467,12 @@ def test_missing_final_ack_is_incomplete(auth_tokens, test_case_setup):
             },
         ]
     }
-    client.post(f"/api/hitl/sessions/{session_id}/events", json=ack_payload, headers=auth_tokens["doctor"])
+    ack_response = client.post(
+        f"/api/hitl/sessions/{session_id}/events",
+        json=ack_payload,
+        headers=auth_tokens["doctor"],
+    )
+    assert ack_response.status_code == 200, ack_response.text
 
     # Now session becomes COMPLETED!
     res_info2 = client.get(f"/api/hitl/sessions/{session_id}", headers=auth_tokens["doctor"])
@@ -503,6 +508,194 @@ def test_event_limits(auth_tokens, test_case_setup):
     ]
     resp = client.post(f"/api/hitl/sessions/{session_id}/events", json={"events": huge_batch}, headers=auth_tokens["doctor"])
     assert resp.status_code == 422
+
+
+def test_session_event_limit_is_rechecked_after_append_lock(auth_tokens, test_case_setup, monkeypatch):
+    from backend.app.main import app
+    from backend.app.routers import hitl
+    from backend.db.database import HITLEventModel, SessionLocal
+
+    client = TestClient(app)
+    case = test_case_setup
+    created = client.post(
+        "/api/hitl/sessions",
+        json={"study_id": case["study_id"], "participant_code": "LIMIT_RACE"},
+        headers=auth_tokens["doctor"],
+    )
+    assert created.status_code == 200, created.text
+    session_id = created.json()["id"]
+
+    with SessionLocal() as db:
+        db.add_all(
+            HITLEventModel(
+                id=str(uuid.uuid4()),
+                event_id=str(uuid.uuid4()),
+                session_id=session_id,
+                task_id=str(uuid.uuid4()),
+                image_id=case["img_l_id"],
+                seq=1,
+                event_type="PREDICTION_VIEWED",
+                client_utc="2026-10-29T12:00:00Z",
+                elapsed_ms=1.0,
+                session_elapsed_ms=1.0,
+                payload_hash="0" * 64,
+                payload={},
+                actor_id="doctor",
+            )
+            for _ in range(9999)
+        )
+        db.commit()
+
+    claim_lock = hitl._claim_hitl_session_for_append
+    injected = False
+
+    def append_one_concurrent_event_before_claim(db, session):
+        nonlocal injected
+        if not injected:
+            injected = True
+            db.rollback()
+            with SessionLocal() as concurrent_db:
+                concurrent_db.add(
+                    HITLEventModel(
+                        id=str(uuid.uuid4()),
+                        event_id=str(uuid.uuid4()),
+                        session_id=session_id,
+                        task_id=str(uuid.uuid4()),
+                        image_id=case["img_l_id"],
+                        seq=1,
+                        event_type="PREDICTION_VIEWED",
+                        client_utc="2026-10-29T12:00:00Z",
+                        elapsed_ms=1.0,
+                        session_elapsed_ms=1.0,
+                        payload_hash="1" * 64,
+                        payload={},
+                        actor_id="doctor",
+                    )
+                )
+                concurrent_db.commit()
+        return claim_lock(db, session)
+
+    monkeypatch.setattr(hitl, "_claim_hitl_session_for_append", append_one_concurrent_event_before_claim)
+    response = client.post(
+        f"/api/hitl/sessions/{session_id}/events",
+        json={
+            "events": [
+                {
+                    "event_id": str(uuid.uuid4()),
+                    "task_id": str(uuid.uuid4()),
+                    "image_id": case["img_l_id"],
+                    "seq": 1,
+                    "event_type": "PREDICTION_VIEWED",
+                    "client_utc": "2026-10-29T12:00:01Z",
+                    "elapsed_ms": 2.0,
+                    "session_elapsed_ms": 2.0,
+                }
+            ]
+        },
+        headers=auth_tokens["doctor"],
+    )
+
+    assert injected is True
+    assert response.status_code == 422, response.text
+    with SessionLocal() as db:
+        assert db.query(HITLEventModel).filter_by(session_id=session_id).count() == 10000
+
+
+@pytest.mark.parametrize("concurrent_winner_committed", [False, True])
+def test_hitl_integrity_recovery_never_writes_outside_lock(
+    auth_tokens, test_case_setup, monkeypatch, concurrent_winner_committed,
+):
+    import hashlib
+    import json
+
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+
+    from backend.app.main import app
+    from backend.db.database import HITLEventModel, SessionLocal
+
+    client = TestClient(app)
+    case = test_case_setup
+    created = client.post(
+        "/api/hitl/sessions",
+        json={"study_id": case["study_id"], "participant_code": "INTEGRITY_RECOVERY"},
+        headers=auth_tokens["doctor"],
+    )
+    assert created.status_code == 200, created.text
+    session_id = created.json()["id"]
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "task_id": str(uuid.uuid4()),
+        "image_id": case["img_l_id"],
+        "seq": 1,
+        "event_type": "PREDICTION_VIEWED",
+        "client_utc": "2026-10-29T12:10:00Z",
+        "elapsed_ms": 10.0,
+        "session_elapsed_ms": 10.0,
+        "payload": {},
+    }
+    identity_data = {
+        "event_type": event["event_type"],
+        "task_id": event["task_id"],
+        "image_id": event["image_id"],
+        "prediction_id": None,
+        "seq": event["seq"],
+        "client_utc": event["client_utc"],
+        "elapsed_ms": event["elapsed_ms"],
+        "session_elapsed_ms": event["session_elapsed_ms"],
+        "payload": {},
+    }
+    identity_hash = hashlib.sha256(json.dumps(identity_data, sort_keys=True).encode("utf-8")).hexdigest()
+    original_commit = Session.commit
+    injected = False
+
+    def commit_with_concurrent_integrity_failure(db):
+        nonlocal injected
+        event_row = db.query(HITLEventModel).filter_by(event_id=event["event_id"]).first()
+        if not injected and event_row is not None:
+            injected = True
+            db.rollback()
+            if concurrent_winner_committed:
+                with SessionLocal() as winner_db:
+                    winner_db.add(
+                        HITLEventModel(
+                            id=str(uuid.uuid4()),
+                            event_id=event["event_id"],
+                            session_id=session_id,
+                            task_id=event["task_id"],
+                            image_id=event["image_id"],
+                            seq=event["seq"],
+                            event_type=event["event_type"],
+                            client_utc=event["client_utc"],
+                            elapsed_ms=event["elapsed_ms"],
+                            session_elapsed_ms=event["session_elapsed_ms"],
+                            payload_hash=identity_hash,
+                            payload={},
+                            actor_id="doctor",
+                        )
+                    )
+                    winner_db.commit()
+            raise IntegrityError("simulated concurrent append", {}, RuntimeError("duplicate commit"))
+        return original_commit(db)
+
+    monkeypatch.setattr(Session, "commit", commit_with_concurrent_integrity_failure)
+    response = client.post(
+        f"/api/hitl/sessions/{session_id}/events",
+        json={"events": [event]},
+        headers=auth_tokens["doctor"],
+    )
+
+    assert injected is True
+    if concurrent_winner_committed:
+        assert response.status_code == 200, response.text
+        assert response.json()["accepted_count"] == 0
+        assert response.json()["duplicate_count"] == 1
+        expected_count = 1
+    else:
+        assert response.status_code == 409, response.text
+        expected_count = 0
+    with SessionLocal() as db:
+        assert db.query(HITLEventModel).filter_by(session_id=session_id).count() == expected_count
 
 
 @pytest.mark.parametrize("terminal_status", ["COMPLETED", "ABORTED"])

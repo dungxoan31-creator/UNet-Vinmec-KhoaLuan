@@ -6,17 +6,24 @@ Research API endpoints for the ovarian ultrasound prototype:
 """
 
 import base64
+import hashlib
 import os
 import uuid
 from io import BytesIO
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
-from backend.app.config import model_registry, preprocessor
+from backend.app.config import (
+    SYNTHETIC_DEMO_ALLOWED_UPLOAD_SHA256,
+    SYNTHETIC_DEMO_MODE,
+    model_registry,
+    preprocessor,
+)
 from backend.app.security import get_current_user, require_clinical
 from backend.core.image_utils import (
     MAX_DECODED_IMAGE_PIXELS,
@@ -25,17 +32,22 @@ from backend.core.image_utils import (
 )
 from backend.db.database import ImageModel, PredictionModel, StudyModel, UserModel, get_db
 from backend.schemas.schemas import (
+    ApplyClinicalTemplateRequest,
     CaseConfirmRequest,
     CDSSEvaluateRequest,
     SegmentAPIResponse,
     SegmentationCandidateRequest,
     SegmentationCandidateResponse,
 )
-from backend.services.image_service import decode_ultrasound_image, validate_pixel_spacing
+from backend.services.case_lease_service import require_active_case_lease
+from backend.services.image_service import (
+    decode_ultrasound_image,
+    get_image_calibration,
+    validate_pixel_spacing,
+)
 from backend.services.inference_engine import InferenceEngine
 from backend.services.review_service import persist_single_review
 from backend.services.segmentation_candidates import build_mask_candidate
-from backend.services.source_measurements import calibration_metadata
 
 router = APIRouter(
     prefix="/api/v1",
@@ -123,7 +135,10 @@ async def segment_image_v1(
     file: UploadFile | None = File(None),
     image_id: str | None = None,
     pixel_spacing_mm: float | None = None,
+    lease_token: str | None = Header(None, alias="X-Case-Lease-Token"),
+    page_instance_id: str | None = Header(None, alias="X-Case-Page-Instance-Id"),
     db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
 ):
     """
     POST /api/v1/segment:
@@ -148,6 +163,7 @@ async def segment_image_v1(
         raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
     img_np = None
     target_image_id = image_id or str(uuid.uuid4())
+    calibration_source = "MANUAL" if pixel_spacing_mm is not None else "NONE"
 
     if file:
         contents = await file.read(MAX_UPLOAD_BYTES + 1)
@@ -155,6 +171,11 @@ async def segment_image_v1(
             raise HTTPException(status_code=413, detail="Dung lượng file vượt quá giới hạn 20 MiB.")
         if len(contents) < 64:
             raise HTTPException(status_code=400, detail="File ảnh rỗng hoặc quá nhỏ.")
+        if SYNTHETIC_DEMO_MODE and hashlib.sha256(contents).hexdigest() not in SYNTHETIC_DEMO_ALLOWED_UPLOAD_SHA256:
+            raise HTTPException(
+                status_code=422,
+                detail="Chế độ demo chỉ chấp nhận fixture tổng hợp đã được cấu hình.",
+            )
         try:
             with Image.open(BytesIO(contents)) as image_header:
                 if not is_within_decoded_image_limit(*image_header.size):
@@ -179,10 +200,24 @@ async def segment_image_v1(
         img_rec = db.query(ImageModel).filter(ImageModel.id == image_id).first()
         if not img_rec or not os.path.exists(img_rec.raw_path):
             raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế.")
+        if not image_id.startswith("sample_"):
+            if not img_rec.study_id:
+                raise HTTPException(status_code=409, detail="Ảnh chưa thuộc một ca khảo sát có thể chỉnh sửa.")
+            require_active_case_lease(
+                db,
+                img_rec.study_id,
+                current_user,
+                lease_token,
+                page_instance_id,
+                allow_reviewed=True,
+            )
         img_np = decode_ultrasound_image(img_rec.raw_path)
         if img_np is None:
             raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế.")
-        pixel_spacing_mm = calibration_metadata(getattr(img_rec, "pixel_spacing_mm", None))["pixel_spacing_mm"]
+        if pixel_spacing_mm is None:
+            calibration = get_image_calibration(img_rec)
+            pixel_spacing_mm = calibration["pixel_spacing_mm"]
+            calibration_source = calibration["calibration_source"]
     else:
         raise HTTPException(status_code=400, detail="Vui lòng cung cấp file ảnh (file) hoặc image_id.")
 
@@ -200,9 +235,17 @@ async def segment_image_v1(
 
     # 3. PyTorch Model Inference
     v1_scale = float(transform_params.get("scale", 1.0))
-    inference_result = model_registry.predict(
+    inference_result = await run_in_threadpool(
+        model_registry.predict,
         tensor, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=v1_scale
     )
+    measurements = inference_result["measurements"]
+    if isinstance(measurements, dict):
+        measurements["calibration_source"] = calibration_source
+        measurements["pixel_spacing_mm"] = pixel_spacing_mm
+    provenance = dict(inference_result.get("provenance") or {})
+    provenance["pixel_spacing_mm"] = pixel_spacing_mm
+    provenance["calibration_source"] = calibration_source
 
     clean_mask = inference_result["binary_mask_np"]  # 512x512 uint8 binary mask (0 or 1)
     mask_255 = (clean_mask * 255).astype(np.uint8)
@@ -217,10 +260,10 @@ async def segment_image_v1(
         "rle_mask": inference_result["rle_mask"],
         "binary_mask_base64": binary_mask_base64,
         "confidence_score": inference_result["confidence_score"],
-        "measurements": inference_result["measurements"],
+        "measurements": measurements,
         "quality_gate": inference_result.get("quality_gate"),
         "uncertainty": inference_result.get("uncertainty"),
-        "provenance": inference_result.get("provenance"),
+        "provenance": provenance,
     }
 
 
@@ -266,3 +309,26 @@ def confirm_case_v1(
         "message": review["message"],
         "is_ground_truth": review["is_ground_truth"],
     }
+
+
+@router.get("/clinical-templates")
+def list_clinical_templates_v1():
+    """Danh sách các Smart Macro Chips mẫu lâm sàng nhanh chuẩn O-RADS/IOTA."""
+    from backend.services.clinical_templates import get_clinical_templates_list
+
+    return {"templates": get_clinical_templates_list()}
+
+
+@router.post("/clinical-templates/apply")
+def apply_clinical_template_v1(req: ApplyClinicalTemplateRequest):
+    """Áp dụng 1 mẫu lâm sàng nhanh và tự động tính toán CDSS."""
+    from backend.services.clinical_templates import apply_clinical_template
+
+    try:
+        return apply_clinical_template(
+            template_id=req.template_id,
+            max_diameter_mm=req.max_diameter_mm,
+            patient_context=req.patient_context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

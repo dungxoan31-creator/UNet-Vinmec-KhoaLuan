@@ -5,7 +5,8 @@ import json
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Barrier
+from threading import Barrier, Lock
+from uuid import uuid4
 
 import cv2
 import numpy as np
@@ -23,10 +24,198 @@ from backend.db.database import (
     PendingFileDeletionModel,
     StudyModel,
     UserModel,
+    _migrate_image_upload_idempotency_on_connection,
     get_db,
 )
 
 pytestmark = pytest.mark.usefixtures("doctor_access")
+
+
+def test_upload_replay_after_commit_returns_existing_image_without_duplicate(
+    tmp_path, monkeypatch, active_case_lease
+):
+    from backend.app.main import app
+    from backend.app.routers import inference
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'upload-idempotency.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(UserModel(id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"))
+        db.add(PatientModel(id="patient", anonymized_pid="PID-UPLOAD-IDEMPOTENCY"))
+        db.add(StudyModel(id="study", patient_id="patient", study_date="2026-10-29", ovary_side="BOTH"))
+        db.commit()
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(tmp_path))
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    key = uuid4()
+    pixels = np.full((120, 180), 90, dtype=np.uint8)
+    pixels[30:90, 50:130] = 150
+    encoded, buffer = cv2.imencode(".png", pixels)
+    assert encoded
+    contents = buffer.tobytes()
+    try:
+        with TestClient(app) as client:
+            lease = active_case_lease(client, "study")
+            headers = {
+                "X-Case-Lease-Token": lease["lease_token"],
+                "X-Case-Page-Instance-Id": lease["page_instance_id"],
+                "Idempotency-Key": str(key),
+            }
+            first = client.post(
+                "/api/upload",
+                headers=headers,
+                data={"study_id": "study", "laterality": "R"},
+                files={"file": ("left-scan.png", contents, "image/png")},
+            )
+            replay = client.post(
+                "/api/upload",
+                headers=headers,
+                data={"study_id": "study", "laterality": "R"},
+                files={"file": ("left-scan.png", contents, "image/png")},
+            )
+            mismatched = client.post(
+                "/api/upload",
+                headers=headers,
+                data={"study_id": "study", "laterality": "L"},
+                files={"file": ("left-scan.png", contents, "image/png")},
+            )
+            different_key_duplicate = client.post(
+                "/api/upload",
+                headers={**headers, "Idempotency-Key": str(uuid4())},
+                data={"study_id": "study", "laterality": "R"},
+                files={"file": ("left-scan.png", contents, "image/png")},
+            )
+
+        assert first.status_code == 200, first.text
+        assert first.json()["idempotent_replay"] is False
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["idempotent_replay"] is True
+        assert replay.json()["image_id"] == first.json()["image_id"]
+        assert replay.json()["study_id"] == first.json()["study_id"]
+        assert mismatched.status_code == 409, mismatched.text
+        assert different_key_duplicate.status_code == 409, different_key_duplicate.text
+        with Session(engine) as db:
+            images = db.query(ImageModel).filter_by(study_id="study").all()
+            assert len(images) == 1
+            assert images[0].upload_idempotency_key_digest
+            assert str(key) not in images[0].upload_idempotency_key_digest
+            assert db.query(AuditLogModel).filter_by(action_type="UPLOAD_IMAGE").count() == 1
+        assert len(list(tmp_path.glob("*.png"))) == 1
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+def test_legacy_images_table_migrates_upload_idempotency_fields_and_index():
+    connection = sqlite3.connect(":memory:")
+    try:
+        connection.execute("CREATE TABLE images (id VARCHAR(36) PRIMARY KEY)")
+        _migrate_image_upload_idempotency_on_connection(connection.cursor())
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(images)")}
+        assert {"upload_idempotency_key_digest", "upload_idempotency_request_digest"} <= columns
+
+        digest = "b" * 64
+        connection.execute(
+            "INSERT INTO images (id, upload_idempotency_key_digest) VALUES (?, ?)", ("one", digest)
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO images (id, upload_idempotency_key_digest) VALUES (?, ?)", ("two", digest)
+            )
+        connection.execute(
+            "INSERT INTO images (id, upload_idempotency_key_digest) VALUES (?, NULL)", ("legacy-one",)
+        )
+        connection.execute(
+            "INSERT INTO images (id, upload_idempotency_key_digest) VALUES (?, NULL)", ("legacy-two",)
+        )
+    finally:
+        connection.close()
+
+
+def test_concurrent_uploads_with_same_idempotency_key_replay_one_committed_image(
+    tmp_path, monkeypatch, active_case_lease
+):
+    from backend.app.main import app
+    from backend.app.routers import inference
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'upload-idempotency-race.db'}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(UserModel(id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"))
+        db.add(PatientModel(id="patient", anonymized_pid="PID-UPLOAD-IDEMPOTENCY-RACE"))
+        db.add(StudyModel(id="study", patient_id="patient", study_date="2026-10-29", ovary_side="BOTH"))
+        db.commit()
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(tmp_path))
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    key = str(uuid4())
+    pixels = np.full((120, 180), 90, dtype=np.uint8)
+    pixels[30:90, 50:130] = 150
+    encoded, buffer = cv2.imencode(".png", pixels)
+    assert encoded
+    contents = buffer.tobytes()
+    decode_barrier = Barrier(2)
+    decode_lock = Lock()
+    decode_calls = 0
+    original_decode = inference.decode_ultrasound_image
+
+    def synchronized_decode(path, *args, **kwargs):
+        nonlocal decode_calls
+        decoded = original_decode(path, *args, **kwargs)
+        with decode_lock:
+            decode_calls += 1
+            wait_for_peer = decode_calls <= 2
+        if wait_for_peer:
+            decode_barrier.wait(timeout=10)
+        return decoded
+
+    monkeypatch.setattr(inference, "decode_ultrasound_image", synchronized_decode)
+    try:
+        with TestClient(app) as lease_client:
+            lease = active_case_lease(lease_client, "study")
+        headers = {
+            "X-Case-Lease-Token": lease["lease_token"],
+            "X-Case-Page-Instance-Id": lease["page_instance_id"],
+            "Idempotency-Key": key,
+        }
+
+        def upload_once(_index):
+            with TestClient(app) as client:
+                return client.post(
+                    "/api/upload",
+                    headers=headers,
+                    data={"study_id": "study", "laterality": "R"},
+                    files={"file": ("same-left-scan.png", contents, "image/png")},
+                )
+
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            responses = list(workers.map(upload_once, range(2)))
+
+        assert [response.status_code for response in responses] == [200, 200], [response.text for response in responses]
+        results = [response.json() for response in responses]
+        assert len({result["image_id"] for result in results}) == 1
+        assert sorted(result["idempotent_replay"] for result in results) == [False, True]
+        with Session(engine) as db:
+            assert db.query(ImageModel).filter_by(study_id="study").count() == 1
+            assert db.query(AuditLogModel).filter_by(action_type="UPLOAD_IMAGE").count() == 1
+        assert len(list(tmp_path.glob("*.png"))) == 1
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
 
 
 @pytest.mark.parametrize("remove_first_file", [False, True])
@@ -114,11 +303,71 @@ def test_hash_constraint_blocks_two_sessions_after_both_see_no_image(tmp_path):
     engine.dispose()
 
 
+def test_unilateral_case_accepts_multiple_frames_for_its_active_side(
+    tmp_path, monkeypatch, active_case_lease
+):
+    from backend.app.main import app
+    from backend.app.routers import inference
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'unilateral-multiview.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(UserModel(id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"))
+        db.add(PatientModel(id="patient", anonymized_pid="PID-UNILATERAL-MULTIVIEW"))
+        db.add(StudyModel(
+            id="study", patient_id="patient", study_date="2026-10-27",
+            ovary_side="LEFT", contralateral_status="NOT_VISUALIZED",
+        ))
+        db.commit()
+
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(tmp_path))
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            lease = active_case_lease(client, "study")
+            headers = {
+                "X-Case-Lease-Token": lease["lease_token"],
+                "X-Case-Page-Instance-Id": lease["page_instance_id"],
+            }
+            responses = []
+            for index, intensity in enumerate((80, 130), start=1):
+                pixels = np.full((120, 180), intensity, dtype=np.uint8)
+                pixels[30:90, 50:130] = min(intensity + 30, 255)
+                ok, encoded = cv2.imencode(".png", pixels)
+                assert ok
+                responses.append(client.post(
+                    "/api/upload",
+                    headers=headers,
+                    data={"study_id": "study", "laterality": "L"},
+                    files={"file": (f"left-view-{index}.png", encoded.tobytes(), "image/png")},
+                ))
+            wrong_side = client.post(
+                "/api/upload",
+                headers=headers,
+                data={"study_id": "study", "laterality": "R"},
+                files={"file": ("right-view.png", encoded.tobytes(), "image/png")},
+            )
+        assert [response.status_code for response in responses] == [200, 200]
+        assert wrong_side.status_code == 422
+        with Session(engine) as db:
+            images = db.query(ImageModel).filter_by(study_id="study").all()
+            assert len(images) == 2
+            assert {image.laterality for image in images} == {"L"}
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
 @pytest.mark.parametrize(
     ("sides", "expected_statuses"),
     [
         (("L", "R"), [200, 200]),
-        (("R", "R"), [200, 409]),
+        (("R", "R"), [200, 200]),
     ],
 )
 def test_laterality_race_commits_expected_bilateral_or_conflict_state(
@@ -548,6 +797,9 @@ def test_legacy_images_gain_hash_index_without_deleting_duplicates(tmp_path, mon
         database.init_db()
         with sqlite3.connect(path) as db:
             rows = db.execute("SELECT id, file_hash FROM images ORDER BY id").fetchall()
+            # A stored (possibly sanitized) legacy file cannot recover the original upload hash.
+            assert db.execute("SELECT source_content_sha256 FROM images ORDER BY id").fetchall() == [(None,), (None,)]
+            assert db.execute("SELECT calibration_source FROM images ORDER BY id").fetchall() == [(None,), (None,)]
             digest = hashlib.sha256(first.read_bytes()).hexdigest()
             assert [row[0] for row in rows] == ["first", "second"]
             assert sorted(row[1] for row in rows if row[1]) == [digest]

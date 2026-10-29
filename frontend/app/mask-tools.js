@@ -14,6 +14,10 @@ export function components(mask) {
         x < 511 ? p + 1 : -1,
         y > 0 ? p - 512 : -1,
         y < 511 ? p + 512 : -1,
+        x > 0 && y > 0 ? p - 513 : -1,
+        x < 511 && y > 0 ? p - 511 : -1,
+        x > 0 && y < 511 ? p + 511 : -1,
+        x < 511 && y < 511 ? p + 513 : -1,
       ])
         if (v >= 0 && mask[v] && !visited[v]) {
           visited[v] = 1;

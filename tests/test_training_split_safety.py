@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ai_training.train_baseline_unet import validate_training_split_identity
+from ai_training.train_baseline_unet import validate_training_split_identity, validate_training_split_integrity
 from tests.patient_split_fixture import attach_source_identity_evidence
 
 
@@ -46,7 +46,7 @@ def _write_splits(root, patient_ids, manifest, image_hashes=None):
         attach_source_identity_evidence(root)
 
 
-def test_legacy_image_level_training_override_is_rejected(tmp_path, monkeypatch):
+def test_image_level_training_integrity_does_not_require_patient_ids(tmp_path, monkeypatch):
     splits = tmp_path / "splits"
     _write_splits(
         splits,
@@ -54,22 +54,32 @@ def test_legacy_image_level_training_override_is_rejected(tmp_path, monkeypatch)
         {"identity_limit": "No verified source Patient/Case IDs; split is image-level only"},
     )
 
-    with pytest.raises(TypeError, match="allow_image_level"):
-        validate_training_split_identity(splits, allow_image_level=True)
+    status = validate_training_split_integrity(splits)
+    assert status["status"] == "image_level_verified"
+    assert status["patient_level_independence_verified"] is False
+    assert status["integrity_checked_splits"] == ["train", "val", "test"]
+    assert status["test_split_integrity_inspected"] is True
 
     from ai_training.train_baseline_unet import train_baseline
 
+    reached_loader = []
+
+    def stop_after_gate(**kwargs):
+        reached_loader.append(kwargs)
+        raise RuntimeError("image-level gate passed")
+
     monkeypatch.setattr(
         "ai_training.train_baseline_unet.get_train_val_dataloaders",
-        lambda **_kwargs: pytest.fail("Image-level split reached dataset loading"),
+        stop_after_gate,
     )
     output = tmp_path / "checkpoint-output"
-    with pytest.raises(TypeError, match="allow_image_level"):
-        train_baseline(splits_dir=splits, checkpoint_dir=output, allow_image_level=True)
+    with pytest.raises(RuntimeError, match="image-level gate passed"):
+        train_baseline(splits_dir=splits, checkpoint_dir=output)
+    assert reached_loader
     assert not output.exists()
 
 
-def test_refinement_rejects_image_level_split_before_reading_checkpoint(tmp_path, monkeypatch):
+def test_refinement_rejects_incomplete_image_level_split_before_reading_checkpoint(tmp_path, monkeypatch):
     from scripts import refine_unified_vinmec_unet as refinement
 
     split_dir = tmp_path / "ai_training/splits/unified_vinmec_clean_2026-10-06"
@@ -106,7 +116,7 @@ def test_refinement_rejects_image_level_split_before_reading_checkpoint(tmp_path
         return real_file_sha256(path)
 
     monkeypatch.setattr(refinement, "file_sha256", reject_checkpoint_read)
-    with pytest.raises(ValueError, match="(?i)patient-level independence"):
+    with pytest.raises(ValueError, match="Split contains no samples"):
         refinement.run_refinement(tmp_path)
 
 
@@ -196,7 +206,7 @@ def test_baseline_rejects_nonbinary_mask_before_output(tmp_path, monkeypatch):
     assert not output.exists()
 
 
-def test_baseline_blocks_unverified_split_before_creating_checkpoint_directory(tmp_path):
+def test_baseline_rejects_incomplete_split_before_creating_checkpoint_directory(tmp_path):
     from ai_training.train_baseline_unet import train_baseline
 
     splits = tmp_path / "unverified-splits"
@@ -206,7 +216,7 @@ def test_baseline_blocks_unverified_split_before_creating_checkpoint_directory(t
     )
     output = tmp_path / "checkpoint-output"
 
-    with pytest.raises(ValueError, match="(?i)patient-level independence"):
+    with pytest.raises(ValueError, match="Required train split is missing"):
         train_baseline(splits_dir=splits, checkpoint_dir=output)
 
     assert not output.exists()
@@ -519,7 +529,7 @@ def test_verified_patient_split_rejects_malformed_counts(tmp_path):
         validate_training_split_identity(splits)
 
 
-def test_candidate_training_pipelines_stop_on_unverified_identity_manifest(tmp_path):
+def test_candidate_training_pipelines_reject_incomplete_image_level_split(tmp_path):
     from ai_training.finetune_2d_unet import finetune
     from ai_training.train_baseline_unet import train_baseline
     from ai_training.train_full_unet import train_full
@@ -543,12 +553,12 @@ def test_candidate_training_pipelines_stop_on_unverified_identity_manifest(tmp_p
         lambda output: train_unetplusplus(split_dir=splits, output_dir=output, epochs=1),
     )
     for train, output in zip(pipelines, output_dirs):
-        with pytest.raises(ValueError, match="(?i)patient-level independence"):
+        with pytest.raises(ValueError, match="Required train split is missing"):
             train(output)
         assert not output.exists()
 
 
-def test_full_training_rejects_legacy_split_that_pooled_source_test(tmp_path):
+def test_full_training_rejects_empty_legacy_split_before_reading_source_test(tmp_path):
     from ai_training.train_full_unet import train_full
 
     split_dir = tmp_path / "legacy-sample-level-split"
@@ -566,26 +576,42 @@ def test_full_training_rejects_legacy_split_that_pooled_source_test(tmp_path):
     )
     output_dir = tmp_path / "training-output"
 
-    with pytest.raises(ValueError, match="(?i)patient-level independence"):
+    with pytest.raises(ValueError, match="Split contains no samples"):
         train_full(split_dir=split_dir, output_dir=output_dir, epochs=1)
 
     assert not output_dir.exists()
 
 
-def test_default_full_training_split_is_blocked_without_verified_patient_ids(tmp_path):
-    from pathlib import Path
+def test_full_training_reaches_model_build_for_image_level_split_without_patient_ids(tmp_path, monkeypatch):
+    import torch
 
+    import ai_training.train_full_unet as full_training
     from ai_training.train_full_unet import train_full
 
-    split_dir = Path(__file__).resolve().parents[1] / "ai_training/splits/unified_vinmec_clean_2026-10-06"
-    manifest = json.loads((split_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert "No verified source Patient/Case IDs" in manifest["identity_limit"]
+    class TinyDataset(torch.utils.data.Dataset):
+        def __len__(self):
+            return 1
+
+        def __getitem__(self, _index):
+            return {"image": torch.ones(1, 8, 8), "mask": torch.zeros(1, 8, 8)}
+
+    monkeypatch.setattr(
+        full_training,
+        "load_train_val_datasets",
+        lambda _split_dir: (TinyDataset(), TinyDataset(), {"split_counts": {"train": 1, "val": 1, "test": 1}}),
+    )
+
+    class StopBeforeTraining(Exception):
+        pass
+
+    def stop_at_model_build(**_kwargs):
+        raise StopBeforeTraining
+
+    monkeypatch.setattr(full_training, "StandardUNet", stop_at_model_build)
     output_dir = tmp_path / "training-output"
-
-    with pytest.raises(ValueError, match="(?i)patient-level independence"):
-        train_full(split_dir=split_dir, output_dir=output_dir, epochs=1)
-
-    assert not output_dir.exists()
+    with pytest.raises(StopBeforeTraining):
+        train_full(split_dir=tmp_path / "image-level", output_dir=output_dir, epochs=1)
+    assert output_dir.is_dir()
 
 
 def test_historical_307_manifest_does_not_claim_verified_patient_independence():

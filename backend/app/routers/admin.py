@@ -152,8 +152,8 @@ def list_backups():
 
 
 _DEFAULT_ADMIN_SETTINGS = {
-    "hospital_name": "Vinmec Times City International Hospital",
-    "report_header": "BỆNH VIỆN ĐA KHOA QUỐC TẾ VINMEC TIMES CITY",
+    "hospital_name": "Chưa cấu hình",
+    "report_header": "BẢN NGHIÊN CỨU RUO · CHƯA CẤU HÌNH CƠ SỞ",
     "unit": "auto",
 }
 
@@ -529,6 +529,7 @@ def get_admin_cases(
         "items": [
             {
                 "study_code": study.study_code or study.id[:8],
+                "visit_no": study.visit_no,
                 "status": study.status,
                 "department": None,
                 "created_at": study.created_at.isoformat() if study.created_at else None,
@@ -824,7 +825,7 @@ def update_admin_settings(settings: AdminSettingsRequest):
 def get_admin_metadata(db: Session = Depends(get_db)):
     """Return administrative system metadata and summary statistics."""
     return {
-        "hospital_name": _ADMIN_SETTINGS.get("hospital_name", "Vinmec Times City International Hospital"),
+        "hospital_name": _ADMIN_SETTINGS.get("hospital_name", "Chưa cấu hình"),
         "system_version": "2.0.0",
         "total_cases": db.query(StudyModel).count(),
         "total_images": db.query(ImageModel).count(),

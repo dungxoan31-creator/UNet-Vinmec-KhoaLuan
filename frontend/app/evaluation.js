@@ -1,16 +1,12 @@
-import { state } from "./state.js";
 import { request } from "./api.js";
 import { binaryErrorMap } from "./evaluation-images.js";
 import {
   $,
   esc,
   pageHead,
-  button,
   loading,
   errorBox,
   empty,
-  csv,
-  download,
 } from "./ui.js";
 
 export async function renderEvaluation(root) {
@@ -18,13 +14,17 @@ export async function renderEvaluation(root) {
     pageHead(
       "Đánh giá mô hình",
       "Kết quả trên tập có ground truth; không phải độ tin cậy của ca đang đọc.",
-      button("Xuất CSV", "eval-export"),
     ) +
     `<div class="banner info">Kết quả lịch sử không đại diện tự động cho checkpoint đang chạy.</div><div id="evaluationData">${loading()}</div>`;
   try {
     const data = await request("/api/evaluation/metrics");
     const splits = data.splits || data,
-      metrics = ["dice", "iou", "recall", "precision"];
+      metrics = ["dice", "iou", "recall", "precision"],
+      archiveStatus = data.archived_split_status || {
+        status: "BLOCKED",
+        reason: "API chưa cung cấp trạng thái provenance cho archive lịch sử.",
+      },
+      archiveBlocked = archiveStatus.status !== "AVAILABLE";
     const rows = ["train", "validation", "test"].map((key) => [
       key,
       ...metrics.map((m) => {
@@ -38,7 +38,7 @@ export async function renderEvaluation(root) {
 
     let gateBanner = "";
     if (data.evidence_status?.independent_gate_status === "BLOCKED") {
-      gateBanner = `<div class="banner warning" style="margin-bottom:16px;"><strong>Cổng đánh giá độc lập: BỊ CHẶN (BLOCKED)</strong> — Chưa có định danh bệnh nhân nguồn để xác minh độc lập; tập 402 ảnh được ghi nhận là Retrospective Replay.</div>`;
+      gateBanner = `<div class="banner warning" style="margin-bottom:16px;"><strong>Cổng đánh giá độc lập: BỊ CHẶN (BLOCKED)</strong> — Chưa xác minh được tính độc lập theo bệnh nhân; không diễn giải số liệu image-level thành hiệu quả lâm sàng.</div>`;
     }
 
     let currentRunStatusBanner = "";
@@ -66,7 +66,7 @@ export async function renderEvaluation(root) {
                 <h3 style="margin:0 0 4px 0;font-size:16px;font-weight:600;">${esc(cr.label || cr.run_id)}</h3>
                 <p class="muted small" style="margin:0;">Trạng thái: <strong>${esc(cr.status)}</strong> · Loại: <strong>${esc(cr.run_kind)}</strong> · Cỡ tập: <strong>${esc(cr.counts?.total_samples ?? "N/A")} ảnh</strong></p>
               </div>
-              ${cr.is_historical ? '<span class="badge warning" style="padding:4px 10px;font-size:12px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:600;">Dữ liệu đối chuẩn lịch sử</span>' : '<span class="badge success">Đã xác minh</span>'}
+              ${cr.is_historical ? '<span class="badge warning historical-data-badge">Dữ liệu đối chuẩn lịch sử</span>' : '<span class="badge success">Đã xác minh</span>'}
             </div>
             <p class="small mono muted" style="margin:8px 0 0 0;">Checkpoint: ${esc(cr.checkpoint_sha256 || "N/A")}</p>
           </div>
@@ -131,16 +131,17 @@ export async function renderEvaluation(root) {
       `;
     }
 
+    const historicalSection = archiveBlocked
+      ? `<section class="panel" aria-live="polite"><div class="panel-header evaluation-panel-heading"><h4 class="evaluation-section-title">Archive lịch sử: BỊ CHẶN</h4></div><div class="panel-body"><div class="banner warning"><strong>Không hiển thị metrics hoặc ảnh mẫu.</strong> ${esc(archiveStatus.reason || "Nguồn dữ liệu và liên kết manifest chưa được xác minh.")}</div></div></section>`
+      : `<section class="panel"><div class="panel-header evaluation-panel-heading"><h4 class="evaluation-section-title">Tập dữ liệu lưu trữ lịch sử (Historical Splits)</h4></div><div class="table-wrap"><table><thead><tr><th>Tập dữ liệu</th>${metrics.map((m) => `<th>${{ dice: "Dice", iou: "IoU", recall: "Recall pixel", precision: "Precision pixel" }[m]}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => "<tr>" + row.map((v) => `<td>${esc(v)}</td>`).join("") + "</tr>").join("")}</tbody></table></div></section><div class="filters evaluation-filters"><label class="field">Nhóm lỗi<select id="errorGroup"><option value="ALL">Tất cả</option><option value="FAILURE_CASES">Phân đoạn kém</option><option value="FALSE_NEGATIVE_DOMINANT">Bỏ sót ưu thế</option><option value="FALSE_POSITIVE_DOMINANT">Lan vùng ưu thế</option></select></label></div><section class="panel" id="evaluationSamples"></section>`;
+
     $("#evaluationData", root).innerHTML =
       gateBanner +
       currentRunStatusBanner +
       currentRunSection +
-      `<section class="panel"><div class="panel-header" style="padding:12px 16px;"><h4 style="margin:0;font-size:14px;color:var(--text-muted,#64748b);">Tập dữ liệu lưu trữ lịch sử (Historical Splits)</h4></div><div class="table-wrap"><table><thead><tr><th>Tập dữ liệu</th>${metrics.map((m) => `<th>${{ dice: "Dice", iou: "IoU", recall: "Độ nhạy", precision: "Độ chính xác dương" }[m]}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => "<tr>" + row.map((v) => `<td>${esc(v)}</td>`).join("") + "</tr>").join("")}</tbody></table></div></section><div class="filters" style="margin-top:24px"><label class="field">Nhóm lỗi<select id="errorGroup"><option value="ALL">Tất cả</option><option value="FAILURE_CASES">Phân đoạn kém</option><option value="FALSE_NEGATIVE_DOMINANT">Bỏ sót ưu thế</option><option value="FALSE_POSITIVE_DOMINANT">Lan vùng ưu thế</option></select></label></div><section class="panel" id="evaluationSamples"></section>`;
-    $("[data-action=eval-export]", root).onclick = () =>
-      download(
-        "danh-gia.csv",
-        csv([["Tập", "Dice", "IoU", "Recall", "Precision"], ...rows]),
-      );
+      historicalSection;
+    if (archiveBlocked) return;
+
     let page = 0,
       generation = 0,
       detailGeneration = 0;

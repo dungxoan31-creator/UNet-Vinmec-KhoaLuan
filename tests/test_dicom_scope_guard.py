@@ -23,6 +23,8 @@ def make_dicom(
     include_pixel_data: bool = True,
     declare_frame_count: bool = True,
     frame_count_override: int | None = None,
+    rows: int = 16,
+    columns: int = 16,
 ) -> bytes:
     meta = FileMetaDataset()
     meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
@@ -32,10 +34,11 @@ def make_dicom(
     dcm.SOPClassUID = meta.MediaStorageSOPClassUID
     dcm.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
     dcm.Modality = modality
+    dcm.BurnedInAnnotation = "NO"
     dcm.StudyInstanceUID = generate_uid()
     dcm.SeriesInstanceUID = generate_uid()
-    dcm.Rows = 16
-    dcm.Columns = 16
+    dcm.Rows = rows
+    dcm.Columns = columns
     dcm.PixelSpacing = list(spacing)
     dcm.SamplesPerPixel = 1
     dcm.PhotometricInterpretation = "MONOCHROME2"
@@ -46,7 +49,7 @@ def make_dicom(
     if frames > 1 and declare_frame_count:
         dcm.NumberOfFrames = frame_count_override or frames
     if include_pixel_data:
-        dcm.PixelData = np.full((frames, 16, 16), 100, dtype=np.uint8).tobytes()
+        dcm.PixelData = np.full((frames, rows, columns), 100, dtype=np.uint8).tobytes()
     buffer = BytesIO()
     dcm.save_as(buffer)
     return buffer.getvalue()
@@ -114,7 +117,7 @@ def test_upload_minimizes_patient_tags_and_private_data_without_changing_pixels_
     source.StudyDescription = "SYNTHETIC-STUDY-DESCRIPTION-SENTINEL"
     source.StudyDate = "20261021"
     source.StudyTime = "101112"
-    source.BurnedInAnnotation = "YES"
+    source.BurnedInAnnotation = "NO"
     source.file_meta.SourceApplicationEntityTitle = "US-ROOM-01"
     source.file_meta.ImplementationClassUID = generate_uid()
     source.file_meta.ImplementationVersionName = "SRC-IMPL-01"
@@ -152,6 +155,7 @@ def test_upload_minimizes_patient_tags_and_private_data_without_changing_pixels_
         response_data = response.json()
         with Session(engine) as db:
             record = db.get(ImageModel, response_data["image_id"])
+            assert record.calibration_source == "DICOM"
             stored = pydicom.dcmread(record.raw_path)
 
         assert "PatientName" not in stored
@@ -182,7 +186,7 @@ def test_upload_minimizes_patient_tags_and_private_data_without_changing_pixels_
         assert "ImplementationVersionName" not in stored.file_meta
         assert "ReferencedPerformedProcedureStepSequence" not in stored
         assert stored.PatientIdentityRemoved == "NO"
-        assert stored.BurnedInAnnotation == "YES"
+        assert stored.BurnedInAnnotation == "NO"
         assert stored.LongitudinalTemporalInformationModified == "REMOVED"
         assert 0x00111010 not in stored
         assert stored.PixelData == original_pixels
@@ -190,8 +194,54 @@ def test_upload_minimizes_patient_tags_and_private_data_without_changing_pixels_
         assert response_data["dicom_metadata"]["privacy_processing"] == {
             "status": "partial_metadata_minimization",
             "pixel_data_reviewed": False,
-            "burned_in_annotation": "YES",
+            "burned_in_annotation": "NO",
         }
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+@pytest.mark.parametrize("burned_in_annotation", ["YES", "UNKNOWN", None])
+def test_upload_rejects_dicom_with_unreviewed_burned_in_annotation(
+    tmp_path, monkeypatch, burned_in_annotation
+):
+    import pydicom
+
+    from backend.app.main import app
+    from backend.app.routers import inference
+    from backend.db.database import ImageModel
+
+    source = pydicom.dcmread(BytesIO(make_dicom("US")))
+    if burned_in_annotation is None:
+        del source.BurnedInAnnotation
+    else:
+        source.BurnedInAnnotation = burned_in_annotation
+    payload = BytesIO()
+    source.save_as(payload)
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'dicom-burned-in.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(upload_dir))
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/upload",
+                files={"file": ("patient.dcm", payload.getvalue(), "application/dicom")},
+            )
+
+        assert response.status_code == 422
+        assert "định danh trong pixel" in response.json()["detail"].lower()
+        with Session(engine) as db:
+            assert db.query(ImageModel).count() == 0
+        assert list(upload_dir.iterdir()) == []
     finally:
         app.dependency_overrides.pop(get_db, None)
         engine.dispose()
@@ -236,7 +286,7 @@ def test_upload_rejects_dicom_outside_2d_ultrasound_scope(tmp_path, monkeypatch,
             assert metadata["privacy_processing"] == {
                 "status": "partial_metadata_minimization",
                 "pixel_data_reviewed": False,
-                "burned_in_annotation": "UNKNOWN",
+                "burned_in_annotation": "NO",
             }
             assert metadata["calibrated_spacing_mm"] == 0.25
     finally:
@@ -250,6 +300,58 @@ def test_existing_non_ultrasound_dicom_is_not_decoded_for_inference(tmp_path):
     file_path = tmp_path / "old_mr.dcm"
     file_path.write_bytes(make_dicom("MR"))
     assert decode_ultrasound_image(str(file_path), grayscale=True) is None
+
+
+def test_upload_rejects_oversized_dicom_dimensions_before_pixel_decode(tmp_path, monkeypatch):
+    from backend.app.main import app
+    from backend.app.routers import inference
+    from backend.db.database import ImageModel
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'dicom-oversized.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(tmp_path))
+
+    def temporary_db():
+        with Session(engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        with TestClient(app) as client:
+            oversized = make_dicom(
+                "US",
+                include_pixel_data=False,
+                rows=5001,
+                columns=5000,
+            )
+            response = client.post(
+                "/api/upload",
+                files={
+                    "file": (
+                        "oversized.dcm",
+                        oversized,
+                        "application/dicom",
+                    )
+                },
+            )
+            metadata_response = client.post(
+                "/api/intake/extract-metadata",
+                files={"file": ("oversized.dcm", oversized, "application/dicom")},
+            )
+
+        assert response.status_code == 413, response.text
+        assert "25 triệu pixels" in response.json()["detail"]
+        assert metadata_response.status_code == 413, metadata_response.text
+        assert "25 triệu pixels" in metadata_response.json()["detail"]
+        with Session(engine) as db:
+            assert db.query(ImageModel).count() == 0
+        assert list(tmp_path.glob("*.dcm")) == []
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
 
 
 @pytest.mark.parametrize("samples_per_pixel", [2, 255])

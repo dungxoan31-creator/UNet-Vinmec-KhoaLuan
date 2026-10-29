@@ -3,6 +3,14 @@ import test from "node:test";
 
 import { buildResearchDraft } from "../frontend/app/research-report-draft.js";
 
+test("research draft preserves measurement exclusion warning", () => {
+  const result = buildResearchDraft({
+    studyCode: "synthetic",
+    image: { measurements: { warning: "Một vùng dưới ngưỡng" } },
+  });
+  assert.match(result.text, /Cảnh báo số đo: Một vùng dưới ngưỡng/);
+});
+
 test("test_research_draft_uses_only_reviewed_values", () => {
   const { text, missingFields, disclosure } = buildResearchDraft({
     studyCode: "CASE-01",

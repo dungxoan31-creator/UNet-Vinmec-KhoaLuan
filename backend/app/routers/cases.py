@@ -7,16 +7,23 @@ import logging
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc, or_
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from sqlalchemy import asc, desc, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from backend.app.config import UPLOAD_DIR
+from backend.app.config import SYNTHETIC_DEMO_MODE, UPLOAD_DIR
 from backend.app.security import require_admin, require_clinical
+from backend.core.case_idempotency import (
+    case_create_idempotency_digest,
+    case_create_payload_digest,
+)
 from backend.core.patient_identity import patient_id_digest
 from backend.db.database import (
+    ActiveLearningQueueModel,
     AuditLogModel,
     HITLEventModel,
     HITLSessionModel,
@@ -26,7 +33,9 @@ from backend.db.database import (
     ReviewBatchModel,
     ReviewModel,
     StudyModel,
+    UIEventModel,
     UserModel,
+    VisitNumberCapacityExceeded,
     get_db,
 )
 from backend.schemas.schemas import (
@@ -41,11 +50,60 @@ from backend.services.file_deletion_service import (
     retry_pending_file_deletions,
 )
 from backend.services.image_service import get_image_calibration
+from backend.services.measurement_safety import (
+    TRUSTED_CALIBRATION_SOURCES,
+    prediction_measurements_match_calibration,
+)
+from backend.services.measurement_safety import (
+    is_finite_physical_value as _finite_physical_value,
+)
+from backend.services.measurement_safety import (
+    strip_unverified_physical_measurements as _strip_unverified_physical_measurements,
+)
 from backend.services.patient_identity import get_or_create_patient
+from backend.services.review_service import (
+    prepare_legacy_active_learning_cleanup,
+    remove_legacy_active_learning_samples,
+)
 
 router = APIRouter(tags=["Clinical Cases"])
 logger = logging.getLogger(__name__)
+def _verified_review_calibration_source(review):
+    feedback = review.hitl_feedback if isinstance(review.hitl_feedback, dict) else {}
+    context = feedback.get("measurement_context")
+    if (
+        isinstance(context, dict)
+        and context.get("version") == 1
+        and context.get("status") == "AVAILABLE"
+        and context.get("calibration_source") in TRUSTED_CALIBRATION_SOURCES
+    ):
+        return context["calibration_source"]
+    return None
 
+def _safe_review_feedback(review, verified_source):
+    feedback = review.hitl_feedback if isinstance(review.hitl_feedback, dict) else {}
+    safe_feedback = dict(feedback)
+    manual = feedback.get("manual_measurements")
+    if not isinstance(manual, dict):
+        return safe_feedback
+    safe_manual = {}
+    for label, measurement in manual.items():
+        if not isinstance(measurement, dict):
+            safe_manual[label] = measurement
+            continue
+        source_matches = (
+            verified_source is not None
+            and measurement.get("calibrated") is True
+            and measurement.get("calibration_source") == verified_source
+            and _finite_physical_value(measurement.get("diameter_mm"))
+        )
+        safe_manual[label] = (
+            dict(measurement)
+            if source_matches
+            else _strip_unverified_physical_measurements(measurement)
+        )
+    safe_feedback["manual_measurements"] = safe_manual
+    return safe_feedback
 
 def _verify_case_delete_commit(bind, study_id: str, actor_id: str, deletion_ids: list[str]) -> bool | None:
     """Return True/False for a confirmed delete outcome, or None when uncertain."""
@@ -138,14 +196,71 @@ def delete_case_lease(
     )
 
 
-@router.post("/api/cases", dependencies=[Depends(require_clinical)])
-def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
+def _case_create_matches_request(study: StudyModel, payload_digest: str) -> bool:
+    return study.idempotency_request_digest == payload_digest
+
+
+def _case_create_response(study: StudyModel, *, replayed: bool = False) -> dict:
+    return {
+        "study_id": study.id,
+        "study_code": study.study_code,
+        "visit_no": study.visit_no,
+        "patient_id": study.patient.anonymized_pid,
+        "study_date": study.study_date,
+        "status": study.status,
+        "ovary_side": study.ovary_side,
+        "contralateral_status": study.contralateral_status,
+        "message": (
+            "Ca đã được khởi tạo trước đó; tiếp tục dùng ca này."
+            if replayed
+            else "Khởi tạo ca khám mới thành công."
+        ),
+    }
+
+
+def _idempotent_study(db: Session, digest: str) -> StudyModel | None:
+    return (
+        db.query(StudyModel)
+        .options(joinedload(StudyModel.patient))
+        .filter(StudyModel.idempotency_key_digest == digest)
+        .first()
+    )
+
+
+@router.post("/api/cases")
+def create_new_case(
+    req: CreateCaseRequest,
+    idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
+    current_user: UserModel = Depends(require_clinical),
+    db: Session = Depends(get_db),
+):
     """
     Create a new clinical study case.
     """
     clean_pid = req.patient_id.strip() if req.patient_id else ""
     if not clean_pid:
         raise HTTPException(status_code=422, detail="Mã định danh bệnh nhân (PID) không được để trống.")
+    if SYNTHETIC_DEMO_MODE and not clean_pid.upper().startswith("DEMO-SYNTHETIC-"):
+        raise HTTPException(
+            status_code=422,
+            detail="Chế độ demo chỉ cho phép mã ca DEMO-SYNTHETIC-*; không nhập thông tin bệnh nhân.",
+        )
+    if SYNTHETIC_DEMO_MODE and (req.patient_age or req.clinical_notes):
+        raise HTTPException(
+            status_code=422,
+            detail="Sandbox demo không nhận tuổi hoặc ghi chú lâm sàng có thể chứa thông tin bệnh nhân.",
+        )
+
+    idempotency_digest = case_create_idempotency_digest(idempotency_key, current_user.id)
+    request_digest = case_create_payload_digest(req.model_dump(mode="json"), current_user.id)
+    existing = _idempotent_study(db, idempotency_digest)
+    if existing:
+        if not _case_create_matches_request(existing, request_digest):
+            raise HTTPException(
+                status_code=409,
+                detail="Khóa thử lại đã được dùng cho dữ liệu intake khác. Mở intake mới trước khi tạo ca khác.",
+            )
+        return _case_create_response(existing, replayed=True)
 
     try:
         patient = get_or_create_patient(db, clean_pid, req.patient_age)
@@ -161,6 +276,8 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
             patient_id=patient.id,
             study_code=study_code,
             study_date=req.study_date,
+            idempotency_key_digest=idempotency_digest,
+            idempotency_request_digest=request_digest,
             status="PENDING",
             probe_type=req.probe_type or None,
             ovary_side=req.active_ovary_side,
@@ -169,20 +286,28 @@ def create_new_case(req: CreateCaseRequest, db: Session = Depends(get_db)):
         )
         db.add(study)
         db.commit()
+    except VisitNumberCapacityExceeded as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Đã hết dải Visit No 6 chữ số. Cần quản trị viên xử lý trước khi tạo lượt mới.",
+        ) from exc
+    except IntegrityError:
+        db.rollback()
+        existing = _idempotent_study(db, idempotency_digest)
+        if existing:
+            if not _case_create_matches_request(existing, request_digest):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Khóa thử lại đã được dùng cho dữ liệu intake khác. Mở intake mới trước khi tạo ca khác.",
+                )
+            return _case_create_response(existing, replayed=True)
+        raise
     except Exception:
         db.rollback()
         raise
 
-    return {
-        "study_id": study.id,
-        "study_code": study.study_code,
-        "patient_id": patient.anonymized_pid,
-        "study_date": study.study_date,
-        "status": study.status,
-        "ovary_side": study.ovary_side,
-        "contralateral_status": study.contralateral_status,
-        "message": "Khởi tạo ca khám mới thành công.",
-    }
+    return _case_create_response(study)
 
 
 @router.get("/api/cases", dependencies=[Depends(require_clinical)])
@@ -191,7 +316,7 @@ def list_cases(
     status: str | None = None,
     date: str | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
-    offset: Annotated[int, Query(ge=0, le=10000)] = 0,
+    offset: Annotated[int, Query(ge=0)] = 0,
     db: Session = Depends(get_db),
 ):
     return _query_cases(search, status, date, limit, offset, db, allow_source_pid=False)
@@ -208,38 +333,89 @@ def search_cases(request: CaseSearchRequest, db: Session = Depends(get_db)):
         request.offset,
         db,
         allow_source_pid=True,
+        patient_id=request.patient_id,
+        statuses=request.statuses,
+        sort=request.sort,
+        direction=request.direction,
     )
 
 
-def _query_cases(search, status, date, limit, offset, db, allow_source_pid):
+def _filtered_cases_query(
+    search,
+    status,
+    date,
+    db,
+    allow_source_pid,
+    *,
+    patient_id=None,
+    statuses=None,
+):
+    query = db.query(StudyModel).join(PatientModel)
+    if status and status.upper() != "ALL":
+        query = query.filter(StudyModel.status == status.upper())
+    if statuses:
+        query = query.filter(StudyModel.status.in_([value.upper() for value in statuses]))
+    if patient_id is not None:
+        query = query.filter(PatientModel.anonymized_pid == patient_id)
+    if date:
+        query = query.filter(StudyModel.study_date.startswith(date))
+    if search:
+        search_value = search.strip()
+        if search_value:
+            search_fmt = f"%{search_value}%"
+            search_conditions = [
+                PatientModel.anonymized_pid.ilike(search_fmt),
+                StudyModel.study_code.ilike(search_fmt),
+                StudyModel.clinical_indication.ilike(search_fmt),
+            ]
+            if allow_source_pid and len(search_value) <= 64:
+                search_conditions.append(PatientModel.source_pid_hmac == patient_id_digest(search_value))
+            query = query.filter(or_(*search_conditions))
+    return query
+
+
+def _query_cases(
+    search,
+    status,
+    date,
+    limit,
+    offset,
+    db,
+    allow_source_pid,
+    *,
+    sort="created_at",
+    direction="desc",
+    include_total=False,
+    patient_id=None,
+    statuses=None,
+):
     """
     List all cases with search and filtering for Dashboard & History.
     """
-    query = db.query(StudyModel).join(PatientModel).options(
+    filtered_query = _filtered_cases_query(
+        search,
+        status,
+        date,
+        db,
+        allow_source_pid,
+        patient_id=patient_id,
+        statuses=statuses,
+    )
+    total = filtered_query.order_by(None).count() if include_total else None
+    query = filtered_query.options(
         joinedload(StudyModel.patient),
         selectinload(StudyModel.images).selectinload(ImageModel.predictions),
         selectinload(StudyModel.images).selectinload(ImageModel.reviews),
     )
-
-    if status and status.upper() != "ALL":
-        query = query.filter(StudyModel.status == status.upper())
-
-    if date:
-        query = query.filter(StudyModel.study_date.startswith(date))
-
-    if search:
-        search_value = search.strip()
-        search_fmt = f"%{search_value}%"
-        search_conditions = [
-            PatientModel.anonymized_pid.ilike(search_fmt),
-            StudyModel.study_code.ilike(search_fmt),
-            StudyModel.clinical_indication.ilike(search_fmt),
-        ]
-        if allow_source_pid and 0 < len(search_value) <= 64:
-            search_conditions.append(PatientModel.source_pid_hmac == patient_id_digest(search_value))
-        query = query.filter(or_(*search_conditions))
-
-    query = query.order_by(desc(StudyModel.created_at), desc(StudyModel.id))
+    sort_columns = {
+        "study_code": StudyModel.study_code,
+        "status": StudyModel.status,
+        "study_date": StudyModel.study_date,
+        "created_at": StudyModel.created_at,
+    }
+    sort_column = sort_columns.get(sort, StudyModel.created_at)
+    order = asc if direction == "asc" else desc
+    query = query.order_by(order(sort_column), order(StudyModel.id))
     if offset:
         query = query.offset(offset)
     query = query.limit(limit)
@@ -251,12 +427,34 @@ def _query_cases(search, status, date, limit, offset, db, allow_source_pid):
         first_img = s.images[0] if s.images else None
         last_review = first_img.reviews[-1] if (first_img and first_img.reviews) else None
         pred = first_img.predictions[-1] if (first_img and first_img.predictions) else None
+        verified_review_source = _verified_review_calibration_source(last_review) if last_review else None
+        prediction_measurements = pred.measurements if pred and isinstance(pred.measurements, dict) else {}
+        image_calibration = (
+            get_image_calibration(first_img)
+            if first_img and pred and not last_review
+            else None
+        )
+        verified_prediction = prediction_measurements_match_calibration(
+            prediction_measurements,
+            image_calibration,
+            pred.provenance_json if pred else None,
+        )
+        worklist_diameter_mm = None
+        if last_review and verified_review_source and _finite_physical_value(last_review.max_diameter_mm):
+            worklist_diameter_mm = last_review.max_diameter_mm
+        elif (
+            not last_review
+            and verified_prediction
+            and _finite_physical_value(prediction_measurements.get("max_diameter_mm"))
+        ):
+            worklist_diameter_mm = prediction_measurements["max_diameter_mm"]
 
         cases_list.append(
             {
                 "id": s.id,
                 "study_id": s.id,
                 "study_code": s.study_code or s.id[:8],
+                "visit_no": s.visit_no,
                 "patient_id": s.patient.anonymized_pid,
                 "patient_age": s.patient.age_bucket,
                 "study_date": s.study_date,
@@ -282,19 +480,74 @@ def _query_cases(search, status, date, limit, offset, db, allow_source_pid):
                     if (pred and isinstance(pred.measurements, dict))
                     else "Chưa phân tích"
                 ),
-                "max_diameter_mm": last_review.max_diameter_mm
-                if last_review
-                else (
-                    pred.measurements.get("max_diameter_mm", 0.0)
-                    if (pred and isinstance(pred.measurements, dict))
-                    else 0.0
-                ),
+                "max_diameter_mm": worklist_diameter_mm,
                 "doctor_action": last_review.doctor_action if last_review else None,
                 "created_at": s.created_at.strftime("%d/%m/%Y %H:%M"),
             }
         )
 
-    return cases_list
+    return {"items": cases_list, "total": total} if include_total else cases_list
+
+
+@router.post("/api/workspace/cases/search", dependencies=[Depends(require_clinical)])
+def search_workspace_cases(request: CaseSearchRequest, db: Session = Depends(get_db)):
+    """Return a bounded, sortable clinical worklist page and its filtered total."""
+    return _query_cases(
+        request.search,
+        request.status,
+        request.date,
+        request.limit,
+        request.offset,
+        db,
+        allow_source_pid=True,
+        patient_id=request.patient_id,
+        statuses=request.statuses,
+        sort=request.sort,
+        direction=request.direction,
+        include_total=True,
+    )
+
+
+@router.get("/api/workspace/dashboard/summary", dependencies=[Depends(require_clinical)])
+def get_workspace_dashboard_summary(
+    date: Annotated[str, Query(max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$")],
+    queue: Literal["doctor", "reviewer"] = "doctor",
+    db: Session = Depends(get_db),
+):
+    """Return dashboard counters and five queue rows without downloading case history."""
+    doctor_queue_statuses = (
+        "PENDING",
+        "ANALYZED",
+        "PARTIALLY_REVIEWED",
+        "REVIEWED",
+    )
+    reviewer_queue_statuses = ("SIGNED_PRELIM",)
+    queue_statuses = (
+        reviewer_queue_statuses if queue == "reviewer" else doctor_queue_statuses
+    )
+    pending_statuses = doctor_queue_statuses
+
+    def count_statuses(statuses):
+        return db.query(StudyModel).filter(StudyModel.status.in_(statuses)).count()
+
+    rows = _query_cases(
+        None,
+        None,
+        None,
+        5,
+        0,
+        db,
+        allow_source_pid=False,
+        statuses=queue_statuses,
+    )
+    return {
+        "counts": {
+            "today": db.query(StudyModel).filter(StudyModel.study_date == date).count(),
+            "pending": count_statuses(pending_statuses),
+            "waiting": count_statuses(reviewer_queue_statuses),
+        },
+        "items": rows,
+    }
 
 
 @router.get("/api/workspace/cases", dependencies=[Depends(require_clinical)])
@@ -303,7 +556,7 @@ def get_workspace_cases(
     status: str | None = None,
     date: str | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
-    offset: Annotated[int, Query(ge=0, le=10000)] = 0,
+    offset: Annotated[int, Query(ge=0)] = 0,
     db: Session = Depends(get_db),
 ):
     """Alias for /api/cases used by workstation case manager."""
@@ -351,6 +604,7 @@ def get_case_detail(
 
     images_data = []
     for img in study.images:
+        image_calibration = get_image_calibration(img)
         last_r = None
         if batch_review_ids and img.reviews:
             last_r = next((review for review in img.reviews if review.id in batch_review_ids), None)
@@ -360,19 +614,33 @@ def get_case_detail(
         if img.predictions:
             last_p = next((prediction for prediction in img.predictions if last_r and prediction.id == last_r.prediction_id), None)
             last_p = last_p or max(img.predictions, key=lambda prediction: (prediction.created_at, prediction.id))
+            prediction_measurements = last_p.measurements if isinstance(last_p.measurements, dict) else {}
             prov = (
                 last_p.provenance_json
                 if getattr(last_p, "provenance_json", None) is not None
                 else {"model_version": last_p.model_version, "checkpoint_sha256": None, "status": "UNKNOWN"}
+            )
+            prediction_measurements_trusted = prediction_measurements_match_calibration(
+                prediction_measurements, image_calibration, prov
+            )
+            safe_prediction_measurements = (
+                prediction_measurements
+                if prediction_measurements_trusted
+                else _strip_unverified_physical_measurements(prediction_measurements)
+            )
+            safe_prediction_provenance = (
+                prov
+                if prediction_measurements_trusted
+                else _strip_unverified_physical_measurements(prov)
             )
             pred_data = {
                 "prediction_id": last_p.id,
                 "confidence_score": last_p.confidence_score,
                 "inference_time_ms": last_p.inference_time_ms,
                 "iqa_score": last_p.iqa_score,
-                "measurements": last_p.measurements,
+                "measurements": safe_prediction_measurements,
                 "rle_mask": last_p.raw_mask_rle,
-                "provenance": prov,
+                "provenance": safe_prediction_provenance,
                 "model_version": last_p.model_version,
                 "uncertainty_map_base64": (
                     "data:image/png;base64," + base64.b64encode(last_p.uncertainty_map_png).decode("ascii")
@@ -383,7 +651,8 @@ def get_case_detail(
 
         review_data = None
         if last_r:
-            fb = last_r.hitl_feedback if isinstance(last_r.hitl_feedback, dict) else {}
+            verified_source = _verified_review_calibration_source(last_r)
+            fb = _safe_review_feedback(last_r, verified_source)
             review_data = {
                 "review_id": last_r.id,
                 "prediction_id": last_r.prediction_id,
@@ -395,12 +664,24 @@ def get_case_detail(
                 "orads_score": fb.get("orads_score") or fb.get("orads"),
                 "morphology_description": fb.get("morphologyDesc") or fb.get("morphology_description"),
                 "clinical_notes": last_r.clinical_notes,
-                "hitl_feedback": last_r.hitl_feedback,
+                "hitl_feedback": fb,
                 "reviewed_at": last_r.created_at.replace(tzinfo=UTC).isoformat(),
                 "reviewer_id": last_r.doctor_id,
-                "max_diameter_mm": last_r.max_diameter_mm,
-                "ortho_diameter_mm": last_r.ortho_diameter_mm,
-                "total_area_cm2": last_r.total_area_cm2,
+                "max_diameter_mm": (
+                    last_r.max_diameter_mm
+                    if verified_source and _finite_physical_value(last_r.max_diameter_mm)
+                    else None
+                ),
+                "ortho_diameter_mm": (
+                    last_r.ortho_diameter_mm
+                    if verified_source and _finite_physical_value(last_r.ortho_diameter_mm)
+                    else None
+                ),
+                "total_area_cm2": (
+                    last_r.total_area_cm2
+                    if verified_source and _finite_physical_value(last_r.total_area_cm2)
+                    else None
+                ),
                 "verified_mask_rle": last_r.verified_mask_rle,
                 "created_at": last_r.created_at.strftime("%d/%m/%Y %H:%M"),
             }
@@ -412,7 +693,7 @@ def get_case_detail(
                 "filename": img.filename,
                 "width": img.width,
                 "height": img.height,
-                **get_image_calibration(img),
+                **image_calibration,
                 "prediction": pred_data,
                 "review": review_data,
             }
@@ -421,6 +702,7 @@ def get_case_detail(
     return {
         "study_id": study.id,
         "study_code": study.study_code,
+        "visit_no": study.visit_no,
         "patient_id": study.patient.anonymized_pid,
         "patient_age": study.patient.age_bucket,
         "study_date": study.study_date,
@@ -461,10 +743,13 @@ def delete_case(
         raise HTTPException(status_code=404, detail="Không tìm thấy ca khám để xóa.")
 
     upload_root = Path(UPLOAD_DIR).resolve()
+    actor_username = current_user.username
     case_images = list(study.images)
     image_ids = [img.id for img in case_images]
     uploaded_paths = [img.raw_path for img in case_images if img.raw_path]
     pending_deletion_ids = []
+    active_learning_transaction = None
+    active_learning_cleanup_pending = False
     try:
         pending_deletion_ids = enqueue_upload_deletions(db, uploaded_paths, upload_root)
 
@@ -481,9 +766,19 @@ def delete_case(
             synchronize_session=False
         )
 
+        # UI telemetry is retained only while its case exists. Remove it before
+        # deleting the study so buffered interaction events cannot block cleanup
+        # or leave event payloads linked to a deleted clinical record.
+        db.query(UIEventModel).filter(UIEventModel.case_id == study_id).delete(
+            synchronize_session=False
+        )
+
         # Reviews reference predictions through a composite foreign key. Delete
         # those references before the study/image cascade removes predictions.
         if image_ids:
+            db.query(ActiveLearningQueueModel).filter(
+                ActiveLearningQueueModel.image_id.in_(image_ids)
+            ).delete(synchronize_session=False)
             db.query(ReviewModel).filter(ReviewModel.image_id.in_(image_ids)).delete(
                 synchronize_session=False
             )
@@ -495,12 +790,25 @@ def delete_case(
                 entity_name="study",
                 entity_id=study_id,
                 action_type="CLINICAL_CASE_DELETE",
-                actor_id=current_user.username,
+                actor_id=actor_username,
                 details={"images_associated": len(uploaded_paths)},
                 timestamp=datetime.now(UTC),
             )
         )
+        active_learning_transaction = prepare_legacy_active_learning_cleanup(image_ids)
+        if not active_learning_transaction.complete:
+            active_learning_transaction.rollback()
+            active_learning_transaction = None
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Case deletion was not committed because linked review export cleanup "
+                    "could not be confirmed. Retry after storage is available."
+                ),
+            )
         db.commit()
+        active_learning_cleanup_pending = not active_learning_transaction.finalize()
+        active_learning_transaction = None
     except Exception:
         rollback_error_type = None
         try:
@@ -530,22 +838,35 @@ def delete_case(
             )
 
         delete_committed = _verify_case_delete_commit(
-            bind, study_id, current_user.username, pending_deletion_ids
+            bind, study_id, actor_username, pending_deletion_ids
         )
+        if active_learning_transaction is not None:
+            if delete_committed is True:
+                active_learning_cleanup_pending = not active_learning_transaction.finalize()
+            elif not active_learning_transaction.rollback():
+                logger.critical(
+                    "Could not restore active-learning exports after an uncommitted case deletion.",
+                    extra={"legacy_queue_cleanup_rollback_failure": True},
+                )
+            active_learning_transaction = None
         if delete_committed is True:
             logger.critical(
                 "Case-delete commit raised after deletion and audit were persisted; returning verified result.",
                 extra={"case_delete_commit_error_after_persist": True},
             )
+            active_learning_cleanup = remove_legacy_active_learning_samples(image_ids)
             cleanup_pending = _retry_case_file_deletions(bind, upload_root, pending_deletion_ids)
             return {
                 "status": "SUCCESS",
                 "message": "Đã xóa ca khám thành công.",
                 "file_cleanup": "PENDING" if cleanup_pending else "COMPLETE",
+                "active_learning_cleanup": (
+                    "PENDING" if active_learning_cleanup_pending or not active_learning_cleanup.complete else "COMPLETE"
+                ),
             }
         if delete_committed is None:
             logger.critical(
-                "Case-delete commit outcome is uncertain; files were not deleted.",
+                "Case-delete commit outcome is uncertain; staged export cleanup was rolled back where possible.",
                 extra={
                     "case_delete_state_unknown": True,
                     "rollback_error_type": rollback_error_type,
@@ -562,4 +883,5 @@ def delete_case(
         "status": "SUCCESS",
         "message": "Đã xóa ca khám thành công.",
         "file_cleanup": "PENDING" if cleanup_pending else "COMPLETE",
+        "active_learning_cleanup": "PENDING" if active_learning_cleanup_pending else "COMPLETE",
     }

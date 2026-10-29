@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bindCdssPanel, cdssPanelMarkup } from "../frontend/app/cdss-panel.js";
+import {
+  bindCdssPanel,
+  cdssPanelMarkup,
+  updateAIDiagnosisCard,
+} from "../frontend/app/cdss-panel.js";
 
 const fieldNames = [
   "assessment_source",
@@ -80,11 +84,14 @@ class FakeForm extends FakeElement {
     );
     this.fields = new FakeElement();
     this.submitButton = new FakeElement();
+    this.confirmation = new FakeElement();
+    this.confirmation.checked = false;
   }
 
   querySelector(selector) {
     if (selector === "#cdssFields") return this.fields;
     if (selector === "#cdssEvaluate") return this.submitButton;
+    if (selector === "#cdssConfirm") return this.confirmation;
     return null;
   }
 
@@ -97,13 +104,21 @@ class FakeForm extends FakeElement {
   }
 }
 
-function createPanel({ canEvaluate = () => true, getContext, signal } = {}) {
+function createPanel({ canEvaluate = () => true, getContext, signal, requireSavedRegion = false } = {}) {
   const form = new FakeForm();
   const result = new FakeElement();
+  const regionHistory = new FakeElement();
+  const regionHistoryStatus = new FakeElement();
+  const regionHistoryContent = new FakeElement();
+  const regionHistoryMore = new FakeElement();
   const root = {
     querySelector(selector) {
       if (selector === "#cdssForm") return form;
       if (selector === "#cdssResult") return result;
+      if (selector === "#cdssRegionHistory") return regionHistory;
+      if (selector === "#cdssRegionHistoryStatus") return regionHistoryStatus;
+      if (selector === "#cdssRegionHistoryContent") return regionHistoryContent;
+      if (selector === "#cdssRegionHistoryMore") return regionHistoryMore;
       return null;
     },
   };
@@ -116,8 +131,9 @@ function createPanel({ canEvaluate = () => true, getContext, signal } = {}) {
     canEvaluate,
     getContext: context,
     signal,
+    requireSavedRegion,
   });
-  return { form, result, panel, getContext: context };
+  return { form, result, panel, getContext: context, regionHistory, regionHistoryStatus, regionHistoryContent, regionHistoryMore };
 }
 
 function cdssResponse({ status = "INSUFFICIENT_DATA", category = null } = {}) {
@@ -148,7 +164,7 @@ function stubFetch(responseOrFactory) {
   });
   const calls = [];
   globalThis.fetch = async (url, options) => {
-    const call = { url, options, body: JSON.parse(options.body) };
+    const call = { url, options, body: options.body ? JSON.parse(options.body) : undefined };
     calls.push(call);
     const response = typeof responseOrFactory === "function"
       ? await responseOrFactory(call, calls.length - 1)
@@ -171,6 +187,28 @@ function stubFetch(responseOrFactory) {
   };
 }
 
+test("diagnosis card does not render unsupported model diagnoses", () => {
+  const card = new FakeElement();
+  const content = new FakeElement();
+  content.innerHTML = "";
+  const root = {
+    querySelector(selector) {
+      if (selector === "#aiDiagnosisCard") return card;
+      if (selector === "#aiDiagnosisContent") return content;
+      return null;
+    },
+  };
+
+  updateAIDiagnosisCard(root, {
+    diagnosis: "Ung thư buồng trứng",
+    probability: 0.99,
+  });
+
+  assert.match(content.textContent, /chỉ hỗ trợ phân đoạn và đo lường/i);
+  assert.doesNotMatch(content.textContent, /Ung thư|99%/i);
+  assert.equal(content.innerHTML, "");
+});
+
 test("test_cdss_panel_starts_unanswered_and_sends_no_defaults", async () => {
   const markup = cdssPanelMarkup(false);
   assert.match(markup, /id="cdssForm"/);
@@ -191,8 +229,207 @@ test("test_cdss_panel_starts_unanswered_and_sends_no_defaults", async () => {
     assert.equal(fetch.calls[0].options.method, "POST");
     assert.deepEqual(fetch.calls[0].body.vision_findings, {});
     assert.equal("patient_context" in fetch.calls[0].body, false);
-    assert.match(result.textContent, /max_diameter_mm/);
-    assert.match(result.textContent, /locules_count/);
+    assert.match(result.textContent, /Đường kính lớn nhất \(mm\)/);
+    assert.match(result.textContent, /Số thùy/);
+    assert.doesNotMatch(result.textContent, /max_diameter_mm|locules_count/);
+  } finally {
+    panel.destroy();
+    fetch.restore();
+  }
+});
+
+test("region history is visible, cursor-paged, and rendered as text", async () => {
+  const context = {
+    studyId: "study-a",
+    imageId: "image-left",
+    side: "L",
+    assignmentRequestId: "assignment-a",
+    reviewId: "review-a",
+    maskSha256: "a".repeat(64),
+    regionId: "region-a",
+    reviewRevision: 1,
+  };
+  const { panel, regionHistory, regionHistoryContent, regionHistoryMore } = createPanel({
+    getContext: () => context,
+    requireSavedRegion: true,
+  });
+  const fetch = stubFetch((call) => {
+    const isCaliper = call.url.includes("/calipers?");
+    const hasCursor = call.url.includes("cursor=");
+    if (isCaliper && !hasCursor) return {
+      current: true,
+      measurements: {},
+      history: [{ request_id: "caliper-new", label: "D1", measurement_revision: 2, diameter_mm: 4.5,
+        current: true, created_at: "2026-10-29T10:00:00" }],
+      history_next_cursor: "caliper-cursor",
+    };
+    if (isCaliper) return {
+      current: true,
+      measurements: {},
+      history: [{ request_id: "caliper-old", label: "D1", measurement_revision: 1, diameter_mm: 4.2,
+        current: false, created_at: "2026-10-29T09:00:00" }],
+      history_next_cursor: null,
+    };
+    if (!hasCursor) return {
+      current: true,
+      latest_revision: 3,
+      latest: null,
+      history: [{ request_id: "assessment-new", assessment_revision: 3, result: { status: "INSUFFICIENT_DATA" },
+        current: true, created_at: "2026-10-29T10:01:00" }],
+      history_next_cursor: "assessment-cursor",
+    };
+    return {
+      current: true,
+      latest_revision: 3,
+      latest: null,
+      history: [{ request_id: "assessment-old", assessment_revision: 2, result: { status: "<script>" },
+        current: false, created_at: "<script>" }],
+      history_next_cursor: null,
+    };
+  });
+  try {
+    panel.setRegionContext(context);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(regionHistory.hidden, false);
+    assert.equal(regionHistoryMore.hidden, false);
+    assert.match(regionHistoryContent.textContent, /4\.500 mm/);
+    assert.match(regionHistoryContent.textContent, /Chưa đủ dữ liệu/);
+
+    await regionHistoryMore.dispatch("click");
+    assert.equal(fetch.calls.length, 4);
+    assert.ok(fetch.calls.some((call) => call.url.includes("cursor=caliper-cursor")));
+    assert.ok(fetch.calls.some((call) => call.url.includes("cursor=assessment-cursor")));
+    assert.match(regionHistoryContent.textContent, /revision 1 · 4\.200 mm · lịch sử \/ stale/);
+    assert.match(regionHistoryContent.textContent, /<script>/);
+    assert.equal(regionHistoryMore.hidden, true);
+  } finally {
+    panel.destroy();
+    fetch.restore();
+  }
+});
+
+test("late history responses from a previously selected region never replace the current region", async () => {
+  const regionA = {
+    studyId: "study-a", imageId: "image-left", side: "L",
+    assignmentRequestId: "assignment-a", reviewId: "review-a", maskSha256: "a".repeat(64),
+    regionId: "region-a", reviewRevision: 1,
+  };
+  const regionB = {
+    ...regionA,
+    assignmentRequestId: "assignment-b", reviewId: "review-b", maskSha256: "b".repeat(64),
+    regionId: "region-b", reviewRevision: 2,
+  };
+  const { panel, regionHistoryContent } = createPanel({ requireSavedRegion: true });
+  const resolvers = new Map();
+  const fetch = stubFetch((call) => new Promise((resolve) => resolvers.set(call.url, resolve)));
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+  const calipers = (requestId, diameter) => ({
+    current: true,
+    measurements: {},
+    history: [{ request_id: requestId, label: "D1", measurement_revision: 1, diameter_mm: diameter, current: true }],
+    history_next_cursor: null,
+  });
+  const assessments = (requestId, revision) => ({
+    current: true,
+    latest_revision: revision,
+    latest: null,
+    history: [{ request_id: requestId, assessment_revision: revision, result: { status: "INSUFFICIENT_DATA" }, current: true }],
+    history_next_cursor: null,
+  });
+
+  try {
+    panel.setRegionContext(regionA);
+    await flush();
+    assert.equal(fetch.calls.length, 2);
+    panel.setRegionContext(regionB);
+    await flush();
+    assert.equal(fetch.calls.length, 4);
+
+    for (const call of fetch.calls.slice(2)) {
+      const isCaliper = call.url.includes("/calipers?");
+      resolvers.get(call.url)(isCaliper ? calipers("region-b-caliper", 2.2) : assessments("region-b-assessment", 2));
+    }
+    await flush();
+    assert.match(regionHistoryContent.textContent, /2\.200 mm/);
+    assert.match(regionHistoryContent.textContent, /Revision 2/);
+
+    for (const call of fetch.calls.slice(0, 2)) {
+      const isCaliper = call.url.includes("/calipers?");
+      resolvers.get(call.url)(isCaliper ? calipers("region-a-caliper", 9.9) : assessments("region-a-assessment", 99));
+    }
+    await flush();
+    assert.match(regionHistoryContent.textContent, /2\.200 mm/);
+    assert.match(regionHistoryContent.textContent, /Revision 2/);
+    assert.doesNotMatch(regionHistoryContent.textContent, /9\.900 mm|Revision 99/);
+  } finally {
+    panel.destroy();
+    fetch.restore();
+  }
+});
+
+test("stale saved assessment requires region reload before a new revision is submitted", async () => {
+  const context = {
+    studyId: "study-a",
+    imageId: "image-left",
+    side: "L",
+    leaseToken: "lease-a",
+    pageInstanceId: "page-a",
+  };
+  const region = {
+    studyId: context.studyId,
+    imageId: context.imageId,
+    assignmentRequestId: "assignment-a",
+    reviewId: "review-a",
+    maskSha256: "a".repeat(64),
+    regionId: "region-a",
+    reviewRevision: 1,
+  };
+  const { form, result, panel } = createPanel({
+    getContext: () => context,
+    requireSavedRegion: true,
+  });
+  let assessmentReads = 0;
+  const fetch = stubFetch((call) => {
+    if (call.options.method === "POST") {
+      if (call.body.expected_assessment_revision === 0)
+        return { current: false, assessment_revision: 1, result: { status: "INSUFFICIENT_DATA" } };
+      return { current: true, assessment_revision: 2, result: cdssResponse() };
+    }
+    if (call.url.includes("/calipers?"))
+      return { current: true, measurements: {}, history: [], history_next_cursor: null };
+    assessmentReads += 1;
+    return {
+      current: true,
+      latest_revision: assessmentReads === 1 ? 0 : 1,
+      latest: null,
+      history: [],
+      history_next_cursor: null,
+    };
+  });
+  try {
+    panel.setRegionContext(region);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    form.confirmation.checked = true;
+    await form.dispatch("submit");
+
+    const stalePost = fetch.calls.find((call) => call.options.method === "POST");
+    assert.ok(stalePost);
+    assert.equal(stalePost.body.expected_assessment_revision, 0);
+    assert.equal(form.confirmation.checked, false);
+    assert.equal(form.submitButton.disabled, true);
+    assert.equal(result.dataset.status, "STALE");
+    assert.match(result.textContent, /chọn lại vùng/i);
+
+    panel.setRegionContext(region);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    form.confirmation.checked = true;
+    await form.dispatch("submit");
+
+    const posts = fetch.calls.filter((call) => call.options.method === "POST");
+    assert.equal(posts.length, 2);
+    assert.notEqual(posts[1].body.request_id, stalePost.body.request_id);
+    assert.equal(posts[1].body.expected_assessment_revision, 1);
+    assert.equal(result.dataset.status, "INSUFFICIENT_DATA");
   } finally {
     panel.destroy();
     fetch.restore();
@@ -219,8 +456,8 @@ test("test_partial_inputs_keep_missing_fields_visible", async () => {
     assert.deepEqual(body.patient_context, { is_premenopausal: false });
     assert.equal("locules_count" in body.vision_findings, false);
     assert.equal("has_solid_component" in body.vision_findings, false);
-    assert.match(result.textContent, /max_diameter_mm/);
-    assert.match(result.textContent, /locules_count/);
+    assert.match(result.textContent, /Đường kính lớn nhất \(mm\)/);
+    assert.match(result.textContent, /Số thùy/);
     assert.doesNotMatch(result.textContent, /O-RADS 2/);
   } finally {
     panel.destroy();
@@ -259,6 +496,27 @@ test("test_side_change_discards_stale_response", async () => {
     assert.doesNotMatch(result.textContent, /O-RADS 2/);
     assert.equal(result.dataset.status, "NOT_EVALUATED");
     assert.ok(fieldNames.every((name) => form.elements[name].value === ""));
+  } finally {
+    panel.destroy();
+    fetch.restore();
+  }
+});
+
+test("cancelling a pending CDSS request restores its idle button and editability", async () => {
+  let resolveResponse;
+  const { form, result, panel } = createPanel();
+  const fetch = stubFetch(() => new Promise((resolve) => { resolveResponse = resolve; }));
+  try {
+    const submission = form.dispatch("submit");
+    assert.equal(form.submitButton.textContent, "Đang đối chiếu…");
+    panel.resetForSide();
+    assert.equal(form.submitButton.textContent, "Đối chiếu quy tắc RUO");
+    assert.equal(form.submitButton.disabled, false);
+    assert.equal(form.fields.disabled, false);
+    resolveResponse(cdssResponse({ status: "RULE_MATCHED", category: "O-RADS 2" }));
+    await submission;
+    assert.equal(result.dataset.status, "NOT_EVALUATED");
+    assert.doesNotMatch(result.textContent, /O-RADS 2/);
   } finally {
     panel.destroy();
     fetch.restore();
@@ -309,7 +567,8 @@ test("test_only_rule_matched_displays_ruo_category", async () => {
   try {
     await form.dispatch("submit");
     assert.doesNotMatch(result.textContent, /O-RADS 2/);
-    assert.match(result.textContent, /UNSUPPORTED_PATTERN/);
+    assert.match(result.textContent, /Mẫu hình chưa được quy tắc RUO hỗ trợ/);
+    assert.doesNotMatch(result.textContent, /UNSUPPORTED_PATTERN/);
 
     nextResponse = cdssResponse({ status: "RULE_MATCHED", category: "O-RADS 2" });
     await form.dispatch("input");

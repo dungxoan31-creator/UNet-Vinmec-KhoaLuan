@@ -18,6 +18,7 @@ from backend.app.config import (
     DATA_DIR,
     FRONTEND_DIR,
     REPORTS_DIR,
+    SYNTHETIC_DEMO_MODE,
     UPLOAD_DIR,
     model_registry,
     preprocessor,
@@ -37,9 +38,11 @@ from backend.app.routers import (
 )
 from backend.app.security import get_current_user
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
+from backend.core.synthetic_demo import is_loopback_client
 from backend.db.database import AuditLogModel, SessionLocal, UserModel, get_db, init_db
 from backend.schemas.schemas import NotificationReadRequest, UserFeedbackRequest
 from backend.services.file_deletion_service import retry_pending_file_deletions
+from backend.services.model_service import InferenceBusyError
 
 # Initialize Database Schema
 init_db()
@@ -87,15 +90,30 @@ app.add_middleware(
     allow_origins=[origin.strip() for origin in os.getenv("APP_CORS_ORIGINS", "").split(",") if origin.strip()],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
 )
 
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     """Inject security hardening headers (CSP, nosniff, frame guard) on all responses (OPS-04)."""
+    if SYNTHETIC_DEMO_MODE:
+        remote_host = request.client.host if request.client else ""
+        if not is_loopback_client(remote_host):
+            return apply_security_headers(
+                JSONResponse(status_code=403, content={"detail": "Synthetic demo accepts loopback clients only."})
+            )
     response = await call_next(request)
     return apply_security_headers(response)
+
+
+@app.exception_handler(InferenceBusyError)
+async def inference_busy_response(_request: Request, _exc: InferenceBusyError):
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Hàng đợi suy luận đang đầy hoặc quá thời gian chờ. Vui lòng thử lại."},
+        headers={"Retry-After": "2"},
+    )
 
 
 @app.exception_handler(Exception)
@@ -153,7 +171,7 @@ def serve_admin_ui():
                 "Expires": "0",
             },
         )
-    return HTMLResponse("<h1>Vinmec AI Admin Portal Running.</h1>")
+    return HTMLResponse("<h1>Ovarian Ultrasound RUO Research Workstation API is running.</h1>")
 
 
 @app.get("/slides", tags=["Web UI"])

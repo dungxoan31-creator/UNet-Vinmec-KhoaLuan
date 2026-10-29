@@ -60,7 +60,8 @@ export async function acquireLease(caseId, onLost) {
     remote = state.capabilities.case_leases === true;
   let serverLease = null,
     stopped = false,
-    timer;
+    timer,
+    renewing = false;
   const current = () =>
     session.user === state.user?.id && session.token === state.token;
   if (remote) {
@@ -81,6 +82,15 @@ export async function acquireLease(caseId, onLost) {
           },
         },
       );
+      // A stored token can have expired while the page was closed. A fresh
+      // acquire is separate from renewal and remains subject to server exclusivity.
+      if (!response.granted && priorToken && current()) {
+        try { sessionStorage.removeItem("ova.server-lease." + caseId); } catch {}
+        response = await request(
+          "/api/workspace/cases/" + encodeURIComponent(caseId) + "/lease",
+          { method: "POST", body: { tab_id: tabId, page_instance_id: pageInstanceId } },
+        );
+      }
     } catch {
       onLost("Máy chủ chưa xác nhận quyền chỉnh sửa; phiên này chỉ xem.");
       return {
@@ -153,10 +163,13 @@ export async function acquireLease(caseId, onLost) {
   write();
   window.addEventListener("storage", storage);
   timer = setInterval(async () => {
+    if (stopped || renewing) return;
     if (!current()) {
       lose();
       return;
     }
+    renewing = true;
+    try {
     if (remote)
       try {
         const next = await request(
@@ -170,6 +183,7 @@ export async function acquireLease(caseId, onLost) {
             },
           },
         );
+        if (stopped || !current()) return;
         if (!next.granted) {
           lose();
           return;
@@ -182,7 +196,10 @@ export async function acquireLease(caseId, onLost) {
         lose();
         return;
       }
-    write();
+    if (!stopped && current()) write();
+    } finally {
+      renewing = false;
+    }
   }, 15000);
   function release() {
     stopped = true;

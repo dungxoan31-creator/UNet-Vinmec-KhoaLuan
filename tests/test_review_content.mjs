@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encode } from '../frontend/app/coordinates.js';
-import { isCompleteReviewAck, matchesSubmittedReview, reviewWarnings, consistencyKey, hasUnresolvedReviewWarning } from '../frontend/app/review-content.js';
+import { isCompleteReviewAck, matchesSubmittedReview, reviewWarnings, consistencyKey, hasUnresolvedReviewWarning, clinicianDiagnosisOverrides } from '../frontend/app/review-content.js';
 
 const body = side => ({ image_id: side, prediction_id: 'p-' + side, doctor_action: 'ACCEPTED_RAW' });
 const bodies = ['L', 'R'].map(body);
@@ -42,4 +42,16 @@ test('clinical disagreement requires an acknowledgement tied to exact side/conte
   image.notes = 'Mô tả [bác sĩ ghi nhận kích thước]'; image.consistencyAcknowledgement = consistencyKey(image);
   assert.equal(hasUnresolvedReviewWarning(image), true, 'a placeholder cannot be acknowledged as complete');
   assert.deepEqual(reviewWarnings({ notes: 'Mô tả chưa đủ để phân tầng', orads: '' }), []);
+});
+test('new or changed clinician diagnosis fields are sent as active-learning overrides', () => {
+  const image = { morphology: 'Nang đơn giản', orads: 'O-RADS 2', morphologyDesc: 'Thành trơn' };
+  assert.deepEqual(clinicianDiagnosisOverrides(image), {
+    lesion_type: 'Nang đơn giản', orads: 'O-RADS 2', morphology_description: 'Thành trơn',
+  });
+  image.review = {
+    lesion_type: 'Nang đơn giản', orads: 'O-RADS 2', morphology_description: 'Thành trơn',
+  };
+  assert.deepEqual(clinicianDiagnosisOverrides(image), {});
+  image.orads = '';
+  assert.deepEqual(clinicianDiagnosisOverrides(image), { orads: null });
 });

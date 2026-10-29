@@ -1,6 +1,7 @@
 """
 Dataset Loader & Preprocessing Integration for Ovarian Ultrasound Segmentation.
-Complies with Patient-Level Split and Medical Image Standardization (512x512 Letterbox).
+Consumes image-level split CSVs and applies 512x512 Letterbox preprocessing.
+Patient identifiers are not required by or passed into the model training batch.
 """
 
 import os
@@ -42,22 +43,32 @@ def cv2_imread_unicode(file_path, flags=cv2.IMREAD_GRAYSCALE):
 
 
 class OvarianUltrasoundDataset(Dataset):
-    def __init__(self, csv_file, target_size=(512, 512), is_train=False, seed=42):
+    def __init__(
+        self,
+        csv_file,
+        target_size=(512, 512),
+        is_train=False,
+        seed=42,
+        rotation_limit=10,
+        elastic_probability=0.0,
+    ):
         self.df = pd.read_csv(csv_file)
         self.csv_dir = os.path.abspath(os.path.dirname(csv_file))
         self.target_size = target_size
         self.is_train = is_train
         self.preprocessor = UltrasoundPreprocessor(target_size=target_size)
+        if not 0 <= elastic_probability <= 1:
+            raise ValueError("elastic_probability must be between 0 and 1")
 
         # Safe medical augmentations (only on train set)
         if self.is_train:
-            self.transform = A.Compose([
+            transforms = [
                 A.HorizontalFlip(p=0.5),
                 A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.4),
                 A.Affine(
                     scale=(0.95, 1.05),
                     translate_percent=(-0.05, 0.05),
-                    rotate=(-10, 10),
+                    rotate=(-rotation_limit, rotation_limit),
                     interpolation=cv2.INTER_LINEAR,
                     mask_interpolation=cv2.INTER_NEAREST,
                     border_mode=cv2.BORDER_CONSTANT,
@@ -65,7 +76,21 @@ class OvarianUltrasoundDataset(Dataset):
                     fill_mask=0,
                     p=0.4,
                 ),
-            ], seed=seed)
+            ]
+            if elastic_probability:
+                transforms.append(
+                    A.ElasticTransform(
+                        alpha=1,
+                        sigma=20,
+                        interpolation=cv2.INTER_LINEAR,
+                        mask_interpolation=cv2.INTER_NEAREST,
+                        border_mode=cv2.BORDER_CONSTANT,
+                        fill=0,
+                        fill_mask=0,
+                        p=elastic_probability,
+                    )
+                )
+            self.transform = A.Compose(transforms, seed=seed)
         else:
             self.transform = None
 
@@ -93,7 +118,6 @@ class OvarianUltrasoundDataset(Dataset):
         img_path = self._resolve_path(str(row["image_path"]).replace("\\", "/"))
         mask_path = self._resolve_path(str(row["mask_path"]).replace("\\", "/"))
         case_id = str(row["case_id"])
-        patient_id = str(row.get("patient_id", "UNKNOWN"))
 
         # 1. Read Raw Files
         raw_img = cv2_imread_unicode(img_path, cv2.IMREAD_GRAYSCALE)
@@ -134,7 +158,6 @@ class OvarianUltrasoundDataset(Dataset):
             "image": img_tensor,
             "mask": mask_tensor,
             "case_id": case_id,
-            "patient_id": patient_id,
             "image_path": img_path
         }
 

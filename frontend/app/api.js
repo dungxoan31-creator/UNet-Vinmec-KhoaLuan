@@ -1,6 +1,7 @@
 import { state } from "./state.js";
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 45_000;
+const UPLOAD_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -51,9 +52,11 @@ export async function request(
   if (!navigator.onLine)
     throw new ApiError("Mất kết nối. Bản nháp vẫn được giữ trên thiết bị.", 0);
   const identity = state.user?.id;
+  const token = state.token;
+  const sessionChanged = () => identity !== state.user?.id || token !== state.token;
   const headers = {
     ...requestHeaders,
-    ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   if (body && !(body instanceof FormData))
     headers["Content-Type"] = "application/json";
@@ -67,7 +70,7 @@ export async function request(
       signal: requestSignal,
       ...fetchOptions,
     });
-    if (identity !== state.user?.id)
+    if (sessionChanged())
       throw new DOMException("Đã đổi phiên", "AbortError");
     if (r.status === 401) {
       if (path !== "/api/auth/login" && path !== "/api/auth/register") {
@@ -89,7 +92,7 @@ export async function request(
         throw new ApiError("Phản hồi JSON của máy chủ không hợp lệ.", r.status);
       data = {};
     }
-    if (requestSignal.aborted || identity !== state.user?.id)
+    if (requestSignal.aborted || sessionChanged())
       throw new DOMException("Đã hủy hoặc đổi phiên", "AbortError");
     if (r.status === 429) {
       const error = new ApiError(
@@ -151,11 +154,22 @@ export function uploadFile(
   signal,
   inspection = null,
   leaseHeaders = {},
+  idempotencyKey,
 ) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let settled = false;
+    let abortListener;
+    const settle = (complete, value) => {
+      if (settled) return;
+      settled = true;
+      if (abortListener) signal?.removeEventListener("abort", abortListener);
+      complete(value);
+    };
     xhr.open("POST", "/api/upload");
+    xhr.timeout = UPLOAD_REQUEST_TIMEOUT_MS;
     xhr.setRequestHeader("Authorization", `Bearer ${state.token}`);
+    if (idempotencyKey) xhr.setRequestHeader("Idempotency-Key", idempotencyKey);
     for (const [name, value] of Object.entries(leaseHeaders)) {
       if (value) xhr.setRequestHeader(name, value);
     }
@@ -163,22 +177,27 @@ export function uploadFile(
       if (e.lengthComputable)
         onProgress(Math.round((e.loaded / e.total) * 100));
     };
-    xhr.onerror = () => reject(new ApiError("Mất kết nối khi tải ảnh.", 0));
-    xhr.onabort = () => reject(new DOMException("Đã hủy", "AbortError"));
+    xhr.onerror = () => settle(reject, new ApiError("Mất kết nối khi tải ảnh.", 0));
+    xhr.onabort = () => settle(reject, new DOMException("Đã hủy", "AbortError"));
+    xhr.ontimeout = () => settle(
+      reject,
+      new ApiError("Tải ảnh quá thời gian chờ 10 phút. Có thể thử lại; ảnh đã ghi nhận sẽ được phát lại an toàn.", 408),
+    );
     xhr.onload = () => {
       let data;
       try {
         data = JSON.parse(xhr.responseText);
       } catch {
-        return reject(
+        return settle(reject,
           new ApiError("Phản hồi tải ảnh không hợp lệ.", xhr.status),
         );
       }
       if (xhr.status === 401)
         window.dispatchEvent(new CustomEvent("ova:expired"));
       xhr.status >= 200 && xhr.status < 300
-        ? resolve(data)
-        : reject(
+        ? settle(resolve, data)
+        : settle(
+            reject,
             new ApiError(
               typeof data.detail === "string"
                 ? data.detail
@@ -195,7 +214,10 @@ export function uploadFile(
       form.append("inspected_upload_id", inspection.upload_id);
       form.append("frame_index", inspection.frame);
     }
-    signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+    if (signal?.aborted)
+      return settle(reject, new DOMException("Đã hủy", "AbortError"));
+    abortListener = () => xhr.abort();
+    signal?.addEventListener("abort", abortListener, { once: true });
     xhr.send(form);
   });
 }

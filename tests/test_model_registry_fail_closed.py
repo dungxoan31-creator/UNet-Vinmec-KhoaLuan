@@ -69,6 +69,8 @@ def test_registry_rejects_metadata_only_candidate_without_running_primary():
     registry = ModelRegistry.__new__(ModelRegistry)
     registry.adapters = {"attention_unet": primary, "candidate": candidate}
     registry.primary_model_key = "attention_unet"
+    from backend.services.model_service import InferenceAdmission
+    registry._admission = InferenceAdmission()
 
     with pytest.raises(RuntimeError, match="not loaded for inference"):
         registry.predict(None, None, model_key="candidate")

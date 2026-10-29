@@ -1,55 +1,17 @@
 /* Browser smoke for the current modular workstation; never creates a case. */
 const assert = require('node:assert/strict');
-const crypto = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_CORE_PATH || 'playwright-core');
+const { ensureSyntheticFixtures } = require('./helpers/synthetic_fixtures.cjs');
 
-const root = path.resolve(__dirname, '..');
-const baseUrl = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-const validationCsv = process.env.SMOKE_VALIDATION_CSV ||
-    'ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv';
+const baseUrl = process.env.E2E_BASE_URL || 'http://127.0.0.1:8027';
 const chromePath = process.env.CHROME_PATH ||
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
-function readValidationImages() {
-    const lines = fs.readFileSync(path.resolve(root, validationCsv), 'utf8')
-        .trim().split(/\r?\n/);
-    const columns = lines[0].split(',');
-    const imageIndex = columns.indexOf('image_path');
-    const hashIndex = columns.indexOf('image_sha256');
-    assert.ok(imageIndex >= 0, 'Validation CSV includes image_path');
-
-    const available = lines.slice(1).map(line => line.split(',')).map(row => {
-        const recorded = row[imageIndex]?.replaceAll('\\', '/');
-        if (!recorded) return null;
-        let imagePath = path.resolve(root, recorded);
-        if (!fs.existsSync(imagePath)) {
-            for (const [source, target] of [
-                ['dataset/Vinmec/Vinmec_2d/images/', 'dataset/2d/images/'],
-                ['dataset/Vinmec/Vinmec_3d/images/', 'dataset/3d/images/'],
-            ]) {
-                if (recorded.startsWith(source)) {
-                    imagePath = path.resolve(root, target, recorded.slice(source.length));
-                    break;
-                }
-            }
-        }
-        if (!fs.existsSync(imagePath)) return null;
-        if (hashIndex >= 0) {
-            const actualHash = crypto.createHash('sha256').update(fs.readFileSync(imagePath)).digest('hex');
-            assert.equal(actualHash, row[hashIndex], 'Resolved image matches its frozen validation record');
-        }
-        return imagePath;
-    }).filter(Boolean);
-
-    assert.ok(available.length >= 2, 'Validation contains two readable images for local preflight checks');
-    return available.slice(0, 2);
-}
-
 async function main() {
     assert.ok(process.env.APP_DOCTOR_PASSWORD, 'Set APP_DOCTOR_PASSWORD for the browser smoke test');
-    const [leftImage, rightImage] = readValidationImages();
+    const fixtures = ensureSyntheticFixtures();
+    const leftImage = fixtures.left;
+    const rightImage = fixtures.right;
     const browser = await chromium.launch({ headless: true, executablePath: chromePath });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const pageErrors = [];
@@ -112,7 +74,16 @@ async function main() {
 
         await page.locator('[name="study-date"]').fill('2026-10-01T08:30');
         await page.locator('[name="study-date"]').dispatchEvent('input');
-        assert.equal(await startButton.isEnabled(), true, 'The UI enables the next step only after both images and date exist');
+        const confirmations = page.locator('[data-confirm-file]');
+        assert.equal(await confirmations.count(), 2);
+        for (const checkbox of await confirmations.all()) {
+            await checkbox.uncheck();
+        }
+        assert.equal(await startButton.isDisabled(), true, 'Unconfirmed image sides must keep segmentation disabled');
+        for (const checkbox of await confirmations.all()) {
+            await checkbox.check();
+        }
+        await page.waitForFunction(() => !document.querySelector('#startSegmentationBtn').disabled);
         assert.deepEqual(blockedApiWrites, [], 'Selecting local files does not issue any clinical API write');
 
         await page.locator('#accountMenu').click();
@@ -126,7 +97,7 @@ async function main() {
         console.log(JSON.stringify({
             status: 'PASS',
             flow: 'current modular workstation authentication and intake preflight',
-            sourceSplit: validationCsv,
+            imageSource: 'artifacts/synthetic_fixtures/',
             researchUseOnly: true,
             bothImagesAndStudyDateRequired: true,
             blockedApiWrites: blockedApiWrites.length,

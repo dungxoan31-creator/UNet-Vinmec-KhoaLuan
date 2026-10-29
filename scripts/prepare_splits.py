@@ -1,248 +1,208 @@
-"""
-Create Train / Validation / Test splits only from source-verified patient IDs.
-Requires an identity manifest bound to the exact input CSV SHA-256.
-Synthetic or unverified patient groups cannot establish patient-level independence.
+"""Create reproducible image-level Train/Validation/Test splits for mask training.
+
+Patient IDs are neither required nor used. The resulting partitions prove only
+image-content separation; they cannot establish patient-independent performance.
 """
 
 import argparse
 import hashlib
 import json
-import os
 import sys
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pandas as pd
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SOURCE = ROOT / "metadata/kltn_ground_truth_307.csv"
 SPLIT_NAMES = ("TRAIN", "VAL", "TEST")
 
 
-def validate_patient_split_metadata(df, identity_manifest, source_metadata_sha256):
-    """Require explicit source identity evidence and disjoint, complete groups."""
-    if not isinstance(identity_manifest, dict) or any(
-        identity_manifest.get(field) is not True
-        for field in ("source_patient_identity_verified", "patient_ids_verified")
-    ) or identity_manifest.get("identity_level") != "patient_verified":
-        raise ValueError(
-            "Training split creation requires source-verified patient identity evidence."
-        )
-    if identity_manifest.get("synthetic_patient_metadata") is True or identity_manifest.get(
-        "clinical_metadata_is_synthetic"
-    ) is True:
-        raise ValueError("Synthetic patient metadata cannot establish patient-level independence.")
-    if not str(identity_manifest.get("identity_source") or "").strip() or not str(
-        identity_manifest.get("identity_evidence_reference") or ""
-    ).strip():
-        raise ValueError("Identity evidence must name its source and verification reference.")
-    if identity_manifest.get("metadata_sha256") != source_metadata_sha256:
-        raise ValueError("Identity manifest metadata SHA-256 does not match the input CSV.")
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
-    required_columns = {
-        "case_id", "patient_id", "split", "image_path", "mask_path", "is_empty_mask"
-    }
-    if not required_columns.issubset(df.columns):
-        raise ValueError("Metadata is missing required case, patient, split or file columns.")
+
+def _resolve_source_path(value: str, root: Path) -> Path:
+    path = Path(str(value).replace("\\", "/"))
+    return path.resolve() if path.is_absolute() else (root / path).resolve()
+
+
+def validate_image_split_metadata(df: pd.DataFrame, root: Path = ROOT) -> tuple[pd.DataFrame, dict]:
+    """Check image/mask pairs and discard any synthetic patient grouping."""
+    required = {"case_id", "image_path", "mask_path"}
+    if not required.issubset(df.columns):
+        raise ValueError(f"Metadata is missing required columns: {sorted(required - set(df.columns))}")
+    if "is_empty_mask" not in df.columns and "status" not in df.columns:
+        raise ValueError("Metadata must describe whether each annotation mask is empty")
     if df.empty:
-        raise ValueError("Metadata must contain at least one sample.")
+        raise ValueError("Metadata must contain at least one sample")
 
     normalized = df.copy()
-    case_ids = normalized["case_id"].astype("string").str.strip()
-    patient_ids = normalized["patient_id"].astype("string").str.strip()
-    splits = normalized["split"].astype("string").str.strip().str.upper()
-    image_paths = normalized["image_path"].astype("string").str.strip()
-    mask_paths = normalized["mask_path"].astype("string").str.strip()
-    if case_ids.isna().any() or case_ids.eq("").any() or case_ids.duplicated().any():
-        raise ValueError("case_id values must be present and unique.")
-    if patient_ids.isna().any() or patient_ids.eq("").any():
-        raise ValueError("Metadata contains an empty patient_id.")
-    if image_paths.isna().any() or image_paths.eq("").any() or mask_paths.isna().any() or mask_paths.eq("").any():
-        raise ValueError("Metadata contains an empty image_path or mask_path.")
-    if normalized["is_empty_mask"].isna().any():
-        raise ValueError("Metadata contains a missing is_empty_mask value.")
-    unknown_splits = set(splits.dropna()) - set(SPLIT_NAMES)
-    if splits.isna().any() or splits.eq("").any() or unknown_splits:
-        raise ValueError("Metadata contains an unknown split value.")
-    if set(splits) != set(SPLIT_NAMES):
-        raise ValueError("Metadata must contain non-empty TRAIN, VAL and TEST partitions.")
+    normalized["case_id"] = normalized["case_id"].astype("string").str.strip()
+    if normalized["case_id"].isna().any() or normalized["case_id"].eq("").any():
+        raise ValueError("case_id values must be present")
+    if normalized["case_id"].duplicated().any():
+        raise ValueError("case_id values must be unique")
+    for field in ("image_path", "mask_path"):
+        normalized[field] = normalized[field].astype("string").str.strip()
+        if normalized[field].isna().any() or normalized[field].eq("").any():
+            raise ValueError(f"Metadata contains an empty {field}")
 
-    normalized["case_id"] = case_ids
-    normalized["patient_id"] = patient_ids
-    normalized["split"] = splits
-    normalized["image_path"] = image_paths
-    normalized["mask_path"] = mask_paths
-    patient_split_counts = normalized.groupby("patient_id")["split"].nunique()
-    if patient_split_counts.gt(1).any():
-        raise ValueError("A patient_id crosses split boundaries.")
+    if "is_empty_mask" in normalized.columns:
+        raw_empty = normalized["is_empty_mask"].astype("string").str.strip().str.lower()
+        truthy = {"true", "1", "yes"}
+        falsy = {"false", "0", "no"}
+        unknown = set(raw_empty.dropna()) - truthy - falsy
+        if raw_empty.isna().any() or unknown:
+            raise ValueError("is_empty_mask must contain explicit true/false values")
+        normalized["is_empty_mask"] = raw_empty.isin(truthy)
+    else:
+        normalized["is_empty_mask"] = normalized["status"].astype("string").eq("EMPTY_MASK_CONTROL")
 
+    image_hashes: set[str] = set()
+    image_hash_column: list[str] = []
+    mask_hash_column: list[str] = []
+    positive_pixel_column: list[int] = []
+    for row_number, row in enumerate(normalized.to_dict("records"), start=2):
+        image_path = _resolve_source_path(row["image_path"], Path(root))
+        mask_path = _resolve_source_path(row["mask_path"], Path(root))
+        if not image_path.is_file():
+            raise FileNotFoundError(f"Missing source image at metadata row {row_number}: {image_path}")
+        if not mask_path.is_file():
+            raise FileNotFoundError(f"Missing source mask at metadata row {row_number}: {mask_path}")
+        image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        if image is None or mask is None:
+            raise ValueError(f"Unreadable image/mask pair at metadata row {row_number}")
+        if image.ndim != 2 or mask.ndim != 2 or image.shape != mask.shape:
+            raise ValueError(
+                f"Image/mask dimensions differ at metadata row {row_number}: "
+                f"image {image.shape}, mask {mask.shape}"
+            )
+        if not np.isin(np.unique(mask), (0, 1, 255)).all():
+            raise ValueError(f"Mask must be binary at metadata row {row_number}")
+        image_hash = _sha256_file(image_path)
+        if image_hash in image_hashes:
+            raise ValueError(f"Duplicate image content at metadata row {row_number}")
+        image_hashes.add(image_hash)
+        positive_pixels = int(np.count_nonzero(mask))
+        if bool(row["is_empty_mask"]) != (positive_pixels == 0):
+            raise ValueError(f"is_empty_mask contradicts mask pixels at metadata row {row_number}")
+        image_hash_column.append(image_hash)
+        mask_hash_column.append(_sha256_file(mask_path))
+        positive_pixel_column.append(positive_pixels)
+
+    normalized["image_sha256"] = image_hash_column
+    normalized["mask_sha256"] = mask_hash_column
+    normalized["verified_positive_pixels"] = positive_pixel_column
+    # Synthetic or unverifiable patient IDs are removed from the generated split files.
+    normalized = normalized.drop(columns=["patient_id"], errors="ignore")
     evidence = {
-        "identity_source": str(identity_manifest["identity_source"]).strip(),
-        "identity_evidence_reference": str(
-            identity_manifest["identity_evidence_reference"]
-        ).strip(),
-        "unique_patient_ids": int(patient_ids.nunique()),
-        "split_counts": {
-            split.lower(): int((splits == split).sum()) for split in SPLIT_NAMES
-        },
+        "unique_images": len(normalized),
+        "duplicate_image_hashes": 0,
+        "image_mask_pairs_aligned": True,
+        "patient_identity_used": False,
+        "patient_level_independence_verified": False,
     }
     return normalized, evidence
 
 
-def _sha256_file(path):
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def create_image_level_splits(
+    df: pd.DataFrame,
+    val_fraction: float = 0.15,
+    test_fraction: float = 0.15,
+    seed: int = 42,
+) -> tuple[pd.DataFrame, dict]:
+    df = df.reset_index(drop=True)
+    if val_fraction <= 0 or test_fraction <= 0 or val_fraction + test_fraction >= 1:
+        raise ValueError("val_fraction and test_fraction must be positive and sum to less than 1")
+    rng = np.random.default_rng(seed)
+    split_by_index: dict[int, str] = {}
+
+    for _, stratum in df.groupby("is_empty_mask", sort=True, dropna=False):
+        indices = stratum.index.to_numpy().copy()
+        rng.shuffle(indices)
+        count = len(indices)
+        if count < 3:
+            raise ValueError("Each mask-presence stratum needs at least three images for 3-way splitting")
+        test_count = max(1, int(round(count * test_fraction)))
+        val_count = max(1, int(round(count * val_fraction)))
+        if test_count + val_count >= count:
+            raise ValueError("Not enough samples in a mask-presence stratum for train/validation/test")
+        for index in indices[:test_count]:
+            split_by_index[int(index)] = "TEST"
+        for index in indices[test_count : test_count + val_count]:
+            split_by_index[int(index)] = "VAL"
+        for index in indices[test_count + val_count :]:
+            split_by_index[int(index)] = "TRAIN"
+
+    result = df.copy()
+    result["split"] = [split_by_index[int(index)] for index in result.index]
+    counts = {split.lower(): int((result["split"] == split).sum()) for split in SPLIT_NAMES}
+    if any(count == 0 for count in counts.values()):
+        raise ValueError("Generated image-level split contains an empty partition")
+    class_counts = {
+        split.lower(): {
+            "empty_mask": int(((result["split"] == split) & result["is_empty_mask"]).sum()),
+            "lesion_mask": int(((result["split"] == split) & ~result["is_empty_mask"]).sum()),
+        }
+        for split in SPLIT_NAMES
+    }
+    return result, {"split_counts": counts, "mask_presence_counts": class_counts, "seed": seed}
 
 
-def _record_source_path(path, base_dir):
-    resolved = Path(path).resolve()
-    try:
-        return Path(os.path.relpath(resolved, Path(base_dir).resolve())).as_posix()
-    except ValueError:
-        return str(resolved)
+def main(
+    source_csv: Path = DEFAULT_SOURCE,
+    output_dir: Path = ROOT / "ai_training/splits/vinmec_307_image_level",
+    val_fraction: float = 0.15,
+    test_fraction: float = 0.15,
+    seed: int = 42,
+):
+    source_csv = Path(source_csv)
+    if not source_csv.is_file():
+        raise FileNotFoundError(f"Ground truth metadata not found: {source_csv}")
+    data = pd.read_csv(source_csv)
+    data, evidence = validate_image_split_metadata(data, root=ROOT)
+    data, split_evidence = create_image_level_splits(data, val_fraction, test_fraction, seed)
 
-
-def main(identity_manifest_path: Path, output_dir: Path = ROOT / "ai_training/splits"):
-    print("=" * 70)
-    print("   BƯỚC 1 & 2: THIẾT LẬP PHÂN CHIA TẬP DỮ LIỆU THEO PATIENT ID")
-    print("=" * 70)
-
-    candidate_meta_files = [
-        ROOT / "dataset/vinmec_ovarian/metadata/kltn_ground_truth_307.csv",
-        ROOT / "metadata/kltn_ground_truth_307.csv",
-        ROOT / "ai_training/splits/kltn_ground_truth_307.csv",
-    ]
-    meta_file = None
-    for cand in candidate_meta_files:
-        if cand.is_file():
-            meta_file = cand
-            break
-
-    if not meta_file:
-        print(f"[ERROR] Không tìm thấy metadata trong các đường dẫn: {candidate_meta_files}")
-        sys.exit(1)
-
-    df = pd.read_csv(meta_file)
-    identity_manifest_path = Path(identity_manifest_path).resolve()
-    identity_manifest = json.loads(identity_manifest_path.read_text(encoding="utf-8"))
-    input_metadata_sha256 = _sha256_file(meta_file)
-    df, identity_evidence = validate_patient_split_metadata(
-        df, identity_manifest, input_metadata_sha256
-    )
-    print(f"[1] Tổng số bản ghi Ground Truth nạp được: {len(df)}")
-    print(f"[2] Số ID bệnh nhân nguồn đã xác thực: {identity_evidence['unique_patient_ids']}")
-    print(f"[3] Số ca Empty Mask (u nang/buồng trứng bình thường): {df['is_empty_mask'].eq(True).sum()}")
-
-    # Kiểm tra đường dẫn file thực tế
-    missing_imgs = 0
-    missing_masks = 0
-    for _, row in df.iterrows():
-        img_p = Path(str(row['image_path']).replace('\\', '/'))
-        mask_p = Path(str(row['mask_path']).replace('\\', '/'))
-        if not img_p.is_absolute():
-            img_p = ROOT / img_p
-        if not mask_p.is_absolute():
-            mask_p = ROOT / mask_p
-        if not img_p.is_file():
-            missing_imgs += 1
-        if not mask_p.is_file():
-            missing_masks += 1
-
-    print(f"[4] Kiểm tra tính nguyên vẹn: Thiếu ảnh={missing_imgs}, Thiếu mask={missing_masks}")
-    if missing_imgs or missing_masks:
-        raise FileNotFoundError("Ground-truth source image/mask files are missing; no split files were written.")
-
-    df["image_sha256"] = [
-        _sha256_file(path if path.is_absolute() else ROOT / path)
-        for path in (Path(value) for value in df["image_path"])
-    ]
-    df["mask_sha256"] = [
-        _sha256_file(path if path.is_absolute() else ROOT / path)
-        for path in (Path(value) for value in df["mask_path"])
-    ]
-    if df["image_sha256"].duplicated().any():
-        raise ValueError("Duplicate source image SHA-256 found; split rows must be unique images.")
-
-    # Tách train, val, test
-    train_df = df[df['split'] == 'TRAIN'].copy()
-    val_df = df[df['split'] == 'VAL'].copy()
-    test_df = df[df['split'] == 'TEST'].copy()
-
-    # Kiểm tra Zero Leakage
-    train_patients = set(train_df['patient_id'].unique())
-    val_patients = set(val_df['patient_id'].unique())
-    test_patients = set(test_df['patient_id'].unique())
-
-    leak_train_val = train_patients.intersection(val_patients)
-    leak_train_test = train_patients.intersection(test_patients)
-    leak_val_test = val_patients.intersection(test_patients)
-
-    print("\n--- KIỂM ĐỊNH RÒ RỈ DỮ LIỆU (PATIENT LEAKAGE AUDIT) ---")
-    print(f"Trùng Train <-> Val: {len(leak_train_val)} bệnh nhân")
-    print(f"Trùng Train <-> Test: {len(leak_train_test)} bệnh nhân")
-    print(f"Trùng Val <-> Test: {len(leak_val_test)} bệnh nhân")
-
-    assert len(leak_train_val) == 0, "Phát hiện rò rỉ giữa Train và Val!"
-    assert len(leak_train_test) == 0, "Phát hiện rò rỉ giữa Train và Test!"
-    assert len(leak_val_test) == 0, "Phát hiện rò rỉ giữa Val và Test!"
-    print("[XÁC NHẬN] Không có patient ID nguồn giao giữa Train/Val/Test.")
-
-    # Lưu các file CSV
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    train_path = out_dir / "train.csv"
-    val_path = out_dir / "val.csv"
-    test_path = out_dir / "test.csv"
-    gt_all_path = out_dir / "all_samples_patient_split.csv"
-
-    train_df.to_csv(train_path, index=False)
-    val_df.to_csv(val_path, index=False)
-    test_df.to_csv(test_path, index=False)
-    df.to_csv(gt_all_path, index=False)
-
-    print(f"\n[XUẤT BẢN] Đã lưu {train_path}: {len(train_df)} ảnh ({len(train_patients)} bệnh nhân, {train_df['is_empty_mask'].eq(True).sum()} empty)")
-    print(f"[XUẤT BẢN] Đã lưu {val_path}: {len(val_df)} ảnh ({len(val_patients)} bệnh nhân, {val_df['is_empty_mask'].eq(True).sum()} empty)")
-    print(f"[XUẤT BẢN] Đã lưu {test_path}: {len(test_df)} ảnh ({len(test_patients)} bệnh nhân, {test_df['is_empty_mask'].eq(True).sum()} empty)")
-
-    # Lưu manifest
-    manifest_data = {
-        "title": "Source-verified ovarian ultrasound patient split",
-        "source_patient_identity_verified": True,
-        "patient_ids_verified": True,
-        "identity_level": "patient_verified",
-        "identity_source": identity_evidence["identity_source"],
-        "identity_evidence_reference": identity_evidence["identity_evidence_reference"],
-        "identity_manifest_path": _record_source_path(identity_manifest_path, out_dir),
-        "identity_manifest_sha256": _sha256_file(identity_manifest_path),
-        "source_metadata_path": _record_source_path(meta_file, out_dir),
-        "input_metadata_sha256": input_metadata_sha256,
-        "split_level": "patient-level",
-        "split_counts": identity_evidence["split_counts"],
-        "unique_patient_ids": identity_evidence["unique_patient_ids"],
-        "empty_mask_rows": int(df['is_empty_mask'].eq(True).sum()),
-        "zero_leakage_verified": True,
-        "source_image_hashes_verified": True,
-        "source_mask_hashes_recorded": True,
+    for split in SPLIT_NAMES:
+        data.loc[data["split"] == split].to_csv(out_dir / f"{split.lower()}.csv", index=False)
+    data.to_csv(out_dir / "all_samples_image_split.csv", index=False)
+    manifest = {
+        "title": "Vinmec 307-case image-level mask development split",
+        "split_level": "image-level",
+        "source_metadata_path": str(source_csv.resolve()),
+        "source_metadata_sha256": _sha256_file(source_csv),
+        "source_patient_identity_verified": False,
+        "patient_ids_verified": False,
+        "patient_level_independence_verified": False,
+        "identity_limit": "Patient identity is not used; image-level partitions do not establish patient independence.",
+        "deduplication": "SHA-256 of image bytes; duplicate image content is rejected before splitting.",
+        **evidence,
+        **split_evidence,
+        "test_partition_used_for_training_or_selection": False,
     }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(manifest, indent=2, ensure_ascii=False))
+    return manifest
 
-    manifest_file = out_dir / "de_cuong_split_manifest.json"
-    encoded_manifest = json.dumps(manifest_data, indent=2, ensure_ascii=False)
-    manifest_file.write_text(encoded_manifest, encoding="utf-8")
-    (out_dir / "manifest.json").write_text(encoded_manifest, encoding="utf-8")
-
-    print(f"[XUẤT BẢN] Đã lưu manifest phân chia: {manifest_file}")
-    print("=" * 70)
-    print("   HOÀN THÀNH: PATIENT SPLIT ĐÃ DÙNG ID NGUỒN ĐƯỢC XÁC THỰC")
-    print("=" * 70)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create splits from source-verified patient identity metadata.")
-    parser.add_argument("--identity-manifest", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "ai_training/splits")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-csv", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "ai_training/splits/vinmec_307_image_level")
+    parser.add_argument("--val-fraction", type=float, default=0.15)
+    parser.add_argument("--test-fraction", type=float, default=0.15)
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
-    main(args.identity_manifest, args.output_dir)
+    main(args.source_csv, args.output_dir, args.val_fraction, args.test_fraction, args.seed)

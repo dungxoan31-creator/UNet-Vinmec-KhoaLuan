@@ -125,6 +125,26 @@ def test_case_lease_is_exclusive_token_bound_and_releasable(lease_api):
     assert client.post(path, json=OTHER).json()["granted"] is True
 
 
+def test_delayed_heartbeat_cannot_recreate_a_released_lease(lease_api):
+    client, _, _ = lease_api
+    owner = client.post(lease_path(), json=OWNER).json()
+    assert client.request("DELETE", lease_path(), json=release_payload(OWNER, owner["lease_token"])).json()["released"]
+    late = client.post(lease_path(), json={**OWNER, "lease_token": owner["lease_token"]}).json()
+    assert late["granted"] is False
+    assert client.post(lease_path(), json=OTHER).json()["granted"] is True
+
+
+def test_expired_heartbeat_cannot_renew_without_reacquiring(lease_api):
+    client, _, test_session = lease_api
+    owner = client.post(lease_path(), json=OWNER).json()
+    with test_session() as db:
+        db.execute(text("UPDATE case_leases SET expires_at = '2000-01-01 00:00:00' WHERE study_id = 'lease-study'"))
+        db.commit()
+    late = client.post(lease_path(), json={**OWNER, "lease_token": owner["lease_token"]}).json()
+    assert late["granted"] is False
+    assert client.post(lease_path(), json=OTHER).json()["granted"] is True
+
+
 def test_lease_commit_acknowledgement_failure_returns_persisted_token(lease_api, monkeypatch):
     _, active_user, test_session = lease_api
     from backend.services.case_lease_service import acquire_case_lease, hash_lease_token
@@ -358,10 +378,16 @@ def test_upload_iqa_and_prediction_writes_require_the_active_lease(
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir()
     monkeypatch.setattr(inference, "UPLOAD_DIR", str(upload_dir))
+    decode_calls = []
+
+    def tracked_decode(*_args, **_kwargs):
+        decode_calls.append(True)
+        return np.full((128, 128), 127, dtype=np.uint8)
+
     monkeypatch.setattr(
         inference,
         "decode_ultrasound_image",
-        lambda *_args, **_kwargs: np.full((128, 128), 127, dtype=np.uint8),
+        tracked_decode,
     )
     monkeypatch.setattr(
         inference.preprocessor,
@@ -386,6 +412,7 @@ def test_upload_iqa_and_prediction_writes_require_the_active_lease(
         "files": {"file": ("right.png", image_bytes.tobytes(), "image/png")},
     }
     assert client.post("/api/upload", **upload_args).status_code == 423
+    assert decode_calls == []
     with test_session() as db:
         assert db.query(ImageModel).filter_by(study_id="lease-study").count() == 0
     assert list(upload_dir.iterdir()) == []
@@ -397,11 +424,15 @@ def test_upload_iqa_and_prediction_writes_require_the_active_lease(
     }
     uploaded = client.post("/api/upload", headers=headers, **upload_args)
     assert uploaded.status_code == 200, uploaded.text
+    assert len(decode_calls) == 1
     image_id = uploaded.json()["image_id"]
 
     validate_url = f"/api/validate-image?image_id={image_id}"
+    decode_calls.clear()
     assert client.post(validate_url).status_code == 423
+    assert decode_calls == []
     assert client.post(validate_url, headers=headers).status_code == 200
+    assert len(decode_calls) == 1
     with test_session() as db:
         assert db.query(AuditLogModel).filter_by(action_type="VALIDATE_IQA").count() == 1
 
@@ -446,20 +477,30 @@ def test_upload_iqa_and_prediction_writes_require_the_active_lease(
             },
         ),
     )
+    prediction_calls = []
+
+    def tracked_predict(*_args, **_kwargs):
+        prediction_calls.append(True)
+        return inference_result
+
     monkeypatch.setattr(
         inference,
         "model_registry",
         SimpleNamespace(
             get_primary_adapter=lambda: adapter,
             model_selection={},
-            predict=lambda *_args, **_kwargs: inference_result,
+            predict=tracked_predict,
         ),
     )
 
     prediction_url = f"/api/predict/{image_id}"
     assert client.post(prediction_url).status_code == 423
+    assert prediction_calls == []
     predicted = client.post(prediction_url, headers=headers)
     assert predicted.status_code == 200, predicted.text
+    assert len(prediction_calls) == 1
+    assert predicted.json()["ai_diagnosis"] is None
+    assert predicted.json()["unified_findings"] is None
     expected_map_data_uri = "data:image/png;base64," + base64.b64encode(uncertainty_map_png).decode("ascii")
     assert predicted.json()["uncertainty_map_base64"] == expected_map_data_uri
     with test_session() as db:
@@ -470,6 +511,46 @@ def test_upload_iqa_and_prediction_writes_require_the_active_lease(
     case_detail = client.get("/api/cases/lease-study")
     assert case_detail.status_code == 200, case_detail.text
     assert case_detail.json()["images"][0]["prediction"]["uncertainty_map_base64"] == expected_map_data_uri
+
+
+def test_prediction_is_rejected_for_reviewed_study_before_model_or_lease_checks(lease_api, monkeypatch):
+    from types import SimpleNamespace
+
+    from backend.app.routers import inference
+
+    client, _, test_session = lease_api
+    with test_session() as db:
+        db.add(
+            ImageModel(
+                id="sample_reviewed-image",
+                study_id="lease-study",
+                filename="sample_reviewed.png",
+                laterality="L",
+                raw_path="missing-synthetic-image.png",
+            )
+        )
+        db.get(StudyModel, "lease-study").status = "REVIEWED"
+        db.commit()
+
+    monkeypatch.setattr(
+        inference,
+        "model_registry",
+        SimpleNamespace(get_primary_adapter=lambda: SimpleNamespace(is_loaded=False)),
+    )
+    response = client.post("/api/predict/sample_reviewed-image")
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Ca khám đã hoàn tất rà soát hoặc đã khóa, không thể chạy lại dự đoán AI."
+
+
+def test_reviewed_status_can_be_leased_for_review_correction(lease_api):
+    client, _, test_session = lease_api
+    with test_session() as db:
+        db.get(StudyModel, "lease-study").status = "REVIEWED"
+        db.commit()
+
+    response = client.post(lease_path(), json=OWNER)
+    assert response.status_code == 200
+    assert response.json()["granted"] is True
 
 
 def test_deleting_case_cascades_its_active_lease(lease_api):

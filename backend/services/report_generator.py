@@ -1,6 +1,10 @@
 """Render a research-use-only ultrasound report draft as an A4 PDF."""
 
+import math
 import os
+import re
+from collections import Counter
+from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from typing import Any
 from xml.sax.saxutils import escape
@@ -13,6 +17,8 @@ from reportlab.lib.units import cm, mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from backend.core.image_utils import MAX_DECODED_IMAGE_PIXELS
 
 
 class MedicalReportGenerator:
@@ -117,7 +123,6 @@ class MedicalReportGenerator:
         service = raw_data.get("serviceName") or "Chưa ghi nhận"
         order_name = raw_data.get("orderName") or "Chưa ghi nhận"
         rpid = raw_data.get("rpid") or "Chưa ghi nhận"
-        clin_diag = raw_data.get("clinicalDiagnosis") or raw_data.get("clinical_notes") or "Chưa ghi nhận"
         technique = raw_data.get("technique") or "Chưa ghi nhận"
 
         raw_measurements = raw_data.get("measurements")
@@ -125,26 +130,36 @@ class MedicalReportGenerator:
         d1 = meas.get("max_diameter_mm")
         d2 = meas.get("ortho_diameter_mm")
         area = meas.get("total_area_cm2")
-        d1_str = f"{d1} mm" if d1 is not None else "Chưa ghi nhận"
-        d2_str = f"{d2} mm" if d2 is not None else "Chưa ghi nhận"
-        area_str = f"{area} cm²" if area is not None else "Chưa ghi nhận"
+        has_usable_calibration_metadata = (
+            meas.get("calibrated") is True
+            and meas.get("calibration_source") in {"DICOM", "MANUAL"}
+            and _has_valid_pixel_spacing(meas.get("pixel_spacing_mm"))
+        )
+        d1_text = _report_measurement_text(d1, "mm") if has_usable_calibration_metadata else None
+        d2_text = _report_measurement_text(d2, "mm") if has_usable_calibration_metadata else None
+        area_text = _report_measurement_text(area, "cm²") if has_usable_calibration_metadata else None
+        d1_str = d1_text or "Chưa ghi nhận"
+        d2_str = d2_text or "Chưa ghi nhận"
+        area_str = area_text or "Chưa ghi nhận"
 
-        has_measurements = any(value is not None for value in (d1, d2, area))
+        has_measurements = any(value is not None for value in (d1_text, d2_text, area_text))
         measurement_text = (
             f"- Số đo AI đề xuất, chưa được bác sĩ xác nhận: D1 = {d1_str}, "
             f"D2 = {d2_str}, diện tích = {area_str}."
             if has_measurements
             else "- Chưa ghi nhận số đo."
         )
-        ovary_r1 = raw_data.get("ovary_r1") or "Buồng trứng phải: Chưa ghi nhận mô tả của bác sĩ."
-        ovary_r2 = raw_data.get("ovary_r2") or "- Hình thái: Chưa ghi nhận mô tả của bác sĩ."
-        ovary_r3 = raw_data.get("ovary_r3") or measurement_text
-        ovary_r4 = raw_data.get("ovary_r4") or "- Doppler: Chưa ghi nhận mô tả của bác sĩ."
-        ovary_l1 = raw_data.get("ovary_l1") or "Buồng trứng trái: Chưa ghi nhận mô tả của bác sĩ."
-        douglas = raw_data.get("douglas") or "Cùng đồ sau: Chưa ghi nhận mô tả của bác sĩ."
+        ruo_clinical_notice = "Không phát hành mô tả hoặc kết luận lâm sàng trong bản nháp RUO."
+        clin_diag = "Không phát hành chẩn đoán lâm sàng trong bản nháp RUO."
+        ovary_r1 = ruo_clinical_notice
+        ovary_r2 = ruo_clinical_notice
+        ovary_r3 = measurement_text
+        ovary_r4 = ruo_clinical_notice
+        ovary_l1 = ruo_clinical_notice
+        douglas = ruo_clinical_notice
 
-        conc1 = raw_data.get("conclusion_l1") or "Kết luận: Chưa được bác sĩ ghi nhận."
-        conc2 = raw_data.get("conclusion_l2") or ""
+        conc1 = "Không phát hành kết luận lâm sàng trong bản nháp RUO."
+        conc2 = "Không phát hành đề nghị chăm sóc trong bản nháp RUO."
         doc_title = raw_data.get("doctorTitle") or "Chưa ghi nhận"
         doc_name = raw_data.get("doctorName") or raw_data.get("doctor_name") or "Chưa ghi nhận"
 
@@ -230,6 +245,7 @@ class MedicalReportGenerator:
         # 1. Header
         story.append(Paragraph(data["hospitalName"], self.title_style))
         story.append(Paragraph(data["departmentName"], self.subtitle_style))
+        story.append(Paragraph(escape(REPORT_RUO_DISCLAIMER), self.draft_notice_style))
         story.append(Spacer(1, 2 * mm))
 
         # 2. Main Title
@@ -265,7 +281,7 @@ class MedicalReportGenerator:
                 Paragraph(data["patientDob"], self.body_style),
             ],
             [
-                Paragraph("<b>Chẩn đoán:</b>", self.body_style),
+                Paragraph("<b>Phạm vi chẩn đoán:</b>", self.body_style),
                 Paragraph(data["clinicalDiagnosis"], self.body_style),
                 Paragraph("<b>Mã RPID:</b>", self.body_style),
                 Paragraph(data["rpid"], self.body_style),
@@ -299,7 +315,7 @@ class MedicalReportGenerator:
         story.append(Spacer(1, 3 * mm))
 
         # 5. Conclusion
-        story.append(Paragraph("KẾT LUẬN & ĐỀ NGHỊ:", self.section_heading))
+        story.append(Paragraph("KẾT LUẬN / ĐỀ NGHỊ LÂM SÀNG: KHÔNG PHÁT HÀNH (RUO)", self.section_heading))
         story.append(Paragraph(f"<b>{data['conclusion_l1']}</b>", self.bold_body_style))
         story.append(Paragraph(data["conclusion_l2"], self.body_style))
         story.append(Spacer(1, 4 * mm))
@@ -309,3 +325,182 @@ class MedicalReportGenerator:
             with open(output_path, "rb") as f:
                 return f.read()
         return buffer.getvalue()
+
+
+
+REPORT_RUO_DISCLAIMER = (
+    "TÀI LIỆU NGHIÊN CỨU (RUO) · Chưa được xác thực lâm sàng · Không thay thế đánh giá của bác sĩ · "
+    "Chưa có chữ ký số xác thực."
+)
+
+_NUMBER_WITH_UNIT = re.compile(
+    r"(?P<number>\d+(?:[.,]\d+)?)(?:\s*(?P<unit>mm(?:²|2|³|3)?|cm(?:²|2|³|3)?|ml|px|%)(?![A-Za-z0-9_]))?",
+    re.IGNORECASE,
+)
+
+
+def _number_unit_tokens(text: str) -> Counter:
+    tokens = Counter()
+    for match in _NUMBER_WITH_UNIT.finditer(text):
+        raw_number = match.group("number").replace(",", ".")
+        try:
+            number = Decimal(raw_number).normalize()
+        except InvalidOperation:
+            continue
+        unit = (match.group("unit") or "").lower().replace("²", "2").replace("³", "3")
+        tokens[(number, unit)] += 1
+    return tokens
+
+
+def numbers_match(llm_text: str, source_text: str) -> bool:
+    """Require every summarized numeric value and its unit to exist in the source."""
+    if not isinstance(llm_text, str) or not isinstance(source_text, str):
+        return False
+    return _number_unit_tokens(llm_text) <= _number_unit_tokens(source_text)
+
+
+def _probability_percent(value: Any) -> int | None:
+    number = _finite_number(value)
+    if number is None or not 0.0 <= number <= 1.0:
+        return None
+    return int(round(number * 100))
+
+
+def _finite_number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        normalized = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    return normalized if math.isfinite(normalized) else None
+
+
+def _report_measurement_text(value: Any, unit: str) -> str | None:
+    normalized = _finite_number(value)
+    if normalized is None or normalized <= 0.0:
+        return None
+    try:
+        raw_text = str(value)
+    except (OverflowError, ValueError):
+        return None
+    return f"{raw_text} {unit}"
+
+
+def _fmt(val, unit="", nd=1):
+    normalized = _finite_number(val)
+    if normalized is None or normalized < 0:
+        return "không xác định"
+    return f"{normalized:.{nd}f} {unit}".strip()
+
+
+def _has_valid_pixel_spacing(value: Any) -> bool:
+    normalized = _finite_number(value)
+    return normalized is not None and normalized > 0.0
+
+
+def build_structured_findings_report(f: dict) -> str:
+    """Báo cáo theo khuôn mẫu. Mọi con số lấy từ JSON findings, không sinh bằng LLM."""
+    findings = f if isinstance(f, dict) else {}
+    side_raw = findings.get("side")
+    side_vi = {"left": "trái", "right": "phải"}.get(side_raw) if isinstance(side_raw, str) else None
+    side_title = side_vi.upper() if side_vi else "CHƯA XÁC ĐỊNH"
+    side_label = side_vi or "chưa xác định"
+
+    lines = [f"BẢN NHÁP NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG {side_title}"]
+    pixel_spacing_valid = _has_valid_pixel_spacing(findings.get("pixel_spacing_mm"))
+
+    ov = findings.get("ovary")
+    if isinstance(ov, dict) and ov.get("present") is True:
+        if pixel_spacing_valid:
+            d_ov = _fmt(ov.get("longest_diameter_mm"), "mm")
+            area_ov = _fmt(ov.get("area_mm2"), "mm²")
+            lines.append(f"- Buồng trứng {side_label}: đường kính lớn nhất {d_ov}, diện tích {area_ov}.")
+        else:
+            lines.append(f"- Buồng trứng {side_label}: kích thước vật lý không khả dụng.")
+
+    fo = findings.get("follicles")
+    if not isinstance(fo, dict):
+        measurements = findings.get("measurements")
+        fo = measurements.get("follicles") if isinstance(measurements, dict) else None
+    if not isinstance(fo, dict):
+        fo = {}
+    if fo.get("analysis_status") == "FAILED":
+        lines.append("- Không thể phân tích các vùng trên mask; cần bác sĩ kiểm tra.")
+    elif type(fo.get("count")) is int and fo["count"] == 0:
+        pass
+    elif type(fo.get("count")) is int and 0 < fo["count"] <= MAX_DECODED_IMAGE_PIXELS:
+        count = fo["count"]
+        in_range = fo.get("count_in_range")
+        if (
+            not pixel_spacing_valid
+            or type(in_range) is not int
+            or not 0 <= in_range <= count
+        ):
+            in_range = None
+        lines.append(
+            f"- Số vùng ứng viên trên mask (chưa xác nhận là nang): {count} "
+            f"(trong khoảng kích thước cấu hình: {in_range if in_range is not None else 'không xác định'})."
+        )
+    elif fo.get("count") is not None:
+        lines.append("- Số vùng ứng viên trên mask: không xác định do dữ liệu đếm không hợp lệ.")
+
+    le = findings.get("lesion")
+    if isinstance(le, dict) and le.get("present") is True:
+        if pixel_spacing_valid:
+            d1 = _fmt(le.get("longest_diameter_mm"), "mm")
+            d2 = _fmt(le.get("perpendicular_diameter_mm"), "mm")
+            area_le = _fmt(le.get("area_mm2"), "mm²")
+            lines.append(f"- Tổn thương: kích thước {d1} × {d2}, diện tích {area_le}.")
+        else:
+            lines.append("- Tổn thương: kích thước vật lý không khả dụng.")
+    elif isinstance(le, dict) and le.get("present") is False:
+        lines.append("- Không có tổn thương được ghi nhận trên mask hiện tại.")
+    else:
+        lines.append("- Chưa có dữ liệu mask tổn thương để báo cáo.")
+
+    if not pixel_spacing_valid:
+        lines.append("- Lưu ý: pixel spacing thiếu hoặc không hợp lệ; kích thước tính bằng mm không khả dụng.")
+
+    lines.append("")
+    lines.append("THÔNG TIN NGHIÊN CỨU (RUO):")
+    lines.append(
+        "- Bản nháp này không phát hành kết luận chẩn đoán, phân loại mô bệnh học, phân tầng nguy cơ "
+        "hoặc đề xuất lâm sàng."
+    )
+
+    lines.append("")
+    lines.append(REPORT_RUO_DISCLAIMER)
+    return "\n".join(lines)
+
+
+def build_patient_friendly_summary(_findings: dict) -> dict:
+    """Return a neutral RUO notice; patient-facing clinical summaries are disabled."""
+    return {
+        "summary_title": "THÔNG TIN RUO — KHÔNG PHÁT HÀNH CHO NGƯỜI BỆNH",
+        "side": "chưa xác định",
+        "status_color": "GRAY",
+        "status_label": "Không có kết luận đã xác thực",
+        "explanation": (
+            "Bản mẫu này không tạo giải thích, phân loại nguy cơ hoặc hướng dẫn chăm sóc cho người bệnh. "
+            "Hãy trao đổi trực tiếp với bác sĩ phụ trách."
+        ),
+        "size_description": "Không tự diễn giải kích thước cho người bệnh.",
+        "follicles_note": "Không tự diễn giải số vùng thành số nang lâm sàng.",
+        "lifestyle_advice": [],
+        "disclaimer": (
+            "Tài liệu RUO chưa được xác thực lâm sàng; không dùng cho chẩn đoán, phân tầng nguy cơ, "
+            "điều trị hoặc quyết định chăm sóc bệnh nhân."
+        ),
+    }
+
+
+def build_patient_friendly_report_text(f: dict) -> str:
+    """Return a fail-safe RUO notice without patient-directed advice or case-derived claims."""
+    s = build_patient_friendly_summary(f)
+    lines = [
+        f"=== {s['summary_title']} ===",
+        s["explanation"],
+        s["disclaimer"],
+    ]
+    return "\n".join(lines)

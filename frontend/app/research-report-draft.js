@@ -45,15 +45,18 @@ export function buildResearchDraft({ studyCode, image } = {}) {
   else missingFields.push("Ghi chú lâm sàng do bác sĩ ghi nhận");
 
   const measurements = image?.measurements || {};
-  const calibrated = measurements.calibrated === true;
+  const manual = image?.review?.hitl_feedback?.manual_measurements || {};
+  const hasManualCalipers = Object.keys(manual).some((key) => ["D1", "D2"].includes(key));
+  const calibrated = measurements.calibrated === true ||
+    (hasManualCalipers && Object.values(manual).some((value) => value?.calibrated === true));
   const diameterUnit = calibrated ? "mm" : "px";
   const areaUnit = calibrated ? "cm²" : "px²";
-  const d1 = numberValue(
-    calibrated ? measurements.max_diameter_mm : measurements.max_diameter_px,
-  );
-  const d2 = numberValue(
-    calibrated ? measurements.ortho_diameter_mm : measurements.ortho_diameter_px,
-  );
+  const d1 = numberValue(hasManualCalipers
+    ? (calibrated ? manual.D1?.diameter_mm : manual.D1?.diameter_px)
+    : (calibrated ? measurements.max_diameter_mm : measurements.max_diameter_px));
+  const d2 = numberValue(hasManualCalipers
+    ? (calibrated ? manual.D2?.diameter_mm : manual.D2?.diameter_px)
+    : (calibrated ? measurements.ortho_diameter_mm : measurements.ortho_diameter_px));
   const area = numberValue(
     calibrated ? measurements.total_area_cm2 : measurements.total_area_px,
   );
@@ -69,6 +72,8 @@ export function buildResearchDraft({ studyCode, image } = {}) {
   if (area !== null)
     lines.push(`Diện tích: ${formatNumber(area)} ${areaUnit}`);
   else missingFields.push(`Diện tích (${areaUnit})`);
+  if (typeof measurements.warning === "string" && measurements.warning.trim())
+    lines.push(`Cảnh báo số đo: ${measurements.warning.trim()}`);
 
   if (calibrated) {
     const volume = numberValue(measurements.total_volume_cm3);

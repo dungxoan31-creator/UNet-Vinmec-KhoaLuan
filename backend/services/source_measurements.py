@@ -6,19 +6,27 @@ from backend.core.calibration import normalize_pixel_spacing
 from backend.services.inference_engine import InferenceEngine
 
 
-def calibration_metadata(stored_spacing, dicom_spacing=None):
+def calibration_metadata(stored_spacing, dicom_spacing=None, source=None):
+    """Expose millimetres only when a stored value has trusted provenance."""
     spacing = normalize_pixel_spacing(stored_spacing)
     if spacing is None:
         return {"pixel_spacing_mm": None, "calibrated": False, "calibration_source": "NONE"}
     normalized_dicom_spacing = normalize_pixel_spacing(dicom_spacing)
-    is_dicom = (
+    verified_dicom = (
         normalized_dicom_spacing is not None
         and math.isclose(spacing, normalized_dicom_spacing, rel_tol=.001, abs_tol=.00005)
     )
-    return {
-        "pixel_spacing_mm": float(spacing), "calibrated": True,
-        "calibration_source": "DICOM" if is_dicom else "MANUAL",
-    }
+    if source == "MANUAL":
+        return {
+            "pixel_spacing_mm": float(spacing), "calibrated": True,
+            "calibration_source": "MANUAL",
+        }
+    if source == "DICOM" and verified_dicom:
+        return {
+            "pixel_spacing_mm": float(spacing), "calibrated": True,
+            "calibration_source": "DICOM",
+        }
+    return {"pixel_spacing_mm": None, "calibrated": False, "calibration_source": "UNKNOWN"}
 
 
 def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
@@ -56,6 +64,15 @@ def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
                 lesion[name] = round(math.dist(a, b) * spacing, 2)
             lesion["area_cm2"] = round(lesion["area_px"] * spacing**2 / 100, 3)
             lesion["perimeter_mm"] = round(lesion["perimeter_mm"] * spacing, 2)
+    if "follicles" in measurements and measurements["follicles"]:
+        if spacing is None or measurements["follicles"].get("analysis_status") == "FAILED":
+            measurements["follicles"]["diameters_mm"] = None
+            measurements["follicles"]["count_in_range"] = None
+        else:
+            diameters_px = measurements["follicles"].get("diameters_px", [])
+            d_mm = [float(d * spacing) for d in diameters_px]
+            measurements["follicles"]["diameters_mm"] = [round(d, 2) for d in d_mm]
+            measurements["follicles"]["count_in_range"] = sum(2.0 <= d <= 9.0 for d in d_mm)
     dominant = (
         measurements["lesions"][0]
         if measurements.get("lesions")

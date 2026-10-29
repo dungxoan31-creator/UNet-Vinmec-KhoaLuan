@@ -21,7 +21,7 @@ export async function renderUsers(target) {
   const reload = () => window.dispatchEvent(new CustomEvent("ova:rerender"));
   let query = "";
   function draw() {
-    target.innerHTML = `<div class="filters"><input id="userSearch" type="search" value="${esc(query)}" placeholder="Tìm tài khoản" aria-label="Tìm tài khoản">${button("Thêm người dùng", "add-user", "primary")}</div><section class="panel"><div class="table-wrap"><table><thead><tr><th>Tài khoản</th><th>Vai trò</th><th>Khoa</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${rows
+    target.innerHTML = `<div class="filters"><input id="userSearch" type="search" value="${esc(query)}" placeholder="Tìm tài khoản" aria-label="Tìm tài khoản">${button("Thêm người dùng", "add-user", "primary")}</div><section class="panel"><p class="admin-users-scroll-hint" id="adminUsersScrollHint">Cuộn ngang để xem trạng thái và thao tác.</p><div class="table-wrap admin-users-table" role="region" aria-label="Danh sách người dùng" aria-describedby="adminUsersScrollHint" tabindex="0"><table><thead><tr><th>Tài khoản</th><th>Vai trò</th><th>Khoa</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>${rows
       .filter((u) =>
         (u.username + " " + u.full_name)
           .toLowerCase()

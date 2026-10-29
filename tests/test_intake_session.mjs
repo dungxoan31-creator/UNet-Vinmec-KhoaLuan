@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createIntakeSession, createDemoPatientStore, planBilateralDrop } from '../frontend/app/intake-session.js';
-import { suggestLaterality } from '../frontend/app/laterality-hint.js';
+import { createIntakeSession, createDemoPatientStore, intakeSidesReady, planBilateralDrop } from '../frontend/app/intake-session.js';
+import { formatLaterality, suggestLaterality } from '../frontend/app/laterality-hint.js';
+
+test('unknown laterality is never displayed as the right ovary', () => {
+  assert.equal(formatLaterality('L'), 'trái');
+  assert.equal(formatLaterality('R'), 'phải');
+  for (const side of [null, undefined, '', 'UNKNOWN', 'X'])
+    assert.equal(formatLaterality(side), 'chưa xác định');
+});
 
 test('replacement, removal, disposal and account/token changes invalidate pending metadata', () => {
   let account = 'doctor-A:token-1';
@@ -43,6 +50,17 @@ test('only a distinct L/R pair can propose automatic bilateral allocation', () =
     assert.equal(plan.every(row => row.needsConfirmation), true, names.join(','));
     assert.deepEqual(plan.map(row => row.file.name), names, 'neither file is discarded');
   }
+});
+
+test('single-sided intake requires one confirmed image and an explicit contralateral status', () => {
+  const noImage = { L: null, R: null };
+  assert.equal(intakeSidesReady({ L: {}, R: null }, { L: true }, { R: 'SURGICALLY_ABSENT' }), true);
+  assert.equal(intakeSidesReady({ L: null, R: {} }, { R: true }, { L: 'NOT_VISUALIZED' }), true);
+  assert.equal(intakeSidesReady({ L: {}, R: null }, { L: true }, { R: null }), false);
+  assert.equal(intakeSidesReady({ L: {}, R: null }, { L: false }, { R: 'NOT_VISUALIZED' }), false);
+  assert.equal(intakeSidesReady(noImage, {}, { L: 'SURGICALLY_ABSENT', R: 'NOT_VISUALIZED' }), false);
+  assert.equal(intakeSidesReady({ L: {}, R: null }, { L: true }, { L: 'SURGICALLY_ABSENT', R: 'NOT_VISUALIZED' }), false);
+  assert.equal(intakeSidesReady({ L: {}, R: {} }, { L: true, R: true }, {}), true);
 });
 
 test('quota/security failures preserve session rows and isolate account namespaces', () => {

@@ -1,0 +1,18 @@
+# Known issues và ranh giới thiết kế
+
+Ngày cập nhật: 2026-10-29.
+
+| ID | Trạng thái | Ảnh hưởng | Cách xử lý hiện tại / điều kiện đóng |
+|---|---|---|---|
+| KI-001 | Đã xử lý; baseline có sự cố dữ liệu | Một số test cũ từng đọc ảnh trong split/dataset thật. | E2E/API smoke dùng fixture tổng hợp; dataset unit test dùng `tmp_path`; có static guard. Không xóa lịch sử baseline đã chạy trên nguồn thật. |
+| KI-002 | Đã triển khai theo quyết định người dùng | PID nguồn được chuyển thành PID giả danh bằng HMAC; bản ghi và PID được giữ qua các phiên chạy khi dùng cùng database và khóa HMAC. Admin vẫn có thể xóa ca theo quyền. | Không lưu/in PID nguồn. Không đặt TTL cho ca; khóa HMAC và file database phải được giữ ổn định để PID tiếp tục khớp. Kiểm tra key custody, backup/restore và audit deletion trong triển khai vận hành. |
+| KI-003 | Đã triển khai theo quyết định người dùng | Visit No được backend cấp dạng sáu chữ số, duy nhất toàn hệ thống, lưu theo Study và hiển thị trong intake/worklist/report. | Trường do server tạo, API từ chối field do client gửi; sequence không tái sử dụng số khi xóa ca. Khi hết dải số, tạo ca trả 503. |
+| KI-004 | Ranh giới RUO | Chưa xác minh độc lập patient-level test; chưa có đánh giá bác sĩ. | Không tuyên bố chẩn đoán, pilot hoặc clinical readiness. |
+| KI-005 | DICOM | Màn hình cảnh báo ảnh có thể chứa chữ định danh; metadata text được lọc nhưng pixel chưa được OCR/khử burn-in. | Chỉ dùng fixture tổng hợp trong test. Dữ liệu thật chỉ được xem xét sau quy trình khử định danh và phê duyệt dữ liệu riêng. |
+| KI-006 | Đã đo một phần; chưa nghiệm thu hiệu năng | Benchmark kỹ thuật synthetic tuần tự 50 lượt trên RTX 3050 4 GB: p50 340,02 ms, p95 353,39 ms; peak allocated 585.305.088 byte; allocated sau GC không tăng. Chưa có p50/p95 API, concurrency/multi-worker, heap/VRAM theo phiên dài hoặc SLO được PO/IT duyệt. | Chỉ dùng làm baseline kỹ thuật cho pipeline preprocessing + inference + postprocessing trên fixture synthetic. Không diễn giải thành thời gian lâm sàng hoặc SLO. Chốt tải/SLO rồi chạy benchmark HTTP và concurrency trên môi trường đích. Evidence: `../artifacts/audit_remediation_2026_10_28/evidence/gpu-full-pipeline-distinct-synthetic-soak-2026-10-29.log`. |
+| KI-007 | E2E prototype cũ chưa xác minh nguồn | `frontend_workflow_e2e.js` và `prototype_modules_e2e.js` không nằm trong scripts E2E hiện hành; dùng route/API prototype cũ. | Không chạy trong đợt này. Audit endpoint và nguồn trả về trước khi đưa vào pipeline; các E2E hiện được package cấu hình đã chạy riêng với dữ liệu tổng hợp. |
+| KI-008 | Cổng dữ liệu mô hình chẩn đoán đang BLOCKED | Chưa xác minh patient-level identity, chưa có nhãn mô bệnh học/đồng thuận phù hợp và chưa có independent test set; không có bằng chứng hiệu chuẩn xác suất. | Giữ serving phân đoạn RUO; không train classifier, không tự gán PCOS/O-RADS/nguy cơ ác tính. Chỉ mở cổng sau khi Data Owner xác minh nguồn/nhãn và có kế hoạch đánh giá độc lập. |
+| KI-009 | Tiếp nhận không hỗ trợ cine-loop | Quy trình hiện nhận nhiều ảnh tĩnh trên mỗi bên; không giữ chuỗi quét, frame timing hoặc chuyển động đầu dò để rà soát các mặt cắt chưa chọn. | Đây là giới hạn phạm vi prototype đã chốt. Không kết luận “không thấy” cấu trúc chỉ từ ảnh tĩnh; nếu mở hỗ trợ cine cần đặc tả lưu trữ, chọn frame và kiểm định riêng. |
+
+Các lỗi cụ thể theo vòng nằm trong [`bug-log.md`](bug-log.md); trạng thái kiểm thử có bằng chứng trong [`test-log.md`](test-log.md).
+

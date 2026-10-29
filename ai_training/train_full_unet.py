@@ -1,4 +1,4 @@
-"""Train Standard U-Net on a verified patient-level split's training partition."""
+"""Train Standard U-Net on an image-level Train/Validation split."""
 
 import argparse
 import hashlib
@@ -11,7 +11,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-from ai_training.train_baseline_unet import ComboLoss, compute_batch_dice, load_verified_train_val_datasets
+from ai_training.train_baseline_unet import ComboLoss, compute_batch_dice, load_train_val_datasets
 from backend.models.unet import StandardUNet
 
 
@@ -20,7 +20,7 @@ def train_full(split_dir: Path, output_dir: Path, epochs: int = 12, batch_size: 
         raise ValueError("Epochs and batch size must be positive")
 
     split_dir = Path(split_dir)
-    train_dataset, val_dataset, manifest = load_verified_train_val_datasets(split_dir)
+    train_dataset, val_dataset, manifest = load_train_val_datasets(split_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
@@ -39,7 +39,7 @@ def train_full(split_dir: Path, output_dir: Path, epochs: int = 12, batch_size: 
     best_val_dice = float("-inf")
     started = time.time()
     print(
-        f"Training {len(train_dataset)} patient-verified training pairs on {device}; "
+        f"Training {len(train_dataset)} image-level training pairs on {device}; "
         f"validation pairs={len(val_dataset)}, {epochs} epochs, batch size {batch_size}",
         flush=True,
     )
@@ -105,7 +105,9 @@ def train_full(split_dir: Path, output_dir: Path, epochs: int = 12, batch_size: 
     manifest_path = split_dir / "manifest.json"
     run_config = {
         "architecture": "Standard U-Net (base_filters=32)",
-        "identity_status": "patient_level_verified",
+        "identity_status": "image_level_verified",
+        "split_level": "image-level",
+        "patient_level_independence_verified": False,
         "split_dir": str(split_dir.resolve()),
         "split_manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         "train_count": len(train_dataset),

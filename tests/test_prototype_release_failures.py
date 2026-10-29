@@ -9,7 +9,9 @@ Verifies:
 
 import io
 import os
+import struct
 import uuid
+import zlib
 
 import pytest
 
@@ -93,6 +95,172 @@ def test_upload_rejects_oversized_file(client, doctor_headers):
     resp = client.post("/api/upload", files=files, headers=doctor_headers)
     assert resp.status_code == 413
     assert "quá lớn" in resp.json().get("detail", "")
+
+
+def test_upload_rejects_oversized_decoded_raster_before_decode(
+    tmp_path, monkeypatch, client, doctor_headers, db
+):
+    from backend.app.routers import inference
+    from backend.db.database import ImageModel
+
+    source = io.BytesIO()
+    Image.new("L", (1, 1), color=128).save(source, format="PNG")
+    contents = bytearray(source.getvalue())
+    struct.pack_into(">II", contents, 16, 10_000, 10_000)
+    struct.pack_into(">I", contents, 29, zlib.crc32(contents[12:29]) & 0xFFFFFFFF)
+    decode_calls = []
+    original_decode = inference.decode_ultrasound_image
+
+    def track_decode(path):
+        decode_calls.append(path)
+        return original_decode(path)
+
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setattr(inference, "decode_ultrasound_image", track_decode)
+    before_images = db.query(ImageModel).count()
+
+    response = client.post(
+        "/api/upload",
+        files={"file": ("oversized-dimensions.png", bytes(contents), "image/png")},
+        headers=doctor_headers,
+    )
+
+    assert response.status_code == 413, response.text
+    assert "25 triệu pixels" in response.json()["detail"]
+    assert decode_calls == [], "Header dimensions must be checked before raster decode."
+    assert db.query(ImageModel).count() == before_images
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(("extension", "image_format", "media_type"), [
+    ("png", "PNG", "image/png"),
+    ("jpg", "JPEG", "image/jpeg"),
+])
+def test_upload_accepts_supported_png_and_jpeg(
+    tmp_path, monkeypatch, doctor_access, extension, image_format, media_type
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.main import app
+    from backend.app.routers import inference
+    from backend.db.database import Base, ImageModel, get_db
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'valid-raster.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(tmp_path / "uploads"))
+    image_dir = tmp_path / "uploads"
+    image_dir.mkdir()
+
+    def temporary_db():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_db] = temporary_db
+    try:
+        source = io.BytesIO()
+        Image.new("L", (128, 96), color=112).save(source, format=image_format)
+        with TestClient(app) as test_client:
+            response = test_client.post(
+                "/api/upload",
+                files={"file": (f"valid.{extension}", source.getvalue(), media_type)},
+            )
+
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["dimensions"] == [128, 96]
+        with Session(engine) as session:
+            stored = session.get(ImageModel, payload["image_id"])
+            assert stored is not None
+            assert stored.raw_path.endswith(f".{extension}")
+            assert os.path.isfile(stored.raw_path)
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
+
+
+def test_intake_metadata_rejects_oversized_decoded_raster_before_decode(
+    client, doctor_headers, monkeypatch
+):
+    from backend.app.routers import inference
+
+    source = io.BytesIO()
+    Image.new("L", (1, 1), color=128).save(source, format="PNG")
+    contents = bytearray(source.getvalue())
+    struct.pack_into(">II", contents, 16, 6_000, 5_000)
+    struct.pack_into(">I", contents, 29, zlib.crc32(contents[12:29]) & 0xFFFFFFFF)
+    decode_calls = []
+
+    def track_decode(path):
+        decode_calls.append(path)
+        return None
+
+    monkeypatch.setattr(inference, "decode_ultrasound_image", track_decode)
+    response = client.post(
+        "/api/intake/extract-metadata",
+        files={"file": ("oversized-intake.png", bytes(contents), "image/png")},
+        headers=doctor_headers,
+    )
+
+    assert response.status_code == 413, response.text
+    assert "25 triệu pixels" in response.json()["detail"]
+    assert decode_calls == [], "Intake metadata must not decode or propose metadata for oversized rasters."
+
+
+@pytest.mark.parametrize(
+    "untrusted_filename",
+    ["../../outside.png", r"..\..\outside.png", r"C:\outside.png"],
+)
+def test_upload_stores_uuid_filename_inside_upload_root(
+    tmp_path, monkeypatch, doctor_access, untrusted_filename
+):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from backend.app.main import app
+    from backend.app.routers import inference
+    from backend.db.database import Base, ImageModel, get_db
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'filename-boundary.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+    upload_root = tmp_path / "uploads"
+    upload_root.mkdir()
+    monkeypatch.setattr(inference, "UPLOAD_DIR", str(upload_root))
+
+    def temporary_db():
+        with Session(engine) as session:
+            yield session
+
+    app.dependency_overrides[get_db] = temporary_db
+    source = io.BytesIO()
+    Image.new("L", (64, 48), color=112).save(source, format="PNG")
+    try:
+        with TestClient(app) as test_client:
+            response = test_client.post(
+                "/api/upload",
+                files={"file": (untrusted_filename, source.getvalue(), "image/png")},
+            )
+
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        with Session(engine) as session:
+            stored = session.get(ImageModel, payload["image_id"])
+            assert stored is not None
+            assert stored.raw_path == str(upload_root / stored.filename)
+            assert stored.filename == os.path.basename(stored.raw_path)
+            assert stored.filename.endswith(".png")
+        assert payload["filename"] == stored.filename
+        assert len(list(upload_root.iterdir())) == 1
+        assert not (tmp_path / "outside.png").exists()
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        engine.dispose()
 
 
 def test_upload_rejects_corrupted_image_bytes(client, doctor_headers):

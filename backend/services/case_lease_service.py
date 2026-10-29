@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session
 from backend.db.database import CaseLeaseModel, StudyModel, UserModel
 
 LEASE_SECONDS = 45
-_FINAL_STATUSES = {"SIGNED_PRELIM", "APPROVED", "LOCKED"}
+_FINAL_STATUSES = {"REVIEWED", "SIGNED_PRELIM", "APPROVED", "LOCKED"}
+_NON_REVIEWED_FINAL_STATUSES = _FINAL_STATUSES - {"REVIEWED"}
 logger = logging.getLogger(__name__)
 
 
@@ -124,6 +125,7 @@ def require_active_case_lease(
     user: UserModel,
     lease_token: str | None,
     page_instance_id: str | None,
+    allow_reviewed: bool = False,
 ) -> None:
     """Validate and transactionally renew the lease before a clinical write."""
     valid_token = (
@@ -146,7 +148,8 @@ def require_active_case_lease(
     if not study:
         _abort_transaction(db, "validate")
         raise HTTPException(status_code=404, detail="Case not found.")
-    if (study.status or "").upper() in _FINAL_STATUSES:
+    blocked_statuses = _NON_REVIEWED_FINAL_STATUSES if allow_reviewed else _FINAL_STATUSES
+    if (study.status or "").upper() in blocked_statuses:
         _abort_transaction(db, "validate")
         raise HTTPException(status_code=409, detail="Finalized cases are read-only.")
 
@@ -168,6 +171,52 @@ def require_active_case_lease(
         raise HTTPException(status_code=423, detail="An active case-edit lease is required.")
 
 
+def verify_active_case_lease_readonly(
+    db: Session,
+    study_id: str,
+    user: UserModel,
+    lease_token: str | None,
+    page_instance_id: str | None,
+) -> None:
+    """Preflight a lease without taking a SQLite write lock during file decoding."""
+    valid_token = (
+        isinstance(lease_token, str)
+        and 32 <= len(lease_token) <= 256
+        and lease_token.isascii()
+        and re.fullmatch(r"[A-Za-z0-9_-]+", lease_token) is not None
+    )
+    valid_page = (
+        isinstance(page_instance_id, str)
+        and 16 <= len(page_instance_id) <= 128
+        and page_instance_id.isascii()
+        and re.fullmatch(r"[A-Za-z0-9_-]+", page_instance_id) is not None
+    )
+    if not valid_token or not valid_page:
+        raise HTTPException(status_code=423, detail="An active case-edit lease is required.")
+
+    bind = db.get_bind()
+    with Session(bind=bind) as read_db:
+        study = read_db.query(StudyModel).filter(StudyModel.id == study_id).first()
+        if not study:
+            raise HTTPException(status_code=404, detail="Case not found.")
+        if (study.status or "").upper() in _FINAL_STATUSES:
+            raise HTTPException(status_code=409, detail="Finalized cases are read-only.")
+
+        lease = (
+            read_db.query(CaseLeaseModel.study_id)
+            .filter(
+                CaseLeaseModel.study_id == study_id,
+                CaseLeaseModel.owner_user_id == user.id,
+                CaseLeaseModel.page_instance_id == page_instance_id,
+                CaseLeaseModel.token_hash == hash_lease_token(lease_token),
+                CaseLeaseModel.expires_at > _now(),
+            )
+            .first()
+        )
+        if lease is None:
+            raise HTTPException(status_code=423, detail="An active case-edit lease is required.")
+
+
 def acquire_case_lease(
     db: Session,
     study_id: str,
@@ -179,7 +228,7 @@ def acquire_case_lease(
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Case not found.")
-    if (study.status or "").upper() in _FINAL_STATUSES:
+    if (study.status or "").upper() in _NON_REVIEWED_FINAL_STATUSES:
         raise HTTPException(status_code=409, detail="Finalized cases are read-only.")
 
     now = _now()
@@ -197,12 +246,17 @@ def acquire_case_lease(
                     CaseLeaseModel.tab_id == tab_id,
                     CaseLeaseModel.page_instance_id == page_instance_id,
                     CaseLeaseModel.token_hash == token_hash,
+                    CaseLeaseModel.expires_at > now,
                 )
                 .values(expires_at=expires_at)
             )
             if renewed.rowcount == 1:
                 db.commit()
                 return _lease_response(lease_token, expires_at)
+            # A heartbeat is renewal-only. It must not recreate a released or
+            # expired lease after a delayed request arrives.
+            _abort_transaction(db, "renew")
+            return _deny()
 
         new_token = secrets.token_urlsafe(32)
         candidate_token = new_token

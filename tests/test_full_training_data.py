@@ -15,7 +15,7 @@ from ai_training.train_full_unet import train_full
 from tests.patient_split_fixture import attach_source_identity_evidence
 
 
-def test_full_trainer_blocks_unverified_split_before_writing_output(tmp_path):
+def test_full_trainer_rejects_incomplete_image_level_split_before_writing_output(tmp_path):
     split_dir = tmp_path / "image-level-only"
     split_dir.mkdir()
     (split_dir / "manifest.json").write_text(
@@ -23,7 +23,7 @@ def test_full_trainer_blocks_unverified_split_before_writing_output(tmp_path):
     )
     output_dir = tmp_path / "checkpoints"
 
-    with pytest.raises(ValueError, match="(?i)patient-level independence"):
+    with pytest.raises(ValueError, match="Required train split"):
         train_full(split_dir=split_dir, output_dir=output_dir, epochs=1)
 
     assert not output_dir.exists()
@@ -88,7 +88,8 @@ def test_full_trainer_uses_train_and_validation_only_and_selects_by_validation(t
     assert opened == [("train.csv", True), ("val.csv", False)]
     assert checkpoint.is_file()
     config = json.loads((output_dir / "full_unet_run_config.json").read_text(encoding="utf-8"))
-    assert config["identity_status"] == "patient_level_verified"
+    assert config["identity_status"] == "image_level_verified"
+    assert config["patient_level_independence_verified"] is False
     assert config["test_split_image_data_used"] is False
     history = json.loads((output_dir / "full_unet_training_history.json").read_text(encoding="utf-8"))
     assert "val_dice" in history[0]

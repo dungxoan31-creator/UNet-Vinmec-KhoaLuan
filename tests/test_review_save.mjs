@@ -1,19 +1,27 @@
 import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { state } from '../frontend/app/state.js';
+import { maskDraftKey, state } from '../frontend/app/state.js';
 import { tracker } from '../frontend/app/hitl-tracker.js';
 import { saveResearchReview } from '../frontend/app/review.js';
 
 Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
-globalThis.window = { dispatchEvent() {} };
+const busyTransitions = [];
+globalThis.window = {
+  dispatchEvent(event) {
+    if (event.type === 'ova:busy-changed') busyTransitions.push(state.busy);
+  },
+};
 globalThis.document = { createElement: () => ({ remove() {} }), querySelector: () => ({ append() {} }) };
 const realTimeout = globalThis.setTimeout;
 globalThis.setTimeout = (...args) => { const timer = realTimeout(...args); timer.unref?.(); return timer; };
 let removals;
+let removedKeys;
 beforeEach(() => {
   removals = 0;
+  removedKeys = [];
+  busyTransitions.length = 0;
   globalThis.navigator.onLine = true;
-  globalThis.localStorage = { removeItem() { removals++; } };
+  globalThis.localStorage = { removeItem(key) { removals++; removedKeys.push(key); } };
   Object.assign(state, {
     user: { id: 'user', username: 'doctor', role: 'DOCTOR' }, token: 'token',
     busy: false, dirty: true, capabilities: { manual_review: false },
@@ -37,7 +45,7 @@ test('unseen/offline gates do not POST, and failed save keeps dirty draft for id
   const payloads = [];
   globalThis.fetch = async (_url, options) => { payloads.push(JSON.parse(options.body)); return response({ detail: 'synthetic failure' }, 503); };
   state.case.images[1].seen = false;
-  assert.equal((await saveResearchReview()).reason, 'unseen-side');
+  assert.equal((await saveResearchReview()).reason, 'unseen-image');
   state.case.images[1].seen = true; navigator.onLine = false;
   assert.equal((await saveResearchReview()).status, 'offline');
   assert.equal(payloads.length, 0);
@@ -48,7 +56,12 @@ test('unseen/offline gates do not POST, and failed save keeps dirty draft for id
   assert.deepEqual(await saveResearchReview(), { status: 'saved', studyId: 'study', revision: 1, clean: true });
   assert.equal(payloads[0].request_id, payloads[1].request_id);
   assert.deepEqual(payloads[0].reviews, payloads[1].reviews);
-  assert.equal(removals, 1);
+  assert.equal(removals, 3);
+  assert.deepEqual(removedKeys, [
+    'ova.draft.live.user.study',
+    maskDraftKey('study', 'L'),
+    maskDraftKey('study', 'R'),
+  ]);
 });
 
 test('an incomplete ACK cannot advance revision or clear the draft', async () => {
@@ -84,4 +97,119 @@ test('a save response from a previous token cannot mark the current session save
   globalThis.fetch = async (_url, options) => { const body = JSON.parse(options.body); state.token = 'another-token'; return response(ack(body)); };
   assert.equal((await saveResearchReview()).status, 'failed');
   assert.equal(state.case.review_revision, 0); assert.equal(state.dirty, true); assert.equal(removals, 0);
+});
+
+test('review saves broadcast busy start and finish to disable viewer actions', async () => {
+  let release, notify;
+  const started = new Promise(resolve => { notify = resolve; });
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    notify();
+    return new Promise(resolve => { release = () => resolve(response(ack(body))); });
+  };
+  const saving = saveResearchReview();
+  await started;
+  assert.equal(state.busy, true);
+  assert.deepEqual(busyTransitions, [true]);
+  release();
+  await saving;
+  assert.equal(state.busy, false);
+  assert.deepEqual(busyTransitions, [true, false]);
+});
+
+test('server-confirmed review unlocks while telemetry flush is still pending', async () => {
+  let flushCount = 0;
+  let notifyTelemetryFlush;
+  let releaseTelemetryFlush;
+  const telemetryFlushStarted = new Promise(resolve => { notifyTelemetryFlush = resolve; });
+  const telemetryFlushPending = new Promise(resolve => { releaseTelemetryFlush = resolve; });
+  Object.assign(tracker, {
+    getStudyId: () => 'study',
+    getSessionId: () => 'hitl-session',
+    flush: async () => {
+      flushCount += 1;
+      if (flushCount === 1) return { complete: false };
+      notifyTelemetryFlush();
+      return telemetryFlushPending;
+    },
+  });
+  globalThis.fetch = async (_url, options) => response(ack(JSON.parse(options.body)));
+
+  const saving = saveResearchReview();
+  await telemetryFlushStarted;
+  const pendingState = {
+    busy: state.busy,
+    dirty: state.dirty,
+    reviewRevision: state.case.review_revision,
+    pendingTelemetryStudy: state.pendingReviewTelemetryAck?.studyId,
+    pendingTelemetrySession: state.pendingReviewTelemetryAck?.sessionId,
+  };
+  const completedBeforeTelemetry = await Promise.race([
+    saving.then(result => ({ result })),
+    new Promise(resolve => realTimeout(() => resolve({ timedOut: true }), 50)),
+  ]);
+  releaseTelemetryFlush({ complete: true });
+  const result = completedBeforeTelemetry.result || await saving;
+
+  assert.deepEqual(pendingState, {
+    busy: false,
+    dirty: false,
+    reviewRevision: 1,
+    pendingTelemetryStudy: 'study',
+    pendingTelemetrySession: 'hitl-session',
+  });
+  assert.equal(completedBeforeTelemetry.timedOut, undefined,
+    'The successful clinical save must not wait for a delayed non-clinical telemetry request.');
+  assert.deepEqual(result, { status: 'saved', studyId: 'study', revision: 1, clean: true });
+  assert.equal(state.busy, false);
+  await new Promise(resolve => realTimeout(resolve, 0));
+  assert.equal(state.pendingReviewTelemetryAck, null,
+    'The background telemetry acknowledgement clears only after its flush succeeds.');
+});
+
+test('telemetry failure keeps its ACK retryable without repeating the committed review write', async () => {
+  let flushCount = 0;
+  let notifyTelemetryFlush;
+  let rejectTelemetryFlush;
+  const telemetryFlushStarted = new Promise(resolve => { notifyTelemetryFlush = resolve; });
+  const telemetryFlushPending = new Promise((_resolve, reject) => { rejectTelemetryFlush = reject; });
+  let reviewWrites = 0;
+  Object.assign(tracker, {
+    getStudyId: () => 'study',
+    getSessionId: () => 'hitl-session',
+    flush: async () => {
+      flushCount += 1;
+      if (flushCount === 1) return { complete: false };
+      if (flushCount === 2) {
+        notifyTelemetryFlush();
+        return telemetryFlushPending;
+      }
+      return { complete: true };
+    },
+  });
+  globalThis.fetch = async (_url, options) => {
+    reviewWrites += 1;
+    return response(ack(JSON.parse(options.body)));
+  };
+
+  const saving = saveResearchReview();
+  await telemetryFlushStarted;
+  const result = await saving;
+  assert.equal(result.status, 'saved');
+  assert.equal(state.busy, false);
+  assert.equal(state.pendingReviewTelemetryAck?.studyId, 'study');
+  rejectTelemetryFlush(new Error('synthetic telemetry outage'));
+  await new Promise(resolve => realTimeout(resolve, 0));
+
+  assert.equal(state.pendingReviewTelemetryAck?.sessionId, 'hitl-session');
+  assert.equal(state.case.review_revision, 1);
+  assert.equal(state.dirty, false);
+  assert.equal(reviewWrites, 1);
+  const retried = await saveResearchReview();
+  assert.equal(retried.status, 'saved');
+  assert.equal(state.pendingReviewTelemetryAck, null);
+  assert.equal(state.busy, false);
+  assert.equal(reviewWrites, 1,
+    'Retrying telemetry must not send the already committed clinical review a second time.');
+  assert.equal(flushCount, 3);
 });

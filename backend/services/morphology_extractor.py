@@ -5,8 +5,103 @@ These features do not establish lesion morphology, diagnosis, or risk category.
 
 import cv2
 import numpy as np
+from scipy import ndimage as ndi
+from skimage.feature import peak_local_max
+from skimage.segmentation import watershed
 
 from backend.core.calibration import normalize_pixel_spacing
+
+
+def separate_and_count_follicles(
+    follicle_mask: np.ndarray,
+    ovary_mask: np.ndarray | None = None,
+    pixel_spacing_mm: float | None = None,
+    min_distance_px: int = 5,
+    min_area_px: int = 12,
+    pcos_range_mm: tuple[float, float] = (2.0, 9.0),
+) -> dict:
+    """Tách nang dính nhau bằng Watershed và đếm nang theo tiêu chuẩn kích thước."""
+    fm = (follicle_mask > 0).astype(np.uint8)
+    if ovary_mask is not None:
+        fm = fm & (ovary_mask > 0).astype(np.uint8)
+
+    if fm.sum() == 0:
+        return {
+            "count": 0,
+            "count_in_range": 0 if normalize_pixel_spacing(pixel_spacing_mm) is not None else None,
+            "diameters_px": [],
+            "diameters_mm": None,
+            "analysis_status": "SUCCEEDED",
+            "region_semantics": "UNCONFIRMED",
+            "diameter_method": "equivalent_area_diameter",
+        }
+
+    # Distance Transform
+    distance = ndi.distance_transform_edt(fm)
+    coords = peak_local_max(
+        distance,
+        min_distance=min_distance_px,
+        labels=fm,
+        exclude_border=False,
+    )
+
+    component_count, component_labels, component_stats, _ = cv2.connectedComponentsWithStats(fm, 8)
+    eligible_components = {
+        label
+        for label in range(1, component_count)
+        if int(component_stats[label, cv2.CC_STAT_AREA]) >= min_area_px
+    }
+
+    if len(coords) == 0:
+        diameters_px = []
+        for k in sorted(eligible_components):
+            area = int(component_stats[k, cv2.CC_STAT_AREA])
+            diameters_px.append(float(np.sqrt(4.0 * area / np.pi)))
+    else:
+        # A component can have no retained peak when min_distance removes a
+        # narrow or small component. Add its distance maximum explicitly.
+        peak_components = {int(component_labels[tuple(coord)]) for coord in coords}
+        fallback_coords = []
+        for label in sorted(eligible_components - peak_components):
+            component = component_labels == label
+            y, x = np.unravel_index(int(np.argmax(np.where(component, distance, -1))), distance.shape)
+            fallback_coords.append((y, x))
+        if fallback_coords:
+            coords = np.concatenate((coords, np.asarray(fallback_coords, dtype=int)), axis=0)
+
+        mask_peaks = np.zeros(distance.shape, dtype=bool)
+        mask_peaks[tuple(coords.T)] = True
+        markers, _ = ndi.label(mask_peaks)
+
+        # Watershed segmentation
+        labels = watershed(-distance, markers, mask=fm)
+
+        # One pass over the label image rather than a full image scan per region.
+        areas = np.bincount(labels.ravel())
+        diameters_px = [
+            float(np.sqrt(4.0 * int(area) / np.pi))
+            for area in areas[1:]
+            if area >= min_area_px
+        ]
+
+    out = {
+        "count": len(diameters_px),
+        "diameters_px": diameters_px,
+        "analysis_status": "SUCCEEDED",
+        "region_semantics": "UNCONFIRMED",
+        "diameter_method": "equivalent_area_diameter",
+    }
+
+    spacing = normalize_pixel_spacing(pixel_spacing_mm)
+    if spacing is not None and spacing > 0:
+        d_mm = [float(d * spacing) for d in diameters_px]
+        out["diameters_mm"] = d_mm
+        out["count_in_range"] = sum(pcos_range_mm[0] <= d <= pcos_range_mm[1] for d in d_mm)
+    else:
+        out["diameters_mm"] = None
+        out["count_in_range"] = None
+
+    return out
 
 
 class MorphologicalFeatureExtractor:
@@ -156,7 +251,7 @@ class MorphologicalFeatureExtractor:
                 "echogenicity_label": None,
                 "acoustic_pattern": None,
             },
-            "cdss_classification": cdss
+            "cdss_classification": cdss,
         }
 
     @staticmethod

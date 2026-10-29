@@ -458,7 +458,7 @@ def register(req: RegisterRequest, request: Request, db: Session = Depends(get_d
         role="DOCTOR",
         department=req.department or "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa",
         title=req.title or "BS",
-        hospital=req.hospital or "Bệnh viện ĐKQT Vinmec Times City",
+        hospital=req.hospital or "Chưa cấu hình",
         avatar="doctor_avatar.png",
         is_active=False,
     )
@@ -548,9 +548,65 @@ def verify_registration_email(
 
     expected = _email_code_digest(req.email, req.code)
     if not hmac.compare_digest(challenge.code_digest, expected):
-        challenge.attempts += 1
-        db.commit()
-        if challenge.attempts >= _EMAIL_CODE_MAX_ATTEMPTS:
+        challenge_id = challenge.id
+        challenge_digest = challenge.code_digest
+        # End the read transaction before the write so concurrent SQLite
+        # readers can serialize their conditional increments without a
+        # read-to-write lock upgrade or a lost ORM read-modify-write update.
+        db.rollback()
+        attempt_time = _utc_now_naive()
+        try:
+            incremented = db.execute(
+                update(EmailVerificationChallengeModel)
+                .where(
+                    EmailVerificationChallengeModel.id == challenge_id,
+                    EmailVerificationChallengeModel.email == req.email,
+                    EmailVerificationChallengeModel.code_digest == challenge_digest,
+                    EmailVerificationChallengeModel.expires_at > attempt_time,
+                    EmailVerificationChallengeModel.attempts < _EMAIL_CODE_MAX_ATTEMPTS,
+                )
+                .values(
+                    attempts=EmailVerificationChallengeModel.attempts + 1,
+                )
+            )
+            if incremented.rowcount != 1:
+                db.rollback()
+                latest = (
+                    db.query(EmailVerificationChallengeModel)
+                    .filter_by(id=challenge_id, email=req.email)
+                    .first()
+                )
+                if (
+                    latest is None
+                    or latest.code_digest != challenge_digest
+                    or latest.expires_at <= _utc_now_naive()
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Verification request is invalid or expired.",
+                    )
+                if latest.attempts >= _EMAIL_CODE_MAX_ATTEMPTS:
+                    raise HTTPException(status_code=429, detail="Too many verification attempts.")
+                raise HTTPException(
+                    status_code=503,
+                    detail="Verification storage is temporarily unavailable.",
+                )
+            db.commit()
+        except OperationalError as exc:
+            _rollback_auth_safely(db, "verify_email_attempt")
+            raise HTTPException(
+                status_code=503,
+                detail="Verification storage is busy; retry shortly.",
+            ) from exc
+
+        current_attempts = (
+            db.query(EmailVerificationChallengeModel.attempts)
+            .filter_by(id=challenge_id, email=req.email, code_digest=challenge_digest)
+            .scalar()
+        )
+        if current_attempts is None:
+            raise HTTPException(status_code=400, detail="Verification request is invalid or expired.")
+        if current_attempts >= _EMAIL_CODE_MAX_ATTEMPTS:
             raise HTTPException(status_code=429, detail="Too many verification attempts.")
         raise HTTPException(status_code=400, detail="Verification request is invalid or expired.")
 
@@ -848,7 +904,7 @@ def reset_password(payload: ResetPasswordRequest, request: Request, db: Session 
     return {"status": "SUCCESS", "message": "Mật khẩu đã được đặt lại thành công."}
 
 
-@router.post("/api/auth/change-password")
+@router.post("/api/auth/change-password", response_model=TokenResponse)
 def change_password(
     payload: ChangePasswordRequest,
     user: UserModel = Depends(get_current_user),
@@ -861,6 +917,8 @@ def change_password(
         raise HTTPException(status_code=400, detail="Mật khẩu mới không được để trống")
     if len(new_pw) < 6:
         raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự")
+    if payload.confirmation is not None and payload.confirmation != new_pw:
+        raise HTTPException(status_code=422, detail="Xác nhận mật khẩu mới không khớp.")
 
     if user.password_hash:
         if not verify_password(old_pw, user.password_hash):
@@ -876,7 +934,15 @@ def change_password(
     user.tokens_revoked_at = datetime.now(UTC)
     user.token_version = (getattr(user, "token_version", 1) or 1) + 1
     db.commit()
-    return {"status": "SUCCESS", "message": "Đổi mật khẩu thành công."}
+    return TokenResponse(
+        access_token=create_access_token({
+            "sub": user.username,
+            "uid": user.id,
+            "token_version": user.token_version,
+        }),
+        user=UserProfile.model_validate(user, from_attributes=True),
+        must_change_password=False,
+    )
 
 
 @router.post("/api/auth/logout")

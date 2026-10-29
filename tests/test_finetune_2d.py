@@ -10,7 +10,7 @@ from ai_training.finetune_2d_unet import finetune, validate_checkpoint_provenanc
 from tests.patient_split_fixture import attach_source_identity_evidence
 
 
-def test_finetune_blocks_unverified_split_before_loading_checkpoint_or_writing_output(tmp_path):
+def test_finetune_rejects_incomplete_image_level_split_before_loading_checkpoint(tmp_path):
     split_dir = tmp_path / "image-level-only"
     split_dir.mkdir()
     (split_dir / "manifest.json").write_text(
@@ -18,7 +18,7 @@ def test_finetune_blocks_unverified_split_before_loading_checkpoint_or_writing_o
     )
     output_dir = tmp_path / "finetune-output"
 
-    with pytest.raises(ValueError, match="(?i)patient-level independence"):
+    with pytest.raises(ValueError, match="Required train split"):
         finetune(
             split_dir=split_dir,
             checkpoint=tmp_path / "missing-checkpoint.pth",

@@ -1,9 +1,42 @@
 import { encode } from "./coordinates.js";
 
+function nonemptyClinicalValue(value, key) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (key === "lesion_type" && ["chưa đánh giá", "unspecified"].includes(normalized.toLocaleLowerCase("vi")))
+    return null;
+  return normalized;
+}
+
+export function clinicianDiagnosisOverrides(image) {
+  const previous = image?.review || {};
+  const previousFeedback = previous.hitl_feedback || {};
+  const currentValues = {
+    lesion_type: image?.morphology,
+    orads: image?.orads,
+    morphology_description: image?.morphologyDesc,
+  };
+  const previousValues = {
+    lesion_type: previous.lesion_type,
+    orads: previous.orads || previous.orads_score || previousFeedback.orads || previousFeedback.orads_score,
+    morphology_description: previous.morphology_description || previousFeedback.morphologyDesc || previousFeedback.morphology_description,
+  };
+  const overrides = {};
+  for (const [key, currentValue] of Object.entries(currentValues)) {
+    const current = nonemptyClinicalValue(currentValue, key);
+    const baseline = nonemptyClinicalValue(previousValues[key], key);
+    if (current !== baseline && (current !== null || baseline !== null))
+      overrides[key] = current;
+  }
+  return overrides;
+}
+
 export function matchesSubmittedReview(image, body) {
   return image.image_id === body.image_id &&
     image.prediction?.prediction_id === body.prediction_id &&
     JSON.stringify(encode(image.mask)) === JSON.stringify(body.verified_mask_rle) &&
+    JSON.stringify(image.manualCalipers || []) === JSON.stringify(body.manual_calipers || []) &&
     (image.orads || "") === (body.orads || "") &&
     (image.morphology || "Chưa đánh giá") === (body.lesion_type || "Chưa đánh giá") &&
     (image.morphologyDesc || "") === (body.morphology_description || "") &&

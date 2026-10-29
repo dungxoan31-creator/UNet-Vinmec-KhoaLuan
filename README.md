@@ -1,5 +1,5 @@
 ---
-title: Vinmec Ovarian Ultrasound AI Workstation
+title: Ovarian Ultrasound RUO Research Workstation
 emoji: 🩺
 colorFrom: blue
 colorTo: indigo
@@ -8,12 +8,16 @@ app_port: 8000
 pinned: false
 ---
 
-# Hệ thống Phân đoạn Siêu âm Buồng trứng Human-in-the-Loop (CDSS)
-> **Ovarian Ultrasound AI Decision Support System**  
+# Ovarian Ultrasound RUO Research Workstation
+> **Hệ thống nghiên cứu phân đoạn siêu âm buồng trứng Human-in-the-Loop**
 > Dự án Khóa luận Tốt nghiệp Hệ thống Thông tin Quản lý (MIS / ITBA / AI) – Trường Đại học Kinh tế Quốc dân (NEU).  
-> Dữ liệu nghiên cứu thực nghiệm: Bệnh viện Đa khoa Quốc tế Vinmec Times City.
+> Dữ liệu được kiểm tra cho model được chọn trong workspace này là MMOTU 2D ở mức ảnh; workspace không có ảnh/mặt nạ Vinmec và không báo cáo hiệu năng trên dữ liệu Vinmec. Repository chưa có tài liệu xác nhận tài trợ, ủy quyền hoặc endorsement của Vinmec; tên repository và lịch sử dự án không chứng minh liên kết chính thức.
 
-> **Trạng thái bằng chứng 21/10/2026:** RUO research prototype. Manifest hiện chọn ứng viên U-Net++/ResNet34 với horizontal-flip TTA và threshold 0.4; Validation Dice 0.8185 trên 541 ảnh, không phải ước lượng test độc lập. Patient ID nguồn chưa xác minh, 59 cặp ảnh gần trùng được ghi nhận giữa split, ảnh `dataset/2d/images/1456.JPG` đang thiếu và cổng patient-level independent test bị BLOCKED. Chưa có clinician validation. Xem [Model Card](MODEL_CARD.md), [kiểm toán kiến trúc](docs/ARCHITECTURE_AUDIT_2026-10-21.md) và [hồ sơ inventory](docs/SYSTEM_INVENTORY_2026-10-21.md).
+> **Trạng thái bằng chứng:** RUO research prototype. Xem manifest `evaluation/selected_model.json` và [Model Card](MODEL_CARD.md) để biết ứng viên đang chọn, cấu hình và chỉ số validation image-level; đây không phải kết quả test độc lập hay bằng chứng hiệu quả lâm sàng. Tính độc lập theo bệnh nhân chưa được xác minh; cổng đánh giá độc lập đang BLOCKED và chưa có clinician validation. Xem [release runbook](docs/evaluation/release_runbook.md) để biết phạm vi kiểm thử được phép và các cổng Go-live.
+
+> **Giới hạn triển khai:** Cơ sở dữ liệu hiện tại là SQLite; PostgreSQL chưa được triển khai/kiểm thử. DICOM chỉ hỗ trợ ảnh siêu âm 2D một frame với tập định dạng pixel giới hạn; cine và nhiều ảnh xám 12/16-bit chưa được hỗ trợ. CDSS đối chiếu một tập quy tắc nghiên cứu, không bao phủ toàn bộ O-RADS; trường hợp ngoài phạm vi phải để bác sĩ đánh giá. Policy nang noãn của dự án dùng `<30 mm`, khác ngưỡng `≤30 mm` trong ACR. Kích thước từ mask là proxy 2D và số vùng Watershed chưa được xác nhận là số nang toàn buồng trứng.
+
+> **Giới hạn suy luận:** Một tiến trình ứng dụng mặc định cho phép một tác vụ suy luận chạy và hai tác vụ chờ tối đa 10 giây; vượt giới hạn trả HTTP 503. Các biến `APP_INFERENCE_MAX_RUNNING`, `APP_INFERENCE_MAX_WAITING`, `APP_INFERENCE_WAIT_SECONDS` cấu hình giới hạn. Đây là giới hạn **trong từng tiến trình**, không điều phối giữa các worker; cấu hình nhiều worker dùng cùng GPU chưa được bảo vệ và chưa được kiểm thử. Dùng một worker cho cấu hình GPU hiện tại.
 
 ---
 
@@ -25,7 +29,7 @@ Chẩn đoán hình ảnh siêu âm buồng trứng (phát hiện nang, u nang, 
 ### 1.2. Giải pháp của Dự án
 Dự án xây dựng bản mẫu phần mềm hỗ trợ ra quyết định lâm sàng (**Clinical Decision Support System - CDSS**), kết hợp mô hình học sâu phân đoạn ảnh y tế và giao diện máy trạm lâm sàng (Clinical Workstation):
 - **Phân đoạn tự động bằng Deep Learning**: Model registry hiện chọn ứng viên nghiên cứu U-Net++/ResNet34; Standard U-Net được giữ làm baseline. Mask chỉ là kết quả phân đoạn, không xác định bệnh lý.
-- **Trích xuất thông số hình thái tự động (Morphometry)**: Đo lường đường kính tổn thương (Caliper $d_1, d_2$), chu vi, diện tích và thể tích phỏng định theo khuyến cáo ISUOG.
+- **Đo hình học tham khảo**: Proxy hộp bao 2D cho $d_1, d_2$, chu vi và diện tích; không suy ra thể tích 3D. Số đo vật lý cần hiệu chuẩn và bác sĩ xác nhận.
 - **Cơ chế Human-in-the-Loop (HITL)**: Bác sĩ rà soát kết quả phân đoạn và có thể tinh chỉnh đường viền bằng Brush/Eraser. Lưu review nghiên cứu được hỗ trợ; workflow ký duyệt chính thức và xuất PDF lâm sàng hiện đang tắt.
 
 > [!IMPORTANT]
@@ -98,7 +102,7 @@ Hệ thống được thiết kế theo kiến trúc phân tầng dạng Client 
 | **Cơ sở dữ liệu** | SQLite, SQLAlchemy, Pydantic v2 | 2.1+ | Lưu trữ thông tin ca bệnh, lịch sử đánh giá và kiểm thực dữ liệu vào/ra |
 | **Giao diện Người dùng**| HTML5, CSS3, JavaScript (Canvas API) | Native ES6 | Workstation mượt mà, không phụ thuộc nặng framework client |
 | **Kiểm thử & Chất lượng**| Pytest, Playwright, Ruff | 9.1+ | Kiểm thử tự động (Unit / Integration / E2E Browser) và linting |
-| **Triển khai Container**| Docker, Docker Compose, Nginx | - | Đóng gói môi trường và cấu hình Reverse Proxy phục vụ vận hành |
+| **Artifact container**| Dockerfile, Docker Compose, Nginx | - | Có cấu hình trong repository; build image, runtime và triển khai chưa được xác minh |
 
 ---
 
@@ -119,7 +123,7 @@ UNet-Vinmec-KhoaLuan/
 │   └── index.html           # Trang giao diện chính của hệ thống
 ├── ai_training/             # Pipeline huấn luyện mô hình PyTorch
 │   ├── dataset_loader.py    # Dataloader ảnh siêu âm kèm Letterbox & CLAHE
-│   ├── metrics_clinical.py  # Bộ đo lường phân đoạn lâm sàng (Dice, IoU, Recall, Specificity)
+│   ├── metrics_clinical.py  # Bộ đo phân đoạn ở mức pixel (Dice, IoU, Recall, Specificity)
 │   ├── splits/              # Cấu hình phân chia tập dữ liệu huấn luyện, thẩm định và kiểm thử
 │   └── train_baseline_unet.py # Huấn luyện mô hình U-Net cơ sở
 ├── dataset/                 # Thư mục dữ liệu ảnh gốc (Chỉ đọc - Read Only)
@@ -221,43 +225,28 @@ sequenceDiagram
 
 ---
 
-### 8.1. Khởi chạy Chuẩn hóa bằng PowerShell Launcher (Khuyến nghị)
-Sử dụng script launcher chính thức `scripts/run_prototype.ps1` để tự động kiểm tra tính hợp lệ của trọng số checkpoint, Python virtualenv và cấu hình bảo mật trước khi khởi động:
+### 8.1. Bài demo kỹ thuật đã được kiểm chứng
+
+Phạm vi được phép hiện tại chỉ là bài E2E scripted trên localhost, chạy bằng dữ liệu tổng hợp:
 
 ```powershell
-# 1. Thiết lập 4 biến môi trường bảo mật bắt buộc
-$env:APP_JWT_SECRET = '<chuoi-bi-mat-ngau-nhien-toi-thieu-32-ky-tu>'
-$env:APP_PATIENT_PID_HMAC_SECRET = '<khoa-HMAC-ngau-nhien-rieng-toi-thieu-32-byte-va-can-sao-luu-an-toan>'
-$env:APP_ADMIN_PASSWORD = '<mat-khau-admin-rieng>'
-$env:APP_DOCTOR_PASSWORD = '<mat-khau-bac-si-rieng>'
-
-# 2. Kiểm tra điều kiện tiên quyết (CheckOnly)
-powershell -ExecutionPolicy Bypass -File scripts/run_prototype.ps1 -CheckOnly
-
-# 3. Khởi chạy thử nghiệm có giám sát trên runtime độc lập
-powershell -ExecutionPolicy Bypass -File scripts/run_prototype.ps1 -RuntimeDir "artifacts/prototype-runtime" -Port 8000
+npm run test:e2e:roundtrip
 ```
 
-Xem hướng dẫn chi tiết về vận hành, sao lưu và phục hồi CSDL tại [docs/evaluation/release_runbook.md](docs/evaluation/release_runbook.md).
+Harness tự khởi chạy backend cô lập trên loopback, SQLite runtime tạm, fixture tổng hợp đã allowlist và trình duyệt headless; test kiểm tra cờ RUO/synthetic-only và dọn runtime sau khi tiến trình dừng. Đây không phải bài demo giao diện tương tác tại bệnh viện.
 
-* **Giao diện Web Workstation (Bác sĩ)**: Mở trình duyệt và truy cập: `http://127.0.0.1:8000/`
-* **Cổng Quản trị Hệ thống (Admin Portal)**: `http://127.0.0.1:8000/admin`
-* **Tài liệu API Tương tác (Swagger UI)**: `http://127.0.0.1:8000/docs`
-* **Tài liệu API Thay thế (ReDoc)**: `http://127.0.0.1:8000/redoc`
+Runbook về phạm vi, kiểm tra kết quả và xử lý sự cố nằm tại [docs/evaluation/release_runbook.md](docs/evaluation/release_runbook.md). Không có quy trình sao lưu/phục hồi CSDL được phê duyệt; PostgreSQL chưa được hỗ trợ/xác minh.
 
-### 8.2. Biến môi trường bổ sung
-Ba biến xác thực ở mục 8.1 là bắt buộc khi đăng nhập. Biến chọn mô hình sau đây là tùy chọn:
+### 8.2. Launcher phát triển và biến môi trường
+
+`scripts/run_prototype.ps1` chỉ là launcher phát triển. Launcher kiểm tra checkpoint và secret nhưng **không bật synthetic-only mode**; vì vậy nó không phải lệnh demo đã được cho phép và không được dùng với dữ liệu bệnh nhân. Không diễn giải thông báo pre-flight của launcher thành readiness lâm sàng. Nếu cần phát triển cục bộ, chỉ dùng dữ liệu phi bệnh nhân được phép và runtime riêng.
+
+Launcher yêu cầu `APP_JWT_SECRET`, `APP_PATIENT_PID_HMAC_SECRET`, `APP_ADMIN_PASSWORD` và `APP_DOCTOR_PASSWORD`. Biến chọn mô hình sau đây là tùy chọn:
 - `MODEL_SELECTION_MANIFEST`: Đường dẫn đến file manifest lựa chọn mô hình (mặc định: `evaluation/selected_model.json`). Manifest hiện chọn U-Net++/ResNet34; chỉ thay bằng manifest có checkpoint SHA-256 và nguồn đánh giá đã kiểm chứng.
 
-### 8.3. Khởi chạy bằng Docker & Docker Compose
-Hệ thống đã cấu hình sẵn container hóa:
+### 8.3. Docker và Docker Compose — BLOCKED / NOT VERIFIED
 
-```bash
-docker-compose up --build
-```
-Dịch vụ sẽ khởi chạy qua cổng `80` (Nginx Reverse Proxy) và chuyển tiếp tới FastAPI Backend tại cổng `8000`.
-Compose cấp checkpoint và artifact đánh giá qua volume chỉ đọc; các thư mục này không được gửi vào Docker build context hoặc đóng gói trong image. Dataset nguồn không được mount mặc định. Gallery mẫu đánh giá sẽ báo HTTP 503 nếu ảnh/mask nguồn chưa được cấp trong môi trường chạy; chỉ cấp nguồn dữ liệu đã được phê duyệt và khử định danh phù hợp.
-Môi trường phát triển/huấn luyện dùng `requirements.txt`; image chỉ cài dependency runtime đã khóa cho Linux/Python 3.12 trong `requirements-lock.txt`.
+Repository có `Dockerfile` và `docker-compose.yml`, nhưng Docker Engine hiện không chạy nên chưa thể build image hoặc xác minh runtime. Tích hợp PostgreSQL và khôi phục sau lỗi cũng chưa được kiểm chứng trên môi trường đích. Không dùng cấu hình này để triển khai hoặc xử lý dữ liệu bệnh nhân. Chỉ mở lại mục này sau khi có log build, smoke/integration test trên runtime thật và kiểm tra cấu hình lưu trữ/migration.
 
 ---
 

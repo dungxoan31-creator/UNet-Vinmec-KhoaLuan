@@ -1,9 +1,7 @@
-"""Real-image API smoke test for the research segmentation and review flow."""
+"""Synthetic-fixture API smoke test for the research segmentation and review flow."""
 
 import base64
-import csv
 import uuid
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -12,7 +10,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from backend.core.dataset_paths import resolve_dataset_path
 from backend.db.database import (
     AuditLogModel,
     Base,
@@ -27,14 +24,15 @@ from backend.db.database import (
 pytestmark = pytest.mark.usefixtures("doctor_access")
 
 
-def current_validation_image():
-    root = Path(__file__).resolve().parents[1]
-    with (root / "ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv").open(newline="", encoding="utf-8") as split_file:
-        for row in csv.DictReader(split_file):
-            image = resolve_dataset_path(root, row["image_path"])
-            if "Vinmec_2d" in row["image_path"] and image.is_file():
-                return image
-    raise FileNotFoundError("No readable B-mode current Validation image")
+def synthetic_fixture_image():
+    from scripts.generate_synthetic_e2e_fixtures import FIXTURES_DIR, generate_fixtures
+
+    image = FIXTURES_DIR / "synthetic_left.png"
+    if not image.is_file():
+        generate_fixtures()
+    if not image.is_file():
+        raise FileNotFoundError(f"Synthetic E2E fixture was not generated: {image}")
+    return image
 
 
 def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_case_lease):
@@ -42,7 +40,7 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
     from backend.app.main import app
     from backend.app.routers import inference
 
-    image_path = current_validation_image()
+    image_path = synthetic_fixture_image()
     assert image_path.is_file()
     assert model_registry.get_primary_adapter().is_loaded
 
@@ -65,7 +63,7 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
     try:
         with TestClient(app) as client:
             with image_path.open("rb") as image:
-                uploaded = client.post("/api/upload", files={"file": (image_path.name, image, "image/jpeg")})
+                uploaded = client.post("/api/upload", files={"file": (image_path.name, image, "image/png")})
             assert uploaded.status_code == 200, uploaded.text
             image_id = uploaded.json()["image_id"]
             study_id = uploaded.json()["study_id"]
@@ -105,7 +103,7 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
                 for action, final_mask in (
                     ("ACCEPTED_RAW", edited_rle),
                     ("MODIFIED", rle),
-                    ("REJECTED_ALL", rle),
+                    ("REJECTED_ALL", edited_rle if not np.any(adapter.engine.rle_to_mask(rle)) else rle),
                     ("INVENTED", rle),
                 ):
                     invalid_review = client.post(
@@ -196,12 +194,12 @@ def test_upload_with_unknown_study_does_not_leave_file(tmp_path, monkeypatch):
 
     app.dependency_overrides[get_db] = temporary_db
     try:
-        image_path = current_validation_image()
+        image_path = synthetic_fixture_image()
         with TestClient(app) as client, image_path.open("rb") as image:
             response = client.post(
                 "/api/upload",
                 data={"study_id": "missing-study"},
-                files={"file": (image_path.name, image, "image/jpeg")},
+                files={"file": (image_path.name, image, "image/png")},
             )
         assert response.status_code == 404
         assert list(upload_dir.iterdir()) == []

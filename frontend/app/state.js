@@ -96,6 +96,7 @@ export const state = {
   hitl_session: null,
   side: "L",
   dirty: false,
+  unattributedMaskDraft: false,
   busy: false,
   pendingReviewTelemetryAck: null,
   controller: null,
@@ -112,6 +113,16 @@ export const state = {
   viewState,
   caseState,
 };
+export function setBusy(value) {
+  const busy = Boolean(value);
+  if (state.busy === busy) return;
+  state.busy = busy;
+  if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+    const BusyEvent = window.Event || globalThis.Event;
+    if (typeof BusyEvent === "function")
+      window.dispatchEvent(new BusyEvent("ova:busy-changed"));
+  }
+}
 export const roles = {
   DOCTOR: "BS",
   BS: "BS",
@@ -171,6 +182,119 @@ export function preferences(value) {
 export function draftKey(id) {
   return `ova.draft.live.${state.user?.id}.${id}`;
 }
+export function maskDraftKey(studyId, sideOrImageId, userId = state.user?.id) {
+  if (userId == null || studyId == null || sideOrImageId == null) return null;
+  return `draft_mask_v2:${JSON.stringify([String(userId), String(studyId), String(sideOrImageId)])}`;
+}
+function removeCaseMaskDrafts(caseRecord) {
+  const userId = state.user?.id;
+  if (userId == null || !caseRecord?.study_id) return;
+  const identifiers = new Set(["L", "R"]);
+  for (const image of caseRecord.images || []) if (image?.image_id) identifiers.add(image.image_id);
+  for (const identifier of identifiers) localStorage.removeItem(maskDraftKey(caseRecord.study_id, identifier, userId));
+}
+function hasUnattributedMaskDraft(caseRecord) {
+  const identifiers = new Set(["L", "R"]);
+  for (const image of caseRecord.images || []) if (image?.image_id) identifiers.add(image.image_id);
+  for (const identifier of identifiers) {
+    try {
+      if (localStorage.getItem(`draft_mask_${caseRecord.study_id}_${identifier}`) !== null) return true;
+    } catch {
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("ova:storage-error"));
+      return false;
+    }
+  }
+  return false;
+}
+function validManualCalipers(value, image) {
+  if (!Array.isArray(value) || value.length > 2) return false;
+  const labels = new Set();
+  const width = image.width || image.dimensions?.[0] || 512;
+  const height = image.height || image.dimensions?.[1] || 512;
+  for (const caliper of value) {
+    if (!caliper || !["D1", "D2"].includes(caliper.label) || labels.has(caliper.label) ||
+        (caliper.coordinate_space != null && caliper.coordinate_space !== "decoded-source-image") ||
+        !Array.isArray(caliper.points) || caliper.points.length !== 2 ||
+        caliper.points.some(point => !Array.isArray(point) || point.length !== 2 ||
+          point.some((coordinate, axis) => !Number.isFinite(coordinate) || coordinate < 0 || coordinate >= (axis === 0 ? width : height))))
+      return false;
+    const [a, b] = caliper.points;
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 1) return false;
+    labels.add(caliper.label);
+  }
+  return true;
+}
+export function saveMaskDraft(caseRecord, image) {
+  const side = image?.laterality;
+  const userId = state.user?.id;
+  if (
+    userId == null ||
+    !caseRecord?.study_id ||
+    !image?.image_id ||
+    !["L", "R"].includes(side) ||
+    !(image.mask instanceof Uint8Array) ||
+    image.mask.length !== 512 * 512 ||
+    state.draftConflict?.caseId === caseRecord.study_id
+  ) return false;
+  try {
+    const key = maskDraftKey(caseRecord.study_id, image.image_id, userId);
+    if (!key) return false;
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        schema_version: 2,
+        study_id: caseRecord.study_id,
+        image_id: image.image_id,
+        side,
+        base_version: caseRecord.version ?? null,
+        base_review_id: image.review?.review_id ?? null,
+        saved_at: Date.now(),
+        mask_rle: encode(image.mask),
+      }),
+    );
+    return true;
+  } catch {
+    window.dispatchEvent(new CustomEvent("ova:storage-error"));
+    return false;
+  }
+}
+export function restoreMaskDrafts(caseRecord) {
+  state.unattributedMaskDraft = false;
+  if (
+    state.user?.id == null ||
+    !caseRecord?.study_id ||
+    !Array.isArray(caseRecord.images)
+  ) return [];
+  state.unattributedMaskDraft = hasUnattributedMaskDraft(caseRecord);
+  if (state.draftConflict?.caseId === caseRecord.study_id) return [];
+  const restored = [];
+  for (const image of caseRecord.images) {
+    const side = image?.laterality;
+    if (!image?.image_id || !["L", "R"].includes(side)) continue;
+    try {
+      const sideImages = caseRecord.images.filter((candidate) => candidate?.laterality === side);
+      const imageKey = maskDraftKey(caseRecord.study_id, image.image_id);
+      const legacyKey = sideImages.length === 1 ? maskDraftKey(caseRecord.study_id, side) : null;
+      const raw = localStorage.getItem(imageKey) ?? (legacyKey ? localStorage.getItem(legacyKey) : null);
+      if (!raw) continue;
+      const draft = JSON.parse(raw);
+      if (
+        draft?.schema_version !== 2 ||
+        draft.study_id !== caseRecord.study_id ||
+        draft.image_id !== image.image_id ||
+        draft.side !== side ||
+        draft.base_version !== (caseRecord.version ?? null) ||
+        draft.base_review_id !== (image.review?.review_id ?? null)
+      ) continue;
+      image.mask = decode(draft.mask_rle);
+      restored.push(sideImages.length === 1 ? side : `${side}:${image.image_id}`);
+    } catch {
+      continue;
+    }
+  }
+  if (restored.length) state.dirty = true;
+  return restored;
+}
 export function saveDraft() {
   if (!state.case || state.draftConflict) return;
   state.dirty = true;
@@ -186,11 +310,11 @@ export function saveDraft() {
         })),
         images: state.case.images.map((i) => ({
           image_id: i.image_id,
-          mask: i.mask ? encode(i.mask) : null,
           notes: i.notes || "",
           morphology: i.morphology || "",
           morphologyDesc: i.morphologyDesc || "",
           orads: i.orads || "",
+          manual_calipers: i.manualCalipers || [],
         })),
       }),
     );
@@ -237,7 +361,7 @@ export function restoreDraft(c) {
       !c.images.some((image) => image.image_id === saved.image_id) ||
       ["notes", "morphology", "morphologyDesc", "orads"].some(
         (field) => saved[field] != null && typeof saved[field] !== "string",
-      )
+      ) || (saved.manual_calipers != null && !validManualCalipers(saved.manual_calipers, c.images.find((image) => image.image_id === saved.image_id)))
     )
       return conflict();
     savedById.set(saved.image_id, saved);
@@ -273,6 +397,7 @@ export function restoreDraft(c) {
     image.morphology = saved.morphology ?? "";
     image.morphologyDesc = saved.morphologyDesc || "";
     image.orads = saved.orads || "";
+    if (Array.isArray(saved.manual_calipers)) image.manualCalipers = saved.manual_calipers;
   }
   return true;
 }
@@ -285,12 +410,16 @@ export function keepServerVersion() {
     JSON.stringify(state.draftConflict.draft),
   );
   localStorage.removeItem(key);
+  removeCaseMaskDrafts(state.case);
   state.draftConflict = null;
   state.dirty = false;
 }
 export function clearDraft() {
   try {
-    if (state.case) localStorage.removeItem(draftKey(state.case.study_id));
+    if (state.case) {
+      localStorage.removeItem(draftKey(state.case.study_id));
+      removeCaseMaskDrafts(state.case);
+    }
   } catch {
     // The server ACK remains valid even if a stale local draft cannot be removed.
     window.dispatchEvent(new CustomEvent("ova:storage-error"));

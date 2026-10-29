@@ -18,83 +18,49 @@ import {
   field,
 } from "./ui.js";
 import { statusLabels } from "./i18n.js";
-const CASE_PAGE_SIZE = 100;
-const MAX_CASES = 10000;
+function normalizeCase(c) {
+  return {
+    ...c,
+    study_id: c.study_id || c.id,
+    study_code: c.study_code || c.id,
+    images: Array.isArray(c.images)
+      ? c.images.map((image) => ({
+          ...image,
+          image_id: image.image_id || image.id,
+        }))
+      : c.image_id
+        ? [{ id: c.image_id, image_id: c.image_id, laterality: null }]
+        : [],
+  };
+}
 
-export async function getCases(params = {}, { signal } = {}) {
-  if (state.capabilities?.case_workflow !== true) {
-    const items = [];
-    let offset = 0;
-    while (true) {
-      const raw = await request("/api/cases/search", {
-        method: "POST",
-        body: {
-          search: params.search || null,
-          status: params.status && params.status !== "ALL" ? params.status : null,
-          date: params.date || null,
-          limit: CASE_PAGE_SIZE,
-          offset,
-        },
-        signal,
-      });
-      const page = Array.isArray(raw)
-        ? raw
-        : Array.isArray(raw?.items)
-          ? raw.items
-          : null;
-      if (!page || page.length > CASE_PAGE_SIZE)
-        throw Error("Danh sách ca trả về không đúng hợp đồng phân trang.");
-      items.push(...page);
-      if (items.length > MAX_CASES)
-        throw Error("Danh sách quá lớn để tổng hợp trên thiết bị.");
-      if (page.length < CASE_PAGE_SIZE) break;
-      offset += page.length;
-    }
-    return items.map((c) => ({
-      ...c,
-      study_id: c.study_id || c.id,
-      study_code: c.study_code || c.id,
-      patient_id: c.patient_id,
-      study_date: c.study_date,
-      status: c.status,
-      owner_id: null,
-      images: Array.isArray(c.images)
-        ? c.images.map((image) => ({
-            ...image,
-            image_id: image.image_id || image.id,
-          }))
-        : c.image_id
-          ? [{ id: c.image_id, image_id: c.image_id, laterality: null }]
-          : [],
-    }));
-  }
-  const rows = [],
-    scope = role() === "TK" ? "department" : "mine";
-  let page = 1,
-    total = Infinity;
-  while (rows.length < total) {
-    const data = await request(
-      "/api/workspace/cases?" +
-        new URLSearchParams({ scope, page, page_size: 100 }),
-      { signal },
-    );
-    if (
-      !Array.isArray(data.items) ||
-      !Number.isInteger(data.total) ||
-      data.total < 0
-    )
-      throw Error("Danh sách ca chưa đúng contract phân trang.");
-    total = data.total;
-    if (total > 10000)
-      throw Error(
-        "Danh sách quá lớn để tổng hợp trên thiết bị. Cần API tổng hợp dashboard và tra cứu PID.",
-      );
-    if (!data.items.length && rows.length < total)
-      throw Error("Máy chủ trả trang rỗng trước khi hết danh sách.");
-    rows.push(...data.items);
-    page++;
-  }
-  return rows;
+export async function getCasesPage(
+  params = {},
+  { signal, limit = 10, offset = 0, sort = "created_at", direction = "desc" } = {},
+) {
+  const raw = await request("/api/workspace/cases/search", {
+    method: "POST",
+    body: {
+      search: params.search || params.q || null,
+      patient_id: params.patient_id || null,
+      status: params.status && params.status !== "ALL" ? params.status : null,
+      statuses: params.statuses || null,
+      date: params.date || null,
+      limit,
+      offset,
+      sort,
+      direction,
+    },
+    signal,
+  });
+  if (
+    !Array.isArray(raw?.items) ||
+    !Number.isInteger(raw.total) ||
+    raw.total < 0 ||
+    raw.items.length > limit
+  )
+    throw Error("Danh sách ca trả về không đúng hợp đồng phân trang.");
+  return { items: raw.items.map(normalizeCase), total: raw.total };
 }
 export async function getCase(id) {
   const c = await request(
@@ -142,7 +108,7 @@ export async function openCase(id) {
 export function caseTable(rows, { select = false, action = "viewer" } = {}) {
   if (!rows.length)
     return empty("Không có ca phù hợp", "Thử thay đổi bộ lọc hoặc tạo ca mới.");
-  return `<div class="table-wrap"><table><thead><tr>${select ? '<th><input id="selectAll" type="checkbox" aria-label="Chọn tất cả ca trên trang"></th>' : ""}<th>Mã ca / PID</th><th>Hai bên</th><th>Trạng thái</th><th>Ngày khảo sát</th><th>Phụ trách</th><th></th></tr></thead><tbody>${rows.map((c) => `<tr>${select ? `<td><input type="checkbox" class="case-select" value="${esc(c.study_id)}" aria-label="Chọn ${esc(c.study_code)}"></td>` : ""}<td><a href="#case/${encodeURIComponent(c.study_id)}"><strong>${esc(c.study_code || c.study_id)}</strong></a><small>${esc(c.patient_id)}</small></td><td><span class="badge">T ${c.images?.some((i) => i.laterality === "L") ? "✓" : "—"}</span> <span class="badge">P ${c.images?.some((i) => i.laterality === "R") ? "✓" : "—"}</span></td><td>${badge(c.status)}</td><td>${esc(c.study_date)}</td><td>${esc(c.owner_id || "Chưa có")}</td><td><a class="btn small" href="#${action}/${encodeURIComponent(c.study_id)}">${action === "approval" ? "Duyệt ca" : "Mở ca"}</a></td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr>${select ? '<th><input id="selectAll" type="checkbox" aria-label="Chọn tất cả ca trên trang"></th>' : ""}<th>Mã ca / PID</th><th>Hai bên</th><th>Trạng thái</th><th>Ngày khảo sát</th><th></th></tr></thead><tbody>${rows.map((c) => `<tr>${select ? `<td><input type="checkbox" class="case-select" value="${esc(c.study_id)}" aria-label="Chọn ${esc(c.study_code)}"></td>` : ""}<td><a href="#case/${encodeURIComponent(c.study_id)}"><strong>${esc(c.study_code || c.study_id)}</strong></a><small>${esc(c.patient_id)}</small></td><td><span class="badge">T ${c.images?.some((i) => i.laterality === "L") ? "✓" : "—"}</span> <span class="badge">P ${c.images?.some((i) => i.laterality === "R") ? "✓" : "—"}</span></td><td>${badge(c.status)}</td><td>${esc(c.study_date)}</td><td><a class="btn small" href="#${action}/${encodeURIComponent(c.study_id)}">${action === "approval" ? "Đối chiếu RUO" : "Mở ca"}</a></td></tr>`).join("")}</tbody></table></div>`;
 }
 export async function renderCases(root) {
   return (await import("./worklist.js")).renderWorklist(root);
@@ -152,11 +118,11 @@ export async function renderDashboard(root) {
   root.innerHTML =
     pageHead(
       "Tổng quan",
-      `${{ BS: "Bác sĩ", TK: "Chuyên gia duyệt", QT: "Quản trị hệ thống" }[r]} · ${state.user.department || "Đơn vị công tác"}`,
+      `${{ BS: "Bác sĩ", TK: "Chuyên gia rà soát", QT: "Quản trị hệ thống" }[r]} · ${state.user.department || "Đơn vị công tác"}`,
       r === "BS"
         ? `<a class="btn primary" href="#intake">Tải ảnh mới</a>`
         : r === "TK"
-          ? `<a class="btn primary" href="#approval">Duyệt ca tiếp theo</a>`
+          ? `<a class="btn primary" href="#approval">Mở hàng chờ RUO</a>`
           : "",
     ) + `<div id="dashData">${loading()}</div>`;
   try {
@@ -166,7 +132,6 @@ export async function renderDashboard(root) {
         `<div class="metrics"><div class="metric"><span>Máy chủ</span><strong>${esc(health.status || "Đã kết nối")}</strong><small>Trạng thái phản hồi hiện tại</small></div><div class="metric"><span>Quyền truy cập</span><strong>QT</strong><small>Không tải ảnh lâm sàng</small></div><div class="metric"><span>Nhật ký</span><strong>Kiểm tra</strong><small><a href="#admin/audit">Mở Audit Trail</a></small></div><div class="metric"><span>Vận hành</span><strong>Hệ thống</strong><small><a href="#admin/system">Mở kiểm tra và sao lưu</a></small></div></div><div class="grid-2"><section class="panel"><div class="panel-head"><h2>Quản trị truy cập</h2></div><div class="panel-body"><p>Kiểm tra tài khoản mới, trạng thái khóa và quyền được cấp.</p><a class="btn" href="#admin/users">Quản lý tài khoản</a></div></section><section class="panel"><div class="panel-head"><h2>Mô hình đang phục vụ</h2></div><div class="panel-body"><p>Xác minh checkpoint, phiên bản và trạng thái nạp.</p><a class="btn" href="#admin/models">Danh mục mô hình</a></div></section></div>`;
       return;
     }
-    const rows = await getCases();
     const localToday = (() => {
       const d = new Date();
       return [
@@ -175,23 +140,22 @@ export async function renderDashboard(root) {
         String(d.getDate()).padStart(2, "0"),
       ].join("-");
     })();
-    const pending = rows.filter((c) =>
-        ["IN_REVIEW", "AI_DONE", "REJECTED", "ANALYZED", "PENDING"].includes(c.status),
-      ),
-      waiting = rows.filter((c) => c.status === "SIGNED_PRELIM");
+    const queue = r === "TK" ? "reviewer" : "doctor";
+    const summary = await request(
+      "/api/workspace/dashboard/summary?" +
+        new URLSearchParams({ date: localToday, queue }),
+    );
+    const { counts, items } = summary;
+    const pending = queue === "doctor" ? items : [];
+    const waiting = queue === "reviewer" ? items : [];
     $("#dashData").innerHTML = `<div class="metrics">${[
       [
         "Ca hôm nay",
-        rows.filter((c) => (c.study_date || "").startsWith(localToday)).length,
+        counts.today,
         "Theo ngày khảo sát",
       ],
-      ["Đang rà soát", pending.length, "Cần tiếp tục xử lý"],
-      ["Chờ duyệt", waiting.length, "Đã ký sơ bộ"],
-      [
-        "Bị từ chối",
-        rows.filter((c) => c.status === "REJECTED").length,
-        "Cần bổ sung rà soát",
-      ],
+      ["Đang rà soát", counts.pending, "Cần tiếp tục xử lý"],
+      ["Chờ đối chiếu RUO", counts.waiting, "Không phải phê duyệt lâm sàng"],
     ]
       .map(
         (m) =>
@@ -199,7 +163,7 @@ export async function renderDashboard(root) {
       )
       .join(
         "",
-      )}</div><div class="two-col"><section class="panel"><div class="panel-head"><h2>${r === "TK" ? "Hàng chờ duyệt" : "Tiếp tục công việc"}</h2><a href="#cases">Xem tất cả</a></div>${caseTable((r === "TK" ? waiting : pending).slice(0, 5), { action: r === "TK" ? "approval" : "viewer" })}</section><section class="panel"><div class="panel-head"><h2>Quy trình rà soát</h2></div><div class="panel-body"><ol class="timeline"><li><strong>Hai ảnh, hai bên</strong><small>Kiểm tra rõ nhãn Trái / Phải.</small></li><li><strong>Quan sát trước khi xác nhận</strong><small>Đối chiếu đường biên với ảnh gốc.</small></li><li><strong>Kiểm tra hiệu chuẩn</strong><small>Thiếu spacing chỉ hiển thị pixel.</small></li><li><strong>Lưu và chuyển duyệt</strong><small>Mỗi thay đổi có phiên bản và người thực hiện.</small></li></ol></div></section></div>`;
+      )}</div><div class="two-col"><section class="panel"><div class="panel-head"><h2>${r === "TK" ? "Hàng chờ rà soát RUO" : "Tiếp tục công việc"}</h2><a href="#cases">Xem tất cả</a></div>${caseTable((r === "TK" ? waiting : pending).slice(0, 5), { action: r === "TK" ? "approval" : "viewer" })}</section><section class="panel"><div class="panel-head"><h2>Quy trình rà soát</h2></div><div class="panel-body"><ol class="timeline"><li><strong>Hai ảnh, hai bên</strong><small>Kiểm tra rõ nhãn Trái / Phải.</small></li><li><strong>Quan sát trước khi xác nhận</strong><small>Đối chiếu đường biên với ảnh gốc.</small></li><li><strong>Kiểm tra hiệu chuẩn</strong><small>Thiếu spacing chỉ hiển thị pixel.</small></li><li><strong>Lưu bản rà soát</strong><small>Lưu vết thao tác không phải ký hoặc phê duyệt lâm sàng.</small></li></ol></div></section></div>`;
   } catch (e) {
     $("#dashData").innerHTML = errorBox(e.message);
     $("[data-action=retry]").onclick = () => renderDashboard(root);
@@ -213,7 +177,7 @@ export async function renderCaseDetail(root, id) {
       `<div class="breadcrumb"><a href="#cases">Danh sách ca</a> / ${esc(c.study_code || c.study_id)}</div>` +
       pageHead(
         c.study_code || c.study_id,
-        c.patient_id,
+        `PID ${c.patient_id} · Visit No ${c.visit_no || "Chưa cấp"}`,
         `<a class="btn" href="#report/${id}">Phiếu kết quả</a><a class="btn primary" href="#viewer/${id}">Mở workstation</a>`,
       ) +
       `<div class="two-col"><section class="panel"><div class="panel-head"><h2>Thông tin khảo sát</h2>${badge(c.status)}</div><div class="panel-body"><div class="grid-2"><div><p class="muted">PID ẩn danh</p><h2>${esc(c.patient_id)}</h2></div><div><p class="muted">Ngày khảo sát</p><h2>${esc(c.study_date)}</h2></div></div><p>${esc(c.clinical_indication || "Chưa ghi nhận lý do")}</p><p>Phiên bản ${c.version || "chưa có dữ liệu"}</p>${c.reason ? `<div class="banner warning">${esc(c.reason)}</div>` : ""}</div></section><section class="panel"><div class="panel-head"><h2>Dòng thời gian</h2></div><div class="panel-body"><ol class="timeline">${(c.timeline || []).map((t) => `<li><strong>${esc(t.action)}</strong><small>${esc(t.actor)} · ${esc(t.at)}</small><p>${esc(t.reason)}</p></li>`).join("") || "<li>Máy chủ chưa cung cấp lịch sử trạng thái.</li>"}</ol></div></section></div><section class="panel" style="margin-top:24px"><div class="panel-head"><h2>Lịch sử phiên bản và bản bổ sung</h2></div><div class="panel-body">${(c.versions || []).map((v) => `<p>Phiên bản ${v.version} · Bản lưu trước bổ sung · ${v.images.length} ảnh</p>`).join("") || empty("Chưa có bản bổ sung", "Phiên bản cũ được giữ khi tạo bản bổ sung sau khóa.")}</div></section>`;

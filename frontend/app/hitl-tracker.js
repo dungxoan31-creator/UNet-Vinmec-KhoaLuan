@@ -536,6 +536,9 @@ export function createTracker({
           method: "POST",
           body: { events: batch },
           headers: flushingHeaders,
+          // The durable outbox belongs to the session, not the current route.
+          // A navigation must not cancel an acknowledgement already being sent.
+          signal: null,
         });
         flushingQueue.splice(0, batch.length);
         persistQueue(flushingSessionId, flushingStudyId, flushingOwnerId, flushingQueue);
@@ -636,12 +639,27 @@ export function trackUIEvent(caseId, event, payload = {}) {
   }
 }
 
+export function clearUIEvents() {
+  if (uiFlushTimer) {
+    clearTimeout(uiFlushTimer);
+    uiFlushTimer = null;
+  }
+  uiQueue = [];
+}
+
 export async function flushUIEvents() {
   if (uiFlushTimer) {
     clearTimeout(uiFlushTimer);
     uiFlushTimer = null;
   }
   if (!uiQueue.length) return;
+  try {
+    const stateMod = await import("./state.js");
+    if (stateMod.role?.() !== "BS") {
+      uiQueue = [];
+      return;
+    }
+  } catch {}
   const batch = uiQueue.splice(0, uiQueue.length);
   try {
     const activeRequest = defaultRequest || (await import("./api.js")).request;

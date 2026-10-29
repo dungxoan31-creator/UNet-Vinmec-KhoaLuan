@@ -3,9 +3,12 @@ Model abstraction and registry for the RUO ovarian ultrasound segmentation proto
 The primary checkpoint and architecture are selected by the hash-verified model manifest.
 """
 import json
+import math
 import os
 import tempfile
+import threading
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -13,6 +16,51 @@ import numpy as np
 import torch
 
 from backend.services.inference_engine import InferenceEngine
+
+
+class InferenceBusyError(RuntimeError):
+    """The bounded inference queue is full or its wait deadline elapsed."""
+
+
+class InferenceAdmission:
+    """Bound active and waiting inference requests within one server process."""
+
+    def __init__(self, max_running=1, max_waiting=2, timeout_seconds=10.0):
+        if (type(max_running) is not int or not 1 <= max_running <= 64
+                or type(max_waiting) is not int or not 0 <= max_waiting <= 256
+                or isinstance(timeout_seconds, bool)
+                or not isinstance(timeout_seconds, (int, float))
+                or not math.isfinite(timeout_seconds) or not 0 < timeout_seconds <= 120):
+            raise ValueError("Invalid inference admission limits")
+        self._capacity = threading.BoundedSemaphore(max_running + max_waiting)
+        self._running = threading.BoundedSemaphore(max_running)
+        self.timeout_seconds = float(timeout_seconds)
+
+    @contextmanager
+    def slot(self):
+        if not self._capacity.acquire(blocking=False):
+            raise InferenceBusyError("Inference queue is full")
+        acquired = False
+        try:
+            acquired = self._running.acquire(timeout=self.timeout_seconds)
+            if not acquired:
+                raise InferenceBusyError("Inference queue wait timed out")
+            yield
+        finally:
+            if acquired:
+                self._running.release()
+            self._capacity.release()
+
+
+def _inference_admission_from_environment():
+    try:
+        return InferenceAdmission(
+            max_running=int(os.getenv("APP_INFERENCE_MAX_RUNNING", "1")),
+            max_waiting=int(os.getenv("APP_INFERENCE_MAX_WAITING", "2")),
+            timeout_seconds=float(os.getenv("APP_INFERENCE_WAIT_SECONDS", "10")),
+        )
+    except (ValueError, TypeError, OverflowError) as exc:
+        raise ValueError("Invalid inference admission configuration") from exc
 
 
 class BaseModelAdapter(ABC):
@@ -376,6 +424,7 @@ class ModelRegistry:
     """
 
     def __init__(self, checkpoint_path: str | None = None, model_selection: dict | None = None):
+        self._admission = _inference_admission_from_environment()
         self.adapters: dict[str, BaseModelAdapter] = {}
         self.primary_model_key = "attention_unet"
         self.ensemble_enabled = False
@@ -481,9 +530,10 @@ class ModelRegistry:
             if adapter is None:
                 raise ValueError(f"Unknown model key '{model_key}'.")
 
-        return adapter.predict(
-            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
-        )
+        with self._admission.slot():
+            return adapter.predict(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
+            )
 
     def get_admin_overview(self) -> dict[str, Any]:
         """Provides operational metrics for Admin / Engineering view."""

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.config import (
     ENABLED_FEATURES,
+    SYNTHETIC_DEMO_MODE,
     SYSTEM_ENVIRONMENT,
     is_feature_enabled,
     model_registry,
@@ -34,6 +35,10 @@ def get_system_capabilities() -> dict[str, Any]:
         "remote_lease": True,
         "clinical_production_ready": False,
         "research_use_only": True,
+        "clinical_validation_status": "BLOCKED",
+        "postgresql_supported": False,
+        "synthetic_demo_mode": SYNTHETIC_DEMO_MODE,
+        "synthetic_demo_uploads_restricted": SYNTHETIC_DEMO_MODE,
         "feature_autofill": is_feature_enabled("autofill"),
         "feature_fast_review": is_feature_enabled("fast_review"),
         "feature_cdss_background": is_feature_enabled("cdss_background"),
@@ -77,8 +82,16 @@ def readiness_check():
 
     payload = {
         "status": "ready" if is_ready else "unhealthy",
+        "readiness_scope": "TECHNICAL_SERVICE_ONLY",
         "database": "connected" if db_ready else "disconnected",
+        "database_engine": engine.dialect.name,
         "model_ready": model_ready,
+        "clinical_production_ready": False,
+        "research_use_only": True,
+        "clinical_validation_status": "BLOCKED",
+        "postgresql_supported": False,
+        "synthetic_demo_mode": SYNTHETIC_DEMO_MODE,
+        "synthetic_demo_uploads_restricted": SYNTHETIC_DEMO_MODE,
         "primary_model": getattr(adapter, "name", "None") if adapter else None,
         "timestamp": datetime.now(UTC).isoformat(),
     }

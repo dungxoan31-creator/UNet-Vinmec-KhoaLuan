@@ -160,13 +160,14 @@ def test_check_only_fails_on_missing_checkpoint(tmp_path):
 
 
 def test_launch_uses_configured_runtime(tmp_path):
-    """run_prototype.ps1 -CheckOnly succeeds with code 0 when all pre-flight conditions are met."""
+    """Technical pre-flight passes without implying synthetic isolation or clinical readiness."""
     script_path = PROJECT_ROOT / "scripts" / "run_prototype.ps1"
     env = dict(os.environ)
     env["APP_JWT_SECRET"] = "test-secret-at-least-32-characters-long-2026"
     env["APP_PATIENT_PID_HMAC_SECRET"] = "patient-id-hmac-secret-at-least-32-bytes"
     env["APP_DOCTOR_PASSWORD"] = "doctor-local-test-2026"
     env["APP_ADMIN_PASSWORD"] = "admin-local-test-2026"
+    env.pop("APP_SYNTHETIC_DEMO_MODE", None)
 
     proc = subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-CheckOnly", "-RuntimeDir", str(tmp_path)],
@@ -175,7 +176,36 @@ def test_launch_uses_configured_runtime(tmp_path):
         text=True,
     )
     assert proc.returncode == 0, f"CheckOnly failed: {proc.stdout}\n{proc.stderr}"
-    assert "readiness check passed" in proc.stdout.lower() or "ready" in proc.stdout.lower()
+    output = " ".join((proc.stdout + proc.stderr).lower().split())
+    assert "technical pre-flight checks passed" in output
+    assert "not a clinical readiness check" in output
+    assert "synthetic-only upload restriction is off" in output
+    assert "do not use patient data" in output
+    assert "clinical readiness or authorization" in output
+
+
+def test_launcher_distinguishes_synthetic_mode_requested_from_runtime_validation(tmp_path):
+    script_path = PROJECT_ROOT / "scripts" / "run_prototype.ps1"
+    env = dict(os.environ)
+    env["APP_JWT_SECRET"] = "test-secret-at-least-32-characters-long-2026"
+    env["APP_PATIENT_PID_HMAC_SECRET"] = "patient-id-hmac-secret-at-least-32-bytes"
+    env["APP_DOCTOR_PASSWORD"] = "doctor-local-test-2026"
+    env["APP_ADMIN_PASSWORD"] = "admin-local-test-2026"
+    env["APP_SYNTHETIC_DEMO_MODE"] = "true"
+
+    proc = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-CheckOnly", "-RuntimeDir", str(tmp_path)],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    output = " ".join((proc.stdout + proc.stderr).lower().split())
+    assert proc.returncode == 0, f"CheckOnly failed: {proc.stdout}\n{proc.stderr}"
+    assert "synthetic-only demo mode was requested" in output
+    assert "backend startup must still validate" in output
+    assert "synthetic-only upload restriction is off" not in output
+    assert "not a clinical readiness check" in output
 
 
 def test_launcher_preflight_verifies_selected_manifest_checkpoint(tmp_path):

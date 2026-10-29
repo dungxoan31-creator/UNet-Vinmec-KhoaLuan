@@ -114,7 +114,7 @@ export function renderPersonal(root, route) {
       modal(
         "Báo lỗi / góp ý",
         field("Tiêu đề", "title", "text", "", "required") +
-          '<label class="field">Mô tả<textarea name="message" required></textarea></label><p class="small muted">Không gửi thông tin định danh bệnh nhân.</p><button class="btn primary" type="submit">Gửi góp ý</button>',
+          '<label class="field">Mô tả<textarea name="message" required></textarea></label><p class="small muted">Không gửi tên, ngày sinh, PID/mã bệnh án, ảnh hoặc nội dung lâm sàng của bệnh nhân. Góp ý được lưu trong nhật ký hệ thống.</p><button class="btn primary" type="submit">Gửi góp ý</button>',
         async (e, d) => {
           try {
             {

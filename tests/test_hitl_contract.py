@@ -206,15 +206,33 @@ def test_inference_uses_training_clahe_pipeline():
 
 
 def test_predict_rejects_missing_checkpoint(monkeypatch):
+    from types import SimpleNamespace
+
     from fastapi import HTTPException
 
     from backend.app.config import model_registry
-    from backend.app.routers.inference import run_ai_prediction
+    from backend.app.routers import inference
 
     adapter = model_registry.get_primary_adapter()
     monkeypatch.setattr(adapter, "is_loaded", False)
+    monkeypatch.setattr(inference, "require_active_case_lease", lambda *_args, **_kwargs: None)
+
+    class Query:
+        def filter(self, *_args, **_kwargs):
+            return self
+
+        def first(self):
+            return SimpleNamespace(raw_path="unused", filename="image.png", study_id="study-1")
+
+        def scalar(self):
+            return "PENDING"
+
+    class Database:
+        def query(self, *_args, **_kwargs):
+            return Query()
+
     with pytest.raises(HTTPException) as error:
-        run_ai_prediction("image-1", db=None)
+        inference.run_ai_prediction("image-1", db=Database())
     assert error.value.status_code == 503
 
 

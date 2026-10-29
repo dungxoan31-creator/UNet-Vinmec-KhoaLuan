@@ -69,7 +69,7 @@ export async function renderNotifications(root) {
             .join("")
         : empty(
             "Không có thông báo mới",
-            "Thông báo về ca bị từ chối và ca chờ duyệt sẽ xuất hiện ở đây.",
+            "Thông báo về bản rà soát cần chỉnh sửa hoặc chờ đối chiếu sẽ xuất hiện ở đây.",
           );
       $$("[data-read]", root).forEach(
         (b) =>

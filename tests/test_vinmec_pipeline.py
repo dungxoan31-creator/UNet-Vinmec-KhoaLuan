@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 
 import cv2
@@ -21,7 +22,7 @@ def _pair(root: Path, group: str, stem: str, value: int = 255) -> None:
     assert cv2.imwrite(str(mask_dir / f"{stem}.PNG"), mask)
 
 
-def test_prepare_splits_preserves_source_test_and_declares_unknown_patient_ids(tmp_path):
+def test_prepare_splits_preserves_source_test_and_writes_image_level_rows(tmp_path):
     for i in range(10):
         _pair(tmp_path, "train", str(i))
     for i in range(3):
@@ -29,12 +30,18 @@ def test_prepare_splits_preserves_source_test_and_declares_unknown_patient_ids(t
     output = tmp_path / "splits"
     prepare_splits(tmp_path, output, val_fraction=0.2, seed=42)
     rows = {}
+    fieldnames = {}
     for name in ("train", "val", "test"):
         with (output / f"{name}.csv").open(newline="", encoding="utf-8") as stream:
-            rows[name] = list(csv.DictReader(stream))
+            reader = csv.DictReader(stream)
+            fieldnames[name] = reader.fieldnames
+            rows[name] = list(reader)
     assert [len(rows[name]) for name in ("train", "val", "test")] == [8, 2, 3]
     assert {r["case_id"] for r in rows["test"]} == {"10", "11", "12"}
-    assert all(not r["patient_id"] for group in rows.values() for r in group)
+    assert all("patient_id" not in columns for columns in fieldnames.values())
+    manifest_data = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest_data["split_level"] == "image-level"
+    assert manifest_data["patient_identity_used_for_training"] is False
     assert len({r["image_path"] for group in rows.values() for r in group}) == 13
 
 
@@ -47,6 +54,7 @@ def test_dataset_preserves_binary_zero_one_mask_and_rejects_missing_mask(tmp_pat
     sample = OvarianUltrasoundDataset(manifest)[0]
     assert sample["mask"].sum().item() > 0
     assert set(sample["mask"].unique().tolist()) <= {0.0, 1.0}
+    assert "patient_id" not in sample
     mask.unlink()
     with pytest.raises(FileNotFoundError, match="Mask not found"):
         OvarianUltrasoundDataset(manifest)[0]

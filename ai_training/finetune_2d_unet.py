@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from ai_training.train_baseline_unet import (
     ComboLoss,
     compute_batch_dice,
-    load_verified_train_val_datasets,
+    load_train_val_datasets,
     validate_checkpoint_provenance,
 )
 from backend.models.unet import StandardUNet
@@ -24,7 +24,7 @@ def finetune(split_dir: Path, checkpoint: Path, output_dir: Path, epochs: int = 
         raise ValueError("Epochs must be positive")
 
     split_dir = Path(split_dir)
-    train_dataset, val_dataset, manifest = load_verified_train_val_datasets(split_dir)
+    train_dataset, val_dataset, manifest = load_train_val_datasets(split_dir)
     manifest_path = split_dir / "manifest.json"
     split_manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     initial_checkpoint_sha256 = validate_checkpoint_provenance(
@@ -48,7 +48,7 @@ def finetune(split_dir: Path, checkpoint: Path, output_dir: Path, epochs: int = 
     final = output_dir / "finetune_2d_final.pth"
     started = time.time()
     print(
-        f"Fine-tuning {len(train_dataset)} patient-verified training pairs; "
+        f"Fine-tuning {len(train_dataset)} image-level training pairs; "
         f"validation pairs={len(val_dataset)}, epochs={epochs} on {device}",
         flush=True,
     )
@@ -111,7 +111,9 @@ def finetune(split_dir: Path, checkpoint: Path, output_dir: Path, epochs: int = 
     final_sha256 = hashlib.sha256(final.read_bytes()).hexdigest()
     run_config = {
         "architecture": "Standard U-Net (base_filters=32), fine-tuned",
-        "identity_status": "patient_level_verified",
+        "identity_status": "image_level_verified",
+        "split_level": "image-level",
+        "patient_level_independence_verified": False,
         "split_dir": str(split_dir.resolve()),
         "split_manifest_sha256": split_manifest_sha256,
         "train_count": len(train_dataset),

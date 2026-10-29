@@ -6,7 +6,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 import jwt
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from backend.db.database import UserModel, get_db
@@ -52,7 +52,11 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     return jwt.encode(payload, _signing_key(), algorithm=JWT_ALGORITHM)
 
 
-def get_current_user(authorization: str | None = Header(None), db: Session = Depends(get_db)) -> UserModel:
+def get_current_user(
+    request: Request,
+    authorization: str | None = Header(None),
+    db: Session = Depends(get_db),
+) -> UserModel:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Sign in required.", headers={"WWW-Authenticate": "Bearer"})
     try:
@@ -96,6 +100,14 @@ def get_current_user(authorization: str | None = Header(None), db: Session = Dep
             revoked_ts = (revoked_at.replace(tzinfo=UTC) if revoked_at.tzinfo is None else revoked_at).timestamp()
             if float(issued_at) <= revoked_ts:
                 raise HTTPException(status_code=401, detail="Token has been revoked.")
+
+    password_setup_paths = {
+        "/api/auth/current-user",
+        "/api/auth/change-password",
+        "/api/auth/logout",
+    }
+    if getattr(user, "must_change_password", False) and request.url.path not in password_setup_paths:
+        raise HTTPException(status_code=403, detail="Phải đổi mật khẩu trước khi tiếp tục.")
 
     return user
 

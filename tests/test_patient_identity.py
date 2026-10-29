@@ -1,5 +1,7 @@
+import logging
 from io import BytesIO
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from PIL import Image
@@ -10,14 +12,18 @@ from backend.core.patient_identity import patient_id_digest
 from backend.db.database import PatientModel, SessionLocal, StudyModel
 
 
-def test_case_intake_pseudonymizes_and_reuses_source_patient_id(doctor_access):
+def test_case_intake_pseudonymizes_and_reuses_source_patient_id(doctor_access, caplog):
     source_pid = "EXTERNAL-PATIENT-SENTINEL-9f14d12a"
 
     with TestClient(app) as client:
-        first = client.post("/api/cases", json={"patient_id": source_pid, "study_date": "2026-10-21"})
-        second = client.post("/api/cases", json={"patient_id": source_pid, "study_date": "2026-10-21"})
+        first = client.post("/api/cases", json={"patient_id": source_pid, "study_date": "2026-10-21"},
+                            headers={"Idempotency-Key": str(uuid4())})
+    with caplog.at_level(logging.INFO), TestClient(app) as client:
+        second = client.post("/api/cases", json={"patient_id": source_pid, "study_date": "2026-10-21"},
+                             headers={"Idempotency-Key": str(uuid4())})
+        persisted = client.get(f"/api/cases/{first.json()['study_id']}")
         source_search = client.post("/api/cases/search", json={"search": source_pid})
-        url_search = client.get("/api/cases", params={"search": source_pid})
+        url_search = client.get("/api/cases", params={"search": first.json()["study_code"]})
 
     assert first.status_code == 200, first.text
     assert second.status_code == 200, second.text
@@ -28,8 +34,18 @@ def test_case_intake_pseudonymizes_and_reuses_source_patient_id(doctor_access):
     assert first_data["patient_id"].startswith("SYN-")
     assert first_data["patient_id"] != source_pid
     assert second_data["patient_id"] == first_data["patient_id"]
+    assert first_data["visit_no"].isascii() and first_data["visit_no"].isdigit()
+    assert len(first_data["visit_no"]) == 6
+    assert second_data["visit_no"] != first_data["visit_no"]
+    assert persisted.status_code == 200
+    assert persisted.json()["patient_id"] == first_data["patient_id"]
+    assert persisted.json()["visit_no"] == first_data["visit_no"]
     assert len(source_search.json()) >= 2
-    assert first_data["patient_id"] not in {row["patient_id"] for row in url_search.json()}
+    assert source_pid not in str(first.request.url)
+    assert source_pid not in str(source_search.request.url)
+    assert source_pid not in caplog.text
+    assert source_pid not in {row["patient_id"] for row in url_search.json()}
+    assert first_data["study_code"] in {row["study_code"] for row in url_search.json()}
 
     with SessionLocal() as db:
         patient = db.query(PatientModel).filter_by(anonymized_pid=first_data["patient_id"]).one()
@@ -109,3 +125,31 @@ def test_case_search_body_is_bounded_and_rejects_unknown_fields(doctor_access):
     assert too_long.status_code == 422
     assert too_many.status_code == 422
     assert unknown.status_code == 422
+
+
+def test_case_search_treats_sql_injection_payload_as_plain_text(doctor_access):
+    import uuid
+
+    marker = f"SQLI-CANARY-{uuid.uuid4().hex}"
+    with TestClient(app) as client:
+        created = client.post(
+            "/api/cases",
+            headers={"Idempotency-Key": str(uuid4())},
+            json={
+                "patient_id": f"PATIENT-{uuid.uuid4().hex}",
+                "study_code": marker,
+                "study_date": "2026-10-29",
+            },
+        )
+        assert created.status_code == 200, created.text
+
+        normal = client.get("/api/cases", params={"search": marker})
+        attack = client.get(
+            "/api/cases",
+            params={"search": f"' OR 1=1 -- {uuid.uuid4().hex}"},
+        )
+
+    assert normal.status_code == 200
+    assert any(row["study_id"] == created.json()["study_id"] for row in normal.json())
+    assert attack.status_code == 200
+    assert attack.json() == [], "SQL syntax must remain a literal search string, not broaden the query."

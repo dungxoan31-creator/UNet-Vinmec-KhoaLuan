@@ -1,4 +1,4 @@
-import { state } from "./state.js";
+import { state, setBusy } from "./state.js";
 import { request, uploadFile } from "./api.js";
 import { decode } from "./coordinates.js";
 import { $, errorBox, button, toast, modal } from "./ui.js";
@@ -8,14 +8,36 @@ let pending = null;
 
 export async function startBilateral(files, metadata) {
   if (state.busy) return;
-  if (!files.L || !files.R)
-    return toast("Cần đủ ảnh trái và phải trước khi chạy.", true);
+  // Keep the legacy single-File contract while allowing ordered image lists per side.
+  const imageEntries = Object.fromEntries(["L", "R"].map(side => [
+    side,
+    (Array.isArray(files?.[side]) ? files[side] : files?.[side] ? [files[side]] : []).map((item, index) => ({
+      file: item && typeof item === "object" && "file" in item ? item.file : item,
+      dicom: item && typeof item === "object" && "file" in item ? item.dicom : metadata.dicom?.[side],
+      intakeKey: item && typeof item === "object" && typeof item.id === "string"
+        ? item.id
+        : `${item?.name || item?.file?.name || "image"}:${item?.size || item?.file?.size || 0}:${item?.lastModified || item?.file?.lastModified || 0}:${index}`,
+      index,
+    })),
+  ]));
+  const uploadSides = ["L", "R"].filter(side => imageEntries[side].length > 0);
+  const imageCount = uploadSides.reduce((total, side) => total + imageEntries[side].length, 0);
+  const activeOvarySide = metadata.active_ovary_side || (imageEntries.L.length && imageEntries.R.length ? "BOTH" : imageEntries.L.length ? "LEFT" : "RIGHT");
+  const contralateralStatus = metadata.contralateral_status ?? (imageEntries.L.length && imageEntries.R.length ? "UNKNOWN" : null);
+  if (!uploadSides.length)
+    return toast("Cần ít nhất một ảnh buồng trứng trước khi chạy.", true);
+  if (uploadSides.length === 1 && !["SURGICALLY_ABSENT", "NOT_VISUALIZED"].includes(contralateralStatus))
+    return toast("Cần ghi nhận đúng tình trạng bên không có ảnh trước khi chạy.", true);
+  if (imageCount > 40 || ["L", "R"].some(side => imageEntries[side].length > 20))
+    return toast("Mỗi bên chỉ được tải tối đa 20 ảnh.", true);
+  if (imageEntries.L.concat(imageEntries.R).some(entry => !entry.file || entry.file.size > 20 * 1024 * 1024))
+    return toast("Mỗi ảnh phải có dữ liệu và không vượt quá 20 MB.", true);
   if (!metadata.study_date)
     return toast("Chọn ngày khảo sát trước khi chạy.", true);
 
   const identity = state.user?.id,
     operation = Symbol();
-  state.busy = true;
+  setBusy(true);
   state.operation = operation;
   state.controller = new AbortController();
   const signal = state.controller.signal,
@@ -25,7 +47,7 @@ export async function startBilateral(files, metadata) {
   const indicator = setTimeout(() => {
     if (cancel) cancel.disabled = false;
   }, 1000);
-  const timeout = setTimeout(() => state.controller?.abort("timeout"), 45000);
+  const timeout = setTimeout(() => state.controller?.abort("timeout"), 30 * 60 * 1000);
   const stage = (s, text) => {
     const el = $("#stage-" + s);
     if (el) el.textContent = text;
@@ -46,6 +68,15 @@ export async function startBilateral(files, metadata) {
       "X-Case-Page-Instance-Id": pageInstanceId,
     };
   };
+  const uploadIdempotencyKey = (side, entry) => {
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(entry.intakeKey))
+      return entry.intakeKey;
+    pending.uploadIdempotencyKeys ??= new Map();
+    const entryKey = `${side}\0${entry.intakeKey}`;
+    if (!pending.uploadIdempotencyKeys.has(entryKey))
+      pending.uploadIdempotencyKeys.set(entryKey, crypto.randomUUID());
+    return pending.uploadIdempotencyKeys.get(entryKey);
+  };
   const ensureCaseLease = async () => {
     if (pending.lease?.editable && pending.lease.leaseToken?.()) return;
     pending.lease?.release();
@@ -65,13 +96,14 @@ export async function startBilateral(files, metadata) {
     target.lease = lease;
     target.leaseLost = false;
   };
-  async function upload(side) {
+  async function upload(side, entry) {
     check();
-    let image = pending.images.find((i) => i.laterality === side);
+    let image = pending.images.find((i) => i.laterality === side && i.intakeKey === entry.intakeKey);
     if (!image) {
-      stage(side, "Đang tải ảnh…");
+      stage(side, `Đang tải ảnh ${entry.index + 1}/${imageEntries[side].length}…`);
+      const uploadKey = uploadIdempotencyKey(side, entry);
       const result = await uploadFile(
-        files[side],
+        entry.file,
         pending.study_id,
         side,
         (p) => {
@@ -79,13 +111,18 @@ export async function startBilateral(files, metadata) {
           if (el) el.value = p;
         },
         signal,
-        metadata.dicom?.[side],
+        entry.dicom,
         leaseHeaders(),
+        uploadKey,
       );
       check();
       image = {
         ...result,
         laterality: side,
+        intakeKey: entry.intakeKey,
+        inferenceIdempotencyKey: uploadKey,
+        intakeIndex: entry.index,
+        viewLabel: `Ảnh ${entry.index + 1}/${imageEntries[side].length}`,
         history: [],
         redo: [],
         seen: false,
@@ -121,6 +158,8 @@ export async function startBilateral(files, metadata) {
       pending.owner !== identity ||
       pending.files.L !== files.L ||
       pending.files.R !== files.R ||
+      pending.active_ovary_side !== activeOvarySide ||
+      pending.contralateral_status !== contralateralStatus ||
       (pending.patient_id && targetPid && pending.patient_id !== targetPid) ||
       (pending.requested_pid !== undefined && pending.requested_pid !== targetPid)
     ) {
@@ -131,14 +170,29 @@ export async function startBilateral(files, metadata) {
           patient_id:
             targetPid ||
             "BN-" + crypto.randomUUID().slice(0, 8).toUpperCase(),
-          active_ovary_side: "BOTH",
-          clinical_notes: metadata.reason,
+          active_ovary_side: activeOvarySide,
+          contralateral_status: contralateralStatus || "UNKNOWN",
+          clinical_notes: state.capabilities?.synthetic_demo_mode === true ? null : metadata.reason,
           study_date: metadata.study_date,
         },
+        headers: metadata.idempotency_key
+          ? { "Idempotency-Key": metadata.idempotency_key }
+          : {},
         signal,
       });
       check();
-      pending = { ...result, owner: identity, files: { ...files }, images: [], requested_pid: targetPid };
+      pending = {
+        ...result,
+        owner: identity,
+        files: { ...files },
+        images: [],
+        requested_pid: targetPid,
+        active_ovary_side: activeOvarySide,
+        contralateral_status: contralateralStatus || "UNKNOWN",
+      };
+      document.querySelectorAll(".intake-images .dropzone").forEach(zone => { zone.dataset.uploadLocked = "true"; });
+      const visitNumber = document.querySelector("[data-visit-no]");
+      if (visitNumber) visitNumber.textContent = /^\d{6}$/.test(result.visit_no || "") ? result.visit_no : "Chưa cấp";
       await ensureCaseLease();
       // UAT-03: Lock PID field once a case has been created to prevent stale PID on retry
       const pidInput = document.querySelector("[name=pid]");
@@ -167,14 +221,16 @@ export async function startBilateral(files, metadata) {
       });
     };
     setStep(1);
-    // Upload both sides before inference so a failed model can still lead to manual review.
-    for (const side of ["L", "R"]) await upload(side);
-    for (const side of ["L", "R"]) {
+    // Upload each selected still frame before inference so failures preserve the full study.
+    for (const side of uploadSides) {
+      for (const entry of imageEntries[side]) await upload(side, entry);
+    }
+    let completedImages = 0;
+    for (const side of uploadSides) for (const image of pending.images.filter(item => item.laterality === side)) {
       check();
-      const image = pending.images.find((i) => i.laterality === side);
-      if (image.prediction) continue;
+      if (image.prediction) { completedImages++; continue; }
       setStep(2);
-      stage(side, "Kiểm tra chất lượng ảnh…");
+      stage(side, `Kiểm tra chất lượng ảnh ${image.intakeIndex + 1}/${imageEntries[side].length}…`);
       const quality = await request(
         "/api/validate-image?image_id=" + encodeURIComponent(image.image_id),
         { method: "POST", signal, headers: leaseHeaders() },
@@ -190,13 +246,18 @@ export async function startBilateral(files, metadata) {
         );
       }
       setStep(3);
-      stage(side, "AI đang phân đoạn…");
+      stage(side, `AI đang phân đoạn ảnh ${image.intakeIndex + 1}/${imageEntries[side].length}…`);
       tracker.track(image.image_id, "INFERENCE_START");
       let prediction;
+      image.inferenceIdempotencyKey ??= uploadIdempotencyKey(side, imageEntries[side].find(entry => entry.intakeKey === image.intakeKey));
       try {
         prediction = await request(
           "/api/predict/" + encodeURIComponent(image.image_id),
-          { method: "POST", signal, headers: leaseHeaders() },
+          {
+            method: "POST",
+            signal,
+            headers: { ...leaseHeaders(), "Idempotency-Key": image.inferenceIdempotencyKey },
+          },
         );
         tracker.track(image.image_id, "INFERENCE_END");
       } catch (err) {
@@ -215,7 +276,8 @@ export async function startBilateral(files, metadata) {
       image.sourceIsModel = true;
       image.measurements = prediction.measurements;
       image.anonymization = { status: "UNVERIFIED" };
-      stage(side, "Đã phân đoạn · số đo sẽ cập nhật trong workstation");
+      completedImages++;
+      stage(side, `Đã phân đoạn ${completedImages}/${imageCount} ảnh · số đo sẽ cập nhật trong workstation`);
     }
     open();
   } catch (error) {
@@ -228,7 +290,7 @@ export async function startBilateral(files, metadata) {
             : error.message,
           "retry-upload-error",
         ) +
-        `<div class="actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${pending?.images.length === 2 ? button("Chuyển sang chế độ vẽ tay", "manual-fallback", "quiet") : ""}${error.qualityImage && state.capabilities.iqa_override ? button("Bỏ qua cảnh báo & tiếp tục", "iqa-override", "quiet") : ""}</div>`;
+        `<div class="actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${pending?.images.length >= 1 ? button("Chuyển sang chế độ vẽ tay", "manual-fallback", "quiet") : ""}${error.qualityImage && state.capabilities.iqa_override ? button("Bỏ qua cảnh báo & tiếp tục", "iqa-override", "quiet") : ""}</div>`;
       $("[data-action=retry-upload-error]")?.addEventListener("click", () => {
         if (metadata.onRetry) { metadata.onRetry(); return; }
         const freshPid = (document.querySelector("[name=pid]")?.value || metadata.pid || "").trim();
@@ -238,7 +300,7 @@ export async function startBilateral(files, metadata) {
         "click",
         async () => {
           if (state.busy) return;
-          state.busy = true;
+          setBusy(true);
           const current = pending;
           try {
             for (const image of current.images) {
@@ -263,7 +325,7 @@ export async function startBilateral(files, metadata) {
           } catch (e) {
             toast(e.message, true);
           } finally {
-            state.busy = false;
+            setBusy(false);
           }
         },
       );
@@ -296,7 +358,7 @@ export async function startBilateral(files, metadata) {
     clearTimeout(timeout);
     if (cancel) cancel.disabled = false;
     if (state.operation === operation) {
-      state.busy = false;
+      setBusy(false);
       state.operation = null;
     }
   }

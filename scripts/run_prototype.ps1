@@ -143,15 +143,22 @@ $env:APP_DATA_DIR = $resolvedRuntime
 $env:APP_DB_PATH = Join-Path $resolvedRuntime "ovarian_ai.db"
 $env:PYTHONPATH = $RepoRoot
 
+$syntheticDemoRequested = $env:APP_SYNTHETIC_DEMO_MODE -match '^(1|true|yes|on)$'
+if ($syntheticDemoRequested) {
+    Write-Warning "[Launcher] Synthetic-only demo mode was requested; backend startup must still validate fixtures, runtime isolation, SQLite, host, and CORS before serving."
+} else {
+    Write-Warning "[Launcher] Synthetic-only upload restriction is OFF. Arbitrary uploads may be accepted; do not use patient data."
+}
+Write-Warning "[Launcher] RUO research prototype only. This pre-flight does not establish clinical readiness or authorization for diagnosis, treatment, monitoring, or patient care."
+
 # 5. CheckOnly Mode Handling
 if ($CheckOnly) {
-    Write-Host "[Launcher] Pre-flight readiness check PASSED:"
+    Write-Host "[Launcher] Technical pre-flight checks PASSED (not a clinical readiness check):"
     Write-Host "  - Python: $pyPath"
     Write-Host "  - Runtime Directory: $resolvedRuntime"
     Write-Host "  - Model manifest: $manifestPath"
     Write-Host "  - Checkpoint verified: (SHA256: $actualHash)"
     Write-Host "  - Security credentials: APP_JWT_SECRET, APP_PATIENT_PID_HMAC_SECRET, APP_DOCTOR_PASSWORD, APP_ADMIN_PASSWORD validated"
-    Write-Host "[Launcher] Ready for supervised launch."
     exit 0
 }
 
@@ -159,5 +166,5 @@ if ($CheckOnly) {
 Write-Host "[Launcher] Starting Ovarian Ultrasound Prototype on http://127.0.0.1:$Port..."
 Write-Host "  - Runtime: $resolvedRuntime"
 Write-Host "  - DB: $env:APP_DB_PATH"
-& $pyPath -m uvicorn backend.app.main:app --host 127.0.0.1 --port $Port
+& $pyPath -m uvicorn backend.app.main:app --host 127.0.0.1 --port $Port --no-access-log
 exit $LASTEXITCODE

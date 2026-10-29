@@ -36,23 +36,23 @@ export function startTour() {
             "B vẽ, E tẩy, L tạo đa giác. Ctrl+Z hoàn tác. Mask rỗng không phải kết luận chẩn đoán.",
           ],
           [
-            "Hiệu chuẩn và ký",
-            "Thiếu spacing chỉ dùng pixel. Xem cả hai ảnh rồi Ctrl+Enter để mở tóm tắt ký sơ bộ.",
+            "Hiệu chuẩn và lưu rà soát",
+            "Thiếu spacing chỉ hiển thị pixel. Lưu rà soát RUO không đồng nghĩa ký hoặc phê duyệt lâm sàng.",
           ],
         ]
       : r === "TK"
         ? [
             [
-              "Hàng chờ trong khoa",
-              "Mở các ca đã ký sơ bộ; ưu tiên ca chờ lâu.",
+              "Hàng chờ rà soát RUO",
+              "Mở các bản rà soát đã lưu để đối chiếu.",
             ],
             [
-              "Rà soát độc lập",
-              "Đối chiếu ảnh gốc, mask AI và bản rà soát của bác sĩ. Không tự duyệt ca mình đã ký.",
+              "Đối chiếu nội bộ RUO",
+              "Đối chiếu ảnh gốc, mask AI và bản rà soát đã lưu; đây không phải xác nhận lâm sàng.",
             ],
             [
-              "Duyệt hoặc yêu cầu sửa",
-              "Từ chối cần lý do. Ca đã duyệt có thể khóa; sửa sau khóa tạo bản bổ sung.",
+              "Trạng thái quy trình RUO",
+              "Trang đối chiếu chỉ đọc. Chuyển trạng thái và phê duyệt lâm sàng chưa được triển khai.",
             ],
           ]
         : [

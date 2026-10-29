@@ -346,6 +346,18 @@ def _active_split_integrity(root: Path, observed_image_hashes: dict[Path, str] |
     image_hash_validation_complete = (
         invalid_hash_rows == 0 and hash_mismatches == 0 and missing_images == 0
     )
+    image_level_training_ready = (
+        counts_match is True
+        and all(count is not None and count > 0 for count in counts.values())
+        and image_hash_validation_complete
+        and missing_masks == 0
+        and declared_overlap == 0
+        and actual_overlap == 0
+    )
+    patient_independent_evaluation_allowed = (
+        patient_level_verified
+        and image_level_training_ready
+    )
 
     return {
         "manifest_exists": manifest_path.is_file(),
@@ -357,6 +369,8 @@ def _active_split_integrity(root: Path, observed_image_hashes: dict[Path, str] |
         "patient_id_overlap_count": patient_id_overlap_count,
         "record_counts": counts,
         "manifest_counts_match_csv": counts_match,
+        "image_level_training_ready": image_level_training_ready,
+        "patient_independent_evaluation_allowed": patient_independent_evaluation_allowed,
         "declared_hash_overlap_count": declared_overlap,
         "actual_hash_overlap_count": actual_overlap,
         "invalid_hash_row_count": invalid_hash_rows,
@@ -366,7 +380,6 @@ def _active_split_integrity(root: Path, observed_image_hashes: dict[Path, str] |
         "missing_pair_count": missing_pairs,
         "image_hash_validation_complete": image_hash_validation_complete,
         "image_hash_split_disjoint": declared_overlap == 0 and actual_overlap == 0 and invalid_hash_rows == 0 and hash_mismatches == 0,
-        "patient_level_training_allowed": patient_level_verified and counts_match is True and image_hash_validation_complete and missing_masks == 0 and declared_overlap == 0 and actual_overlap == 0,
     }
 
 
@@ -642,7 +655,7 @@ def audit(root: Path, output_dir: Path) -> dict:
         source_test_count = legacy_split_evidence["source_test_count"]
         source_test_description = f"{source_test_count} source Test records" if source_test_count is not None else "source Test records"
         blocking_conditions.append(
-            f"The legacy sample-level Vinmec_2D split pools {source_test_description} into Train/Validation; the current full-data trainer rejects this unverified manifest before training."
+            f"The legacy sample-level Vinmec_2D split pools {source_test_description} into Train/Validation; it cannot support an independent Test result."
         )
     if len(split_conflicts):
         blocking_conditions.append(
@@ -653,8 +666,8 @@ def audit(root: Path, output_dir: Path) -> dict:
         "project_root": str(root),
         "framework": "PyTorch",
         "training_entrypoints": {
-            "baseline": "ai_training/train_baseline_unet.py (requires source-verified patient IDs; image-level training is prohibited)",
-            "full_data": "ai_training/train_full_unet.py (requires a verified patient split; loads train and validation only, selects by validation Dice, and leaves test image data held out)",
+            "baseline": "ai_training/train_baseline_unet.py (accepts image-level splits after image/mask, SHA-256, and binary-mask validation; research development only)",
+            "full_data": "ai_training/train_full_unet.py (does not require patient IDs; loads Train and Validation only, selects by validation Dice, and leaves Test image data held out)",
         },
         "datasets": roots_summary,
         "dataset_table_before_training": table_rows,
@@ -678,6 +691,7 @@ def audit(root: Path, output_dir: Path) -> dict:
         },
         "split_and_leakage": {
             "source_patient_ids_verified": active_split_integrity["patient_level_verified"],
+            "image_level_training_ready": active_split_integrity["image_level_training_ready"],
             "m1_patient_codes_are_synthetic": True,
             "full_dataset_2026_10_03_manifest_includes_source_test_in_pool_for_vinmec_2d": legacy_split_evidence["source_test_included_in_pool"],
             "existing_full_dataset_split_level": legacy_split_evidence["split_level"],

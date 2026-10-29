@@ -299,6 +299,48 @@ def test_study_domain_migration_installs_insert_and_update_guards_on_legacy_tabl
         connection.close()
 
 
+def test_migration_extends_surgical_absence_check_without_losing_study_references(tmp_path):
+    from backend.db.database import _migrate_study_contralateral_constraint
+
+    connection = sqlite3.connect(tmp_path / "legacy-contralateral-check.sqlite3")
+    connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute("CREATE TABLE patients (id TEXT PRIMARY KEY)")
+    connection.execute(
+        "CREATE TABLE studies ("
+        "id TEXT PRIMARY KEY, patient_id TEXT NOT NULL REFERENCES patients(id), "
+        "status TEXT NOT NULL, ovary_side TEXT NOT NULL, contralateral_status TEXT NOT NULL, "
+        "CONSTRAINT ck_studies_contralateral_status CHECK "
+        "(contralateral_status IS NOT NULL AND contralateral_status IN "
+        "('NOT_VISUALIZED', 'NORMAL', 'SUSPECTED', 'UNKNOWN')))"
+    )
+    connection.execute(
+        "CREATE TABLE images (id TEXT PRIMARY KEY, study_id TEXT NOT NULL REFERENCES studies(id))"
+    )
+    connection.execute("CREATE INDEX idx_studies_patient_id ON studies(patient_id)")
+    connection.execute("INSERT INTO patients VALUES ('patient-1')")
+    connection.execute(
+        "INSERT INTO studies VALUES ('study-1', 'patient-1', 'PENDING', 'LEFT', 'UNKNOWN')"
+    )
+    connection.execute("INSERT INTO images VALUES ('image-1', 'study-1')")
+    connection.commit()
+
+    try:
+        assert _migrate_study_contralateral_constraint(connection) is True
+        connection.execute(
+            "UPDATE studies SET contralateral_status = 'SURGICALLY_ABSENT' WHERE id = 'study-1'"
+        )
+        assert connection.execute(
+            "SELECT id, patient_id, contralateral_status FROM studies"
+        ).fetchall() == [("study-1", "patient-1", "SURGICALLY_ABSENT")]
+        assert connection.execute("SELECT study_id FROM images").fetchall() == [("study-1",)]
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_studies_patient_id'"
+        ).fetchone() == (1,)
+    finally:
+        connection.close()
+
+
 def test_study_domain_migration_replaces_stale_legacy_triggers(tmp_path):
     from backend.db.database import _ensure_study_domains
 

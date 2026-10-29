@@ -223,6 +223,7 @@ class OverallMeasurements(BaseModel):
     total_area_cm2: float | None
     total_area_px: float | None = None
     calibrated: bool = False
+    follicles: dict[str, Any] | None = None
 
 
 class IQAReport(BaseModel):
@@ -255,6 +256,9 @@ class PredictionResponse(BaseModel):
     timings: dict[str, Any] | None = None
     acoustic_profile: dict[str, Any] | None = None
     cdss_classification: dict[str, Any] | None = None
+    ai_diagnosis: dict[str, Any] | None = None
+    unified_findings: dict[str, Any] | None = None
+    idempotent_replay: bool = False
     clinical_disclaimer: str = (
         "Kết quả này chỉ phục vụ nghiên cứu (RUO), chưa được xác thực lâm sàng. "
         "Bác sĩ cần tự thẩm định kết quả trước khi sử dụng. Hệ thống hỗ trợ phân đoạn và đo lường; "
@@ -276,6 +280,41 @@ class HITLFeedback(BaseModel):
         if "NO_ERROR" in self.issues and len(self.issues) != 1:
             raise ValueError("NO_ERROR cannot be combined with segmentation errors")
         return self
+
+
+class ManualCaliper(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: Literal["D1", "D2"]
+    points: list[list[StrictInt | StrictFloat]] = Field(min_length=2, max_length=2)
+    coordinate_space: Literal["decoded-source-image"] = "decoded-source-image"
+
+    @field_validator("points")
+    @classmethod
+    def validate_points(cls, points):
+        if len(points) != 2 or any(len(point) != 2 for point in points):
+            raise ValueError("Caliper requires two finite, non-negative source-image points.")
+
+        normalized_points = []
+        for point in points:
+            normalized_point = []
+            for value in point:
+                if type(value) not in (int, float) or value < 0:
+                    raise ValueError("Caliper requires two finite, non-negative source-image points.")
+                try:
+                    numeric_value = float(value)
+                except (OverflowError, TypeError, ValueError) as exc:
+                    raise ValueError(
+                        "Caliper requires two finite, non-negative source-image points."
+                    ) from exc
+                if not math.isfinite(numeric_value):
+                    raise ValueError("Caliper requires two finite, non-negative source-image points.")
+                normalized_point.append(numeric_value)
+            normalized_points.append(normalized_point)
+
+        if normalized_points[0] == normalized_points[1]:
+            raise ValueError("Caliper endpoints must be different.")
+        return normalized_points
 
 
 class DoctorReviewRequest(BaseModel):
@@ -325,6 +364,7 @@ class DoctorReviewRequest(BaseModel):
     morphology_description: str | None = None
     time_spent_seconds: int | None = Field(default=None, ge=0)
     hitl_feedback: HITLFeedback | None = None
+    manual_calipers: list[ManualCaliper] = Field(default_factory=list, max_length=2)
     lease_token: str | None = Field(
         default=None,
         min_length=32,
@@ -339,6 +379,7 @@ class DoctorReviewRequest(BaseModel):
     )
     expected_revision: int | None = None
     request_id: ReviewRequestId | None = None
+    clinician_overrides: dict[str, Any] | None = None
 
     @field_validator("orads", "orads_score", mode="before")
     @classmethod
@@ -351,6 +392,9 @@ class DoctorReviewRequest(BaseModel):
     def validate_orads_aliases(self):
         if self.orads and self.orads_score and self.orads != self.orads_score:
             raise ValueError("orads and orads_score must match when both are set")
+        labels = [item.label for item in self.manual_calipers]
+        if len(labels) != len(set(labels)):
+            raise ValueError("Only one manual caliper is allowed for each of D1 and D2.")
         return self
 
 
@@ -568,7 +612,7 @@ class RegisterRequest(BaseModel):
     role: Literal["DOCTOR", "ADMIN"] = "DOCTOR"
     department: StrictStr = Field(default="Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa", max_length=100)
     title: StrictStr = Field(default="BS", max_length=50)
-    hospital: StrictStr = Field(default="Bệnh viện ĐKQT Vinmec Times City", max_length=100)
+    hospital: StrictStr = Field(default="Chưa cấu hình", max_length=100)
 
 
     @field_validator("email")
@@ -628,6 +672,7 @@ class UserProfile(BaseModel):
     hospital: str
     avatar: str
     is_active: bool
+    must_change_password: bool = False
 
 
 class SwitchRoleRequest(BaseModel):
@@ -666,10 +711,24 @@ class CaseSearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     search: StrictStr | None = Field(default=None, max_length=256)
+    patient_id: StrictStr | None = Field(default=None, min_length=1, max_length=64)
     status: StrictStr | None = Field(default=None, max_length=30)
+    statuses: list[
+        Literal[
+            "PENDING",
+            "ANALYZED",
+            "PARTIALLY_REVIEWED",
+            "REVIEWED",
+            "SIGNED_PRELIM",
+            "APPROVED",
+            "LOCKED",
+        ]
+    ] | None = Field(default=None, max_length=10)
     date: StrictStr | None = Field(default=None, max_length=20)
     limit: StrictInt = Field(default=100, ge=1, le=100)
-    offset: StrictInt = Field(default=0, ge=0, le=10000)
+    offset: StrictInt = Field(default=0, ge=0)
+    sort: Literal["study_code", "status", "study_date", "created_at"] = "created_at"
+    direction: Literal["asc", "desc"] = "desc"
 
 
 class CreateCaseRequest(BaseModel):
@@ -684,7 +743,7 @@ class CreateCaseRequest(BaseModel):
     clinical_notes: str | None = None
     probe_type: str | None = Field(default=None, max_length=50)
     active_ovary_side: Literal["RIGHT", "LEFT", "BOTH", "UNKNOWN"] = "UNKNOWN"
-    contralateral_status: Literal["UNKNOWN", "NOT_VISUALIZED", "NORMAL", "SUSPECTED"] = "UNKNOWN"
+    contralateral_status: Literal["UNKNOWN", "NOT_VISUALIZED", "SURGICALLY_ABSENT", "NORMAL", "SUSPECTED"] = "UNKNOWN"
 
     @field_validator("study_code", "patient_age", "probe_type", mode="before")
     @classmethod
@@ -780,6 +839,125 @@ class CDSSEvaluateRequest(BaseModel):
     adnex_inputs: ADNEXInputs | None = None
 
 
+class RegionCaliperWriteRequest(BaseModel):
+    """Source-image caliper points explicitly attached to one persisted region snapshot."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    request_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    expected_revision: StrictInt = Field(ge=0)
+    assignment_request_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    review_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    region_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    mask_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    label: Literal["D1", "D2"]
+    points: list[list[StrictInt | StrictFloat]] = Field(min_length=2, max_length=2)
+    coordinate_space: Literal["decoded-source-image"] = "decoded-source-image"
+    lease_token: str = Field(min_length=32, max_length=256, pattern=r"^[A-Za-z0-9_-]+$")
+    page_instance_id: str = Field(min_length=16, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+    @field_validator("points")
+    @classmethod
+    def validate_source_points(cls, points):
+        if len(points) != 2 or any(len(point) != 2 for point in points):
+            raise ValueError("Caliper requires two finite non-negative source-image points.")
+
+        normalized_points = []
+        for point in points:
+            normalized_point = []
+            for value in point:
+                if isinstance(value, bool) or value < 0:
+                    raise ValueError("Caliper requires two finite non-negative source-image points.")
+                try:
+                    numeric_value = float(value)
+                except (OverflowError, TypeError, ValueError) as exc:
+                    raise ValueError(
+                        "Caliper requires two finite non-negative source-image points."
+                    ) from exc
+                if not math.isfinite(numeric_value):
+                    raise ValueError("Caliper requires two finite non-negative source-image points.")
+                normalized_point.append(numeric_value)
+            normalized_points.append(normalized_point)
+
+        if normalized_points[0] == normalized_points[1]:
+            raise ValueError("Caliper endpoints must be different.")
+        return normalized_points
+
+
+class RegionCDSSAssessmentRequest(BaseModel):
+    """Persist one explicit RUO assessment against a confirmed region and source review."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    request_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    expected_assessment_revision: StrictInt = Field(ge=0)
+    assignment_request_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    review_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    region_id: StrictStr = Field(pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
+    mask_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    confirmed: StrictBool
+    vision_findings: dict[str, Any] = Field(default_factory=dict, max_length=64)
+    patient_context: dict[str, Any] = Field(default_factory=dict, max_length=24)
+    source_caliper_event_id: StrictStr | None = Field(
+        default=None,
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+    )
+    lease_token: str = Field(min_length=32, max_length=256, pattern=r"^[A-Za-z0-9_-]+$")
+    page_instance_id: str = Field(min_length=16, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+    @model_validator(mode="after")
+    def validate_explicit_source(self):
+        if not self.confirmed:
+            raise ValueError("A clinician must confirm the descriptors before saving the RUO assessment.")
+        source = self.vision_findings.get("assessment_source")
+        if source not in (None, "clinician"):
+            raise ValueError("Only explicitly clinician-entered descriptors are accepted.")
+
+        for field_name in ("max_diameter_mm", "ortho_diameter_mm"):
+            value = self.vision_findings.get(field_name)
+            if value is None:
+                continue
+            if type(value) not in (int, float):
+                raise ValueError(f"{field_name} must be a finite numeric measurement.")
+            try:
+                finite_value = math.isfinite(float(value))
+            except (OverflowError, TypeError, ValueError):
+                finite_value = False
+            if not finite_value:
+                raise ValueError(f"{field_name} must be a finite numeric measurement.")
+
+        try:
+            serialized = json.dumps(
+                {"vision_findings": self.vision_findings, "patient_context": self.patient_context},
+                sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False,
+            ).encode("utf-8")
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise ValueError("Assessment descriptors must be finite bounded JSON.") from exc
+        if len(serialized) > 16_384:
+            raise ValueError("Assessment descriptors must not exceed 16384 UTF-8 bytes.")
+
+        allowed_patient_context = {
+            "is_premenopausal", "is_persistent_adnexal_mass", "surgery_indicated",
+        }
+        if set(self.patient_context) - allowed_patient_context:
+            raise ValueError("Unsupported patient-context fields are not persisted.")
+        if any(type(value) is not bool for value in self.patient_context.values()):
+            raise ValueError("Patient-context values must be explicit clinician-confirmed booleans.")
+
+        from backend.services.cdss_engine import IOTA_B_FEATURES, IOTA_M_FEATURES, VISION_FINDING_FIELDS
+
+        if set(self.vision_findings) - VISION_FINDING_FIELDS:
+            raise ValueError("Unsupported vision descriptor fields are not persisted.")
+        iota_features = self.vision_findings.get("iota_simple_rules")
+        if iota_features is not None and (
+            not isinstance(iota_features, dict)
+            or set(iota_features) - set(IOTA_B_FEATURES + IOTA_M_FEATURES)
+            or any(type(value) is not bool for value in iota_features.values())
+        ):
+            raise ValueError("IOTA descriptors must contain recognized features with explicit booleans.")
+        return self
+
+
 class CaseConfirmRequest(DoctorReviewRequest):
     image_id: str
     study_id: str | None = None
@@ -866,3 +1044,89 @@ class SegmentationCandidateResponse(BaseModel):
     candidate_mask_rle: dict[str, Any]
     candidate_parameters: SegmentationCandidateParameters
     provenance: SegmentationCandidateProvenance
+
+
+class FeatureEstimate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    value: Any = None
+    source: Literal["ai_estimated", "clinician_entered", "clinician_confirmed", "unavailable", "not_applicable", "not_evaluated"] = "unavailable"
+    confidence: float | None = None
+
+
+class AIDiagnosisFindings(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    lesion_type: dict[str, Any] | None = None
+    malignancy_risk: dict[str, Any] | None = None
+    features: dict[str, FeatureEstimate] = Field(default_factory=dict)
+    orads_suggested: dict[str, Any] = Field(
+        default_factory=lambda: {"category": None, "complete": False, "missing": []}
+    )
+    pcos_suggestion: dict[str, Any] | None = None
+    abstain: bool = False
+    abstain_reason: str | None = None
+
+
+class UnifiedCaseFindingsResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    study_id: str
+    side: Literal["left", "right"]
+    pixel_spacing_mm: float | None = None
+    ovary: dict[str, Any] = Field(default_factory=dict)
+    follicles: dict[str, Any] = Field(default_factory=dict)
+    lesion: dict[str, Any] = Field(default_factory=dict)
+    ai_diagnosis: AIDiagnosisFindings | None = None
+    review_status: Literal["PENDING", "ACCEPTED_RAW", "MODIFIED", "REJECTED_ALL"] = "PENDING"
+    clinician_overrides: dict[str, Any] = Field(default_factory=dict)
+
+
+class InteractivePromptRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    image_id: str
+    box: list[int] = Field(..., min_length=4, max_length=4)
+    point_prompts: list[list[int]] | None = None
+    pixel_spacing_mm: float | None = None
+
+    @field_validator("box")
+    @classmethod
+    def validate_box_coords(cls, v: list[int]) -> list[int]:
+        x1, y1, x2, y2 = v
+        if not (0 <= x1 < x2 <= 512 and 0 <= y1 < y2 <= 512):
+            raise ValueError("Box coordinates must satisfy 0 <= x1 < x2 <= 512 and 0 <= y1 < y2 <= 512")
+        if (x2 - x1) < 8 or (y2 - y1) < 8:
+            raise ValueError("Box width and height must each be at least 8 pixels.")
+        return v
+
+
+class InteractivePromptResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    success: bool = True
+    image_id: str
+    box: list[int]
+    mask_rle: dict[str, Any]
+    measurements: dict[str, Any]
+    message: str = "Tạo mặt nạ tương tác thành công từ Bounding Box."
+
+
+class ApplyClinicalTemplateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str = Field(..., min_length=1, max_length=100)
+    max_diameter_mm: float | None = Field(default=None, ge=0.0, le=500.0)
+    patient_context: dict[str, Any] | None = None
+
+
+class ApplyClinicalTemplateResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    template_id: str
+    label: str
+    badge: str
+    recommendation: str | None = None
+    status: str
+    findings: dict[str, Any]
+    cdss_result: dict[str, Any]

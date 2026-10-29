@@ -1,5 +1,7 @@
 """Authorization, atomic case creation, and bounded case-list queries."""
 
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -83,6 +85,10 @@ def test_failed_study_insert_rolls_back_new_patient(tmp_path):
             with pytest.raises(RuntimeError, match="study insert failure"):
                 cases.create_new_case(
                     CreateCaseRequest(patient_id="PID-ATOMIC", study_date="2026-10-21"),
+                    idempotency_key=uuid4(),
+                    current_user=UserModel(
+                        id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"
+                    ),
                     db=db,
                 )
             assert db.is_active, "The failed transaction must be rolled back explicitly"

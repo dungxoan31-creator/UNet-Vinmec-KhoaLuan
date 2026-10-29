@@ -37,6 +37,16 @@ export function planBilateralDrop(files, suggest) {
   }));
 }
 
+export function intakeSidesReady(files, confirmed, unavailableStatus) {
+  const sides = ["L", "R"];
+  const imageSides = sides.filter((side) => Boolean(files?.[side]));
+  if (imageSides.length === 0) return false;
+  return sides.every((side) => {
+    if (files?.[side]) return Boolean(confirmed?.[side]) && !unavailableStatus?.[side];
+    return ["SURGICALLY_ABSENT", "NOT_VISUALIZED"].includes(unavailableStatus?.[side]);
+  });
+}
+
 // Quota/security errors must not erase the in-memory copy or block demo intake.
 export function createDemoPatientStore(seeds, storage = () => localStorage) {
   const memory = new Map();

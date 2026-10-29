@@ -271,27 +271,22 @@ def test_uc75_anonymous_blocked_from_evaluation_samples(test_setup):
     assert resp_download.status_code == 401
 
 
-def test_uc75_authenticated_doctor_can_download_artifacts(test_setup):
+def test_uc75_authenticated_doctor_is_blocked_from_unverified_legacy_archive(test_setup):
     client = test_setup["client"]
     doc_headers = test_setup["doc_headers"]
 
-    # 1. Download valid case bundle
+    # Historical benchmark data is unavailable until its source provenance is reviewed.
     resp_bundle = client.get("/api/evaluation/samples/43/workstation-bundle", headers=doc_headers)
-    assert resp_bundle.status_code == 200
-    bundle = resp_bundle.json()
-    assert bundle["case_id"] == "43"
-    assert "original_image_base64" in bundle
+    assert resp_bundle.status_code == 503
+    assert "provenance" in resp_bundle.json()["detail"].lower()
 
-    # 2. Download specific artifacts
     for art in ["image", "ground_truth", "prediction", "overlay"]:
         resp_art = client.get(f"/api/evaluation/samples/43/download/{art}", headers=doc_headers)
-        assert resp_art.status_code == 200
-        assert "x-deidentification" not in resp_art.headers
+        assert resp_art.status_code == 503
+        assert "provenance" in resp_art.json()["detail"].lower()
 
-    # 3. Invalid artifact type returns 422
     resp_invalid = client.get("/api/evaluation/samples/43/download/invalid_type", headers=doc_headers)
     assert resp_invalid.status_code == 422
 
-    # 4. Missing sample returns 404
     resp_missing = client.get("/api/evaluation/samples/999999/download/image", headers=doc_headers)
-    assert resp_missing.status_code == 404
+    assert resp_missing.status_code == 503

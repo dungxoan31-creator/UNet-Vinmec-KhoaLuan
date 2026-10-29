@@ -1,6 +1,12 @@
 const LEFT_TOKENS = new Set(["l", "left", "trai"]);
 const RIGHT_TOKENS = new Set(["r", "right", "phai"]);
 
+export function formatLaterality(side) {
+  if (side === "L") return "trái";
+  if (side === "R") return "phải";
+  return "chưa xác định";
+}
+
 export function suggestLaterality(filename) {
   if (typeof filename !== "string" || !filename) return null;
 

@@ -1,19 +1,23 @@
-import { state, roles } from "./state.js";
+import { state, roles, setBusy } from "./state.js";
 import { request } from "./api.js";
+import { clearUIEvents } from "./hitl-tracker.js";
+import { updateEnvironmentNotices } from "./environment-notices.js";
 
 import { $, field, icon, toast } from "./ui.js";
 
 let expiresAt = 0,
   lockTimer = null;
 function clearActive() {
+  clearUIEvents();
   state.controller?.abort();
   state.cleanup?.();
   state.case = null;
   state.editing = null;
   state.draftConflict = null;
   state.dirty = false;
+  state.unattributedMaskDraft = false;
   state.operation = null;
-  state.busy = false;
+  setBusy(false);
   state.queue = [];
   state.pendingReview = null;
 }
@@ -25,13 +29,14 @@ function acceptSession(result) {
   state.user = result.user;
 
   expiresAt = Date.now() + (result.expires_in || 86400) * 1000;
-  state.mustChangePassword = result.password_change_required === true;
+  state.mustChangePassword = result.must_change_password === true;
   sessionStorage.setItem("ova.token", state.token);
   sessionStorage.setItem("ova.expiry", expiresAt);
   sessionStorage.setItem("ova.lastUsername", state.user.username);
   request("/api/capabilities", { signal: null })
     .then((c) => {
       Object.assign(state.capabilities, c);
+      updateEnvironmentNotices();
     })
     .catch(() => {});
   location.hash = state.mustChangePassword ? "#first" : "#dashboard";
@@ -57,15 +62,19 @@ export async function restoreSession() {
   try {
     state.user = await request("/api/auth/current-user");
     if (!roles[state.user.role]) throw Error("Vai trò chưa hỗ trợ.");
+    state.mustChangePassword = state.user.must_change_password === true;
     expiresAt = Number(sessionStorage.getItem("ova.expiry"));
     try {
       state.capabilities = await request("/api/capabilities");
     } catch {
       state.capabilities = {};
     }
+    updateEnvironmentNotices();
   } catch {
     state.token = null;
     state.user = null;
+    state.mustChangePassword = false;
+    updateEnvironmentNotices();
     try {
       sessionStorage.removeItem("ova.token");
       sessionStorage.removeItem("ova.expiry");
@@ -92,7 +101,7 @@ export function renderAuth(mode = "login") {
   );
   const user =
     mode === "expired" ? sessionStorage.getItem("ova.lastUsername") || "" : "";
-  return `<div class="auth-layout"><aside class="auth-aside"><div class="brand-mark"><div class="vinmec-logo-card"><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo" alt="Vinmec" width="118" height="72"></div><div class="brand-subtext"><span class="brand-name">VINMEC</span><span class="brand-dept">Chẩn đoán Hình ảnh & Sản Phụ khoa</span></div></div><div class="auth-aside-content"><div class="eyebrow-badge"><span class="pulse-dot"></span><span>HUMAN-IN-THE-LOOP CDSS</span></div><h1>Mỗi đường biên.<br>Một quyết định<br>của người rà soát.</h1><p>Không gian phân đoạn siêu âm hai bên, hiệu chỉnh mask tương tác và lưu vết kiểm toán lâm sàng.</p></div><div class="auth-aside-footer"><div class="auth-badge"><span class="badge-dot"></span><span>Hỗ trợ phân đoạn siêu âm buồng trứng · Vinmec Times City</span></div></div></aside><section class="auth-card"><p class="eyebrow">TRUY CẬP AN TOÀN</p><h2>${titles[mode] || titles.login}</h2><p class="muted">${mode === "expired" ? "Bản nháp được giữ trên thiết bị. Đăng nhập cùng tài khoản để tiếp tục." : verifyEmail ? "Nhập email và mã xác minh được gửi khi đăng ký. Tài khoản vẫn cần quản trị viên duyệt trước khi đăng nhập." : register ? "Tạo tài khoản bác sĩ mới. Email cần được xác minh và tài khoản cần quản trị viên duyệt." : "Sử dụng tài khoản được đơn vị quản trị cấp."}</p><form id="authForm">
+  return `<div class="auth-layout"><aside class="auth-aside"><div class="brand-mark"><span class="vinmec-logo-card"><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261029-vinmec-premium" alt="Vinmec International Hospital" width="1616" height="973" decoding="async"></span><div class="brand-subtext"><span class="brand-name">OVARIAN ULTRASOUND · RUO</span><span class="brand-dept">Nguyên mẫu nghiên cứu độc lập</span></div></div><div class="auth-aside-content"><div class="eyebrow-badge"><span class="pulse-dot"></span><span>HUMAN-IN-THE-LOOP CDSS · RUO</span></div><h1>Mỗi đường biên.<br>Một quyết định<br>của người rà soát.</h1><p>Môi trường nghiên cứu để xem phân đoạn, hiệu chỉnh mask và lưu vết thao tác rà soát. Chưa được xác thực lâm sàng; không dùng để chẩn đoán hoặc chăm sóc bệnh nhân.</p></div><div class="auth-aside-footer"><div class="auth-badge"><span class="badge-dot"></span><span>Nguyên mẫu nghiên cứu · Không đại diện cho cơ sở y tế</span></div></div></aside><section class="auth-card"><h2>${titles[mode] || titles.login}</h2><p class="muted">${mode === "expired" ? "Bản nháp được giữ trên thiết bị. Đăng nhập cùng tài khoản để tiếp tục." : verifyEmail ? "Nhập email và mã xác minh được gửi khi đăng ký. Tài khoản vẫn cần quản trị viên duyệt trước khi đăng nhập." : register ? "Tạo tài khoản bác sĩ mới. Email cần được xác minh và tài khoản cần quản trị viên duyệt." : "Sử dụng tài khoản được đơn vị quản trị cấp."}</p><form id="authForm">
         ${login || mode === "forgot" || register ? field("Tên đăng nhập", "username", "text", user, 'required autocomplete="username"') : ""}
         ${register ? field("Họ và tên bác sĩ / chuyên môn", "full_name", "text", "", 'required autocomplete="name"') : ""}
         ${register ? field("Email công tác", "email", "email", "", 'required autocomplete="email"') : ""}
@@ -201,21 +210,31 @@ export function bindAuth(mode) {
         const body =
           mode === "forgot"
             ? data
-            : {
-                ...data,
-                new_password: data.password,
-                token:
-                  data.token ||
-                  new URLSearchParams(location.hash.split("?")[1]).get("token"),
-              };
-        await request("/api/auth/" + endpoint, { method: "POST", body });
-        if (mode === "first") state.mustChangePassword = false;
+            : mode === "first"
+              ? {
+                  current_password: data.current_password,
+                  new_password: data.password,
+                  confirmation: data.confirm,
+                }
+              : {
+                  username: data.username,
+                  new_password: data.password,
+                  token:
+                    data.token ||
+                    new URLSearchParams(location.hash.split("?")[1]).get("token"),
+                };
+        const result = await request("/api/auth/" + endpoint, { method: "POST", body });
+        if (mode === "first") {
+          acceptSession(result);
+          toast("Đổi mật khẩu thành công.");
+          return;
+        }
         toast(
           mode === "forgot"
             ? "Nếu tài khoản hợp lệ, máy chủ sẽ gửi hướng dẫn khôi phục."
             : "Yêu cầu đã được máy chủ tiếp nhận.",
         );
-        location.hash = mode === "first" ? "#dashboard" : "#login";
+        location.hash = "#login";
       }
 
     } catch (err) {

@@ -233,11 +233,14 @@ def extract_dicom_calibration_spacing(file_path: str) -> float | None:
 
 
 def get_image_calibration(image_record) -> dict:
-    """Return stored scale metadata, matching it against DICOM tags when available."""
+    """Return stored scale metadata without guessing legacy provenance."""
     raw_path = getattr(image_record, "raw_path", None)
     dicom_spacing = (
         extract_dicom_calibration_spacing(raw_path)
         if isinstance(raw_path, (str, os.PathLike)) and os.path.isfile(raw_path)
         else None
     )
-    return calibration_metadata(getattr(image_record, "pixel_spacing_mm", None), dicom_spacing)
+    return calibration_metadata(
+        getattr(image_record, "pixel_spacing_mm", None), dicom_spacing,
+        getattr(image_record, "calibration_source", None),
+    )

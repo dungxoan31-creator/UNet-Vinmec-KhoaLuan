@@ -24,18 +24,20 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright-core");
+const { ensureSyntheticFixtures } = require("../helpers/synthetic_fixtures.cjs");
+const { waitForAppState } = require("../helpers/app_state_wait.cjs");
 
 const base = process.env.E2E_BASE_URL || "http://127.0.0.1:8027";
 const chromePath = process.env.CHROME_PATH || "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const doctorPassword = process.env.APP_DOCTOR_PASSWORD || "doctor-local-test-2026";
 const adminPassword = process.env.APP_ADMIN_PASSWORD || "admin-local-test-2026";
 
-const fixturesDir = path.resolve(__dirname, "..", "..", "artifacts", "synthetic_fixtures");
-const synthLeft = path.join(fixturesDir, "synthetic_left.png");
-const synthRight = path.join(fixturesDir, "synthetic_right.png");
-const fakeCorrupted = path.join(fixturesDir, "fake_corrupted.png");
-const zeroByte = path.join(fixturesDir, "empty_zero_byte.png");
-const oversized = path.join(fixturesDir, "oversized_26mb.png");
+const fixtures = ensureSyntheticFixtures();
+const synthLeft = fixtures.left;
+const synthRight = fixtures.right;
+const fakeCorrupted = fixtures.corrupted;
+const zeroByte = fixtures.empty;
+const oversized = fixtures.oversized;
 
 async function runComprehensiveTests() {
   console.log(`[E2E Runner] Starting comprehensive workstation test on ${base}...`);
@@ -51,6 +53,14 @@ async function runComprehensiveTests() {
   const pageErrors = [];
   const consoleErrors = [];
   const networkFailures = [];
+  const clientErrors = [];
+  const failedRequests = [];
+  const expectedAbortedRequests = [];
+  const pendingAbortChecks = [];
+  const screenshotDir = path.resolve(
+    process.env.E2E_ARTIFACT_DIR || "artifacts/qa-workstation-overhaul/route-matrix",
+  );
+  fs.mkdirSync(screenshotDir, { recursive: true });
 
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
@@ -63,17 +73,38 @@ async function runComprehensiveTests() {
   });
 
   page.on("console", (msg) => {
+    if (msg.type() === "warning") console.warn(`[ConsoleWarning] ${msg.text()}`);
     if (msg.type() === "error") {
       const text = msg.text();
-      // Ignore routine 400/401/413 expected from negative validation tests
-      if (!text.includes("401") && !text.includes("400") && !text.includes("413") && !text.includes("favicon")) {
-        console.error(`[ConsoleError] ${text}`);
-        consoleErrors.push(text);
-      }
+      console.error(`[ConsoleError] ${text}`);
+      consoleErrors.push(text);
     }
   });
 
+  page.on("requestfailed", (request) => {
+    const errorText = request.failure()?.errorText || "unknown failure";
+    const failure = `${request.method()} ${request.url()}: ${errorText}`;
+    if (errorText !== "net::ERR_ABORTED") {
+      failedRequests.push(failure);
+      return;
+    }
+    pendingAbortChecks.push(page.evaluate(({ url, method }) => {
+      const records = window.__expectedFetchAborts || [];
+      const index = records.findIndex((item) => item.url === url && item.method === method);
+      if (index < 0) return false;
+      records.splice(index, 1);
+      return true;
+    }, { url: request.url(), method: request.method() }).then((expected) => {
+      if (expected) expectedAbortedRequests.push(failure);
+      else failedRequests.push(failure);
+    }).catch(() => failedRequests.push(failure)));
+  });
+
   page.on("response", (res) => {
+    if (res.status() >= 400 && res.status() < 500) {
+      console.error(`[HTTP ${res.status()}] ${res.request().method()} ${res.url()}`);
+      clientErrors.push(`${res.status()} ${res.url()}`);
+    }
     if (res.status() >= 500) {
       networkFailures.push(`${res.status()} ${res.url()}`);
     }
@@ -88,6 +119,30 @@ async function runComprehensiveTests() {
     console.log("==> Testing Section 1: Auth & RBAC...");
 
     // 1.1 Direct navigation to / and redirect to login
+    // Keep the UI error-state check inside the page without causing an expected
+    // HTTP 401 resource error in the browser console. The real endpoint contract
+    // is checked through Playwright's separate API request context below.
+    await page.addInitScript(() => {
+      const originalFetch = window.fetch.bind(window);
+      window.__expectedFetchAborts = [];
+      window.fetch = (input, options = {}) => {
+        const url = typeof input === "string" ? input : input.url;
+        if (url === "/api/auth/login" && String(options.body || "").includes('"incorrect_password"')) {
+          return Promise.resolve(new Response(JSON.stringify({ detail: "Invalid credentials" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          }));
+        }
+        const absoluteUrl = new URL(url, window.location.href).href;
+        const method = String(options.method || input?.method || "GET").toUpperCase();
+        const signal = options.signal || input?.signal;
+        signal?.addEventListener("abort", () => {
+          window.__expectedFetchAborts.push({ url: absoluteUrl, method });
+        }, { once: true });
+        return originalFetch(input, options);
+      };
+    });
+
     await page.goto(`${base}/#login`, { waitUntil: "networkidle" });
     await page.locator("#authForm").waitFor({ timeout: 10000 });
 
@@ -95,15 +150,18 @@ async function runComprehensiveTests() {
     await page.locator("#authForm [name=username]").fill("doctor");
     await page.locator("#authForm [name=password]").fill("incorrect_password");
     await page.locator("#authForm button[type=submit]").click();
-    await page.waitForTimeout(600);
-    const errorText = await page.locator(".form-error, [role=alert]").textContent();
-    assert.ok(errorText.length > 0, "Must display error on incorrect password");
+    await page.locator("#authError").filter({ hasText: "Tên đăng nhập hoặc mật khẩu chưa đúng." }).waitFor({ timeout: 5000 });
+    const invalidLogin = await page.request.post(`${base}/api/auth/login`, {
+      data: { username: "doctor", password: "incorrect_password" },
+    });
+    assert.equal(invalidLogin.status(), 401, "Backend must reject invalid credentials");
 
     // 1.3 Positive Doctor Login
     await page.locator("#authForm [name=username]").fill("doctor");
     await page.locator("#authForm [name=password]").fill(doctorPassword);
     await page.locator("#authForm button[type=submit]").click();
     await page.locator("h1").filter({ hasText: "Tổng quan" }).waitFor({ timeout: 10000 });
+    await page.locator("#dashData .metrics").waitFor({ state: "visible", timeout: 10000 });
     console.log("  [PASS] Doctor login and dashboard landing");
 
     // =========================================================================
@@ -142,7 +200,12 @@ async function runComprehensiveTests() {
 
     // 3.2 Negative Upload: Corrupted text file pretending to be .png
     await page.locator('[data-file=L]').setInputFiles(fakeCorrupted);
-    await page.waitForTimeout(600);
+    await page.locator('#toasts .toast').filter({ hasText: 'Không giải mã được ảnh.' }).waitFor({ timeout: 5000 });
+    assert.equal(await page.locator('#files-L').textContent(), 'Chưa chọn ảnh', "Corrupt image must not enter the selected-side state");
+    await page.locator('[data-file=L]').setInputFiles(zeroByte);
+    await page.locator('#toasts .toast').filter({ hasText: 'Ảnh cần đúng định dạng' }).last().waitFor({ timeout: 5000 });
+    await page.locator('[data-file=L]').setInputFiles(oversized);
+    await page.locator('#toasts .toast').filter({ hasText: 'Ảnh cần đúng định dạng' }).last().waitFor({ timeout: 5000 });
 
     // 3.3 Positive Upload: Valid Synthetic PNGs for Left & Right
     await page.locator('[data-file=L]').setInputFiles(synthLeft);
@@ -155,8 +218,11 @@ async function runComprehensiveTests() {
     const swapBtn = page.locator('[data-action="swap-sides"]');
     await swapBtn.waitFor();
     await swapBtn.click();
-    await page.waitForTimeout(400);
-    console.log("  [PASS] 1-Click Left/Right sides swap executed");
+    await page.locator('#files-L [data-confirm-file]').waitFor({ state: "visible" });
+    await page.locator('#files-R [data-confirm-file]').waitFor({ state: "visible" });
+    assert.equal(await page.locator('#startSegmentationBtn').isDisabled(), true,
+      "Changing sides must require renewed laterality confirmation");
+    console.log("  [PASS] Side swap locks processing pending explicit confirmation");
 
     // 3.5 Test Study Date Required Gate
     await page.locator('[name=study-date]').fill('');
@@ -165,6 +231,8 @@ async function runComprehensiveTests() {
 
     await page.locator('[name=study-date]').fill('2026-10-25T14:30');
     await page.locator('[name=study-date]').dispatchEvent('input');
+    await page.locator('#files-L [data-confirm-file]').check();
+    await page.locator('#files-R [data-confirm-file]').check();
     assert.equal(await page.locator('#startSegmentationBtn').isEnabled(), true, "Button must be enabled when bilateral images and date are ready");
 
     // 3.6 Trigger AI Segmentation & Caliper Extraction
@@ -177,6 +245,9 @@ async function runComprehensiveTests() {
     console.log("==> Testing Section 4: 2D Workstation Canvas, Tools & CDSS...");
     const canvas = page.locator("#viewport");
     await canvas.waitFor({ timeout: 120000 });
+    const intakeToasts = await page.locator("#toasts .toast").allTextContents();
+    assert.equal(intakeToasts.some((message) => /signal is aborted|internal server error/i.test(message)), false,
+      `Intake produced an unexpected runtime toast: ${intakeToasts.join(" | ")}`);
 
     createdStudyId = await page.evaluate(() => {
       const parts = location.hash.split("/");
@@ -260,7 +331,11 @@ async function runComprehensiveTests() {
     await saveBtn.waitFor({ state: "visible" });
     assert.equal(await saveBtn.isEnabled(), true, "Save review button must be enabled after reviewing both sides");
     await saveBtn.click();
-    await page.locator('#toasts .toast').filter({ hasText: 'Đã lưu rà soát' }).waitFor({ timeout: 10000 });
+    await page.getByRole('status').filter({ hasText: 'Đã lưu rà soát của hai bên thành công.' }).waitFor({ timeout: 10000 });
+    const telemetryErrors = page.locator('#toasts .toast.danger').filter({ hasText: 'Nhật ký HITL chưa đồng bộ' });
+    assert.equal(await telemetryErrors.count(), 0, 'Review telemetry must not report an error');
+    await waitForAppState(page, snapshot => !snapshot.busy,
+      { message: 'comprehensive workstation bilateral review save settled' });
     console.log("  [PASS] Bilateral ground truth review saved");
 
     // =========================================================================
@@ -269,6 +344,7 @@ async function runComprehensiveTests() {
     console.log("==> Testing Section 5: Clinical Report & Print Shortcut...");
     await canvas.focus();
     await page.keyboard.press("Control+p");
+    await page.waitForFunction(() => location.hash.startsWith("#report/"), null, { timeout: 10000 });
     await page.waitForFunction(() => location.hash.startsWith("#report/"), null, { timeout: 10000 });
 
     const reportHeader = page.locator(".report-header, #reportData, .page-head");
@@ -284,7 +360,52 @@ async function runComprehensiveTests() {
     console.log("  [PASS] Report preview rendered with print parameters");
 
     // =========================================================================
-    // SECTION 6: ADMIN GOVERNANCE PORTAL (TC-ADM)
+    // SECTION 6: DOCTOR ROUTES AT ALL REQUIRED VIEWPORTS (TC-RESP-MATRIX)
+    // =========================================================================
+    await page.waitForFunction(() => !document.querySelector("#toasts .toast"), null, { timeout: 12000 });
+    const routeViewports = [
+      { width: 1440, height: 900, name: "desktop" },
+      { width: 768, height: 1024, name: "tablet" },
+      { width: 390, height: 844, name: "mobile" },
+    ];
+    const doctorRoutes = [
+      { name: "dashboard", hash: "#dashboard", selector: "#dashData .metrics" },
+      { name: "intake", hash: "#intake", selector: '[data-select="0"]' },
+      { name: "viewer", hash: `#viewer/${createdStudyId}`, selector: "#viewport" },
+      { name: "report", hash: `#report/${createdStudyId}`, selector: "#reportData .report" },
+    ];
+    for (const vp of routeViewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      for (const route of doctorRoutes) {
+        await page.evaluate((hash) => { location.hash = hash; }, route.hash);
+        await page.locator(route.selector).waitFor({ state: "visible", timeout: 15000 });
+        await page.screenshot({ path: path.join(screenshotDir, `${route.name}-${vp.name}.png`), fullPage: true });
+        const layout = await page.evaluate(() => ({
+          overflow: document.documentElement.scrollWidth > window.innerWidth + 2,
+          documentWidth: document.documentElement.scrollWidth,
+          offenders: [...document.body.querySelectorAll("*")].map((element) => {
+            const rect = element.getBoundingClientRect();
+            return {
+              tag: element.tagName,
+              id: element.id,
+              className: typeof element.className === "string" ? element.className : "",
+              left: Math.round(rect.left),
+              right: Math.round(rect.right),
+              width: Math.round(rect.width),
+              scrollWidth: element.scrollWidth,
+              clientWidth: element.clientWidth,
+            };
+          }).filter((item) => item.width > 0 && (item.left < -1 || item.right > window.innerWidth + 1)).slice(0, 12),
+        }));
+        assert.equal(layout.overflow, false,
+          `Horizontal overflow on ${route.name} at ${vp.name} (${vp.width}x${vp.height}): ${JSON.stringify(layout)}`);
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    console.log("  [PASS] Dashboard, intake, viewer and report at all three required viewports");
+
+    // =========================================================================
+    // SECTION 7: ADMIN GOVERNANCE PORTAL (TC-ADM)
     // =========================================================================
     console.log("==> Testing Section 6: Admin Governance Portal...");
     // 6.1 Logout doctor
@@ -304,7 +425,20 @@ async function runComprehensiveTests() {
     console.log("  [PASS] Admin portal accessible with admin role");
 
     // =========================================================================
-    // SECTION 7: CLEANUP TEST DATA
+    // SECTION 8: ADMIN ROUTE AT ALL REQUIRED VIEWPORTS (TC-RESP-MATRIX)
+    // =========================================================================
+    for (const vp of routeViewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.evaluate(() => { location.hash = "#admin"; });
+      await page.locator("h1").filter({ hasText: "Quản trị" }).waitFor({ state: "visible", timeout: 15000 });
+      const adminOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2);
+      assert.equal(adminOverflow, false, `Horizontal overflow on admin at ${vp.name} (${vp.width}x${vp.height})`);
+      await page.screenshot({ path: path.join(screenshotDir, `admin-${vp.name}.png`), fullPage: true });
+    }
+    console.log("  [PASS] Admin at all three required viewports");
+
+    // =========================================================================
+    // SECTION 9: CLEANUP TEST DATA
     // =========================================================================
     if (createdStudyId) {
       console.log(`==> Cleaning up test study ${createdStudyId}...`);
@@ -319,12 +453,15 @@ async function runComprehensiveTests() {
     }
 
   } finally {
+    await Promise.all(pendingAbortChecks);
     await browser.close();
   }
 
   // Assert zero critical errors
   assert.equal(pageErrors.length, 0, `Page errors encountered:\n${pageErrors.join("\n")}`);
   assert.equal(consoleErrors.length, 0, `Console errors encountered:\n${consoleErrors.join("\n")}`);
+  assert.equal(clientErrors.length, 0, `Unexpected HTTP 4xx responses:\n${clientErrors.join("\n")}`);
+  assert.equal(failedRequests.length, 0, `Failed browser requests encountered:\n${failedRequests.join("\n")}`);
   assert.equal(networkFailures.length, 0, `Network 500+ failures encountered:\n${networkFailures.join("\n")}`);
 
   console.log("\n=================================================================");

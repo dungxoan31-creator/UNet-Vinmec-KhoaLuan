@@ -26,6 +26,12 @@ data/uploads/*
 data/reports/*
 !data/reports/.gitkeep
 
+# Runtime active-learning exports may contain masks and identifiers linked to reviews
+/data/active_learning_queue.jsonl
+/data/active_learning_queue.jsonl.lock
+/metadata/active_learning_queue.jsonl
+/metadata/active_learning_queue.jsonl.lock
+
 # System backups and archives (preserve folder via .gitkeep)
 backups/*
 !backups/.gitkeep
@@ -39,6 +45,7 @@ checkpoints/**/*.pth
 checkpoints/*.pth
 dataset/
 dataset_backup_archive/
+external_sources/
 ai_training/experiments/*/*.pth
 ai_training/models/
 ai_training/dataset_preview/

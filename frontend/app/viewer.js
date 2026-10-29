@@ -1,9 +1,9 @@
 import { acquireLease } from "./leases.js";
 import { logout } from "./auth.js";
 import { saveCorrection } from "./corrections.js";
-import { state, role, saveDraft, keepServerVersion } from "./state.js";
+import { state, role, saveDraft, saveMaskDraft, restoreMaskDrafts, keepServerVersion } from "./state.js";
 import { openCase } from "./cases.js";
-import { request } from "./api.js";
+import { protectedImage, request } from "./api.js";
 import { letterbox, screenToModel, encode, decode } from "./coordinates.js";
 import { cleanMask, components } from "./mask-tools.js";
 import {
@@ -23,13 +23,16 @@ import {
 } from "./ui.js";
 import { openSignoff, saveResearchReview } from "./review.js";
 import { tracker, trackUIEvent } from "./hitl-tracker.js";
-import { imageSourceBlob } from "./image-source.js";
+import { imageSourceBitmap } from "./image-source.js";
 import { adnexPanelMarkup, bindAdnexPanel } from "./adnex.js";
 import { bindCdssPanel, cdssPanelMarkup } from "./cdss-panel.js";
+import { applyCalibrationAck, manualCaliperLength as measuredCaliperLength, unavailableMeasurements } from "./measurement-fallback.js";
+import { LatestMeasurementQueue } from "./latest-measurement-queue.js";
 import { bindResearchCandidate, researchCandidateMarkup } from "./research-candidate.js";
+import { bindRegionReview } from "./region-review.js";
 import { loadUncertaintyMap } from "./uncertainty-map.js";
 import { bindLocalDictation } from "./voice-dictation.js";
-import { getReportShortcutHash } from "./viewer-shortcuts.js";
+import { getReportShortcutHash, getOradsShortcutValue, isAutoZoomShortcut, isUndoShortcut } from "./viewer-shortcuts.js";
 import { expandDraftPhrase } from "./draft-phrases.js";
 import { reviewWarnings, consistencyKey } from "./review-content.js";
 let active = null;
@@ -47,6 +50,12 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
   try {
     const c = await openCase(id);
     if (!root.isConnected) return;
+    if (restoreMaskDrafts(c).length) {
+      toast("Đã phục hồi bản nháp chưa lưu gần nhất");
+    }
+    if (state.unattributedMaskDraft) {
+      toast("Phát hiện bản nháp mask cũ không ghi nhận người tạo; hệ thống không khôi phục để tránh dùng nhầm. Dữ liệu cũ vẫn được giữ trên thiết bị.", true);
+    }
     const correction = role() === "TK" && c.correction_by === state.user.id;
     readonly =
       readonly ||
@@ -82,12 +91,15 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       tracker
         .flushPendingEvents(c.study_id, telemetryLeaseHeaders, state.user?.id)
         .then(({ replayedEventCount, skippedSessionCount }) => {
+          if (state.pendingReviewTelemetryAck?.studyId === c.study_id)
+            state.pendingReviewTelemetryAck = null;
           if (replayedEventCount > 0)
             toast("Đã khôi phục và đồng bộ nhật ký HITL của phiên trước.");
           if (skippedSessionCount > 0)
             console.warn("Pending HITL events belong to another signed-in user.");
         })
         .catch((error) => {
+          if (error?.name === "AbortError") return;
           console.warn("Pending HITL telemetry replay failed:", error);
           toast("Nhật ký HITL của phiên trước chưa đồng bộ; thử lại khi mở lại ca.", true);
         });
@@ -116,6 +128,9 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     const primaryTools = [
       ["brush", "brush", "Cọ vẽ (B)"],
       ["erase", "erase", "Tẩy (E)"],
+      ["auto-zoom", "fit", "Auto-Zoom tổn thương (A)"],
+      ["caliper-d1", "ruler", "Caliper D1 (C)"],
+      ["caliper-d2", "ruler", "Caliper D2"],
       ["pan", "hand", "Di chuyển (H)"],
       ["fit", "fit", "Vừa khung (0)"],
     ];
@@ -144,6 +159,11 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       <div class="side-switch" role="group" aria-label="Buồng trứng đang xem">
         ${ button("Trái (T)", "side-L", "small primary")}
         ${ button("Phải (P)", "side-R", "small")}
+        <label class="visually-hidden" for="viewerImageSelect">Ảnh hoặc mặt cắt đang xem</label>
+        <span class="viewer-image-select-wrap">
+          <span id="viewerImageSelectCurrent" class="viewer-image-select-current" aria-hidden="true"></span>
+          <select id="viewerImageSelect" aria-label="Ảnh hoặc mặt cắt đang xem"></select>
+        </span>
       </div>
       <div class="viewer-head-actions actions">
         ${ button("Lưu rồi in", "quick-print", "small primary viewer-quick-print-action", "print")}
@@ -234,6 +254,13 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         </div>
         <section class="viewer-tabpanel" id="clinicalPanel" role="tabpanel" aria-labelledby="clinicalTab" tabindex="0">
           <div class="clinical-panel-notices">
+            <div id="localReviewDraftNotice" class="banner warning small local-review-draft-notice" ${state.dirty && !state.draftConflict ? "" : "hidden"} role="status" aria-live="polite">
+              Rà soát chưa được lưu lên máy chủ. Hãy kiểm tra đủ hai bên rồi chọn “Lưu &amp; Tiếp tục”.
+            </div>
+            <div id="leaseLostNotice" class="banner warning small lease-lost-notice" ${lease && !lease.editable ? "" : "hidden"} role="alert" aria-live="assertive">
+              <span>${lease && !lease.editable ? esc(lease.label) : "Mất kết nối hoặc quyền chỉnh sửa đã hết hạn."} Bản nháp được lưu trên thiết bị nếu trình duyệt cho phép. Tải lại sẽ thử cấp lease; bản nháp chỉ khôi phục tự động khi revision chưa đổi.</span>
+              ${button("Tải lại ca và thử tiếp", "lease-reload", "small")}
+            </div>
             ${ lease && lease.label ? '<div class="banner info small">' + esc(lease.label) + "</div>" : ""}
             ${ c.reason ? '<div class="banner warning small">Yêu cầu sửa: ' + esc(c.reason) + "</div>" : ""}
             ${ state.draftConflict ? '<div class="banner warning small">Bản nháp dựa trên phiên bản cũ. Đang hiển thị bản máy chủ.' + button("Tải bản nháp cũ", "download-conflict", "small") + button("Giữ bản máy chủ", "keep-server", "small") + "</div>" : ""}
@@ -297,6 +324,9 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           <p class="muted small">Chỉ phục vụ nghiên cứu; không thay thế nhận định lâm sàng.</p>
           <div id="adnexMount"></div>
           <div id="researchCandidateMount"></div>
+          <div id="regionReviewMount"></div>
+          <p id="regionCaliperStatus" class="muted small" role="status" aria-live="polite">Caliper theo vùng chỉ lưu sau khi chọn snapshot vùng đã xác nhận.</p>
+          <button id="regionCaliperRetry" class="btn small" type="button" hidden>Thử lưu lại caliper chưa xác nhận</button>
           <details>
             <summary class="small">Nguồn mô hình</summary>
             <p id="modelHash" class="mono"></p>
@@ -392,6 +422,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       ctx = canvas.getContext("2d"),
       second = $("#secondViewport"),
       secondCtx = second.getContext("2d");
+    const canReviewFullCase = () =>
+      c.images.length > 0 &&
+      c.images.every((item) => item.seen) &&
+      (c.ovary_side !== "BOTH" || ["L", "R"].every((side) => c.images.some((item) => item.laterality === side)));
     let view = { x: 0, y: 0, scale: 1 },
       tool = "brush",
       brush = 16,
@@ -406,8 +440,12 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       opacity = 0.35,
       draw = false,
       pan = false,
+      activePointerId = null,
+      fitAfterPointer = false,
       last = null,
       polygon = [],
+      pendingCaliper = null,
+      caliperPreviewPoint = null,
       serial = 0,
       timer = null,
       frame = 0;
@@ -493,12 +531,20 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     const worker = new Worker("/static/app/measure-worker.js", {
       type: "module",
     });
+    const measurementQueue = new LatestMeasurementQueue();
     const source = document.createElement("canvas");
     source.width = source.height = 512;
     const sourceCtx = source.getContext("2d");
     const maskCanvas = document.createElement("canvas");
     maskCanvas.width = maskCanvas.height = 512;
     const maskCtx = maskCanvas.getContext("2d");
+    const regionHighlightCanvas = document.createElement("canvas");
+    regionHighlightCanvas.width = regionHighlightCanvas.height = 512;
+    const regionHighlightCtx = regionHighlightCanvas.getContext("2d");
+    let regionGroupsByIndex = new Map(),
+      highlightedRegionIndex = null,
+      activeRegionContext = null,
+      pendingRegionCaliperRequest = null;
     const outline = document.createElement("canvas");
     outline.width = outline.height = 512;
     const outlineCtx = outline.getContext("2d");
@@ -509,27 +555,72 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     let image = null,
       box = null,
       selecting = true,
-      comparisonSerial = 0;
+      comparisonSerial = 0,
+      selectionSerial = 0,
+      selectionActive = false;
+    const syncDraftNotice = () => {
+      const notice = $("#localReviewDraftNotice");
+      if (notice) notice.hidden = !state.dirty || Boolean(state.draftConflict);
+    };
     const syncClinicalInputs = () => {
-      const blocked = readonly || state.busy || selecting || !image || disposed;
+      syncDraftNotice();
+      const editable = canEditCanvas();
+      const blocked = !editable || state.busy || selecting || !image || disposed;
       for (const id of ["notes", "morphology", "iotaMorphology", "oradsScore", "reviewContentAck"])
         if ($("#" + id)) $("#" + id).disabled = blocked;
       $("[data-action=quick-print]").disabled = blocked;
       $("[data-action=save-review]").disabled = blocked || !c.images.every(i => i.seen);
       $("#dictationRecord").disabled = blocked;
+      $("#dictationInsert").disabled = blocked || $("#dictationPreview").hidden;
+      $("[data-action=calibrate]").disabled = blocked || !state.editing?.leaseToken;
+      $("[data-action=sign]").disabled = blocked || !workflowEnabled || !canReviewFullCase();
+      if ($("[data-action=save-correction]")) $("[data-action=save-correction]").disabled = blocked;
+      $("[data-action=manual]").hidden = !editable;
+      $("[data-action=no-lesion]").hidden = !editable;
+      $("[data-action=manual]").disabled = blocked;
+      $("[data-action=no-lesion]").disabled = blocked;
+      $$('[data-chip]').forEach((button) => { button.disabled = blocked; });
       syncOradsQuickPick();
     };
+    const canEditCanvas = () =>
+      !disposed &&
+      !readonly &&
+      state.editing?.caseId === c.study_id &&
+      state.editing.allowed &&
+      !["LOCKED", "SIGNED_PRELIM", "APPROVED"].includes(c.status);
+    const syncToolButtons = () => {
+      $$('[data-tool]').forEach((button) => {
+        const viewOnlyTool = ['fit', 'pan', 'fullscreen'].includes(button.dataset.tool);
+        button.disabled = !image || selecting || state.busy || (!canEditCanvas() && !viewOnlyTool);
+      });
+    };
+    const syncImageSelectionControls = () => {
+      $$('[data-action^=side-]').forEach((button) => {
+        button.disabled = selecting || state.busy;
+      });
+      const imageSelect = $('#viewerImageSelect');
+      if (imageSelect) imageSelect.disabled = selecting || state.busy || readonly;
+    };
     syncClinicalInputs();
-    root.addEventListener("ova:review-lock-changed", syncClinicalInputs, events);
+    syncToolButtons();
+    syncImageSelectionControls();
+    root.addEventListener("ova:review-lock-changed", () => {
+      syncClinicalInputs();
+      syncToolButtons();
+    }, events);
+    window.addEventListener("ova:busy-changed", () => {
+      syncClinicalInputs();
+      syncToolButtons();
+      syncImageSelectionControls();
+    }, events);
+    window.addEventListener("ova:review-draft-state-changed", syncDraftNotice, events);
     const canEvaluateAdnex = () =>
       role() === "BS" &&
       !disposed &&
       !state.busy &&
-      !readonly &&
+      canEditCanvas() &&
       !selecting &&
       !!image &&
-      state.editing?.caseId === c.study_id &&
-      state.editing.allowed &&
       !!state.editing.leaseToken;
     const adnexUI = bindAdnexPanel(root, {
       getContext: () => ({ side: state.side, imageId: image?.image_id ?? null }),
@@ -542,9 +633,27 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         studyId: c.study_id ?? null,
         imageId: image?.image_id ?? null,
         side: state.side ?? null,
+        leaseToken: state.editing?.leaseToken ?? null,
+        pageInstanceId: state.editing?.pageInstanceId ?? null,
       }),
       canEvaluate: canEvaluateCdss,
       signal: abort.signal,
+      requireSavedRegion: true,
+      onCalipers: (snapshot) => {
+        if (!activeRegionContext || snapshot.region_id !== activeRegionContext.regionId ||
+            snapshot.assignment_request_id !== activeRegionContext.assignmentRequestId || !image ||
+            image.image_id !== activeRegionContext.imageId) return;
+        image.regionCalipers = snapshot.measurements || {};
+        const describe = (label) => {
+          const item = image.regionCalipers[label];
+          if (!item) return `${label}: chưa đo`;
+          return item.diameter_mm == null
+            ? `${label}: ${Number(item.diameter_px).toFixed(1)} px · mm chưa khả dụng`
+            : `${label}: ${Number(item.diameter_mm).toFixed(1)} mm (${Number(item.diameter_px).toFixed(1)} px)`;
+        };
+        $("#regionCaliperStatus").textContent = `${describe("D1")} · ${describe("D2")}`;
+        schedule();
+      },
     });
     const schedule = () => {
       if (!frame)
@@ -572,6 +681,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       setLayer(layer === 2 ? layerBeforeOverlay : 2);
     const render = () => {
       syncOverlayVisibility();
+      if (disposed || !image) return;
       for (const [target, context, isSecond] of [
         [canvas, ctx, false],
         [second, secondCtx, true],
@@ -605,6 +715,14 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           context.imageSmoothingEnabled = false;
           context.drawImage(contour ? outline : maskCanvas, 0, 0);
           context.globalAlpha = 1;
+        }
+        if (!peek && !isSecond && highlightedRegionIndex != null &&
+            regionGroupsByIndex.has(highlightedRegionIndex)) {
+          context.save();
+          context.globalAlpha = 0.72;
+          context.imageSmoothingEnabled = false;
+          context.drawImage(regionHighlightCanvas, 0, 0);
+          context.restore();
         }
         if (
           !peek &&
@@ -678,6 +796,118 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           }
           context.restore();
         }
+        if (!peek && !isSecond && image?.manualCalipers?.length) {
+          context.save();
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.font = `${12 / view.scale}px system-ui, sans-serif`;
+          context.textAlign = "left";
+          context.textBaseline = "bottom";
+          const width = image.dimensions?.[0] || image.width || 512;
+          const height = image.dimensions?.[1] || image.height || 512;
+          for (const caliper of image.manualCalipers) {
+            if (!Array.isArray(caliper?.points) || caliper.points.length !== 2 ||
+                caliper.points.some(point => !Array.isArray(point) || point.length !== 2 || !point.every(Number.isFinite))) continue;
+            const points = caliper.points.map(([x, y]) => [
+              box.left + x * box.width / width,
+              box.top + y * box.height / height,
+            ]);
+            context.beginPath();
+            context.moveTo(points[0][0], points[0][1]);
+            context.lineTo(points[1][0], points[1][1]);
+            context.strokeStyle = "#101820";
+            context.lineWidth = 4 / view.scale;
+            context.stroke();
+            context.strokeStyle = "#ffbf47";
+            context.lineWidth = 2 / view.scale;
+            context.stroke();
+            for (const [x, y] of points) {
+              context.beginPath();
+              context.arc(x, y, 3 / view.scale, 0, Math.PI * 2);
+              context.fillStyle = "#101820";
+              context.fill();
+              context.beginPath();
+              context.arc(x, y, 1.8 / view.scale, 0, Math.PI * 2);
+              context.fillStyle = "#ffbf47";
+              context.fill();
+            }
+            const midX = (points[0][0] + points[1][0]) / 2;
+            const midY = (points[0][1] + points[1][1]) / 2;
+            context.lineWidth = 3 / view.scale;
+            context.strokeStyle = "#101820";
+            context.strokeText(`BS · ${caliper.label}`, midX + 4 / view.scale, midY - 4 / view.scale);
+            context.fillStyle = "#ffbf47";
+            context.fillText(`BS · ${caliper.label}`, midX + 4 / view.scale, midY - 4 / view.scale);
+          }
+          context.restore();
+        }
+        if (!peek && !isSecond && activeRegionContext && image?.regionCalipers) {
+          context.save();
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.font = `${12 / view.scale}px system-ui, sans-serif`;
+          context.textAlign = "left";
+          context.textBaseline = "bottom";
+          const width = image.dimensions?.[0] || image.width || 512;
+          const height = image.dimensions?.[1] || image.height || 512;
+          for (const label of ["D1", "D2"]) {
+            const caliper = image.regionCalipers[label];
+            if (!Array.isArray(caliper?.points) || caliper.points.length !== 2 ||
+                caliper.points.some(point => !Array.isArray(point) || point.length !== 2 || !point.every(Number.isFinite))) continue;
+            const points = caliper.points.map(([x, y]) => [
+              box.left + x * box.width / width,
+              box.top + y * box.height / height,
+            ]);
+            context.beginPath();
+            context.moveTo(points[0][0], points[0][1]);
+            context.lineTo(points[1][0], points[1][1]);
+            context.strokeStyle = "#071b26";
+            context.lineWidth = 4 / view.scale;
+            context.stroke();
+            context.strokeStyle = label === "D1" ? "#62e9e0" : "#ff9f68";
+            context.lineWidth = 2 / view.scale;
+            context.stroke();
+            for (const [x, y] of points) {
+              context.beginPath();
+              context.arc(x, y, 3 / view.scale, 0, Math.PI * 2);
+              context.fillStyle = "#071b26";
+              context.fill();
+              context.beginPath();
+              context.arc(x, y, 1.8 / view.scale, 0, Math.PI * 2);
+              context.fillStyle = label === "D1" ? "#62e9e0" : "#ff9f68";
+              context.fill();
+            }
+            const midX = (points[0][0] + points[1][0]) / 2;
+            const midY = (points[0][1] + points[1][1]) / 2;
+            const displayed = caliper.diameter_mm == null
+              ? `${label} ${Number(caliper.diameter_px).toFixed(1)} px`
+              : `${label} ${Number(caliper.diameter_mm).toFixed(1)} mm`;
+            context.lineWidth = 3 / view.scale;
+            context.strokeStyle = "#071b26";
+            context.strokeText(displayed, midX + 4 / view.scale, midY - 4 / view.scale);
+            context.fillStyle = label === "D1" ? "#62e9e0" : "#ff9f68";
+            context.fillText(displayed, midX + 4 / view.scale, midY - 4 / view.scale);
+          }
+          context.restore();
+        }
+        if (!peek && !isSecond && pendingCaliper) {
+          context.save();
+          context.beginPath();
+          context.arc(pendingCaliper.point.x, pendingCaliper.point.y, 5 / view.scale, 0, Math.PI * 2);
+          context.fillStyle = "#ffbf47";
+          context.strokeStyle = "#101820";
+          context.lineWidth = 2 / view.scale;
+          context.fill();
+          context.stroke();
+          if (caliperPreviewPoint) {
+            context.beginPath();
+            context.setLineDash([5 / view.scale, 4 / view.scale]);
+            context.moveTo(pendingCaliper.point.x, pendingCaliper.point.y);
+            context.lineTo(caliperPreviewPoint.x, caliperPreviewPoint.y);
+            context.stroke();
+          }
+          context.restore();
+        }
         if (!isSecond && polygon.length) {
           context.strokeStyle = "#62e9e0";
           context.lineWidth = 1 / view.scale;
@@ -741,6 +971,32 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       view.y = (r.height - 512 * view.scale) / 2;
       schedule();
     };
+    const autoZoomLesion = () => {
+      if (!image.mask) return fit();
+      let minX = 512, minY = 512, maxX = 0, maxY = 0, hasPixels = false;
+      for (let y = 0; y < 512; y++) {
+        for (let x = 0; x < 512; x++) {
+          if (image.mask[y * 512 + x] > 0) {
+            hasPixels = true;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (!hasPixels || (maxX - minX < 8 && maxY - minY < 8)) return fit();
+      const r = canvas.getBoundingClientRect();
+      const lesionW = Math.max(maxX - minX + 1, 40);
+      const lesionH = Math.max(maxY - minY + 1, 40);
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const targetScale = Math.min(r.width / (lesionW * 2.2), r.height / (lesionH * 2.2));
+      view.scale = Math.max(0.6, Math.min(targetScale, 3.5));
+      view.x = r.width / 2 - centerX * view.scale;
+      view.y = r.height / 2 - centerY * view.scale;
+      schedule();
+    };
     const updateAccessibleImageSummary = (m) => {
       const summary = $("#viewerImageSummary");
       if (!summary || !m) return;
@@ -754,28 +1010,48 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         : "Mask rỗng, chưa có vùng được đánh dấu.";
       const measurementStatus = m._pending
         ? "Các số đo đang được cập nhật."
-        : `D1 ${format(physical ? m.max_diameter_mm : m.max_diameter_px, physical ? "milimét" : "pixel")}; ` +
+        : image.manualCalipers?.length
+          ? `Caliper bác sĩ đã đặt: ${image.manualCalipers.map(item => `${item.label} ${format(manualCaliperLength(item, physical), physical ? "milimét" : "pixel")}`).join("; ")}. `
+          : `Proxy mask D1 ${format(physical ? m.max_diameter_mm : m.max_diameter_px, physical ? "milimét" : "pixel")}; ` +
           `D2 ${format(physical ? m.ortho_diameter_mm : m.ortho_diameter_px, physical ? "milimét" : "pixel")}; ` +
           `diện tích ${format(physical ? m.total_area_cm2 : m.total_area_px, physical ? "centimét vuông" : "pixel vuông")}.`;
       const calibrationStatus = physical
         ? m.calibration_source === "DICOM"
           ? "Hiệu chuẩn từ DICOM."
-          : "Hiệu chuẩn nhập tay."
+          : m.calibration_source === "MANUAL"
+            ? "Hiệu chuẩn nhập tay."
+            : "Đã có thang đo; nguồn hiệu chuẩn chưa xác định."
         : "Chưa hiệu chuẩn; chỉ có số đo theo pixel.";
       summary.textContent =
         `Ảnh siêu âm buồng trứng ${side}. ${maskStatus} ${measurementStatus} ${calibrationStatus} ` +
-        "Mask là phân đoạn tham khảo, không phải kết luận bệnh lý.";
+        "Mask là phân đoạn tham khảo, không phải kết luận bệnh lý. " +
+        (typeof m.warning === "string" ? m.warning : "");
+    };
+    const updateViewerWarnings = () => {
+      const count = image.mask ? components(image.mask).length : 0;
+      const warnings = [
+        image.workerMeas?.touches ? "Mask chạm biên ảnh" : "",
+        count > 1 ? `${count} thành phần mask – kiểm tra từng vùng` : "",
+        image.iqa?.is_acceptable === false ? "Chất lượng ảnh thấp" : "",
+        typeof image.measurements?.warning === "string" ? image.measurements.warning : "",
+      ].filter(Boolean);
+      $("#viewerWarnings").innerHTML = warnings
+        .map((value) => `<div class="banner warning small">${esc(value)}</div>`)
+        .join("");
     };
     const displayMeasurements = (m) => {
       if (!m) return;
       const physical = m.calibrated === true;
       const format = (value) =>
         Number.isFinite(value) ? value.toFixed(1) : "—";
+      const manual = image.manualCalipers || [];
+      const d1 = manual.find((item) => item.label === "D1");
+      const d2 = manual.find((item) => item.label === "D2");
       $("#d1").textContent =
-        format(physical ? m.max_diameter_mm : m.max_diameter_px) +
+        format(d1 ? manualCaliperLength(d1, physical) : (manual.length ? null : physical ? m.max_diameter_mm : m.max_diameter_px)) +
         (physical ? " mm" : " px");
       $("#d2").textContent =
-        format(physical ? m.ortho_diameter_mm : m.ortho_diameter_px) +
+        format(d2 ? manualCaliperLength(d2, physical) : (manual.length ? null : physical ? m.ortho_diameter_mm : m.ortho_diameter_px)) +
         (physical ? " mm" : " px");
       $("#area").textContent =
         format(physical ? m.total_area_cm2 : m.total_area_px) +
@@ -783,14 +1059,110 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       $("#measureValues").classList.toggle("pixel", !physical);
       const calBadge = $("#calibrationBadge");
       if (calBadge) {
-        calBadge.textContent = physical
+        calBadge.textContent = manual.length
+          ? `Caliper bác sĩ · ${physical ? (m.calibration_source === "DICOM" ? "DICOM" : m.calibration_source === "MANUAL" ? "nhập tay" : "nguồn chưa xác định") : "px"}`
+          : physical
           ? m.calibration_source === "DICOM"
             ? "Đã hiệu chuẩn DICOM"
-            : "Nhập tay"
+            : m.calibration_source === "MANUAL" ? "Nhập tay" : "Nguồn chưa xác định"
           : "";
-        calBadge.style.display = physical ? "" : "none";
+        calBadge.style.display = physical || manual.length ? "" : "none";
       }
       updateAccessibleImageSummary(m);
+      updateViewerWarnings();
+    };
+    const manualCaliperLength = (caliper, physical) => {
+      const spacing = image.measurements?.pixel_spacing_mm ?? image.pixel_spacing_mm;
+      return measuredCaliperLength(caliper, physical, spacing);
+    };
+    const sendPendingRegionCaliper = async () => {
+      const pending = pendingRegionCaliperRequest;
+      const retryButton = $("#regionCaliperRetry");
+      if (!pending || pending.sending) return;
+      pending.sending = true;
+      retryButton.disabled = true;
+      $("#regionCaliperStatus").textContent = `Đang lưu ${pending.payload.label} theo vùng ${pending.payload.region_id.slice(0, 8)}…`;
+      try {
+        const response = await request(pending.endpoint, {
+          method: "POST",
+          body: pending.payload,
+          signal: abort.signal,
+        });
+        if (response.current === false) {
+          if (pendingRegionCaliperRequest !== pending) return;
+          pendingRegionCaliperRequest = null;
+          retryButton.hidden = true;
+          retryButton.disabled = false;
+          if (activeRegionContext) {
+            $("#regionCaliperStatus").textContent =
+              "Caliper này không còn hiện hành. Đang tải lại D1/D2 mới nhất; hãy kiểm tra trước khi tiếp tục.";
+            cdssUI.setRegionContext(activeRegionContext);
+          } else {
+            $("#regionCaliperStatus").textContent =
+              response.stale_reason || "Caliper này không còn hiện hành; hãy tải lại vùng trước khi tiếp tục.";
+          }
+          return;
+        }
+        if (pendingRegionCaliperRequest !== pending) return;
+        pendingRegionCaliperRequest = null;
+        retryButton.hidden = true;
+        retryButton.disabled = false;
+        const isActive = activeRegionContext &&
+          activeRegionContext.assignmentRequestId === response.assignment_request_id &&
+          activeRegionContext.regionId === response.region_id &&
+          image?.image_id === pending.imageId;
+        if (isActive) {
+          image.regionCalipers ??= {};
+          image.regionCalipers[response.label] = response;
+          schedule();
+          cdssUI.setRegionContext(activeRegionContext);
+        }
+        $("#regionCaliperStatus").textContent = response.diameter_mm == null
+          ? `${response.label} đã lưu: ${Number(response.diameter_px).toFixed(1)} px; không có hiệu chuẩn mm hợp lệ.`
+          : `${response.label} đã lưu: ${Number(response.diameter_mm).toFixed(1)} mm (${Number(response.diameter_px).toFixed(1)} px).`;
+      } catch (error) {
+        if (error?.name === "AbortError" && disposed) return;
+        if (pendingRegionCaliperRequest === pending) {
+          pending.sending = false;
+          retryButton.hidden = false;
+          retryButton.disabled = false;
+          $("#regionCaliperStatus").textContent = `${error?.message || "Không lưu được caliper."} Dùng nút thử lại để gửi cùng request ID.`;
+          if (error?.status === 409) {
+            pendingRegionCaliperRequest = null;
+            retryButton.hidden = true;
+            if (activeRegionContext) cdssUI.setRegionContext(activeRegionContext);
+          }
+        }
+      }
+    };
+    $("#regionCaliperRetry").addEventListener("click", sendPendingRegionCaliper, events);
+    const saveSelectedRegionCaliper = (label, points) => {
+      const selected = activeRegionContext;
+      if (!selected || !canEvaluateAdnex()) {
+        toast("Chọn một vùng đã xác nhận và có lease bác sĩ trước khi đo.", true);
+        return;
+      }
+      if (pendingRegionCaliperRequest) {
+        toast("Có caliper chưa được xác nhận bởi máy chủ. Thử lưu lại request đó trước.", true);
+        return;
+      }
+      const current = image.regionCalipers?.[label];
+      const payload = {
+        request_id: crypto.randomUUID(),
+        expected_revision: current?.measurement_revision || 0,
+        assignment_request_id: selected.assignmentRequestId,
+        review_id: selected.reviewId,
+        region_id: selected.regionId,
+        mask_sha256: selected.maskSha256,
+        label,
+        points,
+        coordinate_space: "decoded-source-image",
+        lease_token: state.editing?.leaseToken,
+        page_instance_id: state.editing?.pageInstanceId,
+      };
+      const endpoint = `/api/cases/${encodeURIComponent(selected.studyId)}/images/${encodeURIComponent(selected.imageId)}/regions/${encodeURIComponent(selected.regionId)}/calipers`;
+      pendingRegionCaliperRequest = { payload, endpoint, studyId: selected.studyId, imageId: selected.imageId, sending: false };
+      void sendPendingRegionCaliper();
     };
     const measure = () => {
       clearTimeout(timer);
@@ -814,6 +1186,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           total_area_cm2: image.measurements?.calibrated ? 0 : null,
           calibrated: Boolean(image.measurements?.calibrated),
           calibration_source: image.measurements?.calibration_source,
+          pixel_spacing_mm: image.measurements?.pixel_spacing_mm ?? image.pixel_spacing_mm,
         };
         image.measurements = emptyMeas;
         displayMeasurements(emptyMeas);
@@ -831,6 +1204,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           total_area_cm2: null,
           calibrated: wasCalibrated,
           calibration_source: calSource,
+          pixel_spacing_mm: image.measurements?.pixel_spacing_mm ?? image.pixel_spacing_mm,
           _pending: true,
         };
         image.measurements = interimMeas;
@@ -841,8 +1215,11 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         updateAccessibleImageSummary(interimMeas);
       }
       timer = setTimeout(async () => {
+        if (current !== serial || disposed) return;
         worker.postMessage({ mask: image.mask, box, serial: current });
         if (image.image_id) {
+          measurementQueue.submit(async () => {
+          if (current !== serial || disposed) return;
           try {
             const m = await request(
               "/api/images/" +
@@ -860,36 +1237,18 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
               schedule();
             }
           } catch (e) {
-            if (e.name !== "AbortError") {
+            if (e.name !== "AbortError" && current === serial && !disposed) {
               $("#draftStatus").textContent =
                 "Chưa cập nhật được số đo máy chủ.";
               if (current === serial) {
-                let hasPx = false;
-                if (image.mask) {
-                  for (let idx = 0; idx < image.mask.length; idx++) {
-                    if (image.mask[idx]) {
-                      hasPx = true;
-                      break;
-                    }
-                  }
-                }
-                const fallbackMeas = {
-                  max_diameter_px: hasPx && image.workerMeas ? image.workerMeas.d1 : 0,
-                  ortho_diameter_px: hasPx && image.workerMeas ? image.workerMeas.d2 : 0,
-                  total_area_px: hasPx && image.workerMeas ? image.workerMeas.area : 0,
-                  // UAT-07: API failed — physical mm/cm² must be null (not stale old values)
-                  max_diameter_mm: null,
-                  ortho_diameter_mm: null,
-                  total_area_cm2: null,
-                  calibrated: false,
-                  calibration_source: image.measurements?.calibration_source,
-                };
+                const fallbackMeas = unavailableMeasurements(image.measurements, image.pixel_spacing_mm);
                 image.measurements = fallbackMeas;
                 displayMeasurements(fallbackMeas);
                 schedule();
               }
             }
           }
+          });
         }
       }, 180);
     };
@@ -906,25 +1265,18 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           total_area_cm2: image.measurements?.calibrated ? 0 : null,
           calibrated: Boolean(image.measurements?.calibrated),
           calibration_source: image.measurements?.calibration_source,
+          pixel_spacing_mm: image.measurements?.pixel_spacing_mm ?? image.pixel_spacing_mm,
         };
         image.measurements = emptyMeas;
         displayMeasurements(emptyMeas);
       }
       image.seen = true;
       $("[data-action=sign]").disabled =
-        readonly || !workflowEnabled || c.images.length !== 2 || !c.images.every((i) => i.seen);
+        readonly || !workflowEnabled || !canReviewFullCase();
       $("[data-action=save-review]").disabled =
-        readonly || !c.images.every((i) => i.seen);
+        readonly || state.busy || !c.images.every((i) => i.seen);
 
-      const count = components(image.mask).length;
-      const warnings = [
-        m.touches ? "Mask chạm biên ảnh" : "",
-        count > 1 ? `${count} thành phần mask – kiểm tra từng vùng` : "",
-        image.iqa?.is_acceptable === false ? "Chất lượng ảnh thấp" : "",
-      ].filter(Boolean);
-      $("#viewerWarnings").innerHTML = warnings
-        .map((v) => `<div class="banner warning small">${esc(v)}</div>`)
-        .join("");
+      updateViewerWarnings();
     };
     const history = () => {
       $("#historyList").innerHTML =
@@ -933,6 +1285,20 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           .join("") || "<li>Chưa chỉnh sửa</li>";
     };
     const beforeEdit = () => {
+      activeRegionContext = null;
+      if (image) image.regionCalipers = {};
+      cdssUI.setRegionContext(null);
+      $("#regionCaliperStatus").textContent = "Mask nháp đã thay đổi; caliper/CDSS theo vùng bị khóa cho đến khi lưu hoặc tải lại review.";
+      regionReviewUI.setContext({
+        studyId: c.study_id,
+        imageId: image?.image_id ?? null,
+        reviewId: image?.review?.review_id ?? null,
+        reviewRevision: c.review_revision ?? 0,
+        maskMatchesReview: false,
+        canEdit: role() === "BS" && canEditCanvas(),
+        leaseToken: state.editing?.leaseToken ?? null,
+        pageInstanceId: state.editing?.pageInstanceId ?? null,
+      });
       image.history ??= [];
       image.redo ??= [];
       image.history.push(encode(image.mask));
@@ -955,7 +1321,11 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         candidate_provenance: candidateProvenance,
       });
       root.dispatchEvent(new CustomEvent("ova:mask-changed"));
-      if (persistDraft) saveDraft();
+      if (persistDraft) {
+        saveDraft();
+        saveMaskDraft(c, image);
+      }
+      syncDraftNotice();
       syncContentWarning();
       $("#draftStatus").textContent = persistDraft
         ? state.online
@@ -997,15 +1367,98 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         return true;
       },
     });
-    const select = async (side) => {
-      if (draw || pan || state.busy) return;
-      const item = c.images.find((i) => i.laterality === side);
+    const regionReviewUI = bindRegionReview(root, {
+      request,
+      signal: abort.signal,
+      getContext: () => ({
+        studyId: c.study_id,
+        imageId: image?.image_id ?? null,
+        reviewId: image?.review?.review_id ?? null,
+        reviewRevision: c.review_revision ?? 0,
+        maskMatchesReview: Boolean(image?.review?.verified_mask_rle) &&
+          JSON.stringify(encode(image.mask)) === JSON.stringify(image.review.verified_mask_rle),
+        canEdit: role() === "BS" && state.editing?.caseId === c.study_id && state.editing.allowed,
+        leaseToken: state.editing?.leaseToken ?? null,
+        pageInstanceId: state.editing?.pageInstanceId ?? null,
+      }),
+      onSaved: (result) => { c.review_revision = result.review_revision; },
+      onSelectRegion: (selectedRegion) => {
+        activeRegionContext = selectedRegion;
+        if (image) image.regionCalipers = {};
+        $("#regionCaliperStatus").textContent = `Đang tải phép đo cho vùng ${selectedRegion.regionId.slice(0, 8)}…`;
+        cdssUI.setRegionContext(selectedRegion);
+        schedule();
+      },
+      onCandidates: (candidateSet) => {
+        regionGroupsByIndex = new Map();
+        regionHighlightCtx.clearRect(0, 0, 512, 512);
+        highlightedRegionIndex = null;
+        if (candidateSet == null) { schedule(); return true; }
+        if (!image?.mask || candidateSet.mask_sha256 == null) return false;
+        const bySeed = new Map();
+        for (const group of components(image.mask)) {
+          let seed = Infinity;
+          for (const pixel of group) if (pixel < seed) seed = pixel;
+          if (Number.isFinite(seed)) bySeed.set(seed, group);
+        }
+        for (const candidate of candidateSet.components) {
+          const seed = candidate.seed_xy[1] * 512 + candidate.seed_xy[0];
+          const group = bySeed.get(seed);
+          if (!group || group.length !== candidate.pixel_count) return false;
+          regionGroupsByIndex.set(candidate.component_index, group);
+        }
+        schedule();
+        return true;
+      },
+      onHighlight: (componentIndex) => {
+        highlightedRegionIndex = Number.isInteger(componentIndex) && regionGroupsByIndex.has(componentIndex)
+          ? componentIndex
+          : null;
+        regionHighlightCtx.clearRect(0, 0, 512, 512);
+        if (highlightedRegionIndex != null) {
+          const pixels = regionHighlightCtx.createImageData(512, 512);
+          for (const index of regionGroupsByIndex.get(highlightedRegionIndex)) {
+            const offset = index * 4;
+            pixels.data[offset] = 30;
+            pixels.data[offset + 1] = 220;
+            pixels.data[offset + 2] = 255;
+            pixels.data[offset + 3] = 180;
+          }
+          regionHighlightCtx.putImageData(pixels, 0, 0);
+        }
+        if (canvas) canvas.dataset.highlightedRegion = highlightedRegionIndex == null ? "" : String(highlightedRegionIndex);
+        schedule();
+      },
+    });
+    window.addEventListener("ova:busy-changed", () => {
+      const editable = canEditCanvas() && !state.busy && !selecting;
+      adnexUI.setEditable(role() === "BS" && editable && !!state.editing?.leaseToken);
+      cdssUI.setEditable(role() === "BS" && editable && !!state.editing?.leaseToken);
+      regionReviewUI.setEditable(role() === "BS" && editable);
+    }, events);
+    const select = async (side, imageId = null) => {
+      if (draw || pan || state.busy || selectionActive) return;
+      const item = imageId
+        ? c.images.find((i) => i.image_id === imageId && i.laterality === side)
+        : c.images.find((i) => i.laterality === side);
       if (!item) return toast("Ca chưa có ảnh bên này.", true);
+      if (side === state.side && item.image_id === image?.image_id) return;
       if (side !== state.side) dictation.cancel();
-      const version = ++serial;
+      const previousImage = image;
+      const previousSide = state.side;
+      const version = ++selectionSerial;
+      ++serial;
+      clearTimeout(timer);
       ++comparisonSerial;
       trackUIEvent(c.study_id, "side_switch", { side });
       selecting = true;
+      selectionActive = true;
+      syncToolButtons();
+      syncImageSelectionControls();
+      regionReviewUI.setContext(null);
+      activeRegionContext = null;
+      if (image) image.regionCalipers = {};
+      $("#regionCaliperStatus").textContent = "Đang đổi ảnh; caliper theo vùng đã bỏ chọn.";
       syncClinicalInputs();
       researchCandidateUI.resetForSide();
       adnexUI.resetForSide(side);
@@ -1013,54 +1466,135 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       cdssUI.resetForSide();
       cdssUI.setEditable(false);
       polygon = [];
+      pendingCaliper = null;
+      caliperPreviewPoint = null;
       let bitmap;
+      let decodedSourceUrl = null;
+      let sourceIsModel = item.sourceIsModel;
       try {
-        if (!item.source) {
-          const data = await request(
-            "/api/images/" + encodeURIComponent(item.image_id) + "/viewer-source",
-            { signal: abort.signal },
+        let sourceImage = item.source;
+        if (!sourceImage || sourceIsModel) {
+          decodedSourceUrl = await protectedImage(
+            "/api/images/" + encodeURIComponent(item.image_id) + "/source.png",
           );
-          if (version !== serial || disposed) return;
-          item.source = data.original_image_base64;
-          item.sourceIsModel = true;
+          sourceImage = decodedSourceUrl;
+          sourceIsModel = false;
         }
-        bitmap = await createImageBitmap(
-          await imageSourceBlob(item.source),
-        );
+        bitmap = await imageSourceBitmap(sourceImage);
       } catch (error) {
-        if (version === serial && !disposed) {
+        if (decodedSourceUrl) URL.revokeObjectURL(decodedSourceUrl);
+        if (version === selectionSerial && !disposed) {
           selecting = false;
+          selectionActive = false;
           syncClinicalInputs();
+          syncToolButtons();
+          syncImageSelectionControls();
           adnexUI.resetForSide(state.side);
           adnexUI.setEditable(canEvaluateAdnex());
           cdssUI.resetForSide();
           cdssUI.setEditable(canEvaluateCdss());
         }
         if (!image) throw error;
-        toast(error.message, true);
+        if (error.name !== "AbortError") toast(error.message, true);
         return;
       }
-      if (version !== serial || disposed) {
+      if (version !== selectionSerial || disposed) {
         bitmap.close();
+        if (decodedSourceUrl) URL.revokeObjectURL(decodedSourceUrl);
+        if (version === selectionSerial) {
+          selecting = false;
+          selectionActive = false;
+          syncClinicalInputs();
+          syncToolButtons();
+          syncImageSelectionControls();
+        }
         return;
       }
-      image = item;
-      image.seen = true;
-      state.side = side;
-      researchCandidateUI.resetForSide();
-      adnexUI.setEditable(canEvaluateAdnex());
-      cdssUI.setEditable(canEvaluateCdss());
-      tracker.track(image.image_id, "PREDICTION_VIEWED");
-      sourceCtx.clearRect(0, 0, 512, 512);
-      const dims = image.dimensions || [
-        image.width || bitmap.width,
-        image.height || bitmap.height,
-      ];
-      box = letterbox(dims[0], dims[1]);
-      if (image.sourceIsModel) sourceCtx.drawImage(bitmap, 0, 0, 512, 512);
-      else
-        sourceCtx.drawImage(bitmap, box.left, box.top, box.width, box.height);
-      bitmap.close();
+      const imageSelect = $("#viewerImageSelect");
+      try {
+        image = item;
+        image.manualCalipers ??= Array.isArray(image.review?.hitl_feedback?.manual_calipers)
+          ? image.review.hitl_feedback.manual_calipers.map((caliper) => ({ label: caliper.label, points: caliper.points }))
+          : [];
+        state.side = side;
+        regionReviewUI.setContext({
+          studyId: c.study_id,
+          imageId: image.image_id,
+          reviewId: image.review?.review_id ?? null,
+          reviewRevision: c.review_revision ?? 0,
+          maskMatchesReview: Boolean(image.review?.verified_mask_rle) &&
+            JSON.stringify(encode(image.mask)) === JSON.stringify(image.review.verified_mask_rle),
+          canEdit: role() === "BS" && state.editing?.caseId === c.study_id && state.editing.allowed,
+          leaseToken: state.editing?.leaseToken ?? null,
+          pageInstanceId: state.editing?.pageInstanceId ?? null,
+        });
+        if (imageSelect) {
+          imageSelect.innerHTML = c.images.map((candidate, index) => {
+            const sideLabel = candidate.laterality === "L" ? "Trái" : candidate.laterality === "R" ? "Phải" : "Chưa rõ bên";
+            return `<option value="${esc(candidate.image_id)}">${sideLabel} · ${index + 1} · ${esc(candidate.filename || candidate.image_id)}</option>`;
+          }).join("");
+          imageSelect.value = item.image_id;
+          imageSelect.disabled = selecting || state.busy || readonly;
+          const currentOption = imageSelect.selectedOptions[0];
+          imageSelect.setAttribute("aria-label", currentOption?.textContent || "Ảnh hoặc mặt cắt đang xem");
+          const currentLabel = $("#viewerImageSelectCurrent");
+          if (currentLabel) currentLabel.textContent = `Ảnh ${Math.max(1, c.images.findIndex(candidate => candidate.image_id === item.image_id) + 1)}`;
+        }
+        researchCandidateUI.resetForSide();
+        adnexUI.setEditable(canEvaluateAdnex());
+        cdssUI.setEditable(canEvaluateCdss());
+        sourceCtx.clearRect(0, 0, 512, 512);
+        const dims = image.dimensions || [
+          image.width || bitmap.width,
+          image.height || bitmap.height,
+        ];
+        box = letterbox(dims[0], dims[1]);
+        if (sourceIsModel) sourceCtx.drawImage(bitmap, 0, 0, 512, 512);
+        else
+          sourceCtx.drawImage(bitmap, box.left, box.top, box.width, box.height);
+        image.seen = true;
+        tracker.track(image.image_id, "PREDICTION_VIEWED");
+      } catch (error) {
+        if (version === selectionSerial && !disposed) {
+          selecting = false;
+          selectionActive = false;
+          image = null;
+          state.side = previousSide;
+          activeRegionContext = null;
+          regionReviewUI.setContext(null);
+          regionReviewUI.setEditable(false);
+          adnexUI.setEditable(false);
+          cdssUI.setEditable(false);
+          sourceCtx.clearRect(0, 0, 512, 512);
+          maskCtx.clearRect(0, 0, 512, 512);
+          outlineCtx.clearRect(0, 0, 512, 512);
+          regionHighlightCtx.clearRect(0, 0, 512, 512);
+          $("#secondPane").hidden = true;
+          uncertainty?.close();
+          uncertainty = null;
+          showUncertainty = false;
+          $("#uncertaintyToggle").checked = false;
+          $("#uncertaintyToggle").disabled = true;
+          $("#sideLabel").textContent = "Ảnh chưa hiển thị";
+          $("#viewerImageSummary").textContent = "Không hiển thị được ảnh. Chọn lại ảnh để thử.";
+          const imageSelect = $("#viewerImageSelect");
+          if (imageSelect) {
+            imageSelect.value = previousImage?.image_id ?? "";
+            imageSelect.disabled = state.busy || readonly;
+          }
+          syncClinicalInputs();
+          syncToolButtons();
+          syncImageSelectionControls();
+          adnexUI.resetForSide(previousSide);
+          cdssUI.resetForSide();
+          for (const currentSide of ["L", "R"])
+            $(`[data-action=side-${currentSide}]`).classList.toggle("primary", currentSide === previousSide);
+        }
+        throw error;
+      } finally {
+        bitmap.close();
+        if (decodedSourceUrl) URL.revokeObjectURL(decodedSourceUrl);
+      }
       uncertainty?.close();
       uncertainty = null;
       showUncertainty = false;
@@ -1073,7 +1607,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           image.prediction.uncertainty_map_base64,
           window,
         );
-        if (version !== serial || disposed) {
+        if (version !== selectionSerial || disposed) {
           map?.close();
           return;
         }
@@ -1099,19 +1633,19 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       if ($("#iotaMorphology")) $("#iotaMorphology").value = image.morphology || "";
       if ($("#oradsScore")) $("#oradsScore").value = image.orads || "";
       selecting = false;
+      selectionActive = false;
+      if (imageSelect) imageSelect.disabled = state.busy || readonly;
       syncClinicalInputs();
+      syncToolButtons();
+      syncImageSelectionControls();
       adnexUI.setEditable(canEvaluateAdnex());
       cdssUI.setEditable(canEvaluateCdss());
       for (const s of ["L", "R"])
         $(`[data-action=side-${s}]`).classList.toggle("primary", s === side);
-      $("#notes").disabled = $("#morphology").disabled = readonly;
-      if ($("#iotaMorphology")) $("#iotaMorphology").disabled = readonly;
-      if ($("#oradsScore")) $("#oradsScore").disabled = readonly;
-      syncOradsQuickPick();
       $("[data-action=sign]").disabled =
-        readonly || !workflowEnabled || !c.images.every((i) => i.seen) || c.images.length !== 2;
+        !canEditCanvas() || state.busy || !workflowEnabled || !canReviewFullCase();
       $("[data-action=save-review]").disabled =
-        readonly || !c.images.every((i) => i.seen);
+        readonly || state.busy || !c.images.every((i) => i.seen);
       syncContentWarning();
       refreshMask();
       fit();
@@ -1151,17 +1685,63 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     canvas.addEventListener(
       "pointerdown",
       (e) => {
+        if (activePointerId !== null || !e.isPrimary) return;
         canvas.focus();
         canvas.setPointerCapture(e.pointerId);
+        activePointerId = e.pointerId;
         if (e.button === 1 || tool === "pan") {
           pan = true;
           last = { x: e.clientX, y: e.clientY };
           e.preventDefault();
           return;
         }
-        if (readonly || selecting || state.busy || e.button !== 0 || peek)
+        if (!canEditCanvas() || selecting || state.busy || e.button !== 0 || peek)
           return;
         const p = point(e);
+        if (tool === "caliper-d1" || tool === "caliper-d2") {
+          const label = tool === "caliper-d1" ? "D1" : "D2";
+          if (!pendingCaliper || pendingCaliper.label !== label) {
+            pendingCaliper = { label, point: p };
+            caliperPreviewPoint = null;
+            $("#viewerImageSummary").textContent = `Caliper ${label}: chọn điểm thứ hai.`;
+            schedule();
+            return;
+          }
+          const width = image.dimensions?.[0] || image.width || 512;
+          const height = image.dimensions?.[1] || image.height || 512;
+          const toSource = (point) => [
+            (point.x - box.left) * width / box.width,
+            (point.y - box.top) * height / box.height,
+          ];
+      const points = [toSource(pendingCaliper.point), toSource(p)];
+          pendingCaliper = null;
+          caliperPreviewPoint = null;
+          if (points.some(([x, y]) => x < 0 || y < 0 || x >= width || y >= height)) {
+            toast("Đặt hai đầu caliper bên trong vùng ảnh nguồn.", true);
+            schedule();
+            return;
+          }
+          if (Math.hypot(points[1][0] - points[0][0], points[1][1] - points[0][1]) < 1) {
+            toast("Hai đầu caliper cần cách nhau ít nhất một pixel.", true);
+            schedule();
+            return;
+          }
+          if (activeRegionContext) {
+            saveSelectedRegionCaliper(label, points);
+            schedule();
+            return;
+          }
+          image.manualCalipers = (image.manualCalipers || []).filter((caliper) => caliper.label !== label);
+          image.manualCalipers.push({ label, points });
+          state.dirty = true;
+          saveDraft();
+          saveMaskDraft(c, image);
+          syncDraftNotice();
+          trackUIEvent(c.study_id, "manual_caliper_set", { image_id: image.image_id, label });
+          displayMeasurements(image.measurements);
+          schedule();
+          return;
+        }
         if (tool === "polygon") {
           polygon.push(p);
           schedule();
@@ -1178,6 +1758,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     canvas.addEventListener(
       "pointermove",
       (e) => {
+        if (activePointerId !== null && e.pointerId !== activePointerId) return;
         const rect = canvas.getBoundingClientRect(),
           cursor = $("#brushCursorV2");
         cursor.hidden = readonly || !["brush", "erase"].includes(tool) || peek;
@@ -1193,17 +1774,26 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           const p = point(e);
           paint(p, last);
           last = p;
+        } else if (pendingCaliper) {
+          caliperPreviewPoint = point(e);
+          schedule();
         }
       },
       events,
     );
-    const end = () => {
+    const end = (e) => {
+      if (e && (activePointerId === null || e.pointerId !== activePointerId)) return;
+      activePointerId = null;
       if (draw) {
         draw = false;
         changed();
       }
       pan = false;
       document.body.classList.remove("drawing");
+      if (fitAfterPointer) {
+        fitAfterPointer = false;
+        fit();
+      }
     };
     canvas.addEventListener(
       "pointerleave",
@@ -1219,7 +1809,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       if (
         tool !== "polygon" ||
         polygon.length < 3 ||
-        readonly ||
+        !canEditCanvas() ||
         state.busy
       )
         return false;
@@ -1257,6 +1847,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           brush = Math.min(64, Math.max(2, brush + (e.deltaY < 0 ? 2 : -2)));
           $("#brushSize").value = brush;
           $("#brushOutput").value = brush;
+          const cur = $("#brushCursorV2");
+          if (cur) cur.style.width = cur.style.height = brush * view.scale + "px";
           return;
         }
         const p = point(e),
@@ -1273,25 +1865,29 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     );
     const act = async (action) => {
       if (selecting || state.busy) return;
+      if (['brush', 'erase', 'polygon', 'caliper-d1', 'caliper-d2'].includes(action) &&
+          !canEditCanvas()) return;
       trackUIEvent(c.study_id, "tool_select", { tool: action });
-      if (["brush", "erase", "polygon", "pan"].includes(action)) {
+      if (["brush", "erase", "polygon", "pan", "caliper-d1", "caliper-d2"].includes(action)) {
         tool = action;
+        pendingCaliper = null;
         $$("[data-tool]").forEach(
           (b) => (
             b.classList.toggle("active", b.dataset.tool === tool),
             b.setAttribute("aria-pressed", String(b.dataset.tool === tool))
           ),
         );
-        canvas.style.cursor = tool === "pan" ? "grab" : "crosshair";
+        canvas.style.cursor = tool === "pan" ? "grab" : tool.startsWith("caliper") ? "copy" : "crosshair";
         return;
       }
       if (action === "fit") return fit();
+      if (action === "auto-zoom") return autoZoomLesion();
       if (action === "fullscreen") {
         if (document.fullscreenElement) document.exitFullscreen();
         else root.requestFullscreen();
         return;
       }
-      if (readonly) return;
+      if (!canEditCanvas()) return;
       if (action === "undo") {
         const previous = image.history.pop();
         if (previous) {
@@ -1330,17 +1926,22 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       changed();
     };
     $$("[data-tool]").forEach((b) => {
-      b.disabled =
-        readonly && !["fit", "pan", "fullscreen"].includes(b.dataset.tool);
       b.onclick = () => act(b.dataset.tool);
     });
+    syncToolButtons();
     $$("[data-action^=side-]").forEach(
       (b) =>
         (b.onclick = () =>
           select(b.dataset.action.slice(-1)).catch((e) =>
-            toast(e.message, true),
+            { if (e.name !== "AbortError") toast(e.message, true); },
           )),
     );
+    $("#viewerImageSelect").onchange = (event) => {
+      const selectedImage = c.images.find((candidate) => candidate.image_id === event.target.value);
+      if (selectedImage) select(selectedImage.laterality, selectedImage.image_id).catch((error) => {
+        if (error.name !== "AbortError") toast(error.message, true);
+      });
+    };
     $$("[data-action^=layer-]").forEach(
       (b) =>
         (b.onclick = () => {
@@ -1365,39 +1966,51 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         const other =
           kind === "bilateral" ? c.images.find((i) => i !== image) : image;
         if (!other) return toast("Chưa có ảnh bên còn lại.", true);
-        if (!other.source) {
-          const data = await request(
-            "/api/images/" + other.image_id + "/viewer-source",
-            { signal: abort.signal },
+        let decodedSourceUrl = null;
+        let sourceImage = other.source;
+        let sourceIsModel = other.sourceIsModel;
+        if (!sourceImage || sourceIsModel) {
+          decodedSourceUrl = await protectedImage(
+            "/api/images/" + encodeURIComponent(other.image_id) + "/source.png",
           );
-          other.source = data.original_image_base64;
-          other.sourceIsModel = true;
+          sourceImage = decodedSourceUrl;
+          sourceIsModel = false;
         }
-        const bitmap = await createImageBitmap(
-          await imageSourceBlob(other.source),
-        );
+        let bitmap;
+        try {
+          bitmap = await imageSourceBitmap(sourceImage);
+        } catch (error) {
+          if (decodedSourceUrl) URL.revokeObjectURL(decodedSourceUrl);
+          throw error;
+        }
         if (
           disposed ||
           comparisonId !== comparisonSerial ||
           selected !== image
         ) {
           bitmap.close();
+          if (decodedSourceUrl) URL.revokeObjectURL(decodedSourceUrl);
           return;
         }
-        const g = compareCanvas.getContext("2d");
-        g.clearRect(0, 0, 512, 512);
-        const b = letterbox(
-          other.width || other.dimensions?.[0] || bitmap.width,
-          other.height || other.dimensions?.[1] || bitmap.height,
-        );
-        g.drawImage(
-          bitmap,
-          other.sourceIsModel ? 0 : b.left,
-          other.sourceIsModel ? 0 : b.top,
-          other.sourceIsModel ? 512 : b.width,
-          other.sourceIsModel ? 512 : b.height,
-        );
-        bitmap.close();
+        let g;
+        try {
+          g = compareCanvas.getContext("2d");
+          g.clearRect(0, 0, 512, 512);
+          const b = letterbox(
+            other.width || other.dimensions?.[0] || bitmap.width,
+            other.height || other.dimensions?.[1] || bitmap.height,
+          );
+          g.drawImage(
+            bitmap,
+            sourceIsModel ? 0 : b.left,
+            sourceIsModel ? 0 : b.top,
+            sourceIsModel ? 512 : b.width,
+            sourceIsModel ? 512 : b.height,
+          );
+        } finally {
+          bitmap.close();
+          if (decodedSourceUrl) URL.revokeObjectURL(decodedSourceUrl);
+        }
         const temp = document.createElement("canvas");
         temp.width = temp.height = 512;
         const tc = temp.getContext("2d"),
@@ -1492,7 +2105,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             }
           }
         }
-        if (state.busy || readonly || selecting || !image || !state.editing?.allowed) {
+        if (state.busy || !canEditCanvas() || selecting || !image) {
           e.target.value = (id === "morphology" ? image?.morphologyDesc : image?.[id]) || "";
           return;
         }
@@ -1502,7 +2115,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       };
     if ($("#iotaMorphology")) {
       const handleIota = (e) => {
-        if (state.busy || readonly || selecting || !image || !state.editing?.allowed) {
+        if (state.busy || !canEditCanvas() || selecting || !image) {
           if (image) e.target.value = image.morphology || "";
           return;
         }
@@ -1515,7 +2128,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     }
     if ($("#oradsScore")) {
       const handleOrads = (e) => {
-        if (state.busy || readonly || selecting || !image || !state.editing?.allowed) {
+        if (state.busy || !canEditCanvas() || selecting || !image) {
           if (image) e.target.value = image.orads || "";
           syncOradsQuickPick();
           return;
@@ -1535,7 +2148,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     $$("[data-chip]").forEach((b) => {
       b.disabled = readonly;
       b.onclick = () => {
-        if (state.busy || readonly) return;
+        if (state.busy || !canEditCanvas() || selecting || !image) return;
         image.morphology = [image.morphology, b.dataset.chip]
           .filter(Boolean)
           .join("; ")
@@ -1604,7 +2217,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         String(document.body.classList.toggle("panel-open")),
       );
     const triggerQuickPrint = async () => {
-      if (state.busy || readonly || selecting || !image || state.case !== c) return;
+      if (state.busy || !canEditCanvas() || selecting || !image || state.case !== c) return;
       const unseen = c.images.find(img => !img.seen);
       if (unseen) {
         toast("Xem đủ hai bên trước khi lưu rồi in. Dùng Xem phiếu để xem bản nháp RUO.", true);
@@ -1620,16 +2233,16 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         trackUIEvent(c.study_id, "print_click");
         location.hash = "#report/" + encodeURIComponent(c.study_id) + "?print=1&revision=" + outcome.revision;
       } finally {
-        if (!disposed && root.isConnected) printButton.disabled = readonly;
+        if (!disposed && root.isConnected) printButton.disabled = !canEditCanvas();
       }
     };
-    $("[data-action=quick-print]").disabled = readonly;
+    $("[data-action=quick-print]").disabled = !canEditCanvas();
     $("[data-action=quick-print]").onclick = triggerQuickPrint;
     $("[data-action=report]").onclick = () => {
       location.hash = "#report/" + encodeURIComponent(c.study_id);
     };
     $("[data-action=calibrate]").onclick = () => {
-      if (readonly || state.busy || !state.editing?.allowed || !state.editing.leaseToken)
+      if (!canEditCanvas() || state.busy || !state.editing.leaseToken)
         return toast("Ca đang ở chế độ chỉ xem hoặc đang lưu.");
       modal(
         "Hiệu chuẩn thước đo",
@@ -1649,18 +2262,27 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           ) +
           '<p class="small muted">Nhập khoảng cách của vạch thước đã biết. Không suy đoán tỷ lệ từ kích thước ảnh.</p><button class="btn primary" type="submit">Áp dụng</button>',
         async (e, d) => {
-          if (readonly || !state.editing?.allowed || !state.editing.leaseToken) {
+          if (!canEditCanvas() || !state.editing.leaseToken) {
             toast("Quyền chỉnh sửa ca đã hết hạn. Hãy tải lại ca để tiếp tục.", true);
             return;
           }
           const data = Object.fromEntries(new FormData(e.target)),
             spacing = Number(data.mm) / Number(data.pixels);
           if (!Number.isFinite(spacing) || spacing <= 0) return;
+          const submitButton = e.target.querySelector('button[type="submit"]');
+          if (submitButton?.disabled) return;
+          if (submitButton) submitButton.disabled = true;
+          const targetImage = image;
+          ++serial;
+          clearTimeout(timer);
+          $("#d1").textContent = "Đang cập nhật…";
+          $("#d2").textContent = "Đang cập nhật…";
+          $("#area").textContent = "Đang cập nhật…";
           try {
             {
-              await request(
+              const calibration = await request(
                 "/api/images/" +
-                  image.image_id +
+                  encodeURIComponent(targetImage.image_id) +
                   "/calibrate?pixel_spacing_mm=" +
                   encodeURIComponent(spacing),
                 {
@@ -1671,17 +2293,17 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
                   },
                 },
               );
-              image.pixel_spacing_mm = spacing;
-              if (image.measurements) {
-                image.measurements.calibrated = true;
-                image.measurements.calibration_source = "Nhập tay";
-              }
+              applyCalibrationAck(targetImage, calibration);
               state.dirty = true;
-              measure();
+              syncDraftNotice();
+              if (!disposed && image === targetImage) measure();
             }
             d.close();
           } catch (err) {
+            if (!disposed && image === targetImage) measure();
             toast(err.message, true);
+          } finally {
+            if (submitButton) submitButton.disabled = false;
           }
         },
       );
@@ -1702,7 +2324,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         String(e.key).toLowerCase() === "p"
       )
         return;
-      if (e.target?.closest?.("input,textarea,select,[contenteditable]")) return;
+      if (e.target?.closest?.("input,textarea,select,[contenteditable],button,a,summary,[role=button],[role=menuitem]")) return;
       if (e.code === "Space") {
         e.preventDefault();
         peek = true;
@@ -1719,6 +2341,30 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         if (!saveButton.hidden && !saveButton.disabled) saveButton.click();
         return;
       }
+      if (isUndoShortcut(e)) {
+        e.preventDefault();
+        act(e.shiftKey || (e.ctrlKey && e.key.toLowerCase() === "y") ? "redo" : "undo");
+        return;
+      }
+      if (isAutoZoomShortcut(e)) {
+        e.preventDefault();
+        act("auto-zoom");
+        return;
+      }
+      const oradsVal = getOradsShortcutValue(e);
+      if (oradsVal) {
+        e.preventDefault();
+        const oradsSelect = $("#oradsScore");
+        if (oradsSelect && !oradsSelect.disabled) {
+          oradsSelect.value = oradsVal;
+          if (image) image.orads = oradsVal;
+          syncOradsQuickPick();
+          changed();
+          saveDraft();
+          toast(`Đã gán nhanh ${oradsVal}`);
+        }
+        return;
+      }
       if (
         (e.ctrlKey || e.metaKey) &&
         ["z", "y"].includes(e.key.toLowerCase())
@@ -1731,6 +2377,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       const map = {
         b: "brush",
         e: "erase",
+        c: image.manualCalipers?.some((caliper) => caliper.label === "D1") ? "caliper-d2" : "caliper-d1",
         h: "pan",
         l: "polygon",
         s: "smooth",
@@ -1742,6 +2389,21 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         e.preventDefault();
         act(map[k]);
       } else if (k === "x") act(tool === "erase" ? "brush" : "erase");
+      else if (k === "escape" && pendingCaliper) {
+        pendingCaliper = null;
+        caliperPreviewPoint = null;
+        schedule();
+      } else if (k === "backspace" && tool.startsWith("caliper")) {
+        e.preventDefault();
+        const label = tool === "caliper-d1" ? "D1" : "D2";
+        image.manualCalipers = (image.manualCalipers || []).filter((caliper) => caliper.label !== label);
+        state.dirty = true;
+        saveDraft();
+        saveMaskDraft(c, image);
+        syncDraftNotice();
+        displayMeasurements(image.measurements);
+        schedule();
+      }
       else if (k === "g") {
         e.preventDefault();
         if (!document.querySelector("#modal[open]")) completePolygon();
@@ -1760,6 +2422,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         brush = Math.max(2, Math.min(64, brush + (k === "]" ? 2 : -2)));
         $("#brushSize").value = brush;
         $("#brushOutput").value = brush;
+        const cur = $("#brushCursorV2");
+        if (cur) cur.style.width = cur.style.height = brush * view.scale + "px";
       } else if (["arrowleft", "arrowright"].includes(k)) {
         e.preventDefault();
         select(k === "arrowleft" ? "L" : "R");
@@ -1777,11 +2441,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     window.addEventListener(
       "keyup",
       (e) => {
-        if (e.code === "Space") {
-          peek = false;
-          syncOverlayVisibility();
-          schedule();
-        }
+        if (e.code !== "Space" || !peek) return;
+        peek = false;
+        syncOverlayVisibility();
+        schedule();
       },
       events,
     );
@@ -1795,12 +2458,20 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       },
       events,
     );
-    const observer = new ResizeObserver(fit);
+    const observer = new ResizeObserver(() => {
+      if (activePointerId !== null) {
+        fitAfterPointer = true;
+        return;
+      }
+      fit();
+    });
     observer.observe($("#pane"));
     window.addEventListener(
       "ova:lease-lost",
       () => {
         readonly = true;
+        $("#leaseLostNotice").hidden = false;
+        syncToolButtons();
         dictation.cancel();
         $("#dictationRecord").disabled = true;
         $("#dictationInsert").disabled = true;
@@ -1810,10 +2481,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         researchCandidateUI.resetForSide();
         end();
         state.editing = { caseId: c.study_id, allowed: false };
-        $$("[data-tool]").forEach((b) => {
-          if (!["fit", "pan", "fullscreen"].includes(b.dataset.tool))
-            b.disabled = true;
-        });
         for (const action of [
           "sign",
           "quick-print",
@@ -1834,25 +2501,42 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       },
       events,
     );
+    $("[data-action=lease-reload]").addEventListener("click", () => {
+      saveDraft();
+      if (image) saveMaskDraft(c, image);
+      window.location.reload();
+    });
     const onVisibilityChange = () => {
       if (!image) return;
       if (document.hidden) tracker.recordPause(image.image_id);
       else tracker.recordResume(image.image_id);
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
-    active = { select, act, render: schedule };
+    active = {
+      select,
+      act,
+      render: schedule,
+    };
     const release = () => {
       disposed = true;
       dictation.dispose();
       adnexUI.destroy();
       cdssUI.destroy();
       researchCandidateUI.destroy();
+      regionReviewUI.destroy();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       if (state.editing?.caseId === c.study_id) state.editing = null;
       lease?.release();
       abort.abort();
       observer.disconnect();
       worker.terminate();
+      measurementQueue.dispose();
+      for (const item of c.images || []) {
+        if (!item.sourceIsObjectUrl || !item.source?.startsWith("blob:")) continue;
+        URL.revokeObjectURL(item.source);
+        item.source = null;
+        item.sourceIsObjectUrl = false;
+      }
       uncertainty?.close();
       clearTimeout(timer);
       cancelAnimationFrame(frame);
@@ -1875,8 +2559,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           c.study_id,
           {
             participant_code: state.user.username,
-            participant_role: "clinician",
-            data_origin: "live",
+            participant_role: state.capabilities?.synthetic_demo_mode === true ? "technical_tester" : "clinician",
+            data_origin: state.capabilities?.synthetic_demo_mode === true ? "demo" : "live",
             local_owner_id: state.user.id,
           },
           {

@@ -5,7 +5,8 @@ FROM python:3.12-slim AS base
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=8000
+    PORT=8000 \
+    HOST=0.0.0.0
 
 # Install minimal OS dependencies for OpenCV, DICOM and PDF rendering
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -46,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/api/health/ready || exit 1
 
 # Start application with Uvicorn
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host \"$HOST\" --port \"$PORT\" --no-access-log"]

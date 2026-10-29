@@ -7,7 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from ai_training.train_baseline_unet import train_baseline, validate_training_split_identity
+from ai_training.train_baseline_unet import train_baseline, validate_training_split_integrity
 
 LEARNING_RATES = (1e-4, 3e-4)
 EPOCHS = 20
@@ -67,7 +67,7 @@ def select_best_candidate(incumbent: dict, runs: list[dict]) -> dict:
 def run_refinement(root: Path) -> dict:
     root = root.resolve()
     split_dir = root / "ai_training/splits/unified_vinmec_clean_2026-10-06"
-    split_identity_status = validate_training_split_identity(split_dir)
+    split_integrity = validate_training_split_integrity(split_dir)
     baseline_dir = root / "checkpoints/unified_vinmec_2026-10-06"
     baseline_config = json.loads((baseline_dir / "run_config.json").read_text(encoding="utf-8"))
     verified_hashes = verify_split_hashes(split_dir, baseline_config["split_sha256"])
@@ -116,8 +116,10 @@ def run_refinement(root: Path) -> dict:
                 "loss": "0.5 BCE + 0.5 Dice",
                 "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
             },
-            "identity_level": split_identity_status,
-            "source_patient_identity_verified": split_identity_status == "patient_level_verified",
+            "identity_level": "image-level",
+            "split_integrity": split_integrity,
+            "source_patient_identity_verified": False,
+            "patient_level_independence_verified": False,
             "test_policy": "Test split was not iterated, used for selection, or reevaluated.",
         }
     )
