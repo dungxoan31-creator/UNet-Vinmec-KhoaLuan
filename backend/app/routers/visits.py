@@ -102,6 +102,18 @@ def create_visit(
     else:
         raise HTTPException(status_code=500, detail="Không thể sinh mã lượt khám duy nhất.")
 
+    # If linked study provided, validate access and existence
+    study = None
+    if req.study_id:
+        study = db.query(StudyModel).filter(StudyModel.id == req.study_id).first()
+        if not study:
+            raise HTTPException(
+                status_code=404,
+                detail="Không tìm thấy ca khám để liên kết lượt khám.",
+            )
+        check_facility_access(current_user, study.facility_id)
+
+    is_locked = True if req.status == "LOCKED" else False
     now = datetime.now(UTC)
     visit = VisitModel(
         id=str(uuid.uuid4()),
@@ -109,20 +121,17 @@ def create_visit(
         facility_id=facility_id,
         patient_id=req.patient_id,
         status=req.status or "ACTIVE",
-        is_locked=False,
+        is_locked=is_locked,
         created_at=now,
         updated_at=now,
     )
     db.add(visit)
 
     # If linked study provided, associate it
-    if req.study_id:
-        study = db.query(StudyModel).filter(StudyModel.id == req.study_id).first()
-        if study:
-            check_facility_access(current_user, study.facility_id)
-            study.visit_id = visit.id
-            if facility_id:
-                study.facility_id = facility_id
+    if study:
+        study.visit_id = visit.id
+        if facility_id:
+            study.facility_id = facility_id
 
     # Audit log
     audit = AuditLogModel(

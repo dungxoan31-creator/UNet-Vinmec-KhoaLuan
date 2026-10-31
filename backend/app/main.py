@@ -36,6 +36,7 @@ from backend.app.routers import (
     reviews_router,
     v1_router,
 )
+from backend.app.routers.visits import router as visits_router
 from backend.app.security import get_current_user
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
 from backend.core.synthetic_demo import is_loopback_client
@@ -117,14 +118,20 @@ async def inference_busy_response(_request: Request, _exc: InferenceBusyError):
 
 
 @app.exception_handler(Exception)
-async def unhandled_error_security_headers(_request: Request, _exc: Exception):
+async def unhandled_error_security_headers(request: Request, exc: Exception):
     """Add security headers to 500 responses created outside user middleware."""
-    response = JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    logger.exception("Unhandled server exception [request_id=%s]: %s", request_id, exc)
+    response = JSONResponse(
+        status_code=500,
+        content={"detail": "Lỗi hệ thống nội bộ.", "request_id": request_id},
+    )
     return apply_security_headers(response)
 
 # Register API Routers
 clinical_access = [Depends(get_current_user)]
 app.include_router(v1_router, dependencies=clinical_access)
+app.include_router(visits_router)
 app.include_router(health_router)
 app.include_router(cases_router, dependencies=clinical_access)
 app.include_router(inference_router, dependencies=clinical_access)
