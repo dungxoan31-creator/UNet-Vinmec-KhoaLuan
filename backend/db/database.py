@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import sqlite3
 import uuid
 from datetime import UTC, datetime
@@ -94,6 +95,44 @@ def connect_sqlite(path: str, **kwargs) -> sqlite3.Connection:
     return connection
 
 
+def generate_visit_code() -> str:
+    """Generate high-entropy unique visit code: VIS-YYYYMMDD-XXXXXXXX"""
+    date_part = datetime.now(UTC).strftime("%Y%m%d")
+    random_part = secrets.token_hex(4).upper()
+    return f"VIS-{date_part}-{random_part}"
+
+
+class FacilityModel(Base):
+    __tablename__ = "facilities"
+
+    id = Column(String(36), primary_key=True)
+    facility_code = Column(String(32), unique=True, nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    config = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+    users = relationship("UserModel", back_populates="facility")
+    visits = relationship("VisitModel", back_populates="facility")
+
+
+class VisitModel(Base):
+    __tablename__ = "visits"
+
+    id = Column(String(36), primary_key=True)
+    visit_code = Column(String(32), unique=True, nullable=False, index=True)
+    facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=True)
+    patient_id = Column(String(36), ForeignKey("patients.id"), nullable=True)
+    status = Column(String(20), default="ACTIVE", nullable=False)
+    is_locked = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+
+    facility = relationship("FacilityModel", back_populates="visits")
+    patient = relationship("PatientModel")
+    studies = relationship("StudyModel", back_populates="visit")
+
+
 class PatientModel(Base):
     __tablename__ = "patients"
 
@@ -128,7 +167,7 @@ class StudyModel(Base):
     )
 
     id = Column(String(36), primary_key=True)
-    patient_id = Column(String(36), ForeignKey("patients.id"), nullable=False)
+    patient_id = Column(String(36), ForeignKey("patients.id"), nullable=True)
     study_code = Column(String(64), nullable=True)
     visit_no = Column(String(6), nullable=True)
     idempotency_key_digest = Column(String(64), nullable=True)
@@ -141,9 +180,13 @@ class StudyModel(Base):
     contralateral_status = Column(String(30), default="UNKNOWN", nullable=False)
     clinical_indication = Column(Text, nullable=True)
     review_revision = Column(Integer, default=0, nullable=False)
+    visit_id = Column(String(36), ForeignKey("visits.id"), nullable=True)
+    facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     patient = relationship("PatientModel", back_populates="studies")
+    visit = relationship("VisitModel", back_populates="studies")
+    facility = relationship("FacilityModel")
     images = relationship("ImageModel", back_populates="study", cascade="all, delete-orphan")
 
 
@@ -362,12 +405,15 @@ class UserModel(Base):
     department = Column(String(100), default="Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa")
     title = Column(String(50), default="")
     hospital = Column(String(100), default="Chưa cấu hình")
+    facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=True)
     avatar = Column(String(255), default="doctor_avatar.png")
     is_active = Column(Boolean, default=True)
     must_change_password = Column(Boolean, default=False, nullable=False)
     token_version = Column(Integer, default=1)
     tokens_revoked_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+    facility = relationship("FacilityModel", back_populates="users")
 
 
 class EmailVerificationChallengeModel(Base):
@@ -629,6 +675,7 @@ def init_db():
             cursor.execute("ALTER TABLE studies ADD COLUMN review_revision INTEGER DEFAULT 0;")
         _migrate_case_idempotency_on_connection(cursor)
         _migrate_visit_numbers_on_connection(cursor)
+        _migrate_visits_on_connection(cursor)
         _ensure_study_domains(raw_conn)
         cursor.execute("PRAGMA table_info(images);")
         image_columns = [col[1] for col in cursor.fetchall()]
@@ -692,6 +739,8 @@ def init_db():
             cursor.execute("ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 0;")
         if user_columns and "tokens_revoked_at" not in user_columns:
             cursor.execute("ALTER TABLE users ADD COLUMN tokens_revoked_at DATETIME;")
+        if user_columns and "facility_id" not in user_columns:
+            cursor.execute("ALTER TABLE users ADD COLUMN facility_id VARCHAR(36);")
         _migrate_reference_integrity_on_connection(conn)
         _ensure_review_action_domain(raw_conn)
         _ensure_hitl_event_type_domain(raw_conn)
@@ -861,6 +910,35 @@ def _migrate_visit_numbers_on_connection(cursor: sqlite3.Cursor) -> None:
     cursor.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_studies_visit_no ON studies(visit_no)"
     )
+
+
+def _migrate_visits_on_connection(cursor: sqlite3.Cursor) -> None:
+    """Backfill first-class Visit records (VIS-YYYYMMDD-XXXXXXXX) for existing studies."""
+    columns = {row[1] for row in cursor.execute("PRAGMA table_info(studies)").fetchall()}
+    if "visit_id" not in columns:
+        cursor.execute("ALTER TABLE studies ADD COLUMN visit_id VARCHAR(36);")
+    if "facility_id" not in columns:
+        cursor.execute("ALTER TABLE studies ADD COLUMN facility_id VARCHAR(36);")
+
+    studies = cursor.execute("SELECT id, patient_id, study_date, created_at, visit_id, facility_id FROM studies").fetchall()
+    for study_id, patient_id, study_date, created_at, visit_id, facility_id in studies:
+        if not visit_id:
+            date_clean = (str(study_date) if study_date else "").replace("-", "")[:8]
+            if len(date_clean) != 8 or not date_clean.isdigit():
+                date_clean = datetime.now(UTC).strftime("%Y%m%d")
+            suffix = hashlib.sha256(f"study_visit_{study_id}".encode("ascii")).hexdigest()[:8].upper()
+            new_visit_code = f"VIS-{date_clean}-{suffix}"
+            new_visit_id = str(uuid.uuid4())
+            now_iso = datetime.now(UTC).isoformat()
+            cursor.execute(
+                "INSERT OR IGNORE INTO visits (id, visit_code, facility_id, patient_id, status, is_locked, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, 'ACTIVE', 0, ?, ?)",
+                (new_visit_id, new_visit_code, facility_id, patient_id, created_at or now_iso, now_iso),
+            )
+            row = cursor.execute("SELECT id FROM visits WHERE visit_code = ?", (new_visit_code,)).fetchone()
+            actual_visit_id = row[0] if row else new_visit_id
+            cursor.execute("UPDATE studies SET visit_id = ? WHERE id = ?", (actual_visit_id, study_id))
+
 
 
 def _migrate_case_idempotency_on_connection(cursor: sqlite3.Cursor) -> None:

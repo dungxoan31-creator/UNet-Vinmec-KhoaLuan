@@ -212,7 +212,7 @@ def _case_create_response(study: StudyModel, *, replayed: bool = False) -> dict:
         "study_id": study.id,
         "study_code": study.study_code,
         "visit_no": study.visit_no,
-        "patient_id": study.patient.anonymized_pid,
+        "patient_id": study.patient.anonymized_pid if study.patient else None,
         "study_date": study.study_date,
         "status": study.status,
         "ovary_side": study.ovary_side,
@@ -244,10 +244,8 @@ def create_new_case(
     """
     Create a new clinical study case.
     """
-    clean_pid = req.patient_id.strip() if req.patient_id else ""
-    if not clean_pid:
-        raise HTTPException(status_code=422, detail="Mã định danh bệnh nhân (PID) không được để trống.")
-    if SYNTHETIC_DEMO_MODE and not clean_pid.upper().startswith("DEMO-SYNTHETIC-"):
+    clean_pid = req.patient_id.strip() if req.patient_id else None
+    if clean_pid and SYNTHETIC_DEMO_MODE and not clean_pid.upper().startswith("DEMO-SYNTHETIC-"):
         raise HTTPException(
             status_code=422,
             detail="Chế độ demo chỉ cho phép mã ca DEMO-SYNTHETIC-*; không nhập thông tin bệnh nhân.",
@@ -284,7 +282,7 @@ def create_new_case(
         return _case_create_response(existing, replayed=True)
 
     try:
-        patient = get_or_create_patient(db, clean_pid, req.patient_age)
+        patient = get_or_create_patient(db, clean_pid, req.patient_age) if clean_pid else None
 
         study_id = str(uuid.uuid4())
         study_code = (
@@ -294,7 +292,8 @@ def create_new_case(
         )
         study = StudyModel(
             id=study_id,
-            patient_id=patient.id,
+            patient=patient,
+            patient_id=patient.id if patient else None,
             study_code=study_code,
             study_date=req.study_date,
             idempotency_key_digest=idempotency_digest,
@@ -382,7 +381,7 @@ def _filtered_cases_query(
     statuses=None,
     current_user=None,
 ):
-    query = db.query(StudyModel).join(PatientModel)
+    query = db.query(StudyModel).outerjoin(PatientModel)
     if current_user is not None:
         if getattr(current_user, "role", None) == "ADMIN" and not getattr(current_user, "facility_id", None):
             pass
@@ -496,8 +495,8 @@ def _query_cases(
                 "study_id": s.id,
                 "study_code": s.study_code or s.id[:8],
                 "visit_no": s.visit_no,
-                "patient_id": s.patient.anonymized_pid,
-                "patient_age": s.patient.age_bucket,
+                "patient_id": s.patient.anonymized_pid if s.patient else None,
+                "patient_age": s.patient.age_bucket if s.patient else None,
                 "study_date": s.study_date,
                 "status": s.status,
                 "ovary_side": s.ovary_side,
@@ -777,8 +776,8 @@ def get_case_detail(
         "study_id": study.id,
         "study_code": study.study_code,
         "visit_no": study.visit_no,
-        "patient_id": study.patient.anonymized_pid,
-        "patient_age": study.patient.age_bucket,
+        "patient_id": study.patient.anonymized_pid if study.patient else None,
+        "patient_age": study.patient.age_bucket if study.patient else None,
         "study_date": study.study_date,
         "status": study.status,
         "review_revision": getattr(study, "review_revision", 0),

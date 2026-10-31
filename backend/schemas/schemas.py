@@ -736,7 +736,7 @@ class CreateCaseRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    patient_id: str
+    patient_id: str | None = Field(default=None, max_length=64)
     study_code: str | None = Field(default=None, max_length=64)
     study_date: StrictStr
     patient_age: str | None = Field(default=None, max_length=20)
@@ -746,7 +746,7 @@ class CreateCaseRequest(BaseModel):
     contralateral_status: Literal["UNKNOWN", "NOT_VISUALIZED", "SURGICALLY_ABSENT", "NORMAL", "SUSPECTED"] = "UNKNOWN"
     facility_id: str | None = Field(default=None, max_length=64)
 
-    @field_validator("study_code", "patient_age", "probe_type", mode="before")
+    @field_validator("study_code", "patient_age", "probe_type", "patient_id", mode="before")
     @classmethod
     def normalize_optional_metadata(cls, value: Any) -> Any:
         if isinstance(value, str):
@@ -756,10 +756,12 @@ class CreateCaseRequest(BaseModel):
 
     @field_validator("patient_id")
     @classmethod
-    def validate_patient_id(cls, v: str) -> str:
+    def validate_patient_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
         trimmed = v.strip() if isinstance(v, str) else ""
         if not trimmed:
-            raise ValueError("Mã định danh bệnh nhân (PID) không được để trống.")
+            return None
         if len(trimmed) > 64:
             raise ValueError("Mã định danh bệnh nhân (PID) không được vượt quá 64 ký tự.")
         return trimmed
@@ -788,7 +790,7 @@ class CreateCaseRequest(BaseModel):
 class CaseItem(BaseModel):
     id: str
     study_code: str
-    patient_id: str
+    patient_id: str | None = None
     study_date: str
     status: str  # PENDING, ANALYZED, REVIEWED
     ovary_side: str = "UNKNOWN"
