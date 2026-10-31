@@ -27,6 +27,7 @@ from backend.db.database import (
 )
 from backend.schemas.schemas import (
     AdminCreateUserRequest,
+    AdminCreateUserResponse,
     AdminDepartmentCreateRequest,
     AdminDepartmentUpdateRequest,
     AdminModelRegistrationRequest,
@@ -558,12 +559,14 @@ def canonicalize_user_role(role_val: str | None) -> str:
     return ROLE_ALIAS_MAP.get(raw_str, raw_str)
 
 
-@router.post("/api/admin/users")
+@router.post("/api/admin/users", response_model=AdminCreateUserResponse)
 def create_admin_user(user_data: AdminCreateUserRequest, db: Session = Depends(get_db)):
     """Create a new user account administratively."""
     raw_username = (user_data.username or "").strip()
     if not raw_username:
         raise HTTPException(status_code=422, detail="Tên đăng nhập không được để trống")
+    if len(raw_username) > 50:
+        raise HTTPException(status_code=422, detail="Tên đăng nhập không được vượt quá 50 ký tự")
     username = raw_username.lower()
     existing = db.query(UserModel).filter(UserModel.username == username).first()
     if existing:
@@ -589,15 +592,13 @@ def create_admin_user(user_data: AdminCreateUserRequest, db: Session = Depends(g
     )
     db.add(user)
     db.commit()
-    res = {
+    return {
         "status": "SUCCESS",
         "user_id": user.id,
         "username": user.username,
         "must_change_password": must_change,
+        "temp_password": temp_password,
     }
-    if temp_password:
-        res["temp_password"] = temp_password
-    return res
 
 
 @router.patch("/api/admin/users/{user_id}")
@@ -691,14 +692,12 @@ def admin_reset_user_password(
     user.tokens_revoked_at = datetime.now(UTC)
     user.token_version = (user.token_version or 1) + 1
     db.commit()
-    res = {
+    return {
         "status": "SUCCESS",
         "message": "Đã đặt lại mật khẩu người dùng.",
         "must_change_password": must_change,
+        "temp_password": temp_password,
     }
-    if temp_password:
-        res["temp_password"] = temp_password
-    return res
 
 
 @router.delete("/api/admin/users/{user_id}")

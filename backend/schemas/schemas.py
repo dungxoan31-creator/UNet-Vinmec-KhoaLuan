@@ -107,7 +107,15 @@ class AdminUpdateUserRequest(BaseModel):
 class AdminResetPasswordRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    new_password: StrictStr | None = Field(default=None, max_length=256)
+    new_password: str | None = Field(default=None, max_length=256)
+
+
+class AdminCreateUserResponse(BaseModel):
+    status: str
+    user_id: str
+    username: str
+    must_change_password: bool
+    temp_password: str | None = None
 
 
 class AdminDepartmentCreateRequest(BaseModel):

@@ -15,6 +15,36 @@ import {
 
 const activeRoles = ["BS", "QT"];
 
+export function showCredentialHandover(username, tempPassword) {
+  const content = `
+    <div class="credential-handover">
+      <p class="muted">Vui lòng sao chép và bàn giao thông tin đăng nhập này cho người dùng. Mật khẩu khởi tạo chỉ hiển thị <strong>một lần duy nhất</strong>.</p>
+      <div style="background:var(--color-surface-elevated, #1a2234);padding:1rem;border-radius:6px;margin:1rem 0;border:1px solid var(--color-border,#2e3b52);">
+        <p style="margin:0 0 0.5rem 0;"><strong>Tên đăng nhập:</strong> <code style="user-select:all;color:var(--color-primary,#38bdf8);">${esc(username)}</code></p>
+        <p style="margin:0;"><strong>Mật khẩu khởi tạo:</strong> <code id="tempPasswordCode" style="user-select:all;font-size:1.15em;font-weight:bold;color:var(--color-accent,#f59e0b);">${esc(tempPassword)}</code></p>
+      </div>
+      <p class="small text-warning" style="color:var(--color-warning,#f59e0b);margin-bottom:1rem;">Người dùng bắt buộc phải đổi mật khẩu ngay trong lần đăng nhập đầu tiên.</p>
+      <div class="actions">
+        <button type="button" class="btn" id="copyCredentialBtn">Sao chép thông tin</button>
+        <button type="button" class="btn primary" value="cancel">Đã bàn giao & Đóng</button>
+      </div>
+    </div>
+  `;
+  const d = modal("Bàn giao thông tin đăng nhập", content);
+  const copyBtn = d.querySelector("#copyCredentialBtn");
+  if (copyBtn) {
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(`Tài khoản: ${username}\nMật khẩu: ${tempPassword}`);
+        toast("Đã sao chép tài khoản và mật khẩu vào clipboard.");
+      } catch {
+        toast("Không thể tự động sao chép. Vui lòng bôi đen để copy.", true);
+      }
+    };
+  }
+  return d;
+}
+
 export async function renderUsers(target) {
   const response = await request("/api/auth/users");
   const rows = Array.isArray(response) ? response : response.items;
@@ -92,7 +122,7 @@ export async function renderUsers(target) {
         "username",
         "text",
         user?.username || "",
-        'required maxlength="64"',
+        'required maxlength="50"',
       ) +
         field(
           "Tên hiển thị",
@@ -122,14 +152,15 @@ export async function renderUsers(target) {
             throw Error("Nhập đủ thông tin người dùng.");
           if (user?.id === state.user.id && body.role !== "QT")
             throw Error("Không tự hạ quyền tài khoản đang quản trị.");
-          {
-            await request(
-              "/api/admin/users" +
-                (user ? "/" + encodeURIComponent(user.id) : ""),
-              { method: user ? "PATCH" : "POST", body },
-            );
-          }
+          const res = await request(
+            "/api/admin/users" +
+              (user ? "/" + encodeURIComponent(user.id) : ""),
+            { method: user ? "PATCH" : "POST", body },
+          );
           d.close();
+          if (res?.temp_password) {
+            showCredentialHandover(res.username || body.username, res.temp_password);
+          }
           reload();
         } catch (err) {
           toast(err.message, true);
@@ -158,23 +189,26 @@ export async function renderUsers(target) {
       return;
     buttonNode.disabled = true;
     try {
-      {
-        await request(
-          "/api/admin/users/" +
-            encodeURIComponent(user.id) +
-            (action === "reset" ? "/reset-password" : ""),
-          {
-            method:
-              action === "delete"
-                ? "DELETE"
-                : action === "reset"
-                  ? "POST"
-                  : "PATCH",
-            ...(action === "lock"
-              ? { body: { is_active: !user.is_active } }
+      const res = await request(
+        "/api/admin/users/" +
+          encodeURIComponent(user.id) +
+          (action === "reset" ? "/reset-password" : ""),
+        {
+          method:
+            action === "delete"
+              ? "DELETE"
+              : action === "reset"
+                ? "POST"
+                : "PATCH",
+          ...(action === "lock"
+            ? { body: { is_active: !user.is_active } }
+            : action === "reset"
+              ? { body: { new_password: null } }
               : {}),
-          },
-        );
+        },
+      );
+      if (action === "reset" && res?.temp_password) {
+        showCredentialHandover(user.username, res.temp_password);
       }
       toast(
         action === "reset"
