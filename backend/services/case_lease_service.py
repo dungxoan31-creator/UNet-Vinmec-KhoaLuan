@@ -13,6 +13,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from backend.db.database import CaseLeaseModel, StudyModel, UserModel
+from backend.services.facility_service import check_facility_access
 
 LEASE_SECONDS = 45
 _FINAL_STATUSES = {"REVIEWED", "SIGNED_PRELIM", "APPROVED", "LOCKED"}
@@ -148,6 +149,7 @@ def require_active_case_lease(
     if not study:
         _abort_transaction(db, "validate")
         raise HTTPException(status_code=404, detail="Case not found.")
+    check_facility_access(user, study.facility_id)
     blocked_statuses = _NON_REVIEWED_FINAL_STATUSES if allow_reviewed else _FINAL_STATUSES
     if (study.status or "").upper() in blocked_statuses:
         _abort_transaction(db, "validate")
@@ -199,6 +201,7 @@ def verify_active_case_lease_readonly(
         study = read_db.query(StudyModel).filter(StudyModel.id == study_id).first()
         if not study:
             raise HTTPException(status_code=404, detail="Case not found.")
+        check_facility_access(user, study.facility_id)
         if (study.status or "").upper() in _FINAL_STATUSES:
             raise HTTPException(status_code=409, detail="Finalized cases are read-only.")
 
@@ -228,6 +231,7 @@ def acquire_case_lease(
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Case not found.")
+    check_facility_access(user, study.facility_id)
     if (study.status or "").upper() in _NON_REVIEWED_FINAL_STATUSES:
         raise HTTPException(status_code=409, detail="Finalized cases are read-only.")
 
@@ -336,6 +340,9 @@ def release_case_lease(
     lease_token: str,
     page_instance_id: str,
 ) -> dict:
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
+    if study:
+        check_facility_access(user, study.facility_id)
     released = False
     try:
         result = db.execute(

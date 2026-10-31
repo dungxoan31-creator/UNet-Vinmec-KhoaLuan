@@ -744,6 +744,7 @@ class CreateCaseRequest(BaseModel):
     probe_type: str | None = Field(default=None, max_length=50)
     active_ovary_side: Literal["RIGHT", "LEFT", "BOTH", "UNKNOWN"] = "UNKNOWN"
     contralateral_status: Literal["UNKNOWN", "NOT_VISUALIZED", "SURGICALLY_ABSENT", "NORMAL", "SUSPECTED"] = "UNKNOWN"
+    facility_id: str | None = Field(default=None, max_length=64)
 
     @field_validator("study_code", "patient_age", "probe_type", mode="before")
     @classmethod
@@ -1130,3 +1131,64 @@ class ApplyClinicalTemplateResponse(BaseModel):
     status: str
     findings: dict[str, Any]
     cdss_result: dict[str, Any]
+
+
+class VisitCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    patient_id: str | None = None
+    facility_id: str | None = None
+    study_id: str | None = None
+    status: str = Field(default="ACTIVE", pattern="^(ACTIVE|COMPLETED|LOCKED)$")
+
+
+class VisitStudySummary(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    study_date: str
+    status: str
+    ovary_side: str
+    images_count: int = 0
+
+
+class VisitResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    visit_code: str
+    facility_id: str | None = None
+    patient_id: str | None = None
+    status: str
+    is_locked: bool
+    created_at: datetime
+    updated_at: datetime
+    studies: list[VisitStudySummary] = []
+
+
+class VisitListResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    items: list[VisitResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class FacilityCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    facility_code: str = Field(..., min_length=2, max_length=32)
+    name: str = Field(..., min_length=2, max_length=128)
+    config: dict[str, Any] | None = None
+
+
+class FacilityResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    facility_code: str
+    name: str
+    is_active: bool
+    created_at: datetime
+

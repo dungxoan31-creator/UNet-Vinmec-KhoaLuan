@@ -4,13 +4,16 @@ Clinical Cases CRUD and Sample Cases endpoints.
 
 import base64
 import logging
+import os
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+import cv2
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from fastapi.responses import FileResponse
 from sqlalchemy import asc, desc, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
@@ -45,11 +48,15 @@ from backend.schemas.schemas import (
     CreateCaseRequest,
 )
 from backend.services.case_lease_service import acquire_case_lease, release_case_lease
+from backend.services.facility_service import check_facility_access
 from backend.services.file_deletion_service import (
     enqueue_upload_deletions,
     retry_pending_file_deletions,
 )
-from backend.services.image_service import get_image_calibration
+from backend.services.image_service import (
+    decode_ultrasound_image,
+    get_image_calibration,
+)
 from backend.services.measurement_safety import (
     TRUSTED_CALIBRATION_SOURCES,
     prediction_measurements_match_calibration,
@@ -251,10 +258,24 @@ def create_new_case(
             detail="Sandbox demo không nhận tuổi hoặc ghi chú lâm sàng có thể chứa thông tin bệnh nhân.",
         )
 
+    is_global_admin = current_user.role == "ADMIN" and not current_user.facility_id
+    if not is_global_admin and not current_user.facility_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Tài khoản chưa được gán cơ sở y tế. Vui lòng liên hệ quản trị viên.",
+        )
+    if not is_global_admin and req.facility_id and req.facility_id != current_user.facility_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Không có quyền tạo ca khám cho cơ sở khác.",
+        )
+    assigned_facility_id = req.facility_id if is_global_admin else current_user.facility_id
+
     idempotency_digest = case_create_idempotency_digest(idempotency_key, current_user.id)
     request_digest = case_create_payload_digest(req.model_dump(mode="json"), current_user.id)
     existing = _idempotent_study(db, idempotency_digest)
     if existing:
+        check_facility_access(current_user, existing.facility_id)
         if not _case_create_matches_request(existing, request_digest):
             raise HTTPException(
                 status_code=409,
@@ -283,6 +304,7 @@ def create_new_case(
             ovary_side=req.active_ovary_side,
             contralateral_status=req.contralateral_status,
             clinical_indication=req.clinical_notes or None,
+            facility_id=assigned_facility_id,
         )
         db.add(study)
         db.commit()
@@ -296,6 +318,7 @@ def create_new_case(
         db.rollback()
         existing = _idempotent_study(db, idempotency_digest)
         if existing:
+            check_facility_access(current_user, existing.facility_id)
             if not _case_create_matches_request(existing, request_digest):
                 raise HTTPException(
                     status_code=409,
@@ -310,20 +333,27 @@ def create_new_case(
     return _case_create_response(study)
 
 
-@router.get("/api/cases", dependencies=[Depends(require_clinical)])
+@router.get("/api/cases")
 def list_cases(
     search: str | None = None,
     status: str | None = None,
     date: str | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
+    current_user: UserModel = Depends(require_clinical),
     db: Session = Depends(get_db),
 ):
-    return _query_cases(search, status, date, limit, offset, db, allow_source_pid=False)
+    return _query_cases(
+        search, status, date, limit, offset, db, allow_source_pid=False, current_user=current_user
+    )
 
 
-@router.post("/api/cases/search", dependencies=[Depends(require_clinical)])
-def search_cases(request: CaseSearchRequest, db: Session = Depends(get_db)):
+@router.post("/api/cases/search")
+def search_cases(
+    request: CaseSearchRequest,
+    current_user: UserModel = Depends(require_clinical),
+    db: Session = Depends(get_db),
+):
     """Search cases without placing a potentially identifying PID in the URL."""
     return _query_cases(
         request.search,
@@ -337,6 +367,7 @@ def search_cases(request: CaseSearchRequest, db: Session = Depends(get_db)):
         statuses=request.statuses,
         sort=request.sort,
         direction=request.direction,
+        current_user=current_user,
     )
 
 
@@ -349,8 +380,16 @@ def _filtered_cases_query(
     *,
     patient_id=None,
     statuses=None,
+    current_user=None,
 ):
     query = db.query(StudyModel).join(PatientModel)
+    if current_user is not None:
+        if getattr(current_user, "role", None) == "ADMIN" and not getattr(current_user, "facility_id", None):
+            pass
+        elif getattr(current_user, "facility_id", None):
+            query = query.filter(StudyModel.facility_id == current_user.facility_id)
+        else:
+            query = query.filter(StudyModel.id.is_(None))
     if status and status.upper() != "ALL":
         query = query.filter(StudyModel.status == status.upper())
     if statuses:
@@ -388,6 +427,7 @@ def _query_cases(
     include_total=False,
     patient_id=None,
     statuses=None,
+    current_user=None,
 ):
     """
     List all cases with search and filtering for Dashboard & History.
@@ -400,6 +440,7 @@ def _query_cases(
         allow_source_pid,
         patient_id=patient_id,
         statuses=statuses,
+        current_user=current_user,
     )
     total = filtered_query.order_by(None).count() if include_total else None
     query = filtered_query.options(
@@ -489,8 +530,12 @@ def _query_cases(
     return {"items": cases_list, "total": total} if include_total else cases_list
 
 
-@router.post("/api/workspace/cases/search", dependencies=[Depends(require_clinical)])
-def search_workspace_cases(request: CaseSearchRequest, db: Session = Depends(get_db)):
+@router.post("/api/workspace/cases/search")
+def search_workspace_cases(
+    request: CaseSearchRequest,
+    current_user: UserModel = Depends(require_clinical),
+    db: Session = Depends(get_db),
+):
     """Return a bounded, sortable clinical worklist page and its filtered total."""
     return _query_cases(
         request.search,
@@ -505,13 +550,15 @@ def search_workspace_cases(request: CaseSearchRequest, db: Session = Depends(get
         sort=request.sort,
         direction=request.direction,
         include_total=True,
+        current_user=current_user,
     )
 
 
-@router.get("/api/workspace/dashboard/summary", dependencies=[Depends(require_clinical)])
+@router.get("/api/workspace/dashboard/summary")
 def get_workspace_dashboard_summary(
     date: Annotated[str, Query(max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$")],
     queue: Literal["doctor", "reviewer"] = "doctor",
+    current_user: UserModel = Depends(require_clinical),
     db: Session = Depends(get_db),
 ):
     """Return dashboard counters and five queue rows without downloading case history."""
@@ -528,7 +575,22 @@ def get_workspace_dashboard_summary(
     pending_statuses = doctor_queue_statuses
 
     def count_statuses(statuses):
-        return db.query(StudyModel).filter(StudyModel.status.in_(statuses)).count()
+        q = db.query(StudyModel).filter(StudyModel.status.in_(statuses))
+        if getattr(current_user, "role", None) == "ADMIN" and not getattr(current_user, "facility_id", None):
+            pass
+        elif getattr(current_user, "facility_id", None):
+            q = q.filter(StudyModel.facility_id == current_user.facility_id)
+        else:
+            return 0
+        return q.count()
+
+    today_q = db.query(StudyModel).filter(StudyModel.study_date == date)
+    if getattr(current_user, "role", None) == "ADMIN" and not getattr(current_user, "facility_id", None):
+        pass
+    elif getattr(current_user, "facility_id", None):
+        today_q = today_q.filter(StudyModel.facility_id == current_user.facility_id)
+    else:
+        today_q = today_q.filter(StudyModel.id.is_(None))
 
     rows = _query_cases(
         None,
@@ -539,10 +601,11 @@ def get_workspace_dashboard_summary(
         db,
         allow_source_pid=False,
         statuses=queue_statuses,
+        current_user=current_user,
     )
     return {
         "counts": {
-            "today": db.query(StudyModel).filter(StudyModel.study_date == date).count(),
+            "today": today_q.count(),
             "pending": count_statuses(pending_statuses),
             "waiting": count_statuses(reviewer_queue_statuses),
         },
@@ -550,17 +613,26 @@ def get_workspace_dashboard_summary(
     }
 
 
-@router.get("/api/workspace/cases", dependencies=[Depends(require_clinical)])
+@router.get("/api/workspace/cases")
 def get_workspace_cases(
     search: str | None = None,
     status: str | None = None,
     date: str | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
+    current_user: UserModel = Depends(require_clinical),
     db: Session = Depends(get_db),
 ):
     """Alias for /api/cases used by workstation case manager."""
-    return list_cases(search=search, status=status, date=date, limit=limit, offset=offset, db=db)
+    return list_cases(
+        search=search,
+        status=status,
+        date=date,
+        limit=limit,
+        offset=offset,
+        current_user=current_user,
+        db=db,
+    )
 
 
 @router.get("/api/cases/{study_id}")
@@ -575,6 +647,8 @@ def get_case_detail(
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin ca khám.")
+
+    check_facility_access(current_user, study.facility_id)
 
     db.add(
         AuditLogModel(
@@ -742,6 +816,8 @@ def delete_case(
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy ca khám để xóa.")
 
+    check_facility_access(current_user, study.facility_id)
+
     upload_root = Path(UPLOAD_DIR).resolve()
     actor_username = current_user.username
     case_images = list(study.images)
@@ -885,3 +961,65 @@ def delete_case(
         "file_cleanup": "PENDING" if cleanup_pending else "COMPLETE",
         "active_learning_cleanup": "PENDING" if active_learning_cleanup_pending else "COMPLETE",
     }
+
+
+@router.get("/api/cases/{study_id}/images/{image_id}")
+def get_case_image(
+    study_id: str,
+    image_id: str,
+    current_user: UserModel = Depends(require_clinical),
+    db: Session = Depends(get_db),
+):
+    """Retrieve an image file belonging to a specific study case with facility check."""
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Không tìm thấy thông tin ca khám.")
+    check_facility_access(current_user, study.facility_id)
+
+    image_record = (
+        db.query(ImageModel)
+        .filter(ImageModel.id == image_id, ImageModel.study_id == study_id)
+        .first()
+    )
+    if not image_record or not image_record.raw_path or not os.path.isfile(image_record.raw_path):
+        raise HTTPException(status_code=404, detail="Không tìm thấy tệp ảnh.")
+    return FileResponse(image_record.raw_path, media_type="image/png")
+
+
+@router.get("/api/images/{image_id}/source.png")
+def get_image_source_png(
+    image_id: str,
+    current_user: UserModel = Depends(require_clinical),
+    db: Session = Depends(get_db),
+):
+    """Return decoded raw source image with facility tenant isolation."""
+    image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not image_record:
+        raise HTTPException(status_code=404, detail="Source image unavailable.")
+    if image_record.study_id:
+        study = db.query(StudyModel).filter(StudyModel.id == image_record.study_id).first()
+        if study:
+            check_facility_access(current_user, study.facility_id)
+        else:
+            check_facility_access(current_user, None)
+    else:
+        check_facility_access(current_user, None)
+
+    if not image_record.raw_path or not os.path.isfile(image_record.raw_path):
+        raise HTTPException(status_code=404, detail="Source image unavailable.")
+
+    decoded = decode_ultrasound_image(image_record.raw_path)
+    if decoded is None:
+        raise HTTPException(status_code=422, detail="Source image cannot be decoded.")
+    encoded, buffer = cv2.imencode(".png", decoded)
+    if not encoded:
+        raise HTTPException(status_code=500, detail="Source export failed.")
+    return Response(
+        content=buffer.tobytes(),
+        media_type="image/png",
+        headers={
+            "X-Image-Coordinate-Space": "decoded-source-image",
+            "X-Source-Width": str(decoded.shape[1]),
+            "X-Source-Height": str(decoded.shape[0]),
+        },
+    )
