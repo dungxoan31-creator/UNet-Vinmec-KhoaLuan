@@ -829,6 +829,7 @@ class InferenceEngine:
         padded_gray: np.ndarray,
         pixel_spacing_mm: float | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = True,
     ) -> dict:
         """
         Executes full medical inference pipeline:
@@ -910,7 +911,11 @@ class InferenceEngine:
 
         # Encode RLE and Overlay
         rle = self.mask_to_rle(clean_mask)
-        overlay_base64 = self.generate_overlay_base64(padded_gray, clean_mask, measurements)
+        overlay_base64 = (
+            self.generate_overlay_base64(padded_gray, clean_mask, measurements)
+            if (generate_overlay and getattr(self, "default_generate_overlay", True))
+            else None
+        )
 
         # Provenance metadata
         provenance = {

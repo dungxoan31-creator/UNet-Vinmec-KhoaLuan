@@ -254,8 +254,8 @@ class PredictionResponse(BaseModel):
     iqa: IQAReport
     measurements: OverallMeasurements
     rle_mask: dict[str, Any]
-    overlay_base64: str
-    original_image_base64: str
+    overlay_base64: str | None = None
+    original_image_base64: str | None = None
     uncertainty_map_base64: str | None = None
     uncertainty: dict[str, Any] | None = None
     quality_gate: dict[str, Any] | None = None
@@ -272,6 +272,9 @@ class PredictionResponse(BaseModel):
         "Bác sĩ cần tự thẩm định kết quả trước khi sử dụng. Hệ thống hỗ trợ phân đoạn và đo lường; "
         "không đưa ra chẩn đoán hoặc phê duyệt báo cáo lâm sàng."
     )
+
+
+InferenceResponse = PredictionResponse
 
 
 

@@ -247,7 +247,12 @@ def _stored_upload_replay_response(
     }
 
 
-def _stored_prediction_replay_response(prediction: PredictionModel, image_record: ImageModel) -> dict:
+def _stored_prediction_replay_response(
+    prediction: PredictionModel,
+    image_record: ImageModel,
+    generate_overlay: bool = True,
+    include_original_image: bool = True,
+) -> dict:
     """Rebuild a committed inference response without running the model a second time."""
     if not os.path.isfile(image_record.raw_path):
         raise HTTPException(
@@ -279,17 +284,25 @@ def _stored_prediction_replay_response(prediction: PredictionModel, image_record
     )
     try:
         _, padded_gray, _, iqa_report = preprocessor.preprocess_for_inference(img_np)
-        binary_mask = InferenceEngine.rle_to_mask(prediction.raw_mask_rle)
-        overlay = InferenceEngine.generate_overlay_base64(padded_gray, binary_mask, safe_measurements)
+        if generate_overlay:
+            binary_mask = InferenceEngine.rle_to_mask(prediction.raw_mask_rle)
+            overlay = InferenceEngine.generate_overlay_base64(padded_gray, binary_mask, safe_measurements)
+        else:
+            overlay = None
     except (KeyError, TypeError, ValueError, cv2.error) as exc:
         raise HTTPException(
             status_code=503,
             detail="Dự đoán đã được lưu nhưng bản ghi không thể dựng lại an toàn.",
         ) from exc
 
-    original_encoded, original_buffer = cv2.imencode(".png", padded_gray)
-    if not original_encoded:
-        raise HTTPException(status_code=503, detail="Không thể dựng lại ảnh nguồn đã lưu.")
+    if include_original_image:
+        original_encoded, original_buffer = cv2.imencode(".png", padded_gray)
+        if not original_encoded:
+            raise HTTPException(status_code=503, detail="Không thể dựng lại ảnh nguồn đã lưu.")
+        orig_b64 = "data:image/png;base64," + base64.b64encode(original_buffer).decode("ascii")
+    else:
+        orig_b64 = None
+
     uncertainty_map_base64 = (
         "data:image/png;base64," + base64.b64encode(prediction.uncertainty_map_png).decode("ascii")
         if prediction.uncertainty_map_png
@@ -309,7 +322,7 @@ def _stored_prediction_replay_response(prediction: PredictionModel, image_record
         "cdss_classification": extras.get("cdss_classification"),
         "rle_mask": prediction.raw_mask_rle,
         "overlay_base64": overlay,
-        "original_image_base64": "data:image/png;base64," + base64.b64encode(original_buffer).decode("ascii"),
+        "original_image_base64": orig_b64,
         "uncertainty_map_base64": uncertainty_map_base64,
         "uncertainty": extras.get("uncertainty"),
         "quality_gate": extras.get("quality_gate"),
@@ -986,6 +999,9 @@ def validate_image_quality(
 def run_ai_prediction(
     image_id: str,
     pixel_spacing_mm: float | None = None,
+    generate_overlay: bool = True,
+    include_overlay: bool | None = None,
+    include_original_image: bool = True,
     lease_token: str | None = Header(None, alias="X-Case-Lease-Token"),
     page_instance_id: str | None = Header(None, alias="X-Case-Page-Instance-Id"),
     idempotency_key: UUID | None = Header(None, alias="Idempotency-Key"),
@@ -997,6 +1013,7 @@ def run_ai_prediction(
     uncertainty estimation, and automated caliper measurement.
     Rejects unsuitable images with HTTP 422.
     """
+    should_generate_overlay = generate_overlay if include_overlay is None else include_overlay
     img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not img_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
@@ -1059,7 +1076,12 @@ def run_ai_prediction(
                     status_code=409,
                     detail="Khóa thử lại đã được dùng cho một yêu cầu phân tích ảnh khác.",
                 )
-            return _stored_prediction_replay_response(previous_prediction, img_record)
+            return _stored_prediction_replay_response(
+                previous_prediction,
+                img_record,
+                generate_overlay=should_generate_overlay,
+                include_original_image=include_original_image,
+            )
 
     if not model_registry.get_primary_adapter().is_loaded:
         raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
@@ -1088,17 +1110,30 @@ def run_ai_prediction(
 
     # 2. Run Pure Neural Network Inference via ModelRegistry
     scale = float(transform_params.get("scale", 1.0))
-    inference_result = model_registry.predict(
-        tensor, padded_gray, pixel_spacing_mm=pixel_spacing, scale=scale
-    )
+    primary_ad = model_registry.get_primary_adapter()
+    engine_obj = getattr(primary_ad, "engine", None)
+    if engine_obj is not None:
+        engine_obj.default_generate_overlay = should_generate_overlay
+
+    try:
+        inference_result = model_registry.predict(
+            tensor, padded_gray, pixel_spacing_mm=pixel_spacing, scale=scale
+        )
+    finally:
+        if engine_obj is not None:
+            engine_obj.default_generate_overlay = True
+
     if isinstance(inference_result.get("measurements"), dict):
         inference_result["measurements"]["calibration_source"] = calibration_source
 
     inference_duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
-    # Encode original 512x512 gray to base64
-    _, orig_buffer = cv2.imencode(".png", padded_gray)
-    orig_b64 = f"data:image/png;base64,{base64.b64encode(orig_buffer).decode('utf-8')}"
+    # Encode original 512x512 gray to base64 if requested
+    if include_original_image:
+        _, orig_buffer = cv2.imencode(".png", padded_gray)
+        orig_b64 = f"data:image/png;base64,{base64.b64encode(orig_buffer).decode('utf-8')}"
+    else:
+        orig_b64 = None
 
     clean_transform = {
         "scale": float(transform_params.get("scale", 1.0)),
@@ -1217,7 +1252,12 @@ def run_ai_prediction(
                             status_code=409,
                             detail="Khóa thử lại đã được dùng cho một yêu cầu phân tích ảnh khác.",
                         ) from exc
-                    return _stored_prediction_replay_response(committed_prediction, img_record)
+                    return _stored_prediction_replay_response(
+                        committed_prediction,
+                        img_record,
+                        generate_overlay=should_generate_overlay,
+                        include_original_image=include_original_image,
+                    )
             raise
 
     return {
@@ -1232,7 +1272,7 @@ def run_ai_prediction(
         "acoustic_profile": inference_result.get("acoustic_profile"),
         "cdss_classification": inference_result.get("cdss_classification"),
         "rle_mask": inference_result["rle_mask"],
-        "overlay_base64": inference_result["overlay_base64"],
+        "overlay_base64": inference_result.get("overlay_base64") if should_generate_overlay else None,
         "original_image_base64": orig_b64,
         "uncertainty_map_base64": (
             "data:image/png;base64,"
