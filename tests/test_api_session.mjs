@@ -106,6 +106,31 @@ test("protected image timeout aborts the fetch and surfaces a retryable 408", as
   }
 });
 
+test("protectedImage dispatches ova:expired event on 401 response", async () => {
+  const oldFetch = globalThis.fetch;
+  const oldWindow = globalThis.window;
+  const oldToken = state.token;
+  let expiredFired = false;
+  globalThis.window = new EventTarget();
+  const listener = () => { expiredFired = true; };
+  globalThis.window.addEventListener("ova:expired", listener);
+  state.token = "image-auth-test-token";
+  globalThis.fetch = () => Promise.resolve(new Response("{}", { status: 401 }));
+  try {
+    await protectedImage("/api/images/unauthorized/source.png");
+    assert.fail("Should have thrown");
+  } catch (err) {
+    assert.equal(err.status, 401);
+    assert.match(err.message, /hết hạn/i);
+    assert.equal(expiredFired, true);
+  } finally {
+    globalThis.window?.removeEventListener?.("ova:expired", listener);
+    globalThis.fetch = oldFetch;
+    globalThis.window = oldWindow;
+    state.token = oldToken;
+  }
+});
+
 test("upload sends a stable idempotency key and surfaces an abortable retryable timeout", async () => {
   const oldXhr = globalThis.XMLHttpRequest;
   const oldToken = state.token;

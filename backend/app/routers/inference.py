@@ -26,6 +26,7 @@ from fastapi.responses import Response
 from PIL import Image
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from backend.app.config import (
     SYNTHETIC_DEMO_ALLOWED_UPLOAD_SHA256,
@@ -413,7 +414,7 @@ async def upload_image(
         try:
             import pydicom
 
-            dicom_dataset = pydicom.dcmread(BytesIO(contents))
+            dicom_dataset = await run_in_threadpool(pydicom.dcmread, BytesIO(contents))
             supported_dicom = is_single_frame_ultrasound_dicom(dicom_dataset)
         except Exception:
             supported_dicom = False
@@ -431,7 +432,8 @@ async def upload_image(
             )
         dicom_study_key = study.id if study else image_id
         dicom_series_key = f"{dicom_study_key}:{laterality or image_id}"
-        minimize_dicom_patient_metadata(
+        await run_in_threadpool(
+            minimize_dicom_patient_metadata,
             dicom_dataset,
             study_key=dicom_study_key,
             series_key=dicom_series_key,
@@ -439,7 +441,7 @@ async def upload_image(
         )
         sanitized = BytesIO()
         try:
-            dicom_dataset.save_as(sanitized)
+            await run_in_threadpool(dicom_dataset.save_as, sanitized)
         except Exception as exc:
             raise HTTPException(status_code=400, detail="DICOM cannot be safely normalized.") from exc
         contents = sanitized.getvalue()
@@ -457,7 +459,7 @@ async def upload_image(
         }
     else:
         # Corrupt or unsupported raster bytes continue through the normal 400 path.
-        _preflight_raster_dimensions(contents)
+        await run_in_threadpool(_preflight_raster_dimensions, contents)
 
     if upload_key_digest is not None:
         previous_upload = (
@@ -510,7 +512,7 @@ async def upload_image(
             dicom_metadata["calibrated_spacing_mm"] = calibrated_spacing
 
         # Read image with OpenCV to get dimensions and verify validity
-        img_np = decode_ultrasound_image(file_path)
+        img_np = await run_in_threadpool(decode_ultrasound_image, file_path)
 
         if img_np is None:
             raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế. File có thể bị hỏng.")
@@ -772,24 +774,26 @@ async def extract_intake_metadata(file: UploadFile = File(...)):
         try:
             import pydicom
 
-            dicom_header = pydicom.dcmread(BytesIO(contents), stop_before_pixels=True)
+            dicom_header = await run_in_threadpool(
+                pydicom.dcmread, BytesIO(contents), stop_before_pixels=True
+            )
         except Exception:
             dicom_header = None
         if dicom_header is not None:
             _preflight_dicom_dimensions(dicom_header)
     else:
-        _preflight_raster_dimensions(contents)
+        await run_in_threadpool(_preflight_raster_dimensions, contents)
 
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
         tmp.write(contents)
         tmp_path = tmp.name
 
     try:
-        meta = extract_file_metadata(tmp_path, filename)
-        decoded = decode_ultrasound_image(tmp_path)
+        meta = await run_in_threadpool(extract_file_metadata, tmp_path, filename)
+        decoded = await run_in_threadpool(decode_ultrasound_image, tmp_path)
         if decoded is None:
             raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế.")
-        calib = get_automatic_calibration(tmp_path, decoded)
+        calib = await run_in_threadpool(get_automatic_calibration, tmp_path, decoded)
         return {
             "filename": filename,
             "metadata": meta,

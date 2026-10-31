@@ -127,6 +127,10 @@ export async function protectedImage(path, timeoutMs = DEFAULT_REQUEST_TIMEOUT_M
       });
       if (token !== state.token)
         throw new DOMException("Đã đổi phiên", "AbortError");
+      if (r.status === 401) {
+        window.dispatchEvent(new CustomEvent("ova:expired"));
+        throw new ApiError("Phiên đăng nhập hết hạn. Đăng nhập lại để tiếp tục.", 401);
+      }
       if (r.status === 429) {
         const error = new ApiError(
           "Quá nhiều lần thử. Máy chủ tạm khóa yêu cầu.",
