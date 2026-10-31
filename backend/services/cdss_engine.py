@@ -16,12 +16,12 @@ ACR_ASSESSMENT_CATEGORIES = (
     "media/ACR/Files/RADS/O-RADS/O-RADS--Ultrasound-v2022-Assessment-Categories.pdf"
 )
 PHYSIOLOGIC_FOLLICLE_POLICY = {
-    "version": "project-follicle-lt30-v1",
+    "version": "project-follicle-lte30-v2",
     "scope": "Research implementation; not the full ACR rule set",
-    "diameter_rule_mm": "0 < diameter < 30",
-    "source_diameter_rule": "ACR O-RADS US v2022: follicle <=3 cm",
+    "diameter_rule_mm": "0 < diameter <= 30",
+    "source_diameter_rule": "ACR O-RADS US v2022: follicle <=3 cm (<=30 mm)",
     "source": ACR_ASSESSMENT_CATEGORIES,
-    "deviation": "Project policy excludes exactly 30 mm; unsupported is not abnormal or malignant.",
+    "deviation": "Project policy supports up to exactly 30 mm; unsupported is not abnormal or malignant.",
 }
 IOTA_SIMPLE_RULES_SOURCE = "https://www.bmj.com/content/341/bmj.c6839"
 IOTA_TERMS_SOURCE = "https://obgyn.onlinelibrary.wiley.com/doi/full/10.1002/uog.70191"
@@ -324,7 +324,7 @@ class CDSSReasoningEngine:
             )
 
         diameter = findings["max_diameter_mm"]
-        if type(diameter) not in (float, int) or not 30 < diameter < 100:
+        if type(diameter) not in (float, int) or not 30 < diameter <= 100:
             return self._with_adnex(
                 self._response(
                     "UNSUPPORTED_PATTERN",
@@ -403,11 +403,11 @@ class CDSSReasoningEngine:
             or patient_context["is_premenopausal"] is not True
             or findings["physiologic_morphology_confirmed"] is not True
             or not _is_finite_measurement(diameter)
-            or not 0 < diameter < 30
+            or not 0 < diameter <= 30
         ):
             return CDSSReasoningEngine._response(
                 "UNSUPPORTED_PATTERN",
-                "Không đủ tiêu chí theo policy nghiên cứu project-follicle-lt30-v1 (0 < kích thước < 30 mm). "
+                "Không đủ tiêu chí theo policy nghiên cứu project-follicle-lte30-v2 (0 < kích thước <= 30 mm). "
                 "ACR US v2022 dùng ≤3 cm; ngoài phạm vi policy không đồng nghĩa bất thường hoặc ác tính.",
                 iota_evaluation=iota_evaluation,
             )
@@ -435,8 +435,8 @@ class CDSSReasoningEngine:
 
         return CDSSReasoningEngine._response(
             "RULE_MATCHED",
-            "Bác sĩ đã xác nhận nang noãn sinh lý <30 mm trên siêu âm 2D đầy đủ theo policy "
-            "nghiên cứu project-follicle-lt30-v1; ACR US v2022 dùng ≤3 cm.",
+            "Bác sĩ đã xác nhận nang noãn sinh lý <=30 mm trên siêu âm 2D đầy đủ theo policy "
+            "nghiên cứu project-follicle-lte30-v2; ACR US v2022 dùng ≤3 cm.",
             category="O-RADS 1",
             iota_evaluation=iota_evaluation,
         )
@@ -1021,6 +1021,7 @@ class CDSSReasoningEngine:
         return {
             "success": True,
             "status": status,
+            "ruleset_version": "2022.1",
             "orads_stratification": {
                 "category": category,
                 "reason": reason,

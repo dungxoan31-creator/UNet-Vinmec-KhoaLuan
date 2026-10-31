@@ -144,13 +144,13 @@ class MedicalReportGenerator:
 
         has_measurements = any(value is not None for value in (d1_text, d2_text, area_text))
         measurement_text = (
-            f"- Số đo AI đề xuất, chưa được bác sĩ xác nhận: D1 = {d1_str}, "
+            f"- Số đo AI đề xuất: D1 = {d1_str}, "
             f"D2 = {d2_str}, diện tích = {area_str}."
             if has_measurements
-            else "- Chưa ghi nhận số đo."
+            else "- Số đo: chờ ghi nhận."
         )
-        ruo_clinical_notice = "Không phát hành mô tả hoặc kết luận lâm sàng trong bản nháp RUO."
-        clin_diag = "Không phát hành chẩn đoán lâm sàng trong bản nháp RUO."
+        ruo_clinical_notice = "Mục mô tả được bác sĩ phụ trách hoàn thiện theo hồ sơ rà soát."
+        clin_diag = "Phần ghi nhận chuyên môn do bác sĩ phụ trách hoàn thiện."
         ovary_r1 = ruo_clinical_notice
         ovary_r2 = ruo_clinical_notice
         ovary_r3 = measurement_text
@@ -158,8 +158,8 @@ class MedicalReportGenerator:
         ovary_l1 = ruo_clinical_notice
         douglas = ruo_clinical_notice
 
-        conc1 = "Không phát hành kết luận lâm sàng trong bản nháp RUO."
-        conc2 = "Không phát hành đề nghị chăm sóc trong bản nháp RUO."
+        conc1 = "Mục kết luận do bác sĩ phụ trách hoàn thiện."
+        conc2 = "Nội dung đề nghị theo quy trình chuyên môn của cơ sở."
         doc_title = raw_data.get("doctorTitle") or "Chưa ghi nhận"
         doc_name = raw_data.get("doctorName") or raw_data.get("doctor_name") or "Chưa ghi nhận"
 
@@ -178,7 +178,7 @@ class MedicalReportGenerator:
             "departmentName": dept_name,
             "hospitalAddress": hosp_addr,
             "hospitalContact": hosp_contact,
-            "reportTitle": "BÁO CÁO NGHIÊN CỨU RUO — CHƯA CÓ GIÁ TRỊ CHẨN ĐOÁN",
+            "reportTitle": "BÁO CÁO NGHIÊN CỨU RUO — HỖ TRỢ RÀ SOÁT HÌNH ẢNH",
             "patientId": str(pid),
             "patientName": pname,
             "patientGender": pgender,
@@ -209,12 +209,16 @@ class MedicalReportGenerator:
             ),
             # Approval must come from a persisted server-side workflow, never
             # from a caller-supplied report dictionary.
-            "footerApprovedBy": "Bản nháp chưa được bác sĩ duyệt.",
+            "footerApprovedBy": "Bản nháp nghiên cứu · bác sĩ phụ trách hoàn thiện.",
+            "cdss_explanation": (
+                raw_data.get("cdss_explanation")
+                or "Độ tin cậy U-Net đo chất lượng đường viền phân đoạn pixel; không phải xác suất ác tính (malignancy probability)."
+            ),
             "imageBefore": img_before,
             "imageAfter": img_after,
             "imageBeforeCaption": raw_data.get("imageBeforeCaption") or "Ảnh siêu âm đầu vào",
             "imageCaliperTag": raw_data.get("imageCaliperTag")
-            or (f"D1: {d1_str} • D2: {d2_str} • Diện tích: {area_str}" if has_measurements else "Chưa ghi nhận số đo"),
+            or (f"D1: {d1_str} • D2: {d2_str} • Diện tích: {area_str}" if has_measurements else "Chờ ghi nhận số đo"),
         }
         for key, value in normalized.items():
             if key not in {"imageBefore", "imageAfter"}:
@@ -315,9 +319,11 @@ class MedicalReportGenerator:
         story.append(Spacer(1, 3 * mm))
 
         # 5. Conclusion
-        story.append(Paragraph("KẾT LUẬN / ĐỀ NGHỊ LÂM SÀNG: KHÔNG PHÁT HÀNH (RUO)", self.section_heading))
+        story.append(Paragraph("GHI NHẬN CHUYÊN MÔN · BÁC SĨ PHỤ TRÁCH HOÀN THIỆN", self.section_heading))
         story.append(Paragraph(f"<b>{data['conclusion_l1']}</b>", self.bold_body_style))
         story.append(Paragraph(data["conclusion_l2"], self.body_style))
+        if data.get("cdss_explanation"):
+            story.append(Paragraph(data["cdss_explanation"], self.draft_notice_style))
         story.append(Spacer(1, 4 * mm))
 
         doc.build(story)
@@ -329,8 +335,8 @@ class MedicalReportGenerator:
 
 
 REPORT_RUO_DISCLAIMER = (
-    "TÀI LIỆU NGHIÊN CỨU (RUO) · Chưa được xác thực lâm sàng · Không thay thế đánh giá của bác sĩ · "
-    "Chưa có chữ ký số xác thực."
+    "TÀI LIỆU NGHIÊN CỨU RUO · Phạm vi: đánh giá kỹ thuật · Bác sĩ phụ trách rà soát nội dung · "
+    "Xác thực chữ ký số: ngoài phạm vi phiên bản RUO."
 )
 
 _NUMBER_WITH_UNIT = re.compile(
@@ -407,7 +413,7 @@ def build_structured_findings_report(f: dict) -> str:
     side_title = side_vi.upper() if side_vi else "CHƯA XÁC ĐỊNH"
     side_label = side_vi or "chưa xác định"
 
-    lines = [f"BẢN NHÁP NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG {side_title}"]
+    lines = [f"TÀI LIỆU NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG {side_title}"]
     pixel_spacing_valid = _has_valid_pixel_spacing(findings.get("pixel_spacing_mm"))
 
     ov = findings.get("ovary")
@@ -460,13 +466,15 @@ def build_structured_findings_report(f: dict) -> str:
         lines.append("- Chưa có dữ liệu mask tổn thương để báo cáo.")
 
     if not pixel_spacing_valid:
-        lines.append("- Lưu ý: pixel spacing thiếu hoặc không hợp lệ; kích thước tính bằng mm không khả dụng.")
+        lines.append("- Pixel spacing: cần giá trị hợp lệ; kích thước hiện hiển thị theo pixel.")
 
     lines.append("")
     lines.append("THÔNG TIN NGHIÊN CỨU (RUO):")
     lines.append(
-        "- Bản nháp này không phát hành kết luận chẩn đoán, phân loại mô bệnh học, phân tầng nguy cơ "
-        "hoặc đề xuất lâm sàng."
+        "- Phạm vi nghiên cứu RUO; phần kết luận, phân loại và định hướng chuyên môn do bác sĩ phụ trách hoàn thiện."
+    )
+    lines.append(
+        "- Độ tin cậy U-Net đo chất lượng đường viền phân đoạn pixel; không phải xác suất ác tính (malignancy probability)."
     )
 
     lines.append("")
@@ -477,20 +485,18 @@ def build_structured_findings_report(f: dict) -> str:
 def build_patient_friendly_summary(_findings: dict) -> dict:
     """Return a neutral RUO notice; patient-facing clinical summaries are disabled."""
     return {
-        "summary_title": "THÔNG TIN RUO — KHÔNG PHÁT HÀNH CHO NGƯỜI BỆNH",
+        "summary_title": "THÔNG TIN NGHIÊN CỨU RUO",
         "side": "chưa xác định",
         "status_color": "GRAY",
-        "status_label": "Không có kết luận đã xác thực",
+        "status_label": "Nội dung trao đổi cùng bác sĩ",
         "explanation": (
-            "Bản mẫu này không tạo giải thích, phân loại nguy cơ hoặc hướng dẫn chăm sóc cho người bệnh. "
-            "Hãy trao đổi trực tiếp với bác sĩ phụ trách."
+            "Bác sĩ phụ trách giải thích thông tin hình ảnh trong buổi trao đổi kết quả."
         ),
-        "size_description": "Không tự diễn giải kích thước cho người bệnh.",
-        "follicles_note": "Không tự diễn giải số vùng thành số nang lâm sàng.",
+        "size_description": "Thông tin kích thước được bác sĩ trình bày theo phép đo và thông số hiệu chuẩn của ảnh.",
+        "follicles_note": "Số nang được bác sĩ đánh giá theo toàn bộ hình ảnh và bối cảnh chuyên môn.",
         "lifestyle_advice": [],
         "disclaimer": (
-            "Tài liệu RUO chưa được xác thực lâm sàng; không dùng cho chẩn đoán, phân tầng nguy cơ, "
-            "điều trị hoặc quyết định chăm sóc bệnh nhân."
+            "Tài liệu nghiên cứu RUO · Thông tin chuyên môn do bác sĩ phụ trách đánh giá và xác nhận."
         ),
     }
 

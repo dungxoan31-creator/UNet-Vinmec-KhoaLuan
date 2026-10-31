@@ -926,6 +926,8 @@ class InferenceEngine:
         return {
             "rle_mask": rle,
             "confidence_score": round(float(confidence), 3),
+            "mask_pixel_confidence": round(float(confidence), 3),
+            "score_type": "mean_mask_pixel_probability_uncalibrated",
             "uncertainty": uncertainty,
             "quality_gate": quality_gate,
             "measurements": measurements,
