@@ -38,7 +38,7 @@ export function renderIntake(root) {
     root.querySelector("[data-action=add-patient]").onclick = () => {
       const currentYear = new Date().getFullYear();
       modal("Tạo bệnh nhân mô phỏng",
-        '<p class="small muted">Danh sách mô phỏng trên trình duyệt này, không phải hồ sơ bệnh nhân trên máy chủ. Không nhập thông tin nhận diện thật.</p>' +
+        '<p class="small muted">Danh sách minh họa lưu trên trình duyệt. Phiên nghiên cứu sử dụng dữ liệu tổng hợp.</p>' +
         field("Họ và tên", "full_name", "text", "", 'required maxlength="120"') +
         field("Năm sinh", "birth_year", "number", "", `required min="1900" max="${currentYear}"`) +
         field("Số điện thoại", "phone", "tel", "", 'required maxlength="24"') +
@@ -92,7 +92,7 @@ function renderUpload(root, patient, onBack) {
   };
   const pidField = syntheticDemoMode
     ? field("Mã ca demo (bắt đầu DEMO-SYNTHETIC-)", "pid", "text", "", 'placeholder="DEMO-SYNTHETIC-0001" maxlength="64" required pattern="DEMO-SYNTHETIC-[A-Za-z0-9-]+"')
-    : field("Mã bệnh nhân (PID)", "pid", "text", patient.pid || "", 'placeholder="Để trống để tự cấp BN-XXXX" maxlength="64"');
+    : field("Mã bệnh nhân (PID)", "pid", "text", patient.pid || "", 'placeholder="Để trống cho ca nghiên cứu không định danh" maxlength="64"');
   const reasonField = syntheticDemoMode
     ? '<label class="field">Lý do khảo sát<select name="reason" disabled><option value="">Không áp dụng cho demo tổng hợp</option></select></label>'
     : '<label class="field">Lý do khảo sát<select name="reason"><option>Khác / chưa ghi nhận</option><option>Theo dõi hình thái</option><option>Khảo sát định kỳ</option></select></label>';

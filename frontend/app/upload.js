@@ -6,6 +6,10 @@ import { tracker } from "./hitl-tracker.js";
 import { acquireLease } from "./leases.js";
 let pending = null;
 
+export function resolveStudyPatientId(targetPid) {
+  return targetPid && targetPid.trim() ? targetPid.trim() : null;
+}
+
 export async function startBilateral(files, metadata) {
   if (state.busy) return;
   // Keep the legacy single-File contract while allowing ordered image lists per side.
@@ -167,9 +171,7 @@ export async function startBilateral(files, metadata) {
       const result = await request("/api/cases", {
         method: "POST",
         body: {
-          patient_id:
-            targetPid ||
-            "BN-" + crypto.randomUUID().slice(0, 8).toUpperCase(),
+          patient_id: targetPid && targetPid.trim() ? targetPid.trim() : null,
           active_ovary_side: activeOvarySide,
           contralateral_status: contralateralStatus || "UNKNOWN",
           clinical_notes: state.capabilities?.synthetic_demo_mode === true ? null : metadata.reason,
@@ -332,7 +334,7 @@ export async function startBilateral(files, metadata) {
       $("[data-action=iqa-override]")?.addEventListener("click", () =>
         modal(
           "Tiếp tục dù IQA cảnh báo",
-          '<p>Cảnh báo được giữ trong workstation. Máy chủ phải ghi nhận lý do và cho phép chạy.</p><label class="field">Lý do<textarea name="reason" required minlength="5"></textarea></label><button class="btn primary" type="submit">Ghi nhận và tiếp tục</button>',
+          '<p>Thông tin chất lượng ảnh được giữ trong workstation. Máy chủ ghi nhận lý do xác nhận trước khi tiếp tục.</p><label class="field">Lý do<textarea name="reason" required minlength="5"></textarea></label><button class="btn primary" type="submit">Ghi nhận và tiếp tục</button>',
           async (e, d) => {
             const reason = new FormData(e.target).get("reason").trim();
             if (reason.length < 5) return;
