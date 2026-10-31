@@ -19,6 +19,13 @@ export async function renderNotifications(root) {
     ) +
     `<section class="panel" id="notificationsData">${loading()}</section>`;
   const target = $("#notificationsData", root);
+  if (state.capabilities?.notifications === false) {
+    target.innerHTML = empty(
+      "Thông báo chưa khả dụng",
+      "Hệ thống hiện tại chưa bật tính năng thông báo theo cấu hình máy chủ.",
+    );
+    return;
+  }
   try {
     const response = await request("/api/notifications");
     const rows = Array.isArray(response) ? response : response.items;
@@ -47,16 +54,27 @@ export async function renderNotifications(root) {
       `<div class="tabs"><button class="active" data-filter="all">Tất cả</button><button data-filter="unread">Chưa đọc</button></div>`,
     );
     const mark = async (ids) => {
-      await request("/api/notifications/read", {
-        method: "POST",
-        body: { ids },
-      });
-      rows
-        .filter((n) => ids.includes(n.id))
-        .forEach((n) => {
-          n.read = true;
-          n.is_read = true;
+      try {
+        await request("/api/notifications/read", {
+          method: "POST",
+          body: { ids },
         });
+        rows
+          .filter((n) => ids.includes(n.id))
+          .forEach((n) => {
+            n.read = true;
+            n.is_read = true;
+          });
+      } catch (e) {
+        if (e?.status === 501 || e?.message?.includes("501")) {
+          toast(
+            "Tính năng đánh dấu đã đọc đang thử nghiệm và chưa được máy chủ hỗ trợ.",
+            true,
+          );
+          return;
+        }
+        throw e;
+      }
     };
     const draw = () => {
       const visible = rows.filter((n) => filter === "all" || !n.read);

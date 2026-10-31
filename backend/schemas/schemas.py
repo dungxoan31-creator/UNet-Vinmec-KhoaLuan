@@ -795,20 +795,38 @@ class CreateCaseRequest(BaseModel):
             raise ValueError(f"Ngày khám '{v}' không đúng định dạng YYYY-MM-DD hoặc YYYY-MM-DDTHH:MM hợp lệ.")
 
 
+class CaseImageSummary(BaseModel):
+    id: str
+    filename: str
+    laterality: str | None = None
+
+
 class CaseItem(BaseModel):
     id: str
+    study_id: str | None = None
     study_code: str
+    visit_no: str | None = None
     patient_id: str | None = None
+    patient_age: str | None = None
     study_date: str
     status: str  # PENDING, ANALYZED, REVIEWED
     ovary_side: str = "UNKNOWN"
     contralateral_status: str = "UNKNOWN"
-    doctor_action: str | None = None
-    lesion_type: str | None = None
-    max_diameter_mm: float | None = None
+    images: list[CaseImageSummary] = Field(default_factory=list)
     image_id: str | None = None
     image_filename: str | None = None
+    lesion_type: str | None = None
+    max_diameter_mm: float | None = None
+    doctor_action: str | None = None
     created_at: str
+
+
+class WorkspaceCaseSearchResponse(BaseModel):
+    items: list[CaseItem] = Field(default_factory=list)
+    total: int
+
+
+WorkspaceCaseSearchResult = WorkspaceCaseSearchResponse
 
 
 class ImageValidationResult(BaseModel):

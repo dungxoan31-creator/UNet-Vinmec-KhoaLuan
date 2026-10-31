@@ -42,10 +42,14 @@ from backend.db.database import (
     get_db,
 )
 from backend.schemas.schemas import (
+    CaseImageSummary,
+    CaseItem,
     CaseLeaseReleaseRequest,
     CaseLeaseRequest,
     CaseSearchRequest,
     CreateCaseRequest,
+    WorkspaceCaseSearchResponse,
+    WorkspaceCaseSearchResult,
 )
 from backend.services.case_lease_service import acquire_case_lease, release_case_lease
 from backend.services.facility_service import check_facility_access
@@ -332,7 +336,7 @@ def create_new_case(
     return _case_create_response(study)
 
 
-@router.get("/api/cases")
+@router.get("/api/cases", response_model=list[CaseItem])
 def list_cases(
     search: str | None = None,
     status: str | None = None,
@@ -347,7 +351,7 @@ def list_cases(
     )
 
 
-@router.post("/api/cases/search")
+@router.post("/api/cases/search", response_model=list[CaseItem])
 def search_cases(
     request: CaseSearchRequest,
     current_user: UserModel = Depends(require_clinical),
@@ -529,7 +533,7 @@ def _query_cases(
     return {"items": cases_list, "total": total} if include_total else cases_list
 
 
-@router.post("/api/workspace/cases/search")
+@router.post("/api/workspace/cases/search", response_model=WorkspaceCaseSearchResponse)
 def search_workspace_cases(
     request: CaseSearchRequest,
     current_user: UserModel = Depends(require_clinical),
@@ -612,7 +616,7 @@ def get_workspace_dashboard_summary(
     }
 
 
-@router.get("/api/workspace/cases")
+@router.get("/api/workspace/cases", response_model=list[CaseItem])
 def get_workspace_cases(
     search: str | None = None,
     status: str | None = None,
