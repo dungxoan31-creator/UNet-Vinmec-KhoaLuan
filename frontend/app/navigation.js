@@ -1,4 +1,5 @@
 import { state, role, can, preferences } from "./state.js";
+import { BRAND_NAME, BRAND_CLASS, BRAND_LOGO_SRC, BRAND_ALT } from "./branding.js";
 import { t } from "./i18n.js";
 import { $, $$, esc, icon, button, modal, toast } from "./ui.js";
 import { renderAuth, bindAuth, logout } from "./auth.js";
@@ -104,8 +105,8 @@ function shell(route) {
   $("#app").innerHTML = `
     <header class="topbar">
       <button class="icon-btn" id="collapseNav" type="button" aria-label="Thu gọn điều hướng" aria-expanded="true" aria-controls="primaryNav" title="Điều hướng">${icon("menu")}</button>
-      <a class="brand" href="#dashboard" aria-label="VINMEC — Tổng quan">
-        <img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261029-vinmec-premium" alt="Vinmec International Hospital" width="1616" height="973" decoding="async">
+      <a class="brand" href="#dashboard" aria-label="${BRAND_NAME} — Siêu âm Buồng trứng · RUO — Tổng quan">
+        <img class="${BRAND_CLASS}" src="${BRAND_LOGO_SRC}" alt="${BRAND_ALT}" width="1616" height="973" decoding="async">
         <span class="brand-product">Siêu âm<small>Buồng trứng · RUO</small></span>
       </a>
       <button class="btn top-search" id="quickSearch" type="button">${icon("search")}Tìm PID hoặc mã ca <kbd>Ctrl K</kbd></button>

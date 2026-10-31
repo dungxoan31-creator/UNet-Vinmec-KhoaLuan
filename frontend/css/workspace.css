@@ -457,6 +457,12 @@ td strong {
 td small {
   color: var(--muted);
 }
+tr > td > small {
+  color: #334155 !important;
+}
+[data-theme="dark"] tr > td > small {
+  color: #cbd5e1 !important;
+}
 .badge {
   display: inline-flex;
   align-items: center;
@@ -895,6 +901,14 @@ textarea {
 .dropzone p {
   margin: 10px 0 6px;
 }
+.dropzone small,
+.dropzone small.muted {
+  color: #334155 !important;
+}
+[data-theme="dark"] .dropzone small,
+[data-theme="dark"] .dropzone small.muted {
+  color: #cbd5e1 !important;
+}
 .stepper {
   display: flex;
   gap: 16px;
@@ -979,7 +993,7 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--subtle);
-  color: var(--muted);
+  color: var(--text-primary);
 }
 .chip {
   border: 1px solid var(--control-border);
@@ -1688,8 +1702,10 @@ body.viewer-mode #page {
   min-height: 0;
 }
 .viewer-head {
-  flex: 0 0 48px;
-  height: 48px;
+  height: auto;
+  min-height: 48px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
   min-width: 0;
   padding: 4px 12px;
   gap: 12px;
@@ -2247,23 +2263,6 @@ body.viewer-mode > .statusbar .model-status {
     width: clamp(60px, 18vw, 90px);
     min-width: 60px;
     flex: 0 0 60px;
-  }
-  .viewer-image-select-current {
-    position: absolute;
-    z-index: 1;
-    top: 50%;
-    left: 6px;
-    display: block;
-    max-width: 38px;
-    overflow: hidden;
-    transform: translateY(-50%);
-    color: var(--text);
-    background: var(--surface);
-    font-size: 9px;
-    font-weight: 650;
-    line-height: 1.2;
-    white-space: nowrap;
-    pointer-events: none;
   }
   .side-switch .btn {
     min-height: 30px;
