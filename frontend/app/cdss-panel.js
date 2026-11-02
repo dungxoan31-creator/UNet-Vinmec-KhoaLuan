@@ -1,4 +1,5 @@
 import { request } from "./api.js";
+import { validateMeasurement } from "./form-validator.js";
 
 const BOOLEAN_OPTIONS = [
   ["true", "Có"],
@@ -53,7 +54,7 @@ const CLINICAL_FIELD_LABELS = {
 const STATUS_LABELS = {
   RULE_MATCHED: "Khớp quy tắc",
   INSUFFICIENT_DATA: "Chưa đủ dữ liệu",
-  UNSUPPORTED_PATTERN: "Mẫu hình chưa được quy tắc RUO hỗ trợ",
+  UNSUPPORTED_PATTERN: "Mẫu hình chưa được quy tắc hỗ trợ",
   NOT_EVALUATED: "Chưa đối chiếu",
   UNKNOWN: "Không xác định",
 };
@@ -103,19 +104,19 @@ export function cdssPanelMarkup(disabled = false) {
   const contextFields = PATIENT_CONTEXT.map(([name, label]) => booleanSelect(name, label)).join("");
 
   return `<details id="cdssPanel" class="cdss-panel">
-    <summary>O-RADS / IOTA · nhập liệu nghiên cứu (RUO)</summary>
+    <summary>Đánh giá hình thái và nguy cơ</summary>
     <div class="cdss-content">
-      <p class="cdss-ruo-note">Chỉ đối chiếu quy tắc trong nghiên cứu; không phải chẩn đoán, không chọn O-RADS cuối cùng và không đưa khuyến nghị xử trí. Assessment RUO được lưu theo snapshot vùng và review để có thể truy vết; không ghi thành chẩn đoán hồ sơ.</p>
+      <p class="cdss-ruo-note">Quy tắc phân tầng O-RADS/IOTA từ dữ liệu do bác sĩ ghi nhận. Kết quả được lưu theo vùng tổn thương để theo dõi chuyên môn.</p>
       <p id="cdssRegionStatus" class="muted small" role="status">Chọn một vùng đã xác nhận để xem số đo và assessment đã lưu.</p>
       <details id="cdssRegionHistory" class="cdss-region-history" hidden>
-        <summary>Lịch sử phép đo và assessment RUO của vùng</summary>
+        <summary>Lịch sử phép đo và đánh giá của vùng</summary>
         <p id="cdssRegionHistoryStatus" class="muted small" role="status"></p>
         <pre id="cdssRegionHistoryContent" class="cdss-region-history-content"></pre>
         <button id="cdssRegionHistoryMore" class="btn small" type="button" hidden>Tải thêm lịch sử</button>
       </details>
       <div id="aiDiagnosisCard" class="ai-diagnosis-card">
         <div class="model-limit-title">Giới hạn đầu ra mô hình:</div>
-        <div id="aiDiagnosisContent" style="font-size: 0.9em; line-height: 1.4;">Checkpoint hiện tại chỉ hỗ trợ phân đoạn và đo lường; không phân loại mô bệnh học hoặc nguy cơ ác tính.</div>
+        <div id="aiDiagnosisContent" style="font-size: 0.9em; line-height: 1.4;">Phân tầng nguy cơ dựa trên đặc điểm do bác sĩ xác nhận. Kết quả AI không xác lập chẩn đoán mô bệnh học.</div>
       </div>
       <form id="cdssForm">
         <fieldset id="cdssFields"${disabledAttribute}>
@@ -153,7 +154,7 @@ export function cdssPanelMarkup(disabled = false) {
           </details>
           <p class="muted small">Không tự lấy số đo từ mask, tuổi, tên ảnh hoặc bên đối diện. Ô chưa chọn sẽ được gửi dưới dạng thiếu; không đồng nghĩa với “Không”.</p>
           <label class="check-row"><input id="cdssConfirm" type="checkbox" required> Tôi xác nhận các mô tả đang nhập thuộc đúng vùng đã chọn và do tôi kiểm tra.</label>
-          <button id="cdssEvaluate" class="btn small primary" type="submit">Lưu và đối chiếu RUO</button>
+          <button id="cdssEvaluate" class="btn small primary" type="submit">Đối chiếu quy tắc O-RADS</button>
         </fieldset>
       </form>
       <p id="cdssAccessHint" class="muted small" hidden></p>
@@ -226,9 +227,9 @@ function sameContext(left, right) {
 function renderResponse(result, response) {
   const status = typeof response?.status === "string" ? response.status : "UNKNOWN";
   const stratification = response?.orads_stratification ?? {};
-  const lines = [`Trạng thái RUO: ${STATUS_LABELS[status] || status}`];
+  const lines = [`Trạng thái: ${STATUS_LABELS[status] || status}`];
   if (status === "RULE_MATCHED" && typeof stratification.category === "string" && stratification.category.trim()) {
-    lines.push(`Phân loại theo quy tắc (RUO, cần bác sĩ xác nhận): ${stratification.category}`);
+    lines.push(`Phân loại theo quy tắc (cần bác sĩ xác nhận): ${stratification.category}`);
   }
   if (typeof stratification.reason === "string" && stratification.reason.trim())
     lines.push(stratification.reason);
@@ -240,7 +241,7 @@ function renderResponse(result, response) {
 
   const iota = response?.iota_evaluation;
   if (iota && typeof iota.rule_verdict === "string")
-    lines.push(`IOTA Simple Rules (RUO): ${IOTA_VERDICT_LABELS[iota.rule_verdict] || iota.rule_verdict}`);
+    lines.push(`IOTA Simple Rules: ${IOTA_VERDICT_LABELS[iota.rule_verdict] || iota.rule_verdict}`);
   const iotaMissing = Array.isArray(iota?.missing_fields) ? iota.missing_fields : [];
   if (iotaMissing.length) lines.push(`IOTA còn thiếu: ${iotaMissing.map(clinicalFieldLabel).join(", ")}`);
 
@@ -336,16 +337,16 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
     }
     if (regionHistory.assessments.length) {
       if (lines.length) lines.push("");
-      lines.push("Assessment RUO:");
+      lines.push("Đánh giá O-RADS:");
       for (const item of regionHistory.assessments) {
         const state = item.current ? "hiện hành" : "lịch sử / stale";
-        const status = STATUS_LABELS[item.result?.status] || "Trạng thái RUO chưa được xác định";
+        const status = STATUS_LABELS[item.result?.status] || "Trạng thái chưa được xác định";
         lines.push(`Revision ${item.assessment_revision} · ${status} · ${state} · ${item.created_at || "thời điểm chưa rõ"}`);
       }
     }
     regionHistoryContent.textContent = lines.length ? lines.join("\n") : "Chưa có lịch sử phép đo hoặc assessment cho vùng này.";
     if (regionHistoryStatus)
-      regionHistoryStatus.textContent = message || `Đang hiển thị ${regionHistory.calipers.length} caliper và ${regionHistory.assessments.length} assessment RUO.`;
+      regionHistoryStatus.textContent = message || `Đang hiển thị ${regionHistory.calipers.length} caliper và ${regionHistory.assessments.length} đánh giá.`;
     regionHistoryMore.hidden = !regionHistory.caliperCursor && !regionHistory.assessmentCursor;
     regionHistoryMore.disabled = historyLoading;
     regionHistoryMore.textContent = historyLoading ? "Đang tải lịch sử…" : "Tải thêm lịch sử";
@@ -451,7 +452,7 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
     requestController?.abort();
     requestController = null;
     result.setAttribute("aria-busy", "false");
-    button.textContent = requireSavedRegion ? "Lưu và đối chiếu RUO" : "Đối chiếu quy tắc RUO";
+    button.textContent = requireSavedRegion ? "Lưu và đối chiếu" : "Đối chiếu quy tắc";
     const access = accessState();
     button.disabled = !editable || !access.allowed;
     fields.disabled = !editable || !access.allowed;
@@ -545,7 +546,7 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
         ? `${Number(item.diameter_px).toFixed(1)} px · chưa có mm hợp lệ`
         : `${Number(item.diameter_mm).toFixed(1)} mm · ${item.calibration_source || "nguồn chưa rõ"}`;
       if (regionStatus) regionStatus.textContent =
-        `Vùng ${selected.regionId.slice(0, 8)} · review ${selected.reviewRevision} · D1 ${measurement(d1)} · D2 ${measurement(d2)}. Chỉ dùng nghiên cứu.`;
+        `Vùng ${selected.regionId.slice(0, 8)} · review ${selected.reviewRevision} · D1 ${measurement(d1)} · D2 ${measurement(d2)}. Chỉ dùng tham khảo.`;
 
       const latest = assessments.latest;
       assessmentRevision = latest?.assessment_revision ?? assessments.latest_revision ?? 0;
@@ -557,14 +558,14 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
         sourceCaliperDiameter = sourceCaliperEventId && d1?.request_id === sourceCaliperEventId
           ? Number(d1.diameter_mm).toFixed(3) : null;
         renderResponse(result, latest.result);
-        result.textContent = `Assessment RUO đã lưu · phiên bản ${assessmentRevision}\n${result.textContent}`;
+        result.textContent = `Đánh giá đã lưu · phiên bản ${assessmentRevision}\n${result.textContent}`;
       } else {
         sourceCaliperEventId = d1?.usable_for_cdss ? d1.request_id : null;
         sourceCaliperDiameter = sourceCaliperEventId ? Number(d1.diameter_mm).toFixed(3) : null;
         if (sourceCaliperDiameter != null) fillValue("max_diameter_mm", Number(sourceCaliperDiameter));
         if (assessments.history?.length)
           setStatus("Assessment cũ đã stale theo vùng, review hoặc số đo nguồn; kiểm tra lại trước khi lưu.", "STALE");
-        else setStatus("Chưa có assessment RUO đã lưu cho snapshot vùng này.");
+        else setStatus("Chưa có đánh giá đã lưu cho snapshot vùng này.");
       }
       if (confirmation) confirmation.checked = false;
       regionReady = true;
@@ -622,7 +623,7 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
     let body = buildRequestBody(form.elements);
     if (requireSavedRegion) {
       if (!confirmation?.checked) {
-        setStatus("Hãy xác nhận các mô tả thuộc đúng vùng trước khi lưu assessment RUO.");
+        setStatus("Hãy xác nhận các mô tả thuộc đúng vùng trước khi lưu đánh giá.");
         return;
       }
       if (!submittedRegion || submittedRegion.studyId !== context.studyId || submittedRegion.imageId !== context.imageId) {
@@ -663,8 +664,8 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
     fields.disabled = true;
     result.dataset.status = "PROCESSING";
     result.textContent = requireSavedRegion
-      ? "Đang lưu mô tả bác sĩ và đối chiếu bằng engine RUO…"
-      : "Đang đối chiếu dữ liệu nhập với bộ quy tắc RUO…";
+      ? "Đang lưu mô tả bác sĩ và đối chiếu bằng bộ quy tắc…"
+      : "Đang đối chiếu dữ liệu nhập với bộ quy tắc…";
     result.setAttribute("aria-busy", "true");
 
     try {
@@ -690,7 +691,7 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
         pendingSave = null;
         if (confirmation) confirmation.checked = false;
         renderResponse(result, response.result);
-        result.textContent = `Assessment RUO đã lưu · phiên bản ${assessmentRevision}\n${result.textContent}`;
+        result.textContent = `Đánh giá đã lưu · phiên bản ${assessmentRevision}\n${result.textContent}`;
         refreshRegionHistory(submittedRegion);
       } else renderResponse(result, response);
     } catch (error) {
@@ -706,7 +707,7 @@ export function bindCdssPanel(root, { canEvaluate, getContext, signal, requireSa
         fields.disabled = !canEditAgain;
         if (confirmation) confirmation.disabled = !canEditAgain;
         button.disabled = !canEditAgain;
-        button.textContent = requireSavedRegion ? "Lưu và đối chiếu RUO" : "Đối chiếu quy tắc RUO";
+        button.textContent = requireSavedRegion ? "Lưu và đối chiếu" : "Đối chiếu quy tắc";
       }
     }
   }, { signal: listeners.signal });

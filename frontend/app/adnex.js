@@ -52,9 +52,9 @@ export function isRenderableAdnexEvaluation(evaluation) {
 
 export function adnexPanelMarkup(disabled = false) {
   return `<details id="adnexPanel" class="adnex-panel">
-    <summary><span>ADNEX nghiên cứu (RUO)</span><span id="adnexSide" class="muted small"></span></summary>
+    <summary><span>Mô hình IOTA ADNEX</span><span id="adnexSide" class="muted small"></span></summary>
     <div class="adnex-content">
-      <p class="adnex-ruo-note">Chỉ hỗ trợ nghiên cứu. Kết quả không phải chẩn đoán, không chọn O-RADS và không đưa khuyến nghị xử trí. Dữ liệu nhập và xác suất không được lưu vào hồ sơ.</p>
+      <p class="adnex-ruo-note">Kết quả tính toán theo mô hình IOTA ADNEX từ các thông số siêu âm do bác sĩ ghi nhận.</p>
       <form id="adnexForm">
         <fieldset id="adnexFields"${disabled ? " disabled" : ""}>
           <legend>Nhập riêng cho khối đang xem</legend>
@@ -123,7 +123,10 @@ export function adnexPanelMarkup(disabled = false) {
             </label>
           </div>
           <p class="muted small">Nhập thủ công từ siêu âm 2D. Đường kính toàn khối và phần đặc phải cùng thuộc một tổn thương; không ghép số đo các nang rời rạc. Không dùng tuổi, thước đo mask hoặc mô tả từ lần rà soát trước để điền tự động.</p>
-          <button id="adnexEvaluate" class="btn small primary" type="submit">Tính xác suất nghiên cứu</button>
+          <div class="actions">
+            <button id="adnexEvaluate" class="btn small primary" type="submit">Tính nguy cơ ADNEX</button>
+            <button id="adnexReset" class="btn small quiet" type="button" data-action="reset-adnex">Đặt lại form</button>
+          </div>
         </fieldset>
       </form>
       <p id="adnexAccessHint" class="muted small" hidden></p>
@@ -173,7 +176,7 @@ export function bindAdnexPanel(root, { getContext, canEvaluate, routeSignal }) {
   const clearResult = (message = "Thông tin đã thay đổi. Tính lại để xem kết quả.") => {
     cancelRequest();
     showStatus(message);
-    button.textContent = "Tính xác suất nghiên cứu";
+    button.textContent = "Tính nguy cơ ADNEX";
     result.setAttribute("aria-busy", "false");
     fields.disabled = !canEvaluate();
   };
@@ -286,6 +289,19 @@ export function bindAdnexPanel(root, { getContext, canEvaluate, routeSignal }) {
     },
     { signal: listeners.signal },
   );
+  const resetBtn = form.querySelector("[data-action=reset-adnex]");
+  if (resetBtn) {
+    resetBtn.addEventListener(
+      "click",
+      () => {
+        form.reset();
+        syncVariant();
+        clearCustomValidity();
+        clearResult("Đã đặt lại dữ liệu form ADNEX.");
+      },
+      { signal: listeners.signal },
+    );
+  }
   form.addEventListener(
     "submit",
     async (event) => {
@@ -345,7 +361,7 @@ export function bindAdnexPanel(root, { getContext, canEvaluate, routeSignal }) {
       button.disabled = true;
       button.textContent = "Đang tính…";
       result.setAttribute("aria-busy", "true");
-      showStatus("Đang tính xác suất nghiên cứu…", "PROCESSING");
+      showStatus("Đang tính nguy cơ ADNEX…", "PROCESSING");
       result.setAttribute("aria-busy", "true");
       fields.disabled = true;
 
@@ -373,7 +389,7 @@ export function bindAdnexPanel(root, { getContext, canEvaluate, routeSignal }) {
           requestController = null;
           result.setAttribute("aria-busy", "false");
           button.disabled = !canEvaluate();
-          button.textContent = "Tính xác suất nghiên cứu";
+          button.textContent = "Tính nguy cơ ADNEX";
           fields.disabled = !canEvaluate();
         }
       }
