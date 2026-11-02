@@ -35,6 +35,8 @@ const paths = {
   file: "M4 2h10l6 6v14H4zm10 0v6h6M8 13h8m-8 4h8",
   warning: "m12 2 11 20H1zm0 7v5m0 4h.01",
   plus: "M12 4v16M4 12h16",
+  edit: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
+  trash: "M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
   fit: "M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6",
   polygon: "m4 4 16 2-3 15-15-4z",
   history: "M3 12a9 9 0 1 0 3-7L2 9m0-6v6h6m4-3v6l4 2",
