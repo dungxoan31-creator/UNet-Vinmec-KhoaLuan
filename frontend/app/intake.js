@@ -14,6 +14,7 @@ import {
   validateGender,
   validateHometown,
   validateStudyDate,
+  validateNationalId,
   attachInlineValidation,
 } from "./form-validator.js";
 
@@ -25,14 +26,15 @@ const patientsStore = createDemoPatientStore([
   { pid: "100000004", name: "Phạm Thanh Vy", age: 36 },
 ]);
 const readPatients = () => {
-  const legacySeeds = new Map([['100000001', 'Nguyễn Minh Anh'], ['100000002', 'Trần Thu Hà'], ['100000003', 'Lê Ngọc Mai'], ['100000004', 'Phạm Thanh Vy']]);
+
   const rows = patientsStore.read(patientsKey()).map(row => /^DEMO-SYNTHETIC-\d{4}$/.test(row.pid)
     ? { ...row, pid: String(900000000 + Number(row.pid.slice(-4))), synthetic: true }
-    : { ...row, synthetic: row.synthetic === true || legacySeeds.get(row.pid) === row.name || DEMO_PATIENTS.some(seed => seed.pid === row.pid && seed.name === row.name) });
+    : { ...row, synthetic: row.synthetic === true || DEMO_PATIENTS.some(seed => seed.pid === row.pid && seed.name === row.name) });
   const ids = new Set(rows.map(row => row.pid));
   const syntheticMode = state.capabilities?.synthetic_demo_mode === true;
   const additions = syntheticMode ? DEMO_PATIENTS.filter(row => !ids.has(row.pid)) : [];
-  return patientsStore.save(patientsKey(), [...rows, ...additions]).filter(row => row.synthetic === syntheticMode);
+  const all = patientsStore.save(patientsKey(), [...rows, ...additions]);
+  return syntheticMode ? all.filter(row => row.synthetic === true) : all;
 };
 const storageNotice = () => patientsStore.isTransient(patientsKey())
   ? '<div class="banner warning" role="status">Không ghi được danh sách bệnh nhân trên thiết bị. Dữ liệu mới chỉ giữ trong phiên này; tải lại trang có thể làm mất dữ liệu chưa lưu.</div>' : "";
@@ -51,7 +53,7 @@ export function renderIntake(root) {
     page = Math.min(page, pageCount - 1);
     const patients = filtered.slice(page * pageSize, (page + 1) * pageSize);
     root.innerHTML = pageHead("Chọn bệnh nhân", "Chọn hồ sơ bệnh nhân để bắt đầu khảo sát.", button("Tạo bệnh nhân", "add-patient", "primary", "plus")) + storageNotice() +
-      `<section class="panel"><div class="panel-head"><h2>Danh sách bệnh nhân</h2><span class="badge">${patients.length} hồ sơ</span></div><div class="table-wrap intake-patient-list" role="region" aria-label="Danh sách bệnh nhân" tabindex="0"><table><thead><tr><th>Mã bệnh nhân (PID)</th><th>Bệnh nhân</th><th>Tuổi</th><th>Thao tác</th></tr></thead><tbody>${patients.map((p, i) => `<tr><td class="mono">${esc(p.pid)}</td><td><strong>${esc(p.name)}</strong></td><td>${p.age} tuổi</td><td><div class="table-actions-compact"><button class="btn small primary" type="button" data-select="${i}">Chọn bệnh nhân</button><button class="btn small icon-only" type="button" data-edit-patient="${esc(p.pid)}" title="Sửa thông tin bệnh nhân" aria-label="Sửa thông tin ${esc(p.name)}">${icon("edit", 16)}</button><button class="btn small danger icon-only" type="button" data-delete-patient="${esc(p.pid)}" title="Xóa bệnh nhân" aria-label="Xóa hồ sơ ${esc(p.name)}">${icon("trash", 16)}</button></div></td></tr>`).join("")}</tbody></table></div></section>`;
+      `<section class="panel"><div class="panel-head"><h2>Danh sách bệnh nhân</h2><span class="badge">${patients.length} hồ sơ</span></div><div class="table-wrap intake-patient-list" role="region" aria-label="Danh sách bệnh nhân" tabindex="0"><table><thead><tr><th>Mã bệnh nhân (PID)</th><th>Bệnh nhân</th><th>Tuổi</th><th>Thao tác</th></tr></thead><tbody>${patients.map((p, i) => `<tr><td class="mono">${esc(p.pid)}</td><td><strong>${esc(p.name)}</strong>${p.national_id ? `<br><small class="muted mono">CCCD/HC: ${esc(p.national_id)}</small>` : ""}</td><td>${p.age} tuổi</td><td><div class="table-actions-compact"><button class="btn small primary" type="button" data-select="${i}">Chọn bệnh nhân</button><button class="btn small icon-only" type="button" data-edit-patient="${esc(p.pid)}" title="Sửa thông tin bệnh nhân" aria-label="Sửa thông tin ${esc(p.name)}">${icon("edit", 16)}</button><button class="btn small danger icon-only" type="button" data-delete-patient="${esc(p.pid)}" title="Xóa bệnh nhân" aria-label="Xóa hồ sơ ${esc(p.name)}">${icon("trash", 16)}</button></div></td></tr>`).join("")}</tbody></table></div></section>`;
     const table = root.querySelector('.intake-patient-list');
     table.insertAdjacentHTML('beforebegin', `${state.capabilities?.synthetic_demo_mode === true ? '<div class="banner info small">Dữ liệu tổng hợp, không phải hồ sơ bệnh nhân thật.</div>' : ''}<label class="field">Tìm theo tên hoặc mã hồ sơ<input id="patientSearch" type="search" placeholder="Nhập tên có dấu hoặc không dấu" value="${esc(search)}"></label>`);
     root.querySelector('.panel .badge').textContent = `${filtered.length} / ${allPatients.length} hồ sơ`;
@@ -85,6 +87,7 @@ export function renderIntake(root) {
         `<p class="small muted">${isEditing ? "Cập nhật thông tin bệnh nhân để khảo sát." : "Nhập thông tin bệnh nhân để phục vụ khảo sát siêu âm."}</p>` +
         field("Mã bệnh nhân (PID) · 9 chữ số", "pid", "text", currentPid, 'required pattern="[0-9]{9}" minlength="9" maxlength="9" inputmode="numeric"' + (isEditing ? ' readonly title="PID không thể thay đổi sau khi tạo"' : "")) +
         field("Họ và tên", "full_name", "text", existingPatient?.name || "", 'required maxlength="120"') +
+        field("Số CCCD / Hộ chiếu", "national_id", "text", existingPatient?.national_id || "", 'maxlength="20" placeholder="12 số CCCD hoặc số Hộ chiếu"') +
         `<label class="field"><span>Năm sinh <span class="age-badge-preview" id="agePreview">${initialAgeText}</span></span><input name="birth_year" type="number" value="${esc(initialBirthYear)}" required min="1900" max="${currentYear}"></label>` +
         field("Số điện thoại", "phone", "tel", existingPatient?.phone || "", 'required maxlength="24"') +
         `<label class="field">Giới tính<select name="gender" required>
@@ -101,14 +104,15 @@ export function renderIntake(root) {
           const data = Object.fromEntries(new FormData(event.target));
           const pidVal = validatePid(data.pid, { existingPids, currentPid: isEditing ? currentPid : null });
           const nameVal = validateFullName(data.full_name);
+          const nationalIdVal = validateNationalId(data.national_id, { required: false });
           const yearVal = validateBirthYear(data.birth_year, currentYear);
           const phoneVal = validatePhone(data.phone);
           const genderVal = validateGender(data.gender);
           const hometownVal = validateHometown(data.hometown);
 
           const error = dialog.querySelector("[data-patient-error]");
-          if (!pidVal.valid || !nameVal.valid || !yearVal.valid || !phoneVal.valid || !genderVal.valid || !hometownVal.valid) {
-            error.textContent = pidVal.error || nameVal.error || yearVal.error || phoneVal.error || genderVal.error || hometownVal.error;
+          if (!pidVal.valid || !nameVal.valid || !nationalIdVal.valid || !yearVal.valid || !phoneVal.valid || !genderVal.valid || !hometownVal.valid) {
+            error.textContent = pidVal.error || nameVal.error || nationalIdVal.error || yearVal.error || phoneVal.error || genderVal.error || hometownVal.error;
             error.hidden = false;
             return;
           }
@@ -117,6 +121,7 @@ export function renderIntake(root) {
             pid: String(data.pid).trim(),
             synthetic: isEditing ? existingPatient.synthetic : (state.capabilities?.synthetic_demo_mode === true),
             name: String(data.full_name).trim(),
+            national_id: nationalIdVal.cleanId || "",
             age: yearVal.age,
             birth_year: Number(data.birth_year),
             phone: phoneVal.cleanPhone,
@@ -150,6 +155,7 @@ export function renderIntake(root) {
         attachInlineValidation(d.querySelector("form"), {
           pid: val => validatePid(val, { existingPids, currentPid: isEditing ? currentPid : null }),
           full_name: val => validateFullName(val),
+          national_id: val => validateNationalId(val, { required: false }),
           birth_year: val => validateBirthYear(val, currentYear),
           phone: val => validatePhone(val),
           gender: val => validateGender(val),
@@ -205,7 +211,7 @@ function renderUpload(root, patient, onBack) {
   const q = selector => root.querySelector(selector);
   const files = { L: [], R: [] }, unavailableStatus = { L: null, R: null };
   const syntheticDemoMode = state.capabilities?.synthetic_demo_mode === true;
-  const validPid = () => /^[0-9]{9}$/.test(q("[name=pid]").value);
+  const validPid = () => (!syntheticDemoMode && q("[name=pid]").value.trim() === "") || /^[0-9]{9}$/.test(q("[name=pid]").value);
   const validSyntheticDemoPid = () => validPid() && Number(q("[name=pid]").value) >= 900000001 && Number(q("[name=pid]").value) <= 900000300;
   const urls = new Set();
   let running = false, assigning = false, selecting = 0, selectionOrder = 0;
@@ -221,8 +227,8 @@ function renderUpload(root, patient, onBack) {
     return contentDigests.get(file);
   };
   const pidField = syntheticDemoMode
-    ? field("Mã bệnh nhân (PID)", "pid", "text", patient.synthetic ? patient.pid : "", 'placeholder="900000001" inputmode="numeric" minlength="9" maxlength="9" required pattern="[0-9]{9}"')
-    : field("Mã bệnh nhân (PID)", "pid", "text", patient.pid || "", 'placeholder="Để trống cho ca nghiên cứu không định danh" inputmode="numeric" minlength="9" maxlength="9" required pattern="[0-9]{9}"');
+    ? field("Mã bệnh nhân (PID)", "pid", "text", patient.synthetic ? patient.pid : "", 'placeholder="900000001" maxlength="64" required')
+    : field("Mã bệnh nhân (PID)", "pid", "text", patient.pid || "", 'placeholder="Để trống cho ca nghiên cứu không định danh" maxlength="64"');
   const reasonField = syntheticDemoMode
     ? '<label class="field">Lý do khảo sát<select name="reason"><option>Khác / chưa ghi nhận</option><option>Theo dõi hình thái</option><option>Khảo sát định kỳ</option></select></label>'
     : '<label class="field">Lý do khảo sát<select name="reason"><option>Khác / chưa ghi nhận</option><option>Theo dõi hình thái</option><option>Khảo sát định kỳ</option></select></label>';
@@ -265,7 +271,7 @@ function renderUpload(root, patient, onBack) {
     q("#startSegmentationBtn").setAttribute("aria-busy", String(running));
     q("#intakeHint").textContent = running ? "Đang xử lý; có thể dừng chờ phản hồi." : selecting ? "Đang kiểm tra ảnh…" : !imageSides.length ? "Chọn ít nhất một ảnh siêu âm." : unconfirmedSide ? `Có ảnh bên ${unconfirmedSide === "L" ? "trái" : "phải"} chưa xác nhận. Kiểm tra từng ảnh.` : unreportedSide ? "Ghi nhận bên không có ảnh và chọn đúng tình trạng trước khi tiếp tục." : syntheticDemoMode && !validSyntheticDemoPid() ? "Nhập mã ca tổng hợp bắt đầu bằng DEMO-SYNTHETIC-." : !q("[name=study-date]").value || !q("[name=study-date]").validity.valid ? "Chọn ngày giờ khảo sát hợp lệ." : readyMessage;
     q("[data-action=retry-upload]").disabled = !ready();
-    if (!running && !selecting && !validPid()) q("#intakeHint").textContent = "PID bắt buộc gồm đúng 9 chữ số từ 0 đến 9.";
+    if (!running && !selecting && !validPid()) q("#intakeHint").textContent = "PID nếu nhập cần đúng 9 chữ số; ca nghiên cứu không định danh có thể để trống.";
     else if (!running && !selecting && syntheticDemoMode && !validSyntheticDemoPid()) q("#intakeHint").textContent = "Vui lòng nhập mã bệnh nhân hợp lệ gồm 9 chữ số.";
     q("[data-action=swap-sides]").disabled = running || Boolean(state.busy) || Boolean(selecting);
     q("[data-action=change-patient]").disabled = running || Boolean(state.busy);

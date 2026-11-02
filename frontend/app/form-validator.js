@@ -110,6 +110,28 @@ export function validateMeasurement(val, { min = 0, max = 500, label = "Kích th
   return { valid: true, error: null };
 }
 
+export function validateNationalId(val, { required = false } = {}) {
+  const str = String(val ?? "").trim();
+  if (!str) {
+    if (required) {
+      return { valid: false, error: "Số CCCD / Hộ chiếu không được để trống." };
+    }
+    return { valid: true, error: null, cleanId: "" };
+  }
+  const cleanId = str.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const isCccd = /^[0-9]{12}$/.test(cleanId);
+  const isCmnd = /^[0-9]{9}$/.test(cleanId);
+  const isPassport = /^[A-Z]{1,2}[0-9]{6,9}$/.test(cleanId);
+
+  if (!isCccd && !isCmnd && !isPassport) {
+    return {
+      valid: false,
+      error: "Số CCCD phải gồm 12 chữ số (hoặc CMND 9 số / Hộ chiếu hợp lệ).",
+    };
+  }
+  return { valid: true, error: null, cleanId };
+}
+
 /**
  * Attaches real-time validation to a form element.
  * Updates inline `.field-error` elements and toggles `aria-invalid`.

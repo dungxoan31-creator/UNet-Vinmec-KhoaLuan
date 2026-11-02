@@ -9,6 +9,7 @@ import {
   validateHometown,
   validateStudyDate,
   validateMeasurement,
+  validateNationalId,
 } from "../frontend/app/form-validator.js";
 
 test("validatePid enforces 9 digits and unicity", () => {
@@ -68,4 +69,16 @@ test("validateMeasurement checks boundaries", () => {
   assert.equal(validateMeasurement(45, { min: 0, max: 500 }).valid, true);
   assert.equal(validateMeasurement(-5, { min: 0, max: 500 }).valid, false);
   assert.equal(validateMeasurement(600, { min: 0, max: 500 }).valid, false);
+});
+
+test("validateNationalId validates CCCD and Passport format", () => {
+  assert.equal(validateNationalId("001200001234").valid, true);
+  assert.equal(validateNationalId("001 200 001 234").cleanId, "001200001234");
+  assert.equal(validateNationalId("123456789").valid, true);
+  assert.equal(validateNationalId("B1234567").valid, true);
+  assert.equal(validateNationalId("C12345678").valid, true);
+  assert.equal(validateNationalId("12345").valid, false);
+  assert.equal(validateNationalId("invalid_id").valid, false);
+  assert.equal(validateNationalId("", { required: false }).valid, true);
+  assert.equal(validateNationalId("", { required: true }).valid, false);
 });
