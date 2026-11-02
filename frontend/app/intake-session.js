@@ -62,21 +62,41 @@ export function createDemoPatientStore(seeds, storage = () => localStorage) {
     }
     return copy;
   };
+  const read = (key) => {
+    if (memory.has(key)) return memory.get(key).map(row => ({ ...row }));
+    try {
+      const rows = JSON.parse(storage().getItem(key));
+      if (Array.isArray(rows) && rows.length && rows.every(row =>
+        row && typeof row.pid === "string" && typeof row.name === "string" &&
+        Number.isFinite(row.age))) {
+        memory.set(key, rows);
+        return rows.map(row => ({ ...row }));
+      }
+    } catch {}
+    return save(key, seeds);
+  };
   return {
-    read(key) {
-      if (memory.has(key)) return memory.get(key).map(row => ({ ...row }));
-      try {
-        const rows = JSON.parse(storage().getItem(key));
-        if (Array.isArray(rows) && rows.length && rows.every(row =>
-          row && typeof row.pid === "string" && typeof row.name === "string" &&
-          Number.isFinite(row.age))) {
-          memory.set(key, rows);
-          return rows.map(row => ({ ...row }));
-        }
-      } catch {}
-      return save(key, seeds);
-    },
+    read,
     save,
+    get(key, pid) {
+      const rows = read(key);
+      const row = rows.find(r => r.pid === pid);
+      return row ? { ...row } : undefined;
+    },
+    add(key, patient) {
+      const rows = read(key);
+      const filtered = rows.filter(r => r.pid !== patient.pid);
+      return save(key, [...filtered, { ...patient }]);
+    },
+    update(key, pid, updates) {
+      const rows = read(key);
+      const updated = rows.map(r => (r.pid === pid ? { ...r, ...updates } : r));
+      return save(key, updated);
+    },
+    remove(key, pid) {
+      const rows = read(key);
+      return save(key, rows.filter(r => r.pid !== pid));
+    },
     isTransient: key => transient.has(key),
   };
 }
