@@ -612,6 +612,34 @@ textarea[aria-invalid="true"] {
   font-weight: 500;
   margin-left: 6px;
 }
+.chip-custom-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  margin-right: 4px;
+}
+.chip-remove {
+  background: transparent;
+  border: none;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: -6px;
+  font-size: 14px;
+  line-height: 1;
+}
+.chip-remove:hover {
+  color: var(--danger, #ef4444);
+}
+.chip.chip-add {
+  border-style: dashed;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.chip.chip-add:hover {
+  opacity: 1;
+  border-color: var(--accent);
+}
 .banner {
   padding: 14px 16px;
   display: flex;

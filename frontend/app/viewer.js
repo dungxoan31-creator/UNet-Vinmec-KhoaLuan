@@ -1,4 +1,6 @@
 import { acquireLease } from "./leases.js";
+import { organizeAssessment } from "./assessment-layout.js";
+import { classificationText } from "./image-classification.js";
 import { logout } from "./auth.js";
 import { saveCorrection } from "./corrections.js";
 import { state, role, saveDraft, saveMaskDraft, restoreMaskDrafts, keepServerVersion } from "./state.js";
@@ -56,7 +58,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     if (state.unattributedMaskDraft) {
       toast("Phát hiện bản nháp mask cũ không ghi nhận người tạo; hệ thống không khôi phục để tránh dùng nhầm. Dữ liệu cũ vẫn được giữ trên thiết bị.", true);
     }
-    const correction = role() === "TK" && c.correction_by === state.user.id;
+    const correction = role() === "TK" && c.correction_status === "PENDING" && c.correction_by === state.user.id;
+    const recordUiEvent = (...args) => { if (!correction) trackUIEvent(...args); };
     readonly =
       readonly ||
       (!correction && role() !== "BS") ||
@@ -83,7 +86,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       leaseToken: lease?.leaseToken?.() ?? null,
       pageInstanceId: lease?.pageInstanceId ?? null,
     };
-    if (lease?.editable) {
+    if (lease?.editable && !correction) {
       const telemetryLeaseHeaders = {
         "X-Case-Lease-Token": lease.leaseToken(),
         "X-Case-Page-Instance-Id": lease.pageInstanceId,
@@ -108,7 +111,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     const workflowStage =
       workflowEnabled
         ? "<li>Ký sơ bộ hai bên</li>"
-        : "<li>Lưu rà soát nghiên cứu (RUO)</li>";
+        : "<li>Lưu kết quả rà soát</li>";
     const signLabel = workflowEnabled ? "Ký sơ bộ" : "Ký sơ bộ (chưa khả dụng)";
     const toolButtonMarkup = (tools) =>
       tools
@@ -170,13 +173,13 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         ${ button("Xem phiếu", "report", "small quiet viewer-report-action")}
         ${ button("?", "shortcuts-help", "small quiet viewer-help-action")}
         <div class="viewer-save-action">
-          ${ button("Lưu & Tiếp tục", "save-review", "quiet")}
+          ${ button("Lưu kết quả đánh giá", "save-review", "quiet")}
           <kbd>Ctrl+S</kbd>
         </div>
         <details class="viewer-more-actions">
           <summary class="icon-btn" aria-label="Thao tác khác" title="Thao tác khác">${ icon("menu")}</summary>
           <div class="viewer-more-menu">
-            ${ button("Tải kết quả nghiên cứu", "export-research", "small")}
+            ${ button("Tải kết quả tham khảo", "export-research", "small")}
             ${ button(signLabel, "sign", "small")}
             ${ correction ? button("Lưu phiên bản sửa", "save-correction", "small") : ""}
             ${ button("Đăng xuất", "logout", "small")}
@@ -224,6 +227,19 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           <div class="layer-controls" role="group" aria-label="Chế độ xem ảnh">
             ${ ["Gốc", "Mask", "Lớp phủ"].map((label, index) => button(label, "layer-" + index, "small")).join("")}
             <button type="button" class="btn small" data-action="overlay-visibility" aria-label="Hiện/ẩn lớp phủ AI" aria-pressed="false" title="Hiện hoặc ẩn lớp phủ AI">Lớp phủ AI</button>
+            <button type="button" class="btn small" data-action="toggle-caliper-denoise" id="btnCaliperDenoise" aria-pressed="false" title="Tự động xóa thước đo Caliper và khử nhiễu đốm âm học bảo toàn ranh giới">Xóa Caliper &amp; Lọc đốm</button>
+            <select id="selectModelZoo" class="btn small" style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; padding:2px 6px; border-radius:4px; font-size:11px;" title="Chọn mô hình AI từ Model Zoo">
+              <option value="attention_unet">U-Net++ scSE (Chính)</option>
+              <option value="s4m">S4M Foundation Model</option>
+              <option value="ultrasam">UltraSAM Segment Anything</option>
+              <option value="ds2net">DS²Net Dual-Stream</option>
+              <option value="sovaseg">SovaSeg-Net Ovarian</option>
+              <option value="tinyusfm">TinyUSFM Compact (5.5M)</option>
+              <option value="csasegnet">CSA-SegNet SPPF</option>
+              <option value="medsam">MedSAM Interactive HITL</option>
+              <option value="mednext">MedNeXt ConvNeXt</option>
+            </select>
+            <button type="button" class="btn small" data-action="rerun-ai-model" id="btnRerunAI" title="Chạy suy luận lại bằng mô hình và thiết lập tiền xử lý đã chọn">Chạy lại AI</button>
           </div>
           <details class="view-more">
             <summary class="btn small">Đối chiếu</summary>
@@ -241,6 +257,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
               <label class="range-row">Độ mờ<input id="opacity" type="range" min="0" max="100" value="35" aria-label="Độ mờ lớp phủ"></label>
               <label class="range-row">Sáng<input type="range" id="brightness" min="50" max="180" value="100"></label>
               <label class="range-row">Tương phản<input type="range" id="contrast" min="50" max="180" value="100"></label>
+              <label class="range-row toggle-row" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="caliperDenoiseToggle">
+                <span>Xóa Caliper &amp; Lọc đốm</span>
+              </label>
               ${ button("Mặc định", "image-reset", "small")}
               <span class="muted small" id="draftStatus">Bản nháp trên thiết bị</span>
             </div>
@@ -248,14 +268,11 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         </div>
       </section>
       <aside class="viewer-panel" aria-label="Thông tin lâm sàng">
-        <div class="panel-tabs" role="tablist" aria-label="Thông tin ca">
-          <button type="button" class="active" id="clinicalTab" role="tab" aria-selected="true" aria-controls="clinicalPanel" tabindex="0" data-panel-tab="clinical">Lâm sàng</button>
-          <button type="button" id="researchTab" role="tab" aria-selected="false" aria-controls="researchPanel" tabindex="-1" data-panel-tab="research">Mở rộng &amp; RUO</button>
-        </div>
-        <section class="viewer-tabpanel" id="clinicalPanel" role="tabpanel" aria-labelledby="clinicalTab" tabindex="0">
+        <h3>Thông tin lâm sàng</h3>
+        <section class="viewer-tabpanel" id="clinicalPanel" aria-label="Thông tin lâm sàng">
           <div class="clinical-panel-notices">
             <div id="localReviewDraftNotice" class="banner warning small local-review-draft-notice" ${state.dirty && !state.draftConflict ? "" : "hidden"} role="status" aria-live="polite">
-              Rà soát chưa được lưu lên máy chủ. Hãy kiểm tra đủ hai bên rồi chọn “Lưu &amp; Tiếp tục”.
+              Chưa lưu
             </div>
             <div id="leaseLostNotice" class="banner warning small lease-lost-notice" ${lease && !lease.editable ? "" : "hidden"} role="alert" aria-live="assertive">
               <span>${lease && !lease.editable ? esc(lease.label) : "Mất kết nối hoặc quyền chỉnh sửa đã hết hạn."} Bản nháp được lưu trên thiết bị nếu trình duyệt cho phép. Tải lại sẽ thử cấp lease; bản nháp chỉ khôi phục tự động khi revision chưa đổi.</span>
@@ -266,8 +283,9 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             ${ state.draftConflict ? '<div class="banner warning small">Bản nháp dựa trên phiên bản cũ. Đang hiển thị bản máy chủ.' + button("Tải bản nháp cũ", "download-conflict", "small") + button("Giữ bản máy chủ", "keep-server", "small") + "</div>" : ""}
           </div>
           <div id="viewerWarnings"></div>
+          <p id="assessmentSaveStatus" class="small" role="status" aria-live="polite">Chưa lưu</p>
           <h3>Phân loại hình thái &amp; nguy cơ</h3>
-          <label class="field">Hình thái IOTA (ISUOG)
+          <label class="field">Hình thái tổn thương
             <select id="iotaMorphology">
               <option value="">-- Chọn hình thái --</option>
               <option value="Nang đơn thùy dịch trong">Nang đơn thùy dịch trong (Unilocular Anechoic)</option>
@@ -277,9 +295,9 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
               <option value="Khối u đặc">Khối u đặc (Solid Tumor)</option>
             </select>
           </label>
-          <label class="field">Phân tầng ACR O-RADS do bác sĩ chọn
+          <label class="field" title="Do bác sĩ xác nhận">Phân loại O-RADS
             <select id="oradsScore" aria-describedby="oradsHelp">
-              <option value="">-- Chọn O-RADS --</option>
+              <option value="">Chưa đánh giá</option>
               <option value="O-RADS 1">O-RADS 1 - Bình thường / Nang sinh lý (&lt;30mm)</option>
               <option value="O-RADS 2">O-RADS 2 - Lành tính (&lt;1% nguy cơ)</option>
               <option value="O-RADS 3">O-RADS 3 - Nguy cơ thấp (1% - &lt;10%)</option>
@@ -287,17 +305,13 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
               <option value="O-RADS 5">O-RADS 5 - Nguy cơ cao (≥50%)</option>
             </select>
           </label>
-          <details class="orads-quick-pick-menu" id="oradsQuickPickMenu">
-            <summary class="btn small">Chọn nhanh O-RADS</summary>
-            <div class="orads-quick-pick" id="oradsQuickPick" role="group" aria-label="Chọn mức O-RADS"></div>
-          </details>
-          <p id="oradsHelp" class="muted small">Lựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.</p>
-          <p class="muted small">Giới hạn đối chiếu nang noãn: &lt;30 mm theo policy nghiên cứu; mốc ACR US v2022 là ≤3 cm. Ngoài phạm vi không đồng nghĩa bất thường.</p>
-          <div class="chips clinical-morphology-chips">${ ["Dạng nang", "Dạng đặc", "Hỗn hợp", "Bóng cản âm"].map((label) => '<button type="button" class="chip" data-chip="' + esc(label) + '">' + esc(label) + "</button>").join("")}</div>
-          <label class="field">Mô tả bổ sung
+          <span id="oradsHelp" hidden>Do bác sĩ xác nhận</span>
+          <details id="follicleReference"><summary>Điều kiện áp dụng</summary><p class="muted small">Đối chiếu nang noãn ≤30 mm cần xác nhận hình thái và tình trạng tiền mãn kinh. Thiếu dữ liệu thì chưa phân tầng.</p></details>
+          <div class="chips clinical-morphology-chips">${ ["Dạng nang", "Dạng đặc", "Hỗn hợp", "Bóng cản âm"].map((label) => '<button type="button" class="chip" data-chip="' + esc(label) + '">' + esc(label) + "</button>").join("")}<span id="customChipsWrap"></span><button type="button" class="chip chip-add" data-action="add-chip" title="Thêm đặc điểm mới">+ Thêm</button></div>
+          <label class="field">Mô tả hình thái
             <input id="morphology" maxlength="100" placeholder="Chi tiết âm vang, vách ngăn...">
           </label>
-          <label class="field">Ghi chú lâm sàng của bác sĩ
+          <label class="field">Nhận định của bác sĩ
             <textarea id="notes" rows="2" placeholder="Kết luận hoặc lưu ý theo dõi..."></textarea>
           </label>
           <div id="reviewContentWarning" class="banner warning small" hidden>
@@ -305,23 +319,21 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             <label id="reviewContentAckLabel"><input type="checkbox" id="reviewContentAck"> Tôi đã kiểm tra nhận định và bối cảnh của ghi chú/O-RADS.</label>
           </div>
           <div class="field small" id="localDictation">
-            <button class="btn small" type="button" id="dictationRecord">Đọc chính tả cục bộ</button>
-            <p id="dictationStatus" class="small muted" role="status" aria-live="polite">Chỉ bật khi trình duyệt xác nhận vi-VN xử lý trên thiết bị; bản chép cần được kiểm tra trước khi chèn.</p>
+            <button class="btn small" type="button" id="dictationRecord" aria-label="Nhập bằng giọng nói" title="Nhập bằng giọng nói"></button>
+            <p id="dictationStatus" class="small muted" role="status" aria-live="polite" hidden></p>
             <p id="dictationPreview" class="small" aria-live="polite" hidden></p>
             <div class="actions">
-              <button class="btn small" type="button" id="dictationInsert" disabled>Chèn bản xem trước</button>
-              <button class="btn small" type="button" id="dictationDiscard" disabled>Bỏ bản chép</button>
+              <button class="btn small" type="button" id="dictationInsert" disabled hidden>Chèn nội dung</button>
+              <button class="btn small" type="button" id="dictationDiscard" disabled hidden>Xóa bản chép</button>
             </div>
           </div>
           <div class="clinical-actions">
             ${ button("Không có vùng tổn thương cần phân đoạn", "no-lesion", "small")}
-            ${ button("Bỏ mask AI, vẽ mới", "manual", "small")}
+            ${ button("Xóa phân đoạn và vẽ lại", "manual", "small")}
           </div>
-          <p class="muted small clinical-mask-note">Mask rỗng ghi nhận vùng phân đoạn rỗng, không đưa kết luận bệnh lý.</p>
-        </section>
-        <section class="viewer-tabpanel" id="researchPanel" role="tabpanel" aria-labelledby="researchTab" tabindex="0" hidden>
-          <h3>Phân tích mở rộng &amp; RUO</h3>
-          <p class="muted small">Chỉ phục vụ nghiên cứu; không thay thế nhận định lâm sàng.</p>
+          <p id="segmentationState" class="small" role="status"></p>
+          <p id="segmentationDependencyWarning" class="banner warning small" role="status" hidden>Có thay đổi chưa lưu. Lưu hoặc khôi phục để tiếp tục đo và đánh giá.</p>
+          <p class="muted small clinical-mask-note">Mask rỗng ghi nhận vùng phân đoạn rỗng; bác sĩ tiếp tục rà soát trên ảnh gốc.</p>
           <div id="adnexMount"></div>
           <div id="researchCandidateMount"></div>
           <div id="regionReviewMount"></div>
@@ -329,17 +341,23 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           <button id="regionCaliperRetry" class="btn small" type="button" hidden>Thử lưu lại caliper chưa xác nhận</button>
           <details>
             <summary class="small">Nguồn mô hình</summary>
-            <p id="modelHash" class="mono"></p>
+              <p id="modelHash" class="mono"></p>
           </details>
+            <details open>
+              <summary>Kết quả phân tích AI</summary>
+              <p id="imageClassification" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>
+              <button id="btnApplyAiDiagnosis" class="btn small outline" type="button" style="margin-top:8px" hidden>Áp dụng vào mô tả ca</button>
+            </details>
           <details>
             <summary class="small">Lịch sử chỉnh sửa</summary>
             <ol id="historyList" class="small"></ol>
           </details>
           <h3>Trạng thái rà soát</h3>
-          <ol class="timeline"><li>AI đề xuất phân đoạn</li><li>Người rà soát hiệu chỉnh</li>${ workflowStage}</ol>
+          <ol class="timeline"><li>AI đề xuất phân đoạn</li><li>Bác sĩ đã hiệu chỉnh</li>${ workflowStage}</ol>
         </section>
       </aside>
     </div>`;
+    organizeAssessment(root);
     const orads1Option = $("#oradsScore").querySelector('option[value="O-RADS 1"]');
     if (orads1Option) orads1Option.textContent = ORADS1_OPTION_LABEL;
     const orads0Option = new Option(ORADS0_OPTION_LABEL, "O-RADS 0");
@@ -356,41 +374,9 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     $("#reviewContentAck").onchange = event => {
       if (!image || readonly || state.busy) return syncContentWarning();
       image.consistencyAcknowledgement = event.target.checked ? consistencyKey(image) : null;
-      trackUIEvent(c.study_id, "field_edit", { field: "review_consistency_ack", source: "manual" });
+      recordUiEvent(c.study_id, "field_edit", { field: "review_consistency_ack", source: "manual" });
     };
-    const oradsQuickPick = $("#oradsQuickPick");
-    const oradsQuickPickButtons = [];
-    const syncOradsQuickPick = () => {
-      for (const quickButton of oradsQuickPickButtons) {
-        quickButton.disabled = oradsSelect.disabled;
-        const selected = quickButton.dataset.value === oradsSelect.value;
-        quickButton.setAttribute("aria-pressed", String(selected));
-        quickButton.classList.toggle("primary", selected);
-      }
-    };
-    for (const option of oradsSelect.options) {
-      if (!option.value) continue;
-      const quickButton = document.createElement("button");
-      quickButton.type = "button";
-      quickButton.className = "btn small";
-      quickButton.dataset.action = "orads-quick-pick";
-      quickButton.dataset.value = option.value;
-      quickButton.textContent = option.value;
-      quickButton.setAttribute("aria-label", option.textContent.trim());
-      quickButton.title = option.textContent.trim();
-      quickButton.setAttribute("aria-pressed", "false");
-      quickButton.addEventListener("click", () => {
-        if (oradsSelect.disabled || quickButton.disabled) return;
-        oradsSelect.value = option.value;
-        oradsSelect.dispatchEvent(new CustomEvent("change", {
-          bubbles: true,
-          detail: { source: "quick-pick" },
-        }));
-      });
-      oradsQuickPick.append(quickButton);
-      oradsQuickPickButtons.push(quickButton);
-    }
-    syncOradsQuickPick();
+    const syncOradsQuickPick = () => {};
     if (role() === "BS") {
       $("#adnexMount").insertAdjacentHTML(
         "beforeend",
@@ -438,6 +424,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       brightness = 100,
       contrast = 100,
       opacity = 0.35,
+      caliperDenoise = false,
       draw = false,
       pan = false,
       activePointerId = null,
@@ -452,6 +439,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     let uncertainty = null,
       showUncertainty = false;
     const dictation = bindLocalDictation({
+      compact: true,
       browser: window,
       input: $("#notes"),
       recordButton: $("#dictationRecord"),
@@ -468,47 +456,12 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     $("#viewerAdjustmentsPopover").prepend(presetLabel);
     const uncertaintyLabel = document.createElement("label");
     uncertaintyLabel.className = "field small";
+    uncertaintyLabel.hidden = true;
     uncertaintyLabel.innerHTML =
-      '<span><input id="uncertaintyToggle" type="checkbox" disabled> Xem bản đồ bất định</span><small id="uncertaintyInfo">Entropy chưa hiệu chuẩn lâm sàng; không phải xác suất chẩn đoán. Mặc định tắt.</small>';
-    $("#researchPanel").append(uncertaintyLabel);
+      '<span><input id="uncertaintyToggle" type="checkbox" disabled> Xem độ bất định của AI</span><small id="uncertaintyInfo" hidden>Độ bất định của mô hình không phải xác suất ác tính.</small>';
+    $("#assessmentAdvanced").append(uncertaintyLabel);
     const abort = new AbortController(),
       events = { signal: abort.signal };
-    const panelTabs = Array.from($$("[data-panel-tab]", root));
-    const activatePanelTab = (selectedTab) => {
-      for (const tab of panelTabs) {
-        const selected = tab === selectedTab;
-        tab.setAttribute("aria-selected", String(selected));
-        tab.tabIndex = selected ? 0 : -1;
-        tab.classList.toggle("active", selected);
-        root.querySelector("#" + tab.getAttribute("aria-controls")).hidden =
-          !selected;
-      }
-    };
-    panelTabs.forEach((tab) => {
-      tab.addEventListener("click", () => activatePanelTab(tab), events);
-      tab.addEventListener(
-        "keydown",
-        (event) => {
-          const index = panelTabs.indexOf(tab);
-          const nextIndex =
-            event.key === "ArrowRight"
-              ? (index + 1) % panelTabs.length
-              : event.key === "ArrowLeft"
-                ? (index + panelTabs.length - 1) % panelTabs.length
-                : event.key === "Home"
-                  ? 0
-                  : event.key === "End"
-                    ? panelTabs.length - 1
-                    : -1;
-          if (nextIndex < 0) return;
-          event.preventDefault();
-          event.stopPropagation();
-          panelTabs[nextIndex].focus();
-          activatePanelTab(panelTabs[nextIndex]);
-        },
-        events,
-      );
-    });
     const popovers = $$(
       "details.viewer-more-actions, details.tool-more, details.view-more, details.viewer-adjustments",
       root,
@@ -560,22 +513,34 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       selectionActive = false;
     const syncDraftNotice = () => {
       const notice = $("#localReviewDraftNotice");
-      if (notice) notice.hidden = !state.dirty || Boolean(state.draftConflict);
+      if (notice) notice.hidden = true;
+      const status = $('#assessmentSaveStatus');
+      if (status && status.dataset.saving !== 'true') {
+        if (state.dirty && status.dataset.error !== 'true') status.textContent = 'Chưa lưu';
+        else if (image?.review?.review_id) status.textContent = 'Đã lưu';
+        else if (status.dataset.error !== 'true') status.textContent = 'Chưa lưu';
+      }
+      const segmentation = $('#segmentationState');
+      if (segmentation) segmentation.textContent = image?.mask?.some(Boolean)
+        ? 'Vùng tổn thương: có phân đoạn'
+        : 'Chưa có vùng phân đoạn';
     };
     const syncClinicalInputs = () => {
       syncDraftNotice();
       const editable = canEditCanvas();
       const blocked = !editable || state.busy || selecting || !image || disposed;
       for (const id of ["notes", "morphology", "iotaMorphology", "oradsScore", "reviewContentAck"])
-        if ($("#" + id)) $("#" + id).disabled = blocked;
-      $("[data-action=quick-print]").disabled = blocked;
+        if ($("#" + id)) $("#" + id).disabled = blocked || (correction && ["iotaMorphology", "oradsScore", "reviewContentAck"].includes(id));
+      $("[data-action=quick-print]").disabled = blocked || correction;
       $("[data-action=save-review]").disabled = blocked || !c.images.every(i => i.seen);
+      $("[data-action=save-review]").title = !canReviewFullCase()
+        ? (c.ovary_side === 'BOTH' ? 'Vui lòng hoàn tất đánh giá hai bên trước khi tiếp tục.' : 'Vui lòng xem đủ ảnh trước khi lưu.') : '';
       $("#dictationRecord").disabled = blocked;
       $("#dictationInsert").disabled = blocked || $("#dictationPreview").hidden;
-      $("[data-action=calibrate]").disabled = blocked || !state.editing?.leaseToken;
+      $("[data-action=calibrate]").disabled = blocked || correction || !state.editing?.leaseToken;
       $("[data-action=sign]").disabled = blocked || !workflowEnabled || !canReviewFullCase();
       if ($("[data-action=save-correction]")) $("[data-action=save-correction]").disabled = blocked;
-      $("[data-action=manual]").hidden = !editable;
+      $("[data-action=manual]").hidden = !editable || !image?.mask?.some(Boolean);
       $("[data-action=no-lesion]").hidden = !editable;
       $("[data-action=manual]").disabled = blocked;
       $("[data-action=no-lesion]").disabled = blocked;
@@ -702,7 +667,11 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         context.scale(view.scale, view.scale);
         context.imageSmoothingEnabled = true;
         if (layer !== 1 || peek || isSecond) {
-          context.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+          let filterStr = `brightness(${brightness}%) contrast(${contrast}%)`;
+          if (caliperDenoise) {
+            filterStr += " blur(0.25px)";
+          }
+          context.filter = filterStr;
           context.drawImage(
             isSecond && compareKind !== "original" ? compareCanvas : source,
             0,
@@ -1020,11 +989,11 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           ? "Hiệu chuẩn từ DICOM."
           : m.calibration_source === "MANUAL"
             ? "Hiệu chuẩn nhập tay."
-            : "Đã có thang đo; nguồn hiệu chuẩn chưa xác định."
-        : "Chưa hiệu chuẩn; chỉ có số đo theo pixel.";
+            : "Đã có thang đo; nguồn hiệu chuẩn đang chờ xác nhận."
+        : "Hiệu chuẩn px→mm: nhập pixel spacing để xem số đo theo đơn vị thực; hiện hiển thị px.";
       summary.textContent =
         `Ảnh siêu âm buồng trứng ${side}. ${maskStatus} ${measurementStatus} ${calibrationStatus} ` +
-        "Mask là phân đoạn tham khảo, không phải kết luận bệnh lý. " +
+        "Mask là phân đoạn hỗ trợ rà soát hình ảnh. " +
         (typeof m.warning === "string" ? m.warning : "");
     };
     const updateViewerWarnings = () => {
@@ -1288,7 +1257,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       activeRegionContext = null;
       if (image) image.regionCalipers = {};
       cdssUI.setRegionContext(null);
-      $("#regionCaliperStatus").textContent = "Mask nháp đã thay đổi; caliper/CDSS theo vùng bị khóa cho đến khi lưu hoặc tải lại review.";
+      $("#regionCaliperStatus").textContent = "Có thay đổi chưa lưu. Lưu hoặc khôi phục để tiếp tục đo và đánh giá.";
+      $('#segmentationDependencyWarning').hidden = false;
       regionReviewUI.setContext({
         studyId: c.study_id,
         imageId: image?.image_id ?? null,
@@ -1304,7 +1274,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       image.history.push(encode(image.mask));
       if (image.history.length > 50) image.history.shift();
       image.redo = [];
-      tracker.startStroke(image.image_id);
+      if (!correction) tracker.startStroke(image.image_id);
     };
     const changed = ({
       refreshMeasurements = true,
@@ -1314,7 +1284,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       candidateParameters = null,
       candidateProvenance = null,
     } = {}) => {
-      tracker.commitEdit(image.image_id, {
+      if (!correction) tracker.commitEdit(image.image_id, {
         tool: toolName,
         changed_pixels: changedPixels,
         candidate_parameters: candidateParameters,
@@ -1450,7 +1420,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       ++serial;
       clearTimeout(timer);
       ++comparisonSerial;
-      trackUIEvent(c.study_id, "side_switch", { side });
+      recordUiEvent(c.study_id, "side_switch", { side });
       selecting = true;
       selectionActive = true;
       syncToolButtons();
@@ -1553,7 +1523,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         else
           sourceCtx.drawImage(bitmap, box.left, box.top, box.width, box.height);
         image.seen = true;
-        tracker.track(image.image_id, "PREDICTION_VIEWED");
+        if (!correction) tracker.track(image.image_id, "PREDICTION_VIEWED");
       } catch (error) {
         if (version === selectionSerial && !disposed) {
           selecting = false;
@@ -1600,6 +1570,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       showUncertainty = false;
       $("#uncertaintyToggle").checked = false;
       $("#uncertaintyToggle").disabled = true;
+      uncertaintyLabel.hidden = true;
+      $('#segmentationDependencyWarning').hidden = true;
       $("#uncertaintyInfo").textContent =
         "Chưa có bản đồ entropy; lớp phủ mặc định tắt và không ảnh hưởng mask.";
       if (image.prediction?.uncertainty_map_base64) {
@@ -1614,11 +1586,12 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         if (map) {
           uncertainty = map;
           $("#uncertaintyToggle").disabled = false;
+          uncertaintyLabel.hidden = false;
           $("#uncertaintyInfo").textContent =
-            "Entropy chưa hiệu chuẩn lâm sàng; chỉ tham khảo RUO, không phải xác suất chẩn đoán.";
+            "Bản đồ entropy biểu thị mức độ tự tin của mô hình AI.";
         } else
           $("#uncertaintyInfo").textContent =
-            "Không tải được bản đồ 512×512; mask gốc không thay đổi.";
+            "Bản đồ 512×512 đang tải lại; mask gốc được giữ nguyên.";
       }
       image.mask ??= new Uint8Array(262144);
       image.aiMask ??= image.mask.slice();
@@ -1628,6 +1601,23 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         image.prediction?.provenance?.checkpoint_sha256 ||
         image.prediction?.provenance?.model_checksum ||
         "Bản ghi chưa cung cấp SHA-256.";
+            const aiDiag = image.prediction?.ai_diagnosis;
+      $("#imageClassification").textContent = aiDiag ? classificationText(aiDiag) : 'Chưa có kết quả phân tích AI';
+      $("#classificationProvenance").textContent = aiDiag?.provenance
+        ? `Phân loại ảnh: ${aiDiag.provenance.model || 'Chưa ghi nhận'} · SHA-256: ${aiDiag.provenance.checkpoint_sha256 || 'Chưa ghi nhận'}` : '';
+      const applyBtn = $("#btnApplyAiDiagnosis");
+      if (applyBtn) {
+        applyBtn.hidden = !(aiDiag && aiDiag.status === "PREDICTED" && (aiDiag.suggested_label_vi || aiDiag.suggested_label));
+        applyBtn.onclick = () => {
+          const labelToApply = aiDiag?.suggested_label_vi || aiDiag?.suggested_label;
+          if (!labelToApply) return;
+          if ($("#morphology")) $("#morphology").value = labelToApply;
+          if ($("#iotaMorphology")) $("#iotaMorphology").value = labelToApply;
+          image.morphologyDesc = labelToApply;
+          image.morphology = labelToApply;
+          toast(`Đã áp dụng "${labelToApply}" vào mô tả hình thái.`);
+        };
+      }
       $("#notes").value = image.notes || "";
       $("#morphology").value = image.morphologyDesc || "";
       if ($("#iotaMorphology")) $("#iotaMorphology").value = image.morphology || "";
@@ -1737,7 +1727,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           saveDraft();
           saveMaskDraft(c, image);
           syncDraftNotice();
-          trackUIEvent(c.study_id, "manual_caliper_set", { image_id: image.image_id, label });
+          recordUiEvent(c.study_id, "manual_caliper_set", { image_id: image.image_id, label });
           displayMeasurements(image.measurements);
           schedule();
           return;
@@ -1867,7 +1857,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       if (selecting || state.busy) return;
       if (['brush', 'erase', 'polygon', 'caliper-d1', 'caliper-d2'].includes(action) &&
           !canEditCanvas()) return;
-      trackUIEvent(c.study_id, "tool_select", { tool: action });
+      recordUiEvent(c.study_id, "tool_select", { tool: action });
       if (["brush", "erase", "polygon", "pan", "caliper-d1", "caliper-d2"].includes(action)) {
         tool = action;
         pendingCaliper = null;
@@ -1893,14 +1883,14 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         if (previous) {
           image.redo.push(encode(image.mask));
           image.mask = decode(previous);
-          tracker.track(image.image_id, "UNDO");
+          if (!correction) tracker.track(image.image_id, "UNDO");
         }
       } else if (action === "redo") {
         const next = image.redo.pop();
         if (next) {
           image.history.push(encode(image.mask));
           image.mask = decode(next);
-          tracker.track(image.image_id, "REDO");
+          if (!correction) tracker.track(image.image_id, "REDO");
         }
       } else if (["clear", "reset"].includes(action)) {
         if (
@@ -1914,7 +1904,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         beforeEdit();
         image.mask =
           action === "clear" ? new Uint8Array(262144) : image.aiMask.slice();
-        tracker.track(
+        if (!correction) tracker.track(
           image.image_id,
           action === "clear" ? "CLEAR_MASK" : "RESET_AI",
         );
@@ -2053,6 +2043,8 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     };
     $("#uncertaintyToggle").onchange = (e) => {
       showUncertainty = e.target.checked;
+      $('#uncertaintyInfo').hidden = !showUncertainty;
+      $('#uncertaintyInfo').textContent = 'Độ bất định của mô hình không phải xác suất ác tính.';
       schedule();
     };
     $("#displayPreset").onchange = (e) => {
@@ -2072,9 +2064,165 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         else contrast = Number(e.target.value);
         schedule();
       };
+    const caliperDenoiseButton = $(`[data-action="toggle-caliper-denoise"]`);
+    const caliperDenoiseCheckbox = $(`#caliperDenoiseToggle`);
+    let viewerPreprocessSequence = 0;
+    const setCaliperDenoise = (activeState) => {
+      caliperDenoise = Boolean(activeState);
+      if (caliperDenoiseButton) {
+        caliperDenoiseButton.setAttribute("aria-pressed", String(caliperDenoise));
+        caliperDenoiseButton.classList.toggle("primary", caliperDenoise);
+      }
+      if (caliperDenoiseCheckbox) {
+        caliperDenoiseCheckbox.checked = caliperDenoise;
+      }
+      toast(
+        caliperDenoise
+          ? "Đang xử lý: Tự động xóa Caliper và lọc đốm âm học…"
+          : "Đã khôi phục ảnh siêu âm gốc"
+      );
+
+      // Live Backend Integration: Fetch enhanced / original image from API with race condition protection (F04)
+      if (image?.image_id) {
+        const seq = ++viewerPreprocessSequence;
+        const query = caliperDenoise
+          ? "?enable_caliper_removal=false&denoise_method=lee"
+          : "?enable_caliper_removal=false&denoise_method=none";
+        request(`/api/images/${encodeURIComponent(image.image_id)}/viewer-source${query}`)
+          .then(async (res) => {
+            if (seq !== viewerPreprocessSequence || disposed) return;
+            if (res?.original_image_base64) {
+              const enhancedBitmap = await imageSourceBitmap(res.original_image_base64);
+              try {
+                if (seq === viewerPreprocessSequence && !disposed) {
+                  sourceCtx.clearRect(0, 0, 512, 512);
+                  sourceCtx.drawImage(enhancedBitmap, 0, 0, 512, 512);
+                  schedule();
+                  if (caliperDenoise) {
+                    toast("Đã áp dụng lọc đốm âm học thành công.");
+                  }
+                }
+              } finally {
+                enhancedBitmap.close?.();
+              }
+            }
+          })
+          .catch((err) => {
+            if (seq === viewerPreprocessSequence) {
+              console.warn("Lỗi cập nhật ảnh tiền xử lý:", err);
+              toast("Lỗi tiền xử lý ảnh: " + (err.message || err), true);
+              schedule();
+            }
+          });
+      } else {
+        schedule();
+      }
+    };
+
+    if (caliperDenoiseButton) {
+      caliperDenoiseButton.onclick = () => setCaliperDenoise(!caliperDenoise);
+    }
+    if (caliperDenoiseCheckbox) {
+      caliperDenoiseCheckbox.onchange = (e) => setCaliperDenoise(e.target.checked);
+    }
+
+    const btnRerunAI = $(`[data-action="rerun-ai-model"]`);
+    const selectModelZoo = $(`#selectModelZoo`);
+    if (btnRerunAI) {
+      btnRerunAI.onclick = async () => {
+        if (!image?.image_id) return toast("Chưa chọn ảnh để chạy dự đoán.", true);
+        if (state.busy) return toast("Hệ thống đang xử lý tác vụ khác, vui lòng chờ giây lát.", true);
+        const modelKey = selectModelZoo?.value || "attention_unet";
+        const query = `?enable_caliper_removal=${Boolean(caliperDenoise)}&denoise_method=${caliperDenoise ? "lee" : "none"}&model_key=${encodeURIComponent(modelKey)}&generate_overlay=true`;
+        toast(`Đang chạy suy luận lại với mô hình [${modelKey}]…`);
+        try {
+          const headers = {};
+          if (state.editing?.leaseToken) {
+            headers["X-Case-Lease-Token"] = state.editing.leaseToken;
+            headers["X-Case-Page-Instance-Id"] = state.editing.pageInstanceId;
+          }
+          const pred = await request(`/api/predict/${encodeURIComponent(image.image_id)}${query}`, {
+            method: "POST",
+            headers,
+          });
+          if (pred && !disposed) {
+            image.prediction = pred;
+                        const aiDiagPred = pred.ai_diagnosis;
+            $("#imageClassification").textContent = aiDiagPred ? classificationText(aiDiagPred) : 'Chưa có kết quả phân tích AI';
+            $("#classificationProvenance").textContent = aiDiagPred?.provenance
+              ? `Phân loại ảnh: ${aiDiagPred.provenance.model || 'Chưa ghi nhận'} · SHA-256: ${aiDiagPred.provenance.checkpoint_sha256 || 'Chưa ghi nhận'}` : '';
+            const applyBtnPred = $("#btnApplyAiDiagnosis");
+            if (applyBtnPred) {
+              applyBtnPred.hidden = !(aiDiagPred && aiDiagPred.status === "PREDICTED" && (aiDiagPred.suggested_label_vi || aiDiagPred.suggested_label));
+              applyBtnPred.onclick = () => {
+                const labelToApply = aiDiagPred?.suggested_label_vi || aiDiagPred?.suggested_label;
+                if (!labelToApply) return;
+                if ($("#morphology")) $("#morphology").value = labelToApply;
+                if ($("#iotaMorphology")) $("#iotaMorphology").value = labelToApply;
+                image.morphologyDesc = labelToApply;
+                image.morphology = labelToApply;
+                toast(`Đã áp dụng "${labelToApply}" vào mô tả hình thái.`);
+              };
+            }
+            if (pred.rle_mask) {
+              const decodedMask = decode(pred.rle_mask);
+              image.mask = decodedMask;
+              image.aiMask = decodedMask.slice();
+            }
+            if (pred.measurements) {
+              image.measurements = pred.measurements;
+              displayMeasurements(pred.measurements);
+            }
+            if (pred.original_image_base64) {
+              const bmp = await imageSourceBitmap(pred.original_image_base64);
+              sourceCtx.clearRect(0, 0, 512, 512);
+              sourceCtx.drawImage(bmp, 0, 0, 512, 512);
+            }
+            schedule();
+            toast(`Dự đoán thành công bằng mô hình ${modelKey.toUpperCase()}!`);
+          }
+        } catch (err) {
+          toast(err.message || "Lỗi khi chạy dự đoán mô hình.", true);
+        }
+      };
+    }
+
     $("[data-action=image-reset]").onclick = () => {
       brightness = contrast = 100;
       $("#brightness").value = $("#contrast").value = 100;
+      if (caliperDenoise) {
+        caliperDenoise = false;
+        if (caliperDenoiseButton) {
+          caliperDenoiseButton.setAttribute("aria-pressed", "false");
+          caliperDenoiseButton.classList.remove("primary");
+        }
+        if (caliperDenoiseCheckbox) caliperDenoiseCheckbox.checked = false;
+        if (image?.image_id) {
+          const resetSeq = ++viewerPreprocessSequence;
+          request(`/api/images/${encodeURIComponent(image.image_id)}/viewer-source?enable_caliper_removal=false&denoise_method=none`)
+            .then(async (res) => {
+              if (resetSeq !== viewerPreprocessSequence || disposed) return;
+              if (res?.original_image_base64) {
+                const rawBitmap = await imageSourceBitmap(res.original_image_base64);
+                try {
+                  if (resetSeq === viewerPreprocessSequence && !disposed) {
+                    sourceCtx.clearRect(0, 0, 512, 512);
+                    sourceCtx.drawImage(rawBitmap, 0, 0, 512, 512);
+                    schedule();
+                  }
+                } finally {
+                  rawBitmap.close?.();
+                }
+              }
+            })
+            .catch((err) => {
+              if (resetSeq === viewerPreprocessSequence) {
+                toast("Lỗi khôi phục ảnh: " + (err.message || err), true);
+                schedule();
+              }
+            });
+        }
+      }
       schedule();
     };
     for (const id of ["notes", "morphology"])
@@ -2135,7 +2283,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         }
         if (image) image.orads = e.target.value;
         state.dirty = true;
-        trackUIEvent(c.study_id, "field_edit", { field: "oradsScore", value: $("#oradsScore").value, source: "manual" });
+        recordUiEvent(c.study_id, "field_edit", { field: "oradsScore", value: $("#oradsScore").value, source: "manual" });
         changed({
           refreshMeasurements: false,
           persistDraft: e.detail?.source !== "quick-pick",
@@ -2145,6 +2293,59 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       $("#oradsScore").onchange = handleOrads;
       $("#oradsScore").oninput = handleOrads;
     }
+    const renderCustomChips = () => {
+      const wrap = $("#customChipsWrap");
+      if (!wrap) return;
+      const customChips = image?.customChips || [];
+      wrap.innerHTML = customChips.map((tag) => 
+        `<span class="chip-custom-wrap"><button type="button" class="chip custom" data-chip="${esc(tag)}">${esc(tag)}</button><button type="button" class="chip-remove" data-remove-chip="${esc(tag)}" title="Xóa đặc điểm" aria-label="Xóa ${esc(tag)}">×</button></span>`
+      ).join("");
+      wrap.querySelectorAll("[data-chip]").forEach((b) => {
+        b.disabled = readonly;
+        b.onclick = () => {
+          if (state.busy || !canEditCanvas() || selecting || !image) return;
+          image.morphology = [image.morphology, b.dataset.chip]
+            .filter(Boolean)
+            .join("; ")
+            .slice(0, 100);
+          $("#morphology").value = image.morphology;
+          changed();
+        };
+      });
+      wrap.querySelectorAll("[data-remove-chip]").forEach((btn) => {
+        btn.onclick = () => {
+          const toRemove = btn.dataset.removeChip;
+          image.customChips = (image.customChips || []).filter(c => c !== toRemove);
+          renderCustomChips();
+        };
+      });
+    };
+
+    const addChipBtn = $("[data-action=add-chip]");
+    if (addChipBtn) {
+      addChipBtn.disabled = readonly;
+      addChipBtn.onclick = () => {
+        if (state.busy || !canEditCanvas() || selecting || !image) return;
+        modal(
+          "Thêm đặc điểm lâm sàng",
+          `<label class="field">Tên đặc điểm mới<input name="custom_tag" type="text" maxlength="30" placeholder="VD: Vách dày, Dịch vẩn..." required></label><div class="actions"><button class="btn" value="cancel">Hủy</button><button class="btn primary" type="submit">Thêm đặc điểm</button></div>`,
+          (event, dialog) => {
+            const data = Object.fromEntries(new FormData(event.target));
+            const tag = String(data.custom_tag || "").trim();
+            if (tag) {
+              image.customChips = image.customChips || [];
+              if (!image.customChips.includes(tag)) {
+                image.customChips.push(tag);
+                renderCustomChips();
+              }
+            }
+            dialog.close();
+          }
+        );
+      };
+    }
+    renderCustomChips();
+
     $$("[data-chip]").forEach((b) => {
       b.disabled = readonly;
       b.onclick = () => {
@@ -2182,11 +2383,18 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         return;
       }
       const startingRevision = savedCase.review_revision ?? 0;
+      const saveStatus = $('#assessmentSaveStatus');
+      saveStatus.dataset.saving = 'true'; saveStatus.dataset.error = '';
+      saveStatus.textContent = 'Đang lưu';
       const savePromise = saveResearchReview();
       root.dispatchEvent(new CustomEvent("ova:review-lock-changed"));
       try {
-        await savePromise;
+        const outcome = await savePromise;
+        const confirmed = outcome?.status === 'saved' && outcome.clean === true;
+        saveStatus.textContent = confirmed ? 'Đã lưu' : 'Lưu không thành công';
+        saveStatus.dataset.error = confirmed ? '' : 'true';
       } finally {
+        saveStatus.dataset.saving = 'false';
         root.dispatchEvent(new CustomEvent("ova:review-lock-changed"));
       }
       if (
@@ -2200,9 +2408,9 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     };
     const researchExportButton = $("[data-action=export-research]");
     const researchExportDisabledMessage =
-      "Xuất dữ liệu nghiên cứu đang khóa đến khi có hồ sơ xác minh phê duyệt, consent và khử định danh.";
+      "Xuất dữ liệu tham khảo đang khóa đến khi có hồ sơ xác minh phê duyệt, consent và khử định danh.";
     researchExportButton.title = researchExportDisabledMessage;
-    researchExportButton.setAttribute("aria-label", "Xuất dữ liệu nghiên cứu — đang khóa");
+    researchExportButton.setAttribute("aria-label", "Xuất dữ liệu tham khảo — đang khóa");
     researchExportButton.onclick = () => toast(researchExportDisabledMessage, true);
     $("[data-action=shortcuts-help]").onclick = () => {
       location.hash = "#help/shortcuts";
@@ -2220,7 +2428,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       if (state.busy || !canEditCanvas() || selecting || !image || state.case !== c) return;
       const unseen = c.images.find(img => !img.seen);
       if (unseen) {
-        toast("Xem đủ hai bên trước khi lưu rồi in. Dùng Xem phiếu để xem bản nháp RUO.", true);
+        toast("Xem đủ hai bên trước khi lưu rồi in. Dùng Xem phiếu để xem trước kết quả.", true);
         $(`[data-action=side-${unseen.laterality}]`)?.focus();
         return;
       }
@@ -2230,7 +2438,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         const outcome = await saveResearchReview();
         if (outcome?.status !== "saved" || !outcome.clean || state.case !== c ||
             state.dirty || disposed || !root.isConnected || outcome.studyId !== c.study_id) return;
-        trackUIEvent(c.study_id, "print_click");
+        recordUiEvent(c.study_id, "print_click");
         location.hash = "#report/" + encodeURIComponent(c.study_id) + "?print=1&revision=" + outcome.revision;
       } finally {
         if (!disposed && root.isConnected) printButton.disabled = !canEditCanvas();
@@ -2314,7 +2522,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       const reportHash = getReportShortcutHash(e, c.study_id);
       if (reportHash) {
         e.preventDefault();
-        // Ctrl+P explicitly opens a labelled RUO draft, without saving or marking images seen.
+        // Ctrl+P explicitly opens a labelled draft, without saving or marking images seen.
         if (!state.busy && !selecting) location.hash = reportHash;
         return;
       }
@@ -2508,8 +2716,10 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     });
     const onVisibilityChange = () => {
       if (!image) return;
-      if (document.hidden) tracker.recordPause(image.image_id);
-      else tracker.recordResume(image.image_id);
+      if (!correction) {
+        if (document.hidden) tracker.recordPause(image.image_id);
+        else tracker.recordResume(image.image_id);
+      }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     active = {
@@ -2575,7 +2785,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         console.warn("HITL session restore notice:", error);
       }
     }
-    trackUIEvent(c.study_id, "case_open");
+    recordUiEvent(c.study_id, "case_open");
     await select(
       c.images.some((i) => i.laterality === "L")
         ? "L"
