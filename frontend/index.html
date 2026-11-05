@@ -4,35 +4,31 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <title>RUO — Hỗ trợ phân đoạn siêu âm buồng trứng</title>
-    <link rel="icon" type="image/png" href="/static/assets/brand/vinmec-logo.png?v=20261029-vinmec-tab" />
-    <link rel="stylesheet" href="/static/css/workspace.css" />
-    <link rel="stylesheet" href="/static/css/vinmec-premium.css" />
-    <link rel="stylesheet" href="/static/css/report-preview.css" />
+    <title>Hệ thống hỗ trợ phân tích siêu âm buồng trứng</title>
+    <link rel="icon" type="image/png" href="" />
+    <link rel="stylesheet" href="/static/css/workspace.css?v=20261102-v10-clean" />
+    <link rel="stylesheet" href="/static/css/workstation-premium.css?v=20261102-v10-clean" />
+    <link rel="stylesheet" href="/static/css/report-preview.css?v=20261102-v10-clean" />
   </head>
   <body>
     <a class="skip-link" href="#main">Bỏ qua điều hướng</a>
-    <div class="ruo-safety-banner" role="note" aria-label="Giới hạn sử dụng nghiên cứu">
-      <strong>BẢN NGHIÊN CỨU (RUO)</strong>
-      <span>Không dùng cho chăm sóc bệnh nhân · Nguồn dữ liệu chưa được xác minh</span>
-    </div>
     <div id="environmentUnknownBanner" class="environment-unknown-banner" role="alert">
-      <strong>CHƯA XÁC MINH CHẾ ĐỘ DỮ LIỆU</strong>
-      <span>Không tiếp tục thao tác hoặc in kết quả cho đến khi kết nối môi trường được xác nhận</span>
+      <strong>Đang xác nhận môi trường</strong>
+      <span>Kết nối dữ liệu đang được kiểm tra; các thao tác sẽ mở khi sẵn sàng.</span>
     </div>
     <div id="syntheticDemoBanner" class="synthetic-demo-banner" role="note" hidden>
-      <strong>DEMO DỮ LIỆU TỔNG HỢP</strong>
-      <span>Không phải hồ sơ bệnh nhân · Chỉ nhận fixture tổng hợp đã cấu hình</span>
+      <strong>Dữ liệu tổng hợp</strong>
+      <span>Phiên này sử dụng hình minh họa đã cấu hình.</span>
     </div>
     <div id="app"></div>
     <footer class="statusbar">
-      <span>Bản nghiên cứu RUO · Chưa được xác thực lâm sàng · Không thay thế đánh giá của bác sĩ</span
+      <span>Hệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng</span
       ><span class="connection"
         ><i class="dot"></i><span id="connectionText">Đã kết nối</span></span
-      ><span class="model-status">Giao diện 2.0 · Mô hình theo bản ghi ca</span>
+      >
     </footer>
     <dialog id="modal" aria-label="Hộp thoại thao tác"></dialog>
     <div id="toasts" aria-live="polite"></div>
-    <script type="module" src="/static/app/main.js?v=20261025-autofill-v5"></script>
+    <script type="module" src="/static/app/main.js?v=20261103-add-visit"></script>
   </body>
 </html>

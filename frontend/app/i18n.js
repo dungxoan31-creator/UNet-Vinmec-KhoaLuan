@@ -1,10 +1,10 @@
 export const dictionaries = {
   vi: {
-    brand: "Siêu âm · RUO",
+    brand: "Siêu âm ·",
     dashboard: "Tổng quan",
     cases: "Danh sách ca",
     intake: "Tải ảnh mới",
-    approval: "Hàng chờ rà soát RUO",
+    approval: "Hàng chờ rà soát",
     patients: "Bệnh nhân",
     evaluation: "Đánh giá mô hình",
     admin: "Quản trị",
@@ -22,11 +22,11 @@ export const dictionaries = {
     right: "Phải",
   },
   en: {
-    brand: "Ultrasound · RUO",
+    brand: "Ultrasound ·",
     dashboard: "Overview",
     cases: "Cases",
     intake: "New study",
-    approval: "RUO review queue",
+    approval: "Review queue",
     patients: "Patients",
     evaluation: "Evaluation",
     admin: "Administration",
@@ -55,8 +55,8 @@ export const statusLabels = {
   IN_REVIEW: "Đang rà soát",
   PARTIALLY_REVIEWED: "Rà soát một bên",
   REVIEWED: "Đã lưu rà soát",
-  SIGNED_PRELIM: "Chờ đối chiếu RUO",
-  APPROVED: "Đã xác nhận nội bộ (RUO)",
+  SIGNED_PRELIM: "Chờ đối chiếu",
+  APPROVED: "Đã duyệt",
   REJECTED: "Cần xem lại",
   LOCKED: "Đã khóa nội bộ",
 };

@@ -43,6 +43,8 @@
   --sheet-inset: 0px;
   --content-gutter: 24px;
   --viewer-surface: #12161a;
+  --viewer-primary-action: #0059B8;
+  --viewer-success-action: #12654A;
 
   /* VINMEC brand foundation. */
   --brand-blue: #187DBB;
@@ -64,9 +66,9 @@
   --text-primary: #243746;
   --text-secondary: #64748B;
   --border: #E2E8F0;
-  --success: #16805D;
+  --success: #166534;
   --success-text: #12654A;
-  --warning: #B7791F;
+  --warning: #92400e;
   --warning-text: #6D470E;
   --error: #C93636;
   --error-text: #B42323;

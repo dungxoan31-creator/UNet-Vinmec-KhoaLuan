@@ -1,16 +1,17 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { chromium } = require('playwright-core');
+const { startIsolatedBrowser } = require('./helpers/isolated_browser.cjs');
 
 const screenshotDir = 'reports/comprehensive-system-test-2026-10-18/product-brand';
 fs.mkdirSync(screenshotDir, { recursive: true });
 
 (async () => {
-  const browser = await chromium.launch({headless:true, executablePath:process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe'});
-  const page = await browser.newPage({viewport:{width:1440,height:1000}});
+  const isolated = await startIsolatedBrowser();
+  const { browser, base, password } = isolated;
+  const context = await browser.newContext({viewport:{width:1440,height:1000}});
+  const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8027';
   try {
     await page.goto(base + '/#login');
     await page.locator('#authForm').waitFor();
@@ -45,9 +46,13 @@ fs.mkdirSync(screenshotDir, { recursive: true });
     assert.equal(await page.locator('#authForm [name=password]').getAttribute('type'), 'password');
     await page.setViewportSize({width:1440,height:1000});
     await page.locator('[name=username]').fill('doctor');
-    await page.locator('[name=password]').fill(process.env.APP_DOCTOR_PASSWORD || 'doctor-local-test-2026');
+    await page.locator('[name=password]').fill(password);
     await page.locator('#authForm button[type=submit]').click();
     await page.locator('#dashData .metrics').waitFor();
+    await page.evaluate(() => { location.hash = '#evaluation'; });
+    await page.waitForFunction(() => location.hash === '#dashboard');
+    assert.equal(await page.locator('#evaluationData').count(), 0,
+      'A physician without reviewer privileges must be redirected before evaluation content loads.');
     await page.locator('#collapseNav').click();
     assert.ok(await page.getByRole('link', {name: 'Tùy chọn'}).isVisible(),
       'Collapsed navigation must retain an accessible name for preferences');
@@ -60,12 +65,56 @@ fs.mkdirSync(screenshotDir, { recursive: true });
     assert.deepEqual(await response.json(), []);
     assert.equal((await page.request.get(base+'/static/app/demo.js')).status(),404);
     await page.evaluate(() => location.hash = '#intake');
-    await page.locator('[data-select]').first().waitFor();
-    assert.equal(await page.locator('[data-select]').count(), 4);
-    await page.locator('[data-select]').first().click();
+    await page.locator('.intake-patient-list').waitFor();
+    assert.equal(await page.locator('[data-select]').count(), 0);
+    assert.match(await page.locator('body').innerText(), /Chưa có hồ sơ trong danh bạ/);
+    await page.setViewportSize({width:390,height:844});
+    await page.locator('[data-action=anonymous-study]').click();
     await page.locator('[data-file=L]').waitFor();
-    assert.equal(await page.locator('[name=participant_code], [name=participant_role]').count(),0);
-    assert.match(await page.locator('body').innerText(), /Nguyễn Minh Anh/);
+    const leftUpload = await page.locator('.upload-card.side-L').boundingBox();
+    const rightUpload = await page.locator('.upload-card.side-R').boundingBox();
+    assert.ok(rightUpload.y >= leftUpload.y + leftUpload.height - 1, 'Bilateral upload panels stack on mobile');
+    for (const viewport of [{width:1366,height:768},{width:1440,height:900},{width:390,height:844}]) {
+      await page.setViewportSize(viewport);
+      const actionBar = page.locator('.intake-action-bar');
+      await actionBar.scrollIntoViewIfNeeded();
+      const layout = await page.evaluate(() => {
+        const rect = element => {
+          const box = element.getBoundingClientRect();
+          return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height };
+        };
+        const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+        const bar = document.querySelector('.intake-action-bar');
+        const date = document.querySelector('[name="study-date"]');
+        const status = document.querySelector('.statusbar');
+        const action = document.querySelector('#startSegmentationBtn');
+        const barRect = rect(bar);
+        const overlappedSections = [...document.querySelectorAll('.intake-workspace > *:not(.intake-action-bar)')]
+          .filter(element => getComputedStyle(element).display !== 'none' && overlaps(barRect, rect(element)))
+          .map(element => element.id || element.className || element.tagName);
+        return {
+          innerWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          date: rect(date),
+          bar: rect(bar),
+          button: rect(action),
+          status: rect(status),
+          overlappedSections,
+          dateBarOverlap: overlaps(rect(date), rect(bar)),
+          statusBarOverlap: overlaps(rect(status), rect(bar)),
+        };
+      });
+      assert.ok(layout.documentWidth <= viewport.width, JSON.stringify(layout));
+      assert.ok(layout.date.left >= 0 && layout.date.right <= viewport.width, JSON.stringify(layout));
+      assert.ok(layout.date.width >= 230, JSON.stringify(layout));
+      assert.ok(layout.bar.left >= 0 && layout.bar.right <= viewport.width, JSON.stringify(layout));
+      assert.ok(layout.button.height >= 44, JSON.stringify(layout));
+      assert.equal(layout.dateBarOverlap, false, JSON.stringify(layout));
+      assert.equal(layout.statusBarOverlap, false, JSON.stringify(layout));
+      assert.deepEqual(layout.overlappedSections, [], JSON.stringify(layout));
+      await page.screenshot({path:`${screenshotDir}/intake-layout-${viewport.width}x${viewport.height}.png`,fullPage:true});
+    }
+    await page.setViewportSize({width:1440,height:1000});
     await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
     const lightLaterality = {};
     for (const side of ['L', 'R']) {
@@ -120,44 +169,109 @@ fs.mkdirSync(screenshotDir, { recursive: true });
       };
     });
     assert.ok(mobileLayout.documentWidth <= mobileLayout.innerWidth, JSON.stringify(mobileLayout));
-    const leftUpload = await page.locator('.upload-card.side-L').boundingBox();
-    const rightUpload = await page.locator('.upload-card.side-R').boundingBox();
-    assert.ok(rightUpload.y >= leftUpload.y + leftUpload.height - 1, 'Bilateral upload panels stack on mobile');
-    await page.screenshot({path:`${screenshotDir}/intake-390.png`,fullPage:true});
-    await page.setViewportSize({width:1440,height:1000});
+    await page.setViewportSize({width:390,height:844});
     await page.locator('[data-action=change-patient]').click();
+    await page.locator('.intake-patient-list').waitFor();
+    const tableLayout = await page.evaluate(() => {
+      const region = document.querySelector('.intake-patient-list');
+      const box = region.getBoundingClientRect();
+      return {
+        innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        left: box.left,
+        right: box.right,
+        clientWidth: region.clientWidth,
+        scrollWidth: region.scrollWidth,
+        role: region.getAttribute('role'),
+        tabIndex: region.tabIndex,
+      };
+    });
+    assert.ok(tableLayout.documentWidth <= tableLayout.innerWidth, JSON.stringify(tableLayout));
+    assert.ok(tableLayout.left >= 0 && tableLayout.right <= tableLayout.innerWidth, JSON.stringify(tableLayout));
+    if (tableLayout.scrollWidth > tableLayout.clientWidth) {
+      assert.equal(tableLayout.role, 'region', JSON.stringify(tableLayout));
+      assert.equal(tableLayout.tabIndex, 0, JSON.stringify(tableLayout));
+    }
+    await page.screenshot({path:`${screenshotDir}/patient-directory-390x844.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
     await page.locator('[data-action=add-patient]').click();
     const patientForm = page.locator('#modal form');
     await patientForm.waitFor();
-    for (const name of ['full_name', 'birth_year', 'phone', 'gender', 'hometown']) {
+    const patientFormLayout = await page.evaluate(() => {
+      const rect = element => {
+        const box = element.getBoundingClientRect();
+        return { left: box.left, right: box.right, width: box.width, height: box.height };
+      };
+      return {
+        innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        modal: rect(document.querySelector('#modal')),
+        name: rect(document.querySelector('#modal [name="display_name"]')),
+        birthYear: rect(document.querySelector('#modal [name="birth_year"]')),
+      };
+    });
+    assert.ok(patientFormLayout.documentWidth <= patientFormLayout.innerWidth, JSON.stringify(patientFormLayout));
+    assert.ok(patientFormLayout.modal.left >= 0 && patientFormLayout.modal.right <= patientFormLayout.innerWidth, JSON.stringify(patientFormLayout));
+    assert.ok(patientFormLayout.name.width >= 240 && patientFormLayout.name.height >= 36, JSON.stringify(patientFormLayout));
+    assert.ok(patientFormLayout.birthYear.width >= 240 && patientFormLayout.birthYear.height >= 36, JSON.stringify(patientFormLayout));
+    for (const name of ['display_name', 'birth_year']) {
       assert.equal(await patientForm.locator(`[name=${name}]`).count(), 1);
     }
-    await patientForm.locator('[name=full_name]').fill('Nguyễn Thị Kiểm Thử');
+    assert.equal(await patientForm.locator('[name=phone], [name=gender], [name=hometown], [name=national_id], [name=pid]').count(), 0);
+    await patientForm.locator('[name=display_name]').fill('Nguyễn Thị Kiểm Thử');
     await patientForm.locator('[name=birth_year]').fill('1990');
-    await patientForm.locator('[name=phone]').fill('abc');
-    await patientForm.locator('[name=gender]').selectOption('female');
-    await patientForm.locator('[name=hometown]').fill('Hà Nội');
-    await patientForm.locator('button[type=submit]').click();
-    await page.locator('[data-patient-error]').waitFor();
-    assert.match(await page.locator('[data-patient-error]').innerText(), /số điện thoại/i);
-    await patientForm.locator('[name=phone]').fill('0912345678');
     await patientForm.locator('button[type=submit]').click();
     await page.locator('[data-file=L]').waitFor();
     assert.match(await page.locator('body').innerText(), /Nguyễn Thị Kiểm Thử/);
-    assert.match(await page.locator('body').innerText(), /PID/);
-    const createdPatient = await page.evaluate(async () => {
-      const { state } = await import('/static/app/state.js');
-      const key = `ova.demo-patients.v1.${encodeURIComponent(state.user.id)}`;
-      const patients = JSON.parse(localStorage.getItem(key));
-      return patients.find(patient => patient.name === 'Nguyễn Thị Kiểm Thử');
+    assert.doesNotMatch(await page.locator('body').innerText(), /PID|100000001/);
+    const createdPatient = await page.request.get(base + '/api/patient-directory?limit=20&offset=0', {
+      headers:{Authorization:'Bearer '+await page.evaluate(() => sessionStorage.getItem('ova.token'))},
     });
-    assert.equal(createdPatient.birth_year, 1990);
-    assert.equal(createdPatient.age, new Date().getFullYear() - 1990);
-    assert.equal(createdPatient.phone, '0912345678');
-    assert.equal(createdPatient.gender, 'female');
-    assert.equal(createdPatient.hometown, 'Hà Nội');
+    assert.equal(createdPatient.status(), 200);
+    const directory = await createdPatient.json();
+    assert.equal(directory.total, 1);
+    assert.equal(directory.items[0].display_name, 'Nguyễn Thị Kiểm Thử');
+    assert.equal(directory.items[0].birth_year, 1990);
+    assert.equal(Object.hasOwn(directory.items[0], 'phone'), false);
     await page.screenshot({path:`${screenshotDir}/intake-new-patient.png`,fullPage:true});
+    await page.locator('[data-action=change-patient]').click();
+    await page.locator('.intake-patient-list').waitFor();
+    const savedRowLayout = await page.evaluate(() => {
+      const region = document.querySelector('.intake-patient-list');
+      const box = region.getBoundingClientRect();
+      return {
+        innerWidth,
+        documentWidth: document.documentElement.scrollWidth,
+        left: box.left,
+        right: box.right,
+        clientWidth: region.clientWidth,
+        scrollWidth: region.scrollWidth,
+        role: region.getAttribute('role'),
+        tabIndex: region.tabIndex,
+        rows: region.querySelectorAll('tbody tr').length,
+      };
+    });
+    assert.ok(savedRowLayout.documentWidth <= savedRowLayout.innerWidth, JSON.stringify(savedRowLayout));
+    assert.ok(savedRowLayout.left >= 0 && savedRowLayout.right <= savedRowLayout.innerWidth, JSON.stringify(savedRowLayout));
+    assert.equal(savedRowLayout.rows, 1, JSON.stringify(savedRowLayout));
+    if (savedRowLayout.scrollWidth > savedRowLayout.clientWidth) {
+      assert.equal(savedRowLayout.role, 'region', JSON.stringify(savedRowLayout));
+      assert.equal(savedRowLayout.tabIndex, 0, JSON.stringify(savedRowLayout));
+    }
+    await page.screenshot({path:`${screenshotDir}/patient-directory-row-390x844.png`,fullPage:true});
+    await context.close();
+    const secondContext = await browser.newContext({viewport:{width:1440,height:1000}});
+    const secondPage = await secondContext.newPage();
+    await secondPage.goto(base + '/#login');
+    await secondPage.locator('#authForm [name=username]').fill('doctor');
+    await secondPage.locator('#authForm [name=password]').fill(password);
+    await secondPage.locator('#authForm button[type=submit]').click();
+    await secondPage.locator('#dashData .metrics').waitFor();
+    await secondPage.locator('#primaryNav a[href="#intake"]').click();
+    await secondPage.locator('.intake-patient-list').waitFor();
+    await secondPage.getByText('Nguyễn Thị Kiểm Thử', {exact:true}).waitFor();
+    await secondContext.close();
     assert.deepEqual(errors, []);
-    console.log('PASS: local Vinmec logo/Inter/colors, responsive login, real authentication, dashboard/intake and retired sample catalog');
-  } finally { await browser.close(); }
+    console.log('PASS: isolated Vinmec logo/Inter/colors, responsive login, authentication, empty directory, facility-scoped patient creation and persistence');
+  } finally { await isolated.close(); }
 })().catch(error => {console.error(error);process.exitCode=1;});

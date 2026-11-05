@@ -983,9 +983,8 @@ body.viewer-mode .viewer-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "name action"
-      "pid action"
-      "age action";
+      "name name"
+      "detail action";
     align-items: center;
     gap: 3px 12px;
     padding: 12px 10px;
@@ -1003,47 +1002,44 @@ body.viewer-mode .viewer-grid {
   }
 
   .intake-patient-list td:nth-child(1) {
-    grid-area: pid;
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
-  .intake-patient-list td:nth-child(1)::before {
-    content: "PID mẫu";
-    margin-right: 6px;
-    color: var(--text-secondary);
-    font-family: var(--font);
-  }
-
-  .intake-patient-list td:nth-child(2) {
     grid-area: name;
     overflow-wrap: anywhere;
   }
 
-  .intake-patient-list td:nth-child(2) small {
-    margin-top: 2px;
+  .intake-patient-list td:nth-child(1)::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--text-secondary);
+    font-family: var(--font);
+    font-size: 11px;
   }
 
-  .intake-patient-list td:nth-child(3) {
-    grid-area: age;
+  .intake-patient-list td:nth-child(2) {
+    grid-area: detail;
     color: var(--text-secondary);
     font-size: 12px;
   }
 
-  .intake-patient-list td:nth-child(3)::before {
-    content: "Tuổi " ;
+  .intake-patient-list td:nth-child(2)::before {
+    content: attr(data-label);
+    margin-right: 6px;
     color: var(--text-secondary);
   }
 
-  .intake-patient-list td:nth-child(4) {
+  .intake-patient-list td:nth-child(3) {
     grid-area: action;
+    justify-self: end;
   }
 
-  .intake-patient-list td:nth-child(4) .btn {
-    min-width: 112px;
+  .intake-patient-list td:nth-child(3) .btn {
     min-height: 44px;
     white-space: normal;
     text-align: center;
+  }
+
+  .intake-patient-list td:nth-child(3) .btn.icon-only {
+    min-width: 44px;
   }
 
   body.viewer-mode .viewer-head {
@@ -1168,16 +1164,19 @@ body.viewer-mode .viewer-grid {
 /* =========================================================================
    CLINICAL PACS WORKSTATION AESTHETIC ENHANCEMENT
    ========================================================================= */
-body.viewer-mode .viewer-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 52px;
-  min-height: 52px;
-  padding: 0 16px;
-  background: #0b111e;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  gap: 16px;
+@media (min-width: 1025px) {
+  body.viewer-mode .viewer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    padding: 0 16px;
+    background: #0b111e;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 16px;
+  }
 }
 
 body.viewer-mode .viewer-id {
@@ -1238,7 +1237,7 @@ body.viewer-mode .side-switch .btn:hover {
 }
 
 body.viewer-mode .side-switch .btn.primary {
-  background: #0284c7 !important;
+  background: var(--viewer-primary-action) !important;
   color: #ffffff !important;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4);
@@ -1281,14 +1280,14 @@ body.viewer-mode .viewer-head-actions .btn:hover {
 }
 
 body.viewer-mode .viewer-quick-print-action {
-  background: #0284c7 !important;
-  border-color: #0284c7 !important;
+  background: var(--viewer-primary-action) !important;
+  border-color: var(--viewer-primary-action) !important;
   color: #ffffff !important;
 }
 
 body.viewer-mode .viewer-save-action .btn {
-  background: #059669 !important;
-  border-color: #059669 !important;
+  background: var(--viewer-success-action) !important;
+  border-color: var(--viewer-success-action) !important;
   color: #ffffff !important;
   font-weight: 600;
 }
@@ -1386,8 +1385,7 @@ body.viewer-mode .viewer-hud > .canvas-label {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(8px);
+  background: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   color: #38bdf8;
@@ -1400,8 +1398,7 @@ body.viewer-mode .measure-strip {
   align-items: center;
   gap: 12px;
   padding: 6px 14px;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(12px);
+  background: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
@@ -1538,11 +1535,82 @@ body.viewer-mode .viewer-tabpanel .field textarea:focus {
 }
 
 .intake-action-bar {
+  position: static;
   background: var(--surface) !important;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-lg);
   margin-top: 12px;
+  padding: 16px 20px;
+  gap: 12px 24px;
+  min-width: 0;
+}
+
+.assessment-group {
+  padding-block: 16px;
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+.assessment-group > h3 { margin: 0 0 12px; }
+
+/* Clinical information panel only: compact fields, unchanged viewer geometry. */
+#clinicalPanel .assessment-group { padding-block: 12px; }
+#clinicalPanel .assessment-group > h3 { font-size: 14px; margin-bottom: 8px; }
+#clinicalPanel .field { margin-bottom: 8px; gap: 4px; }
+#clinicalPanel :is(input:not([type="checkbox"]), select, textarea) { width: 100%; min-width: 0; font-size: 14px; }
+#clinicalPanel :is(select, input:not([type="checkbox"]), button) { min-height: 36px; }
+#clinicalPanel textarea { min-height: 78px; resize: vertical; }
+#clinicalPanel .assessment-field-label { display: block; font-size: 13px; margin-bottom: 4px; }
+#clinicalPanel .clinical-morphology-chips { gap: 6px; margin-bottom: 8px; }
+#clinicalPanel .clinical-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#clinicalPanel .clinical-actions .btn { white-space: normal; }
+#clinicalPanel #dictationRecord { width: 44px; min-width: 44px; min-height: 44px; align-self: flex-start; }
+#clinicalPanel #localDictation { margin-bottom: 0; }
+#clinicalPanel #assessmentSaveStatus { margin: 0 0 8px; font-weight: 600; }
+#clinicalPanel [hidden] { display: none !important; }
+#clinicalPanel [data-action="save-review"] { width: 100%; min-height: 44px; margin-top: 8px; }
+
+.intake-workspace {
+  padding-bottom: 52px;
+}
+
+.intake-action-bar #intakeHint {
+  min-width: 0;
+  color: var(--text-primary, #243746);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.intake-action-bar #startSegmentationBtn {
+  min-height: 44px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.intake-action-bar #startSegmentationBtn:disabled {
+  opacity: 1;
+  color: #526477;
+  background: #e8eef4;
+  border-color: #cbd5e1;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 800px) {
+  .intake-metadata .panel-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .intake-action-bar {
+    padding: 12px 16px;
+    align-items: stretch;
+  }
+  .intake-action-bar #intakeHint {
+    flex-basis: 100%;
+  }
 }
 
 /* =========================================================================
@@ -1552,16 +1620,41 @@ body.viewer-mode {
   background: #080c14 !important;
 }
 
-body.viewer-mode .viewer-head {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  height: 50px !important;
-  min-height: 50px !important;
-  padding: 0 16px !important;
-  background: #0d131f !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  gap: 14px !important;
+@media (min-width: 1025px) {
+  body.viewer-mode .viewer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    padding: 0 16px;
+    background: #0d131f;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  body.viewer-mode .viewer-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "case actions" "side side";
+    height: auto;
+    min-height: 0;
+    padding: 6px 8px 8px;
+    gap: 6px 8px;
+    flex: 0 0 auto;
+  }
+  body.viewer-mode .viewer-image-select-wrap {
+    flex: 1 1 auto;
+    min-width: 60px;
+  }
+  body.viewer-mode .side-switch #viewerImageSelect {
+    width: 100%;
+    min-width: 60px;
+    min-height: 44px;
+  }
 }
 
 body.viewer-mode .cdss-ruo-note {

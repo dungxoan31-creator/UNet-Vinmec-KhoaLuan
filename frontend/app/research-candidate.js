@@ -22,9 +22,9 @@ function selectMarkup(name, label, options) {
 
 export function researchCandidateMarkup() {
   return `<details id="researchCandidatePanel" class="research-candidate">
-    <summary>Thử nghiệm xử lý mask · RUO</summary>
+    <summary>Xử lý ranh giới tổn thương</summary>
     <div class="research-candidate-content">
-      <p class="research-candidate-note">Candidate chỉ phục vụ nghiên cứu, không phải kết quả lâm sàng. Chọn rõ từng phép biến đổi; mask AI gốc không bị thay đổi cho đến khi bác sĩ chủ động áp dụng.</p>
+      <p class="research-candidate-note">Candidate chỉ phục vụ tham khảo, không phải kết quả lâm sàng. Chọn rõ từng phép biến đổi; mask AI gốc không bị thay đổi cho đến khi bác sĩ chủ động áp dụng.</p>
       <form id="researchCandidateForm">
         <fieldset id="researchCandidateFields">
           <legend>Tham số candidate — không có giá trị mặc định</legend>
@@ -40,7 +40,7 @@ export function researchCandidateMarkup() {
       <p id="researchCandidateStatus" class="research-candidate-status" role="status" aria-live="polite" aria-busy="false">Chưa tạo candidate.</p>
       <div class="research-candidate-previews" aria-describedby="researchCandidateStatus">
         <figure><figcaption>Mask AI gốc</figcaption><canvas id="researchCandidateBaseline" width="512" height="512" aria-label="Xem trước mask AI gốc"></canvas></figure>
-        <figure><figcaption>Candidate · chỉ xem</figcaption><canvas id="researchCandidateCandidate" width="512" height="512" aria-label="Xem trước candidate RUO"></canvas></figure>
+        <figure><figcaption>Candidate · chỉ xem</figcaption><canvas id="researchCandidateCandidate" width="512" height="512" aria-label="Xem trước ứng viên phân đoạn"></canvas></figure>
       </div>
       <button id="researchCandidateApply" class="btn small primary" type="button" disabled>Áp dụng vào mask chỉnh sửa</button>
     </div>
@@ -245,7 +245,7 @@ export function bindResearchCandidate(
     requestController = controller;
     pending = true;
     clearCurrentPreview();
-    setStatus("Đang tạo candidate RUO; mask gốc chưa thay đổi…", "PROCESSING", true);
+    setStatus("Đang tạo candidate; mask gốc chưa thay đổi…", "PROCESSING", true);
     syncControls();
 
     const abortOnRoute = () => controller.abort();
@@ -297,7 +297,7 @@ export function bindResearchCandidate(
       if (!candidateMask.some((value) => value === 1) && baselineMask.some((value) => value === 1))
         setStatus(`Candidate đã loại toàn bộ vùng foreground; chỉ xem, không thể áp dụng. Nguồn prediction ${context.predictionId}; model ${modelVersion}; ${algorithmVersion}.`, "PREVIEW_ONLY");
       else
-        setStatus(`Đang xem candidate RUO cạnh mask AI gốc. Nguồn prediction ${context.predictionId}; model ${modelVersion}; ${algorithmVersion}. Chưa thay đổi mask chỉnh sửa hoặc lưu hồ sơ.`, "PREVIEW");
+        setStatus(`Đang xem candidate cạnh mask AI gốc. Nguồn prediction ${context.predictionId}; model ${modelVersion}; ${algorithmVersion}. Chưa thay đổi mask chỉnh sửa hoặc lưu hồ sơ.`, "PREVIEW");
     } catch (error) {
       if (error?.name !== "AbortError" && sequence === requestSequence && !signal?.aborted) {
         clearCurrentPreview();
