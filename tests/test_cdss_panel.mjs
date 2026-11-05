@@ -510,7 +510,7 @@ test("cancelling a pending CDSS request restores its idle button and editability
     const submission = form.dispatch("submit");
     assert.equal(form.submitButton.textContent, "Đang đối chiếu…");
     panel.resetForSide();
-    assert.equal(form.submitButton.textContent, "Đối chiếu quy tắc RUO");
+    assert.equal(form.submitButton.textContent, "Đối chiếu quy tắc");
     assert.equal(form.submitButton.disabled, false);
     assert.equal(form.fields.disabled, false);
     resolveResponse(cdssResponse({ status: "RULE_MATCHED", category: "O-RADS 2" }));
@@ -567,14 +567,14 @@ test("test_only_rule_matched_displays_ruo_category", async () => {
   try {
     await form.dispatch("submit");
     assert.doesNotMatch(result.textContent, /O-RADS 2/);
-    assert.match(result.textContent, /Mẫu hình chưa được quy tắc RUO hỗ trợ/);
+    assert.match(result.textContent, /Mẫu hình chưa được quy tắc hỗ trợ/);
     assert.doesNotMatch(result.textContent, /UNSUPPORTED_PATTERN/);
 
     nextResponse = cdssResponse({ status: "RULE_MATCHED", category: "O-RADS 2" });
     await form.dispatch("input");
     await form.dispatch("submit");
     assert.match(result.textContent, /O-RADS 2/);
-    assert.match(result.textContent, /RUO/i);
+    assert.match(result.textContent, /cần bác sĩ xác nhận/i);
     assert.match(result.textContent, /example\.test\/source/);
     assert.doesNotMatch(result.textContent, /SYNTHETIC_MANAGEMENT_SHOULD_NOT_RENDER/);
   } finally {

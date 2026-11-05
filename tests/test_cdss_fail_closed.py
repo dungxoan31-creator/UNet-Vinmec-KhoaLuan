@@ -54,24 +54,25 @@ def test_missing_descriptors_never_produce_a_risk_category():
     assert result["uncertainty_evaluation"]["confidence_score"] is None
 
 
-def test_project_physiologic_follicle_rule_includes_up_to_30_mm():
+def test_project_physiologic_follicle_rule_excludes_exactly_30_mm():
     result = CDSSReasoningEngine().evaluate_case(
         _physiologic_follicle_findings(max_diameter_mm=30.0),
         {"is_premenopausal": True},
     )
 
-    assert result["orads_stratification"]["category"] == "O-RADS 1"
-    assert result["implementation_policy"]["version"] == "project-follicle-lte30-v2"
-    assert "ACR US v2022 dùng ≤3 cm" in result["orads_stratification"]["reason"]
+    assert result["status"] == "UNSUPPORTED_PATTERN"
+    assert result["orads_stratification"]["category"] is None
+    assert result["implementation_policy"]["version"] == "project-follicle-lt30-v3"
+    assert "30 mm" in result["orads_stratification"]["reason"]
 
 
-@pytest.mark.parametrize("diameter,expected_category", [(29.9, "O-RADS 1"), (30.0, "O-RADS 1"), (30.1, None)])
+@pytest.mark.parametrize("diameter,expected_category", [(29.9, "O-RADS 1"), (30.0, None), (30.1, None)])
 def test_physiologic_policy_boundary_is_versioned_and_explicit(diameter, expected_category):
     result = CDSSReasoningEngine().evaluate_case(
         _physiologic_follicle_findings(max_diameter_mm=diameter), {"is_premenopausal": True}
     )
     assert result["orads_stratification"]["category"] == expected_category
-    assert result["implementation_policy"]["diameter_rule_mm"] == "0 < diameter <= 30"
+    assert result["implementation_policy"]["diameter_rule_mm"] == "0 < diameter < 30"
     assert "ACR US v2022 dùng ≤3 cm" in result["orads_stratification"]["reason"]
 
 
@@ -314,11 +315,18 @@ def test_simple_cyst_rule_rejects_size_boundaries_and_nonfinite_values():
         "has_ascites": False,
         "has_peritoneal_nodules": False,
     }
-    for diameter in (30.0, 100.1, float("nan"), float("inf"), True):
+    for diameter in (30.0, 0, -5, float("nan"), float("inf"), True):
         result = CDSSReasoningEngine().evaluate_case(
             {**base, "max_diameter_mm": diameter}, {}
         )
         assert result["orads_stratification"]["category"] is None
+
+    # Simple cyst >= 100mm matches O-RADS 3 under ACR O-RADS US v2022
+    result_large = CDSSReasoningEngine().evaluate_case(
+        {**base, "max_diameter_mm": 100.1}, {}
+    )
+    assert result_large["orads_stratification"]["category"] == "O-RADS 3"
+
 
 
 def test_iota_simple_rules_use_explicit_clinician_feature_descriptors():

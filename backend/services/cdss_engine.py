@@ -16,12 +16,12 @@ ACR_ASSESSMENT_CATEGORIES = (
     "media/ACR/Files/RADS/O-RADS/O-RADS--Ultrasound-v2022-Assessment-Categories.pdf"
 )
 PHYSIOLOGIC_FOLLICLE_POLICY = {
-    "version": "project-follicle-lte30-v2",
+    "version": "project-follicle-lt30-v3",
     "scope": "Research implementation; not the full ACR rule set",
-    "diameter_rule_mm": "0 < diameter <= 30",
+    "diameter_rule_mm": "0 < diameter < 30",
     "source_diameter_rule": "ACR O-RADS US v2022: follicle <=3 cm (<=30 mm)",
     "source": ACR_ASSESSMENT_CATEGORIES,
-    "deviation": "Project policy supports up to exactly 30 mm; unsupported is not abnormal or malignant.",
+    "deviation": "Local project instruction uses a strict <30 mm threshold although ACR includes <=3 cm; exactly 30 mm remains unclassified here. Unsupported is not abnormal or malignant.",
 }
 IOTA_SIMPLE_RULES_SOURCE = "https://www.bmj.com/content/341/bmj.c6839"
 IOTA_TERMS_SOURCE = "https://obgyn.onlinelibrary.wiley.com/doi/full/10.1002/uog.70191"
@@ -324,11 +324,11 @@ class CDSSReasoningEngine:
             )
 
         diameter = findings["max_diameter_mm"]
-        if type(diameter) not in (float, int) or not 30 < diameter <= 100:
+        if not _is_finite_measurement(diameter) or diameter <= 30:
             return self._with_adnex(
                 self._response(
                     "UNSUPPORTED_PATTERN",
-                    "Kích thước nằm ngoài quy tắc nang đơn giản 3–10 cm đã triển khai.",
+                    "Ngoài phạm vi nang đơn giản >30 mm.",
                     iota_evaluation=iota_evaluation,
                 ),
                 adnex_evaluation,
@@ -352,21 +352,32 @@ class CDSSReasoningEngine:
             return self._with_adnex(
                 self._response(
                     "UNSUPPORTED_PATTERN",
-                    "Bộ quy tắc hiện chỉ đối chiếu nang đơn giản 3–10 cm.",
+                    "Bộ quy tắc hiện chỉ đối chiếu nang đơn giản.",
                     iota_evaluation=iota_evaluation,
                 ),
                 adnex_evaluation,
             )
 
-        return self._with_adnex(
-            self._response(
-                "RULE_MATCHED",
-                "Nang đơn giản đơn thùy, thành nhẵn, 3–10 cm theo mô tả đã nhập.",
-                category="O-RADS 2",
-                iota_evaluation=iota_evaluation,
-            ),
-            adnex_evaluation,
-        )
+        if diameter < 100:
+            return self._with_adnex(
+                self._response(
+                    "RULE_MATCHED",
+                    "Nang đơn giản đơn thùy, thành nhẵn, >30 mm và <100 mm theo mô tả đã nhập.",
+                    category="O-RADS 2",
+                    iota_evaluation=iota_evaluation,
+                ),
+                adnex_evaluation,
+            )
+        else:
+            return self._with_adnex(
+                self._response(
+                    "RULE_MATCHED",
+                    "Nang đơn giản đơn thùy, thành nhẵn, >=100 mm theo chuẩn ACR O-RADS US v2022 (nguy cơ thấp 1-<10%).",
+                    category="O-RADS 3",
+                    iota_evaluation=iota_evaluation,
+                ),
+                adnex_evaluation,
+            )
 
     @staticmethod
     def _evaluate_physiologic_follicle(
@@ -403,12 +414,13 @@ class CDSSReasoningEngine:
             or patient_context["is_premenopausal"] is not True
             or findings["physiologic_morphology_confirmed"] is not True
             or not _is_finite_measurement(diameter)
-            or not 0 < diameter <= 30
+            or not 0 < diameter < 30
         ):
             return CDSSReasoningEngine._response(
                 "UNSUPPORTED_PATTERN",
-                "Không đủ tiêu chí theo policy nghiên cứu project-follicle-lte30-v2 (0 < kích thước <= 30 mm). "
-                "ACR US v2022 dùng ≤3 cm; ngoài phạm vi policy không đồng nghĩa bất thường hoặc ác tính.",
+                "Không đủ tiêu chí theo policy nghiên cứu project-follicle-lt30-v3 (0 < kích thước < 30 mm). "
+                "ACR US v2022 dùng ≤3 cm; mốc đúng 30 mm nằm ngoài policy dự án và chưa được tự phân tầng. "
+                "Ngoài phạm vi policy không đồng nghĩa bất thường hoặc ác tính.",
                 iota_evaluation=iota_evaluation,
             )
 
@@ -435,8 +447,8 @@ class CDSSReasoningEngine:
 
         return CDSSReasoningEngine._response(
             "RULE_MATCHED",
-            "Bác sĩ đã xác nhận nang noãn sinh lý <=30 mm trên siêu âm 2D đầy đủ theo policy "
-            "nghiên cứu project-follicle-lte30-v2; ACR US v2022 dùng ≤3 cm.",
+            "Bác sĩ đã xác nhận nang noãn sinh lý <30 mm trên siêu âm 2D đầy đủ theo policy "
+            "nghiên cứu project-follicle-lt30-v3; ACR US v2022 dùng ≤3 cm.",
             category="O-RADS 1",
             iota_evaluation=iota_evaluation,
         )
@@ -659,6 +671,77 @@ class CDSSReasoningEngine:
         else:
             result["rule_verdict"] = "INCONCLUSIVE"
         return result
+
+    def evaluate_multi_lesions(
+        self,
+        lesions: list[dict[str, Any]],
+        patient_context: dict[str, Any] | None = None,
+        adnex_inputs: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Evaluate multiple lesions and aggregate worst-case category (F13).
+
+        Requires all lesions to have valid deterministic evaluations.
+        Never collapses unknown or unsupported lesions into normal or low-risk.
+        """
+        if not lesions:
+            return {
+                "complete": False,
+                "status": "NO_LESIONS",
+                "overall_category": None,
+                "lesion_evaluations": [],
+                "message": "Không có tổn thương nào được cung cấp để đối chiếu.",
+                "guideline_source": self.guideline_source,
+            }
+
+        evaluations = []
+        categories = []
+        all_matched = True
+
+        for idx, item in enumerate(lesions):
+            lesion_id = item.get("lesion_id") or item.get("id") or f"lesion_{idx+1}"
+            findings = item.get("findings") if isinstance(item.get("findings"), dict) else item
+            lesion_adnex = item.get("adnex_inputs") or adnex_inputs
+
+            res = self.evaluate_case(
+                vision_findings=findings,
+                patient_context=patient_context,
+                adnex_inputs=lesion_adnex,
+            )
+            strat = res.get("orads_stratification", {})
+            cat = strat.get("category")
+            status = res.get("status") or strat.get("status")
+
+            if status != "RULE_MATCHED" or cat not in {"O-RADS 1", "O-RADS 2", "O-RADS 3", "O-RADS 4", "O-RADS 5"}:
+                all_matched = False
+
+            categories.append(cat)
+            evaluations.append({
+                "lesion_id": lesion_id,
+                "category": cat,
+                "status": status,
+                "evaluation": res,
+            })
+
+        if all_matched and categories and all(c is not None for c in categories):
+            max_num = max(int(c.rsplit(" ", 1)[1]) for c in categories)
+            overall_category = f"O-RADS {max_num}"
+            complete = True
+            agg_status = "RULE_MATCHED"
+            msg = f"Phân tầng O-RADS tổng thể dựa trên tổn thương có rủi ro cao nhất: {overall_category}."
+        else:
+            overall_category = None
+            complete = False
+            agg_status = "INCOMPLETE_OR_UNSUPPORTED"
+            msg = "Không thể xác định mức O-RADS tổng thể do có tổn thương chưa được phân tầng hoặc không hỗ trợ quy tắc."
+
+        return {
+            "complete": complete,
+            "status": agg_status,
+            "overall_category": overall_category,
+            "lesion_evaluations": evaluations,
+            "message": msg,
+            "guideline_source": self.guideline_source,
+        }
 
     @staticmethod
     def _with_adnex(

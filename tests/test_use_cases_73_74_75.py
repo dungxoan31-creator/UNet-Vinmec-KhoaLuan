@@ -35,7 +35,7 @@ def test_setup(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{db_file}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
 
-    # Populate Users: DOCTOR, ADMIN, TECHNICIAN
+    # Populate users used by the role-specific endpoint scenarios.
     with Session(engine) as db:
         doctor_user = UserModel(
             id="u-doc",
@@ -58,7 +58,14 @@ def test_setup(tmp_path, monkeypatch):
             full_name="Tech Test",
             role="TECHNICIAN",
         )
-        db.add_all([doctor_user, admin_user, tech_user])
+        reviewer_user = UserModel(
+            id="u-reviewer",
+            username="reviewer_test",
+            password_hash=hash_password("reviewer-pass"),
+            full_name="Senior Reviewer Test",
+            role="SENIOR",
+        )
+        db.add_all([doctor_user, admin_user, tech_user, reviewer_user])
 
         patient = PatientModel(
             id="pat-01",
@@ -137,6 +144,7 @@ def test_setup(tmp_path, monkeypatch):
     doc_token = create_access_token({"sub": "doctor_test", "role": "DOCTOR"})
     admin_token = create_access_token({"sub": "admin_test", "role": "ADMIN"})
     tech_token = create_access_token({"sub": "tech_test", "role": "TECHNICIAN"})
+    reviewer_token = create_access_token({"sub": "reviewer_test", "role": "SENIOR"})
 
     yield {
         "client": client,
@@ -144,6 +152,7 @@ def test_setup(tmp_path, monkeypatch):
         "doc_headers": {"Authorization": f"Bearer {doc_token}"},
         "admin_headers": {"Authorization": f"Bearer {admin_token}"},
         "tech_headers": {"Authorization": f"Bearer {tech_token}"},
+        "reviewer_headers": {"Authorization": f"Bearer {reviewer_token}"},
     }
 
     app.dependency_overrides.clear()
@@ -271,22 +280,22 @@ def test_uc75_anonymous_blocked_from_evaluation_samples(test_setup):
     assert resp_download.status_code == 401
 
 
-def test_uc75_authenticated_doctor_is_blocked_from_unverified_legacy_archive(test_setup):
+def test_uc75_evaluation_reviewer_is_blocked_from_unverified_legacy_archive(test_setup):
     client = test_setup["client"]
-    doc_headers = test_setup["doc_headers"]
+    reviewer_headers = test_setup["reviewer_headers"]
 
     # Historical benchmark data is unavailable until its source provenance is reviewed.
-    resp_bundle = client.get("/api/evaluation/samples/43/workstation-bundle", headers=doc_headers)
+    resp_bundle = client.get("/api/evaluation/samples/43/workstation-bundle", headers=reviewer_headers)
     assert resp_bundle.status_code == 503
     assert "provenance" in resp_bundle.json()["detail"].lower()
 
     for art in ["image", "ground_truth", "prediction", "overlay"]:
-        resp_art = client.get(f"/api/evaluation/samples/43/download/{art}", headers=doc_headers)
+        resp_art = client.get(f"/api/evaluation/samples/43/download/{art}", headers=reviewer_headers)
         assert resp_art.status_code == 503
         assert "provenance" in resp_art.json()["detail"].lower()
 
-    resp_invalid = client.get("/api/evaluation/samples/43/download/invalid_type", headers=doc_headers)
+    resp_invalid = client.get("/api/evaluation/samples/43/download/invalid_type", headers=reviewer_headers)
     assert resp_invalid.status_code == 422
 
-    resp_missing = client.get("/api/evaluation/samples/999999/download/image", headers=doc_headers)
+    resp_missing = client.get("/api/evaluation/samples/999999/download/image", headers=reviewer_headers)
     assert resp_missing.status_code == 503

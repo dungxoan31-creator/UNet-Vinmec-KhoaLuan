@@ -54,13 +54,13 @@ def test_follicle_boundary_29_9mm_matches_orads_1():
     assert result["orads_stratification"]["category"] == "O-RADS 1"
 
 
-def test_follicle_boundary_30_0mm_matches_orads_1():
+def test_follicle_boundary_30_0mm_is_unclassified():
     engine = CDSSReasoningEngine()
     result = engine.evaluate_case(_follicle_case(30.0), {"is_premenopausal": True})
-    assert result["status"] == "RULE_MATCHED"
-    assert result["orads_stratification"]["category"] == "O-RADS 1"
-    assert result["implementation_policy"]["version"] == "project-follicle-lte30-v2"
-    assert result["implementation_policy"]["diameter_rule_mm"] == "0 < diameter <= 30"
+    assert result["status"] == "UNSUPPORTED_PATTERN"
+    assert result["orads_stratification"]["category"] is None
+    assert result["implementation_policy"]["version"] == "project-follicle-lt30-v3"
+    assert result["implementation_policy"]["diameter_rule_mm"] == "0 < diameter < 30"
 
 
 def test_boundary_30_1mm_evaluates_simple_cyst_without_dead_zone():
@@ -69,6 +69,13 @@ def test_boundary_30_1mm_evaluates_simple_cyst_without_dead_zone():
     result = engine.evaluate_case(_simple_cyst_case(30.1), {"is_premenopausal": True})
     assert result["status"] == "RULE_MATCHED"
     assert result["orads_stratification"]["category"] == "O-RADS 2"
+
+
+def test_simple_cyst_at_exactly_30mm_is_unclassified_under_project_policy():
+    engine = CDSSReasoningEngine()
+    result = engine.evaluate_case(_simple_cyst_case(30.0), {"is_premenopausal": True})
+    assert result["status"] == "UNSUPPORTED_PATTERN"
+    assert result["orads_stratification"]["category"] is None
 
 
 class _DummyModel(torch.nn.Module):
