@@ -74,6 +74,7 @@ exports.startIsolatedBrowser = async function ({ syntheticFixtureDir } = {}) {
   await new Promise(resolve => listener.close(resolve));
   const password = 'synthetic-safety-doctor-2026';
   const adminPassword = 'synthetic-safety-admin-2026';
+  const reviewerPassword = 'synthetic-safety-reviewer-2026';
   const python = process.env.PYTHON || path.join(root, process.platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python');
   const readyFile = path.join(runtime, 'server-ready.json');
   const instanceToken = randomBytes(32).toString('hex');
@@ -87,6 +88,8 @@ exports.startIsolatedBrowser = async function ({ syntheticFixtureDir } = {}) {
       APP_JWT_SECRET: 'synthetic-safety-jwt-secret-2026-10-25',
       APP_PATIENT_PID_HMAC_SECRET: 'synthetic-safety-hmac-secret-2026-10-25',
       APP_DOCTOR_PASSWORD: password, APP_ADMIN_PASSWORD: adminPassword,
+      APP_E2E_REVIEWER_PASSWORD: reviewerPassword,
+      APP_DOCTOR_FACILITY_ID: 'fac-vinmec-times-city',
       APP_FEATURES: 'autofill,fast_review,cdss_background,uncertainty_overlay',
       HOST: '127.0.0.1', PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe'] });
   // Startup diagnostics intentionally omit environment/credentials and database contents.
@@ -112,13 +115,14 @@ exports.startIsolatedBrowser = async function ({ syntheticFixtureDir } = {}) {
       await new Promise(resolve => setTimeout(resolve, 250));
     }
     if (!ready) throw Error('Isolated server did not become ready');
-    browser = await chromium.launch({ headless: true,
+    browser = await chromium.launch({ headless: process.env.E2E_HEADED !== 'true',
       executablePath: process.env.CHROME_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : undefined) });
     return {
       browser,
       base,
       password,
       adminPassword,
+      reviewerPassword,
       runtime,
       close: async () => {
         const cleanupErrors = [];
