@@ -35,6 +35,7 @@ from backend.schemas.schemas import (
     ApplyClinicalTemplateRequest,
     CaseConfirmRequest,
     CDSSEvaluateRequest,
+    CDSSMultiLesionEvaluateRequest,
     SegmentAPIResponse,
     SegmentationCandidateRequest,
     SegmentationCandidateResponse,
@@ -45,6 +46,7 @@ from backend.services.image_service import (
     get_image_calibration,
     validate_pixel_spacing,
 )
+from backend.services.facility_service import check_facility_access
 from backend.services.inference_engine import InferenceEngine
 from backend.services.review_service import persist_single_review
 from backend.services.segmentation_candidates import build_mask_candidate
@@ -59,6 +61,7 @@ router = APIRouter(
 @router.post("/segment/candidate", response_model=SegmentationCandidateResponse)
 def create_segmentation_candidate_v1(
     req: SegmentationCandidateRequest,
+    current_user: UserModel = Depends(require_clinical),
     db: Session = Depends(get_db),
 ):
     """Return an explicit research candidate without changing clinical state."""
@@ -78,6 +81,7 @@ def create_segmentation_candidate_v1(
     )
     if study is None or image is None or prediction is None:
         raise HTTPException(status_code=404, detail="Candidate source not found.")
+    check_facility_access(current_user, study.facility_id)
 
     try:
         baseline_mask = InferenceEngine.rle_to_mask(prediction.raw_mask_rle)
@@ -159,8 +163,6 @@ async def segment_image_v1(
         validate_pixel_spacing(pixel_spacing_mm)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    if not model_registry.get_primary_adapter().is_loaded:
-        raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
     img_np = None
     target_image_id = image_id or str(uuid.uuid4())
     calibration_source = "MANUAL" if pixel_spacing_mm is not None else "NONE"
@@ -230,6 +232,9 @@ async def segment_image_v1(
                 detail=f"Hình ảnh không đạt tiêu chuẩn siêu âm y tế: {validation['error_message']}",
             )
 
+    if not model_registry.get_primary_adapter().is_loaded:
+        raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
+
     # 2. Letterbox 512x512 Preprocessing (Aspect Ratio preserved, Bilinear interpolation)
     tensor, padded_gray, transform_params, iqa_report = preprocessor.preprocess_for_inference(img_np)
 
@@ -278,6 +283,22 @@ def evaluate_cdss_v1(req: CDSSEvaluateRequest):
     return CDSSReasoningEngine().evaluate_case(
         vision_findings=req.vision_findings if "vision_findings" in req.model_fields_set else {},
         patient_context=req.patient_context if "patient_context" in req.model_fields_set else {},
+        adnex_inputs=(
+            req.adnex_inputs.model_dump(exclude_unset=True)
+            if req.adnex_inputs is not None
+            else None
+        ),
+    )
+
+
+@router.post("/cdss/evaluate-multi")
+def evaluate_cdss_multi_v1(req: CDSSMultiLesionEvaluateRequest):
+    """Multi-lesion aggregation evaluated with worst-case semantics (F13)."""
+    from backend.services.cdss_engine import CDSSReasoningEngine
+
+    return CDSSReasoningEngine().evaluate_multi_lesions(
+        lesions=req.lesions,
+        patient_context=req.patient_context,
         adnex_inputs=(
             req.adnex_inputs.model_dump(exclude_unset=True)
             if req.adnex_inputs is not None

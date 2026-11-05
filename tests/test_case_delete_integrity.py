@@ -64,7 +64,7 @@ def _case_database(tmp_path, image_paths, monkeypatch):
 def _delete_case(study_id, db):
     return cases.delete_case(
         study_id,
-        current_user=SimpleNamespace(username="test-admin"),
+        current_user=SimpleNamespace(username="test-admin", role="ADMIN", is_global_admin=True, facility_id=None),
         db=db,
     )
 

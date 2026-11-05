@@ -15,7 +15,10 @@ def test_clinical_api_requires_token_and_doctor_can_read_cases(tmp_path, monkeyp
     engine = create_engine(f"sqlite:///{tmp_path / 'protected.db'}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
     with Session(engine) as db:
-        db.add(UserModel(id="doctor-id", username="doctor", full_name="Doctor", role="DOCTOR"))
+        from backend.db.database import FacilityModel
+        fac = FacilityModel(id="FAC-DEFAULT-TEST", facility_code="FAC-DEFAULT-TEST", name="Default Facility", is_active=True)
+        doc = UserModel(id="doctor-id", username="doctor", full_name="Doctor", role="DOCTOR", facility_id="FAC-DEFAULT-TEST")
+        db.add_all([fac, doc])
         db.commit()
 
     def temporary_db():
@@ -71,7 +74,7 @@ def test_clinical_api_requires_token_and_doctor_can_read_cases(tmp_path, monkeyp
 
             # UAT-04: Admin token must be forbidden (403) from accessing clinical details and images
             with Session(engine) as db:
-                db.add(UserModel(id="admin-id", username="admin", full_name="Admin", role="ADMIN"))
+                db.add(UserModel(id="admin-id", username="admin", full_name="Admin", role="ADMIN", is_global_admin=True))
                 db.commit()
             monkeypatch.setenv("APP_ADMIN_PASSWORD", "admin-test-password")
             admin_login = client.post("/api/auth/login", json={"username": "admin", "password": "admin-test-password"})

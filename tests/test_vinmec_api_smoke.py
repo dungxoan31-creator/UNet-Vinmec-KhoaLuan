@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from backend.db.database import (
     AuditLogModel,
     Base,
+    FacilityModel,
     ImageModel,
     PatientModel,
     ReviewModel,
@@ -39,6 +40,9 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
     from backend.app.config import model_registry
     from backend.app.main import app
     from backend.app.routers import inference
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
 
     image_path = synthetic_fixture_image()
     assert image_path.is_file()
@@ -52,7 +56,10 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
     upload_dir.mkdir()
     monkeypatch.setattr(inference, "UPLOAD_DIR", str(upload_dir))
     with Session(db_engine) as db:
-        db.add(UserModel(id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"))
+        fac = FacilityModel(id="FAC-DEFAULT-TEST", facility_code="FAC-DEFAULT-TEST", name="Default Facility", is_active=True)
+        doc = UserModel(id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR", facility_id="FAC-DEFAULT-TEST")
+        db.add(fac)
+        db.add(doc)
         db.commit()
 
     def temporary_db():
@@ -73,7 +80,7 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
                 "X-Case-Page-Instance-Id": lease["page_instance_id"],
             }
 
-            predicted = client.post(f"/api/predict/{image_id}", headers=lease_headers)
+            predicted = client.post(f"/api/predict/{image_id}?generate_overlay=true", headers=lease_headers)
             assert predicted.status_code == 200, predicted.text
             prediction = predicted.json()
             assert prediction["prediction_id"]
@@ -156,7 +163,6 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
         with Session(db_engine) as db:
             image_record = db.get(ImageModel, image_id)
             study = db.get(StudyModel, study_id)
-            patient = db.get(PatientModel, study.patient_id)
             review = db.get(ReviewModel, reviewed.json()["review_id"])
             audit = db.query(AuditLogModel).filter(AuditLogModel.entity_id == review.id).one()
             upload_audit = db.query(AuditLogModel).filter(
@@ -165,8 +171,7 @@ def test_upload_predict_edit_confirm_and_retrieve(tmp_path, monkeypatch, active_
             ).one()
             assert image_record.pixel_spacing_mm is None
             assert study.device_vendor is None
-            assert patient.age_bucket is None
-            assert patient.anonymized_pid != "ANON-VINMEC-185"
+            assert study.patient_id is None
             assert review.is_official_ground_truth is False
             assert review.doctor_id == "doctor"
             assert audit.actor_id == "doctor"

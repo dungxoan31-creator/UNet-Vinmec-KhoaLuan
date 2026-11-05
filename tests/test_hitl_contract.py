@@ -101,10 +101,11 @@ def test_admin_overview_has_no_fabricated_benchmark():
     assert overview["mean_inference_latency_ms"] is None
 
 
-def test_admin_overview_reports_loaded_architecture_not_internal_key():
+def test_admin_overview_reports_loaded_architecture_not_internal_key(monkeypatch):
     from backend.app.config import model_registry
 
     adapter = model_registry.get_primary_adapter()
+    monkeypatch.setattr(adapter, "is_loaded", True)
     assert adapter.is_loaded
     overview = model_registry.get_admin_overview()
     actual_architecture = adapter.engine.architecture_name
@@ -222,7 +223,7 @@ def test_predict_rejects_missing_checkpoint(monkeypatch):
             return self
 
         def first(self):
-            return SimpleNamespace(raw_path="unused", filename="image.png", study_id="study-1")
+            return SimpleNamespace(raw_path="unused", filename="image.png", study_id="study-1", facility_id="FAC-DEFAULT-TEST")
 
         def scalar(self):
             return "PENDING"

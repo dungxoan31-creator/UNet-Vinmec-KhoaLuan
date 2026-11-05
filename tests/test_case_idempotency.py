@@ -19,7 +19,7 @@ def test_case_create_replay_returns_same_study_and_rejects_changed_payload(docto
     key = uuid4()
     headers = {"Idempotency-Key": str(key)}
     payload = {
-        "patient_id": f"IDEMPOTENCY-PID-{uuid4().hex}",
+        "patient_id": f"{uuid4().int % 1_000_000_000:09d}",
         "study_date": "2026-10-29T10:15",
         "active_ovary_side": "LEFT",
         "contralateral_status": "NOT_VISUALIZED",
@@ -54,12 +54,12 @@ def test_case_create_replay_returns_same_study_and_rejects_changed_payload(docto
 def test_same_client_key_is_scoped_to_the_authenticated_doctor(doctor_access):
     key = uuid4()
     headers = {"Idempotency-Key": str(key)}
-    payload = {"patient_id": f"SCOPED-PID-{uuid4().hex}", "study_date": "2026-10-29"}
+    payload = {"patient_id": f"{uuid4().int % 1_000_000_000:09d}", "study_date": "2026-10-29"}
 
     with TestClient(app) as client:
         first = client.post("/api/cases", json=payload, headers=headers)
         app.dependency_overrides[get_current_user] = lambda: UserModel(
-            id="another-test-doctor", username="other-doctor", full_name="Other Doctor", role="DOCTOR"
+            id="another-test-doctor", username="other-doctor", full_name="Other Doctor", role="DOCTOR", facility_id="FAC-DEFAULT-TEST"
         )
         second_user = client.post("/api/cases", json=payload, headers=headers)
 
@@ -72,7 +72,7 @@ def test_invalid_idempotency_key_is_rejected(doctor_access):
     with TestClient(app) as client:
         response = client.post(
             "/api/cases",
-            json={"patient_id": "IDEMPOTENCY-INVALID-KEY", "study_date": "2026-10-29"},
+            json={"patient_id": "900000118", "study_date": "2026-10-29"},
             headers={"Idempotency-Key": "not-a-uuid"},
         )
     assert response.status_code == 422, response.text
@@ -82,7 +82,7 @@ def test_case_creation_requires_idempotency_key(doctor_access):
     with TestClient(app) as client:
         response = client.post(
             "/api/cases",
-            json={"patient_id": "IDEMPOTENCY-MISSING-KEY", "study_date": "2026-10-29"},
+            json={"patient_id": "900000119", "study_date": "2026-10-29"},
         )
     assert response.status_code == 422, response.text
 

@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from backend.app.config import model_registry, preprocessor
 from backend.app.security import get_current_user, require_clinical
-from backend.db.database import ImageModel, RegionAssignmentBatchModel, ReviewModel, UserModel, get_db
+from backend.db.database import ImageModel, RegionAssignmentBatchModel, ReviewModel, StudyModel, UserModel, get_db
+from backend.services.facility_service import check_facility_access
 from backend.schemas.schemas import (
     BatchReviewRequest,
     BatchReviewResponse,
@@ -43,14 +44,24 @@ router = APIRouter(
 )
 
 
+def _require_study_access(db: Session, study_id: str, user: UserModel) -> StudyModel:
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ca khảo sát.")
+    check_facility_access(user, study.facility_id)
+    return study
+
+
 @router.post("/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-assignments")
 def confirm_review_regions(study_id: str, image_id: str, review_id: str, request: RegionAssignmentRequest,
                            db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
+    _require_study_access(db, study_id, current_user)
     return confirm_regions(db, study_id, image_id, review_id, request, current_user)
 
 
 @router.get("/api/cases/{study_id}/images/{image_id}/region-assignments")
-def latest_review_regions(study_id: str, image_id: str, db: Session = Depends(get_db)):
+def latest_review_regions(study_id: str, image_id: str, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
+    _require_study_access(db, study_id, current_user)
     image = db.query(ImageModel).filter_by(id=image_id, study_id=study_id).first()
     if image is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy ảnh trong ca.")
@@ -78,7 +89,9 @@ def read_region_calipers(
     limit: int = Query(default=100, ge=1, le=100),
     cursor: str | None = Query(default=None, max_length=512),
     db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
+    _require_study_access(db, study_id, current_user)
     return get_region_calipers(
         db, study_id, image_id, str(assignment_request_id), str(review_id), region_id, mask_sha256,
         limit=limit, cursor=cursor,
@@ -94,6 +107,7 @@ def write_region_caliper(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
+    _require_study_access(db, study_id, current_user)
     if str(request.region_id) != region_id:
         raise HTTPException(status_code=404, detail="Region ID không khớp đường dẫn.")
     return save_region_caliper(db, study_id, image_id, request, current_user)
@@ -110,7 +124,9 @@ def read_region_assessments(
     limit: int = Query(default=100, ge=1, le=100),
     cursor: str | None = Query(default=None, max_length=512),
     db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ):
+    _require_study_access(db, study_id, current_user)
     return get_region_assessments(
         db, study_id, image_id, str(assignment_request_id), str(review_id), region_id, mask_sha256,
         limit=limit, cursor=cursor,
@@ -126,14 +142,22 @@ def write_region_assessment(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
+    _require_study_access(db, study_id, current_user)
     if str(request.region_id) != region_id:
         raise HTTPException(status_code=404, detail="Region ID không khớp đường dẫn.")
     return save_region_assessment(db, study_id, image_id, request, current_user)
 
 
 @router.get("/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-candidates")
-def get_review_region_candidates(study_id: str, image_id: str, review_id: str, db: Session = Depends(get_db)):
+def get_review_region_candidates(
+    study_id: str,
+    image_id: str,
+    review_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """List candidate regions from one immutable review; indices are not lesion IDs."""
+    _require_study_access(db, study_id, current_user)
     image = db.query(ImageModel).filter_by(id=image_id, study_id=study_id).first()
     review = db.query(ReviewModel).filter_by(id=review_id, image_id=image_id).first() if image else None
     if review is None:
@@ -147,7 +171,14 @@ def get_review_region_candidates(study_id: str, image_id: str, review_id: str, d
 
 
 @router.get("/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-proposals")
-def get_review_region_proposals(study_id: str, image_id: str, review_id: str, db: Session = Depends(get_db)):
+def get_review_region_proposals(
+    study_id: str,
+    image_id: str,
+    review_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    _require_study_access(db, study_id, current_user)
     return region_proposals(db, study_id, image_id, review_id)
 
 
@@ -205,6 +236,7 @@ def export_case_research_bundle(
         ethics_approval_code=export_req.ethics_approval_code,
         patient_consent_confirmed=export_req.patient_consent_confirmed,
     )
+    _require_study_access(db, study_id, current_user)
     return Response(
         content=bundle_bytes,
         media_type="application/zip",

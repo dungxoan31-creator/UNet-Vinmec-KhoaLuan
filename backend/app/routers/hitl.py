@@ -31,6 +31,7 @@ from backend.schemas.schemas import (
     UIEventBatchRequest,
 )
 from backend.services.case_lease_service import require_active_case_lease
+from backend.services.facility_service import check_facility_access
 
 router = APIRouter(
     prefix="/api/hitl",
@@ -417,6 +418,11 @@ def get_hitl_session(
     if not sess:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên HITL.")
 
+    if not sess.study:
+        raise HTTPException(status_code=404, detail="Ca khảo sát của phiên HITL này đã bị xóa hoặc không tồn tại.")
+
+    check_facility_access(current_user, sess.study.facility_id)
+
     if sess.actor_id != current_user.username:
         raise HTTPException(status_code=403, detail="Chỉ người tạo phiên mới có thể xem thông tin phiên.")
 
@@ -452,10 +458,10 @@ def ingest_ui_events(
     case_ids = {item.case_id for item in batch.events if item.case_id}
     existing_case_ids = set()
     if case_ids:
-        existing_case_ids = {
-            row[0]
-            for row in db.query(StudyModel.id).filter(StudyModel.id.in_(case_ids)).all()
-        }
+        studies = db.query(StudyModel).filter(StudyModel.id.in_(case_ids)).all()
+        for study in studies:
+            check_facility_access(current_user, study.facility_id)
+        existing_case_ids = {study.id for study in studies}
     discarded_unknown_case = 0
     for item in batch.events:
         if item.case_id and item.case_id not in existing_case_ids:

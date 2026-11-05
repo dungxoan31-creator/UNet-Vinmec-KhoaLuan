@@ -207,7 +207,7 @@ def test_sample_source_resolver_does_not_alias_missing_legacy_source_to_other_da
 
 
 def test_metrics_does_not_read_summary_outside_evaluation_root(
-    tmp_path, monkeypatch, doctor_access
+    tmp_path, monkeypatch, evaluation_reviewer_access
 ):
     project = tmp_path / "project"
     evaluation_root = project / "evaluation"
@@ -236,7 +236,7 @@ def test_metrics_does_not_read_summary_outside_evaluation_root(
 
 
 def test_metrics_reports_missing_current_run_summary_without_claiming_completion(
-    tmp_path, monkeypatch, doctor_access
+    tmp_path, monkeypatch, evaluation_reviewer_access
 ):
     _write_metrics_fixture(tmp_path, monkeypatch)
     evaluation_root = tmp_path / "project" / "evaluation"
@@ -272,7 +272,7 @@ def test_metrics_reports_missing_current_run_summary_without_claiming_completion
     ["missing_metrics_section", "metric_out_of_range", "invalid_sample_count", "checkpoint_hash_mismatch"],
 )
 def test_metrics_withholds_current_run_with_invalid_summary_integrity(
-    tmp_path, monkeypatch, doctor_access, invalid_case
+    tmp_path, monkeypatch, evaluation_reviewer_access, invalid_case
 ):
     _write_metrics_fixture(tmp_path, monkeypatch)
     evaluation_root = tmp_path / "project" / "evaluation"
@@ -305,7 +305,7 @@ def test_metrics_withholds_current_run_with_invalid_summary_integrity(
 
 
 def test_metrics_loads_current_run_only_after_summary_integrity_validation(
-    tmp_path, monkeypatch, doctor_access
+    tmp_path, monkeypatch, evaluation_reviewer_access
 ):
     _write_metrics_fixture(tmp_path, monkeypatch)
     evaluation_root = tmp_path / "project" / "evaluation"
@@ -340,7 +340,7 @@ def test_metrics_loads_current_run_only_after_summary_integrity_validation(
     ],
 )
 def test_evaluation_samples_reject_malformed_metrics_and_counts(
-    tmp_path, monkeypatch, doctor_access, field, value
+    tmp_path, monkeypatch, evaluation_reviewer_access, field, value
 ):
     index = tmp_path / "samples.csv"
     _write_sample_index(
@@ -358,7 +358,7 @@ def test_evaluation_samples_reject_malformed_metrics_and_counts(
 
 
 def test_evaluation_samples_reject_missing_metric_columns(
-    tmp_path, monkeypatch, doctor_access
+    tmp_path, monkeypatch, evaluation_reviewer_access
 ):
     index = tmp_path / "samples.csv"
     _write_sample_index(
@@ -376,7 +376,7 @@ def test_evaluation_samples_reject_missing_metric_columns(
 
 
 def test_evaluation_sample_list_fails_closed_when_provenance_is_unverified(
-    tmp_path, monkeypatch, doctor_access
+    tmp_path, monkeypatch, evaluation_reviewer_access
 ):
     project = tmp_path / "project"
     project.mkdir()
@@ -398,7 +398,7 @@ def test_evaluation_sample_list_fails_closed_when_provenance_is_unverified(
 
 
 def test_workstation_bundle_rejects_out_of_range_benchmark_metric(
-    tmp_path, monkeypatch, doctor_access
+    tmp_path, monkeypatch, evaluation_reviewer_access
 ):
     project = tmp_path / "project"
     dataset = project / "dataset"
@@ -438,7 +438,7 @@ def test_workstation_bundle_rejects_out_of_range_benchmark_metric(
     ],
 )
 def test_metrics_withhold_legacy_values_without_reading_archive_artifacts(
-    tmp_path, monkeypatch, doctor_access, artifact, payload
+    tmp_path, monkeypatch, evaluation_reviewer_access, artifact, payload
 ):
     files = _write_metrics_fixture(tmp_path, monkeypatch)
     files[artifact].write_text(payload, encoding="utf-8")

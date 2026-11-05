@@ -34,7 +34,7 @@ def test_simultaneous_case_creation_for_same_pid_creates_both_studies(
 
     event.listen(engine, "before_cursor_execute", synchronize_patient_inserts)
     payload = {
-        "patient_id": "PID-CONCURRENT-CASE",
+        "patient_id": "900000112",
         "study_date": "2026-10-21",
         "active_ovary_side": "BOTH",
     }
@@ -55,7 +55,9 @@ def test_simultaneous_case_creation_for_same_pid_creates_both_studies(
         assert len(set(visit_numbers)) == 2
         assert all(value.isascii() and value.isdigit() and len(value) == 6 for value in visit_numbers)
         with Session(engine) as db:
-            assert db.query(PatientModel).filter_by(source_pid_hmac=patient_id_digest(payload["patient_id"])).count() == 1
+            assert db.query(PatientModel).filter_by(
+                source_pid_hmac=patient_id_digest(payload["patient_id"], facility_id="FAC-DEFAULT-TEST")
+            ).count() == 1
             assert db.query(StudyModel).count() == 2
             assert {study.visit_no for study in db.query(StudyModel).all()} == set(visit_numbers)
     finally:
@@ -87,7 +89,7 @@ def test_simultaneous_case_creation_with_same_idempotency_key_replays_one_study(
     event.listen(engine, "before_cursor_execute", synchronize_patient_inserts)
     key = uuid4()
     payload = {
-        "patient_id": "PID-IDEMPOTENT-CONCURRENT",
+        "patient_id": "900000113",
         "study_date": "2026-10-29",
         "active_ovary_side": "BOTH",
     }

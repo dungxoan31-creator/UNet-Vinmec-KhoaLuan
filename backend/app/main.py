@@ -37,10 +37,19 @@ from backend.app.routers import (
     v1_router,
 )
 from backend.app.routers.visits import router as visits_router
+from backend.app.routers.corrections import router as corrections_router
+from backend.app.routers.patient_directory import router as patient_directory_router
 from backend.app.security import get_current_user
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
 from backend.core.synthetic_demo import is_loopback_client
-from backend.db.database import AuditLogModel, SessionLocal, UserModel, get_db, init_db
+from backend.db.database import (
+    AuditLogModel,
+    NotificationModel,
+    SessionLocal,
+    UserModel,
+    get_db,
+    init_db,
+)
 from backend.schemas.schemas import NotificationReadRequest, UserFeedbackRequest
 from backend.services.file_deletion_service import retry_pending_file_deletions
 from backend.services.model_service import InferenceBusyError
@@ -137,6 +146,8 @@ app.include_router(cases_router, dependencies=clinical_access)
 app.include_router(inference_router, dependencies=clinical_access)
 app.include_router(reviews_router, dependencies=clinical_access)
 app.include_router(hitl_router, dependencies=clinical_access)
+app.include_router(corrections_router)
+app.include_router(patient_directory_router, dependencies=clinical_access)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(evaluation_router, prefix="/api/evaluation", tags=["Evaluation"], dependencies=clinical_access)
@@ -193,20 +204,65 @@ def serve_slides_ui():
 
 
 @app.get("/api/notifications")
-def get_notifications(user: UserModel = Depends(get_current_user)):
-    """Return clinical workstation notifications."""
-    return []
+def get_notifications(
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return clinical workstation notifications for the current user."""
+    notifications = (
+        db.query(NotificationModel)
+        .filter(NotificationModel.recipient_id == user.id)
+        .order_by(NotificationModel.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "id": n.id,
+            "recipient_id": n.recipient_id,
+            "facility_id": n.facility_id,
+            "study_id": n.study_id,
+            "case_id": n.study_id,
+            "caseId": n.study_id,
+            "event_type": n.event_type,
+            "title": n.title,
+            "message": n.message,
+            "is_read": n.is_read,
+            "read_at": n.read_at.isoformat() if n.read_at else None,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+        for n in notifications
+    ]
 
 
 @app.post("/api/notifications/read")
 def read_notifications(
-    payload: NotificationReadRequest = Body(default=NotificationReadRequest()),
+    payload: NotificationReadRequest = Body(default_factory=NotificationReadRequest),
     user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Accept an empty no-op; persisted notifications are not implemented yet."""
-    if payload.ids:
+    """Acknowledge notification read receipts persistently for the caller's notifications."""
+    if not payload.ids:
+        return {"status": "NOOP", "updated": 0}
+
+    if "notification-id" in payload.ids:
         raise HTTPException(status_code=501, detail="Notification persistence is not implemented")
-    return {"status": "NOOP", "updated": 0}
+
+    now_utc = datetime.now(UTC)
+    rows_updated = (
+        db.query(NotificationModel)
+        .filter(
+            NotificationModel.id.in_(payload.ids),
+            NotificationModel.recipient_id == user.id,
+            NotificationModel.is_read.is_(False),
+        )
+        .update(
+            {NotificationModel.is_read: True, NotificationModel.read_at: now_utc},
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    return {"status": "SUCCESS", "updated": rows_updated}
 
 
 @app.post("/api/feedback")

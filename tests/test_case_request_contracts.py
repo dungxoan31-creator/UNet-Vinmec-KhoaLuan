@@ -29,16 +29,16 @@ from backend.schemas.schemas import (
 )
 def test_optional_case_metadata_matches_persisted_column_lengths(field, limit):
     value = "x" * limit
-    case = CreateCaseRequest(patient_id="PID-LENGTH", study_date="2026-10-21", **{field: value})
+    case = CreateCaseRequest(patient_id="900000109", study_date="2026-10-21", **{field: value})
     assert getattr(case, field) == value
 
     with pytest.raises(ValidationError):
-        CreateCaseRequest(patient_id="PID-LENGTH", study_date="2026-10-21", **{field: value + "x"})
+        CreateCaseRequest(patient_id="900000109", study_date="2026-10-21", **{field: value + "x"})
 
 
 def test_whitespace_only_optional_case_metadata_is_normalized_to_none():
     case = CreateCaseRequest(
-        patient_id="PID-LENGTH",
+        patient_id="900000109",
         study_date="2026-10-21",
         study_code="  ",
         patient_age="  ",
@@ -79,10 +79,10 @@ def test_case_request_rejects_non_string_study_date():
 
 
 def test_case_request_accepts_datetime_local_format():
-    case_dt = CreateCaseRequest(patient_id="PID-DATETIME", study_date="2026-10-25T18:24")
+    case_dt = CreateCaseRequest(patient_id="900000110", study_date="2026-10-25T18:24")
     assert case_dt.study_date == "2026-10-25 18:24"
 
-    case_d = CreateCaseRequest(patient_id="PID-DATEONLY", study_date="2026-10-25")
+    case_d = CreateCaseRequest(patient_id="900000111", study_date="2026-10-25")
     assert case_d.study_date == "2026-10-25"
 
 

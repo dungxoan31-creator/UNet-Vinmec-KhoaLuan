@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from backend.db.database import (
     ActiveLearningQueueModel,
     AuditLogModel,
+    CorrectionRequestModel,
     HITLEventModel,
     HITLSessionModel,
     ImageModel,
@@ -37,6 +38,7 @@ from backend.db.database import (
     UserModel,
 )
 from backend.schemas.schemas import BatchReviewRequest, DoctorReviewRequest
+from backend.services.facility_service import check_facility_access
 from backend.services.case_lease_service import require_active_case_lease
 from backend.services.image_service import decode_ultrasound_image, get_image_calibration
 from backend.services.review_validation import validate_review_mask
@@ -577,6 +579,7 @@ def persist_review_batch(
     study = db.query(StudyModel).filter(StudyModel.id == request.study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy ca khảo sát.")
+    check_facility_access(user, study.facility_id)
     if study.status in _FINAL_REVIEW_STATUSES:
         raise HTTPException(status_code=409, detail="Ca đã ký hoặc khóa, không thể thay đổi rà soát.")
 
@@ -893,6 +896,19 @@ def persist_review_batch(
                     received_at=now_utc,
                 )
                 db.add(ev)
+
+        if all_images_reviewed and new_status == "REVIEWED":
+            db.query(CorrectionRequestModel).filter(
+                CorrectionRequestModel.study_id == study.id,
+                CorrectionRequestModel.doctor_id == user.id,
+                CorrectionRequestModel.status == "SUBMITTED",
+            ).update(
+                {
+                    CorrectionRequestModel.status: "DOCTOR_REVIEWED",
+                    CorrectionRequestModel.updated_at: now_utc,
+                },
+                synchronize_session=False,
+            )
 
         db.commit()
         return response_data

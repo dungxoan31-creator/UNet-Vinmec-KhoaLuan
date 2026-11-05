@@ -14,12 +14,12 @@ from uuid import UUID
 import cv2
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse
-from sqlalchemy import asc, desc, or_
+from sqlalchemy import and_, asc, desc, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend.app.config import SYNTHETIC_DEMO_MODE, UPLOAD_DIR
-from backend.app.security import require_admin, require_clinical
+from backend.app.security import get_current_user, require_admin, require_case_reader, require_clinical
 from backend.core.case_idempotency import (
     case_create_idempotency_digest,
     case_create_payload_digest,
@@ -28,9 +28,14 @@ from backend.core.patient_identity import patient_id_digest
 from backend.db.database import (
     ActiveLearningQueueModel,
     AuditLogModel,
+    CaseLeaseModel,
+    CorrectionRequestModel,
+    FacilityModel,
     HITLEventModel,
     HITLSessionModel,
     ImageModel,
+    NotificationModel,
+    PatientDirectoryModel,
     PatientModel,
     PendingFileDeletionModel,
     ReviewBatchModel,
@@ -42,7 +47,12 @@ from backend.db.database import (
     get_db,
 )
 from backend.schemas.schemas import (
+    CaseAssignRequest,
+    CaseClaimResponse,
+    CaseCreateResponse,
+    CaseDetailResponse,
     CaseImageSummary,
+    CaseIntakeSidesRequest,
     CaseItem,
     CaseLeaseReleaseRequest,
     CaseLeaseRequest,
@@ -51,7 +61,12 @@ from backend.schemas.schemas import (
     WorkspaceCaseSearchResponse,
     WorkspaceCaseSearchResult,
 )
-from backend.services.case_lease_service import acquire_case_lease, release_case_lease
+from backend.services.case_lease_service import acquire_case_lease, release_case_lease, require_active_case_lease
+from backend.services.correction_access import (
+    pending_correction,
+    require_case_edit_access,
+    require_case_read_access,
+)
 from backend.services.facility_service import check_facility_access
 from backend.services.file_deletion_service import (
     enqueue_upload_deletions,
@@ -178,9 +193,15 @@ def _retry_case_file_deletions(bind, upload_root: Path, deletion_ids: list[str])
 def post_case_lease(
     study_id: str,
     request: CaseLeaseRequest,
-    current_user: UserModel = Depends(require_clinical),
+    current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.role not in {"DOCTOR", "SENIOR", "TK"}:
+        raise HTTPException(status_code=403, detail="Không có quyền thao tác phiên chỉnh sửa ca.")
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    require_case_edit_access(db, current_user, study)
     return acquire_case_lease(
         db,
         study_id,
@@ -195,15 +216,140 @@ def post_case_lease(
 def delete_case_lease(
     study_id: str,
     request: CaseLeaseReleaseRequest,
-    current_user: UserModel = Depends(require_clinical),
+    current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.role not in {"DOCTOR", "SENIOR", "TK"}:
+        raise HTTPException(status_code=403, detail="Không có quyền đóng phiên chỉnh sửa ca.")
     return release_case_lease(
         db,
         study_id,
         current_user,
         request.lease_token,
         request.page_instance_id,
+    )
+
+
+@router.post("/api/workspace/cases/{study_id}/assign")
+@router.post("/api/cases/{study_id}/assign")
+def assign_case(
+    study_id: str,
+    payload: CaseAssignRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_admin),
+):
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ca khám.")
+
+    # Admin facility access check
+    check_facility_access(current_user, study.facility_id)
+
+    # Validate target assignee before checking whether this is a state change.
+    target_user = db.query(UserModel).filter(UserModel.id == payload.assignee_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng được phân công.")
+    if not target_user.is_active or target_user.role not in {"DOCTOR", "BS"}:
+        raise HTTPException(status_code=422, detail="Chỉ có thể phân công cho bác sĩ đang hoạt động.")
+    if not study.facility_id or target_user.facility_id != study.facility_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Bác sĩ được phân công phải thuộc cùng cơ sở y tế với ca khám.",
+        )
+
+    if study.assignee_id == target_user.id:
+        return {"status": "SUCCESS", "study_id": study.id, "assignee_id": target_user.id}
+
+    # Active lease check: conflict 409, do NOT revoke lease
+    now_utc = datetime.now(UTC)
+    active_lease = (
+        db.query(CaseLeaseModel)
+        .filter(CaseLeaseModel.study_id == study.id, CaseLeaseModel.expires_at > now_utc)
+        .first()
+    )
+    if active_lease:
+        raise HTTPException(
+            status_code=409,
+            detail="Ca khám đang có người mở phiên làm việc (active lease). Không thể đổi phân công.",
+        )
+
+    # Only the request that changes the assignee emits a notification.
+    changed = (
+        db.query(StudyModel)
+        .filter(
+            StudyModel.id == study.id,
+            or_(StudyModel.assignee_id.is_(None), StudyModel.assignee_id != target_user.id),
+        )
+        .update({StudyModel.assignee_id: target_user.id}, synchronize_session=False)
+    )
+    if changed != 1:
+        db.rollback()
+        db.refresh(study)
+        if study.assignee_id == target_user.id:
+            return {"status": "SUCCESS", "study_id": study.id, "assignee_id": target_user.id}
+        raise HTTPException(status_code=409, detail="Phân công ca đã thay đổi; vui lòng tải lại.")
+
+    # Create notification in the SAME transaction
+    notif = NotificationModel(
+        id=str(uuid.uuid4()),
+        recipient_id=target_user.id,
+        facility_id=study.facility_id,
+        study_id=study.id,
+        event_type="CASE_ASSIGNED",
+        title="Phân công ca khám mới",
+        message=f"Bạn đã được phân công phụ trách ca khám {study.study_code or study.id}.",
+        is_read=False,
+        created_at=now_utc,
+        dedup_key=f"CASE_ASSIGNED:{study.id}:{uuid.uuid4()}",
+    )
+    db.add(notif)
+    db.commit()
+
+    return {
+        "status": "SUCCESS",
+        "study_id": study.id,
+        "assignee_id": target_user.id,
+    }
+
+
+@router.post("/api/workspace/cases/{study_id}/claim", response_model=CaseClaimResponse)
+@router.post("/api/cases/{study_id}/claim", response_model=CaseClaimResponse)
+def claim_case(
+    study_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ca khám.")
+
+    # Doctor facility access check
+    check_facility_access(current_user, study.facility_id)
+
+    # Atomic update: only claim if assignee_id is None
+    rows = (
+        db.query(StudyModel)
+        .filter(StudyModel.id == study_id, StudyModel.assignee_id.is_(None))
+        .update({StudyModel.assignee_id: current_user.id})
+    )
+    if rows == 0:
+        db.refresh(study)
+        if study.assignee_id == current_user.id:
+            return CaseClaimResponse(
+                status="CLAIMED",
+                study_id=study.id,
+                assignee_id=current_user.id,
+            )
+        raise HTTPException(
+            status_code=409,
+            detail="Ca khám đã có người phụ trách.",
+        )
+
+    db.commit()
+    return CaseClaimResponse(
+        status="CLAIMED",
+        study_id=study.id,
+        assignee_id=current_user.id,
     )
 
 
@@ -214,9 +360,12 @@ def _case_create_matches_request(study: StudyModel, payload_digest: str) -> bool
 def _case_create_response(study: StudyModel, *, replayed: bool = False) -> dict:
     return {
         "study_id": study.id,
-        "study_code": study.study_code,
+        "study_code": study.study_code or study.id,
         "visit_no": study.visit_no,
         "patient_id": study.patient.anonymized_pid if study.patient else None,
+        "patient_directory_id": study.patient_directory_id,
+        "patient_name": study.directory_patient.display_name if study.directory_patient else None,
+        "patient_age": study.patient_age or (study.patient.age_bucket if study.patient else None),
         "study_date": study.study_date,
         "status": study.status,
         "ovary_side": study.ovary_side,
@@ -238,7 +387,36 @@ def _idempotent_study(db: Session, digest: str) -> StudyModel | None:
     )
 
 
-@router.post("/api/cases")
+@router.put("/api/cases/{study_id}/intake-sides", response_model=CaseCreateResponse)
+def complete_intake_sides(
+    study_id: str,
+    req: CaseIntakeSidesRequest,
+    lease_token: Annotated[str | None, Header(alias="X-Case-Lease-Token")] = None,
+    page_instance_id: Annotated[str | None, Header(alias="X-Case-Page-Instance-Id")] = None,
+    current_user: UserModel = Depends(require_clinical),
+    db: Session = Depends(get_db),
+):
+    require_active_case_lease(db, study_id, current_user, lease_token, page_instance_id)
+    study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
+    require_case_edit_access(db, current_user, study)
+    if study.status != "PENDING" or db.query(ImageModel.id).filter(ImageModel.study_id == study_id).first():
+        raise HTTPException(status_code=409, detail="Laterality can only be completed before uploading images.")
+    if req.active_ovary_side != "BOTH" and req.contralateral_status not in {"NOT_VISUALIZED", "SURGICALLY_ABSENT"}:
+        raise HTTPException(status_code=422, detail="Specify the status of the side without images.")
+    if (study.ovary_side, study.contralateral_status) != (req.active_ovary_side, req.contralateral_status):
+        study.ovary_side = req.active_ovary_side
+        study.contralateral_status = req.contralateral_status
+        db.add(AuditLogModel(
+            entity_name="study", entity_id=study.id, action_type="INTAKE_SIDES_UPDATED",
+            actor_id=current_user.username,
+            details={"laterality": study.ovary_side, "contralateral_status": study.contralateral_status},
+            timestamp=datetime.now(UTC),
+        ))
+    db.commit()
+    return _case_create_response(study)
+
+
+@router.post("/api/cases", response_model=CaseCreateResponse)
 def create_new_case(
     req: CreateCaseRequest,
     idempotency_key: Annotated[UUID, Header(alias="Idempotency-Key")],
@@ -249,16 +427,23 @@ def create_new_case(
     Create a new clinical study case.
     """
     clean_pid = req.patient_id.strip() if req.patient_id else None
-    if clean_pid and SYNTHETIC_DEMO_MODE and not clean_pid.upper().startswith("DEMO-SYNTHETIC-"):
-        raise HTTPException(
-            status_code=422,
-            detail="Chế độ demo chỉ cho phép mã ca DEMO-SYNTHETIC-*; không nhập thông tin bệnh nhân.",
-        )
+    if clean_pid and SYNTHETIC_DEMO_MODE:
+        is_synthetic_prefix = clean_pid.upper().startswith("DEMO-SYNTHETIC-")
+        is_synthetic_range = clean_pid.isdigit() and 900000001 <= int(clean_pid) <= 900000300
+        if not (is_synthetic_prefix or is_synthetic_range):
+            raise HTTPException(
+                status_code=422,
+                detail="Chế độ demo chỉ cho phép PID mẫu từ 900000001 đến 900000300 hoặc mã DEMO-SYNTHETIC-*; không nhập thông tin bệnh nhân thật.",
+            )
     if SYNTHETIC_DEMO_MODE and (req.patient_age or req.clinical_notes):
         raise HTTPException(
             status_code=422,
             detail="Sandbox demo không nhận tuổi hoặc ghi chú lâm sàng có thể chứa thông tin bệnh nhân.",
         )
+    if SYNTHETIC_DEMO_MODE and req.patient_directory_id:
+        raise HTTPException(status_code=422, detail="Sandbox tổng hợp không lưu danh bạ bệnh nhân cơ sở.")
+    if clean_pid and req.patient_directory_id:
+        raise HTTPException(status_code=422, detail="Chọn hồ sơ danh bạ hoặc mã nguồn, không gửi đồng thời cả hai.")
 
     is_global_admin = current_user.role == "ADMIN" and not current_user.facility_id
     if not is_global_admin and not current_user.facility_id:
@@ -272,6 +457,8 @@ def create_new_case(
             detail="Không có quyền tạo ca khám cho cơ sở khác.",
         )
     assigned_facility_id = req.facility_id if is_global_admin else current_user.facility_id
+    if not assigned_facility_id:
+        raise HTTPException(status_code=422, detail="Cần chỉ định cơ sở cho ca khám.")
 
     idempotency_digest = case_create_idempotency_digest(idempotency_key, current_user.id)
     request_digest = case_create_payload_digest(req.model_dump(mode="json"), current_user.id)
@@ -286,7 +473,21 @@ def create_new_case(
         return _case_create_response(existing, replayed=True)
 
     try:
-        patient = get_or_create_patient(db, clean_pid, req.patient_age) if clean_pid else None
+        directory_patient = None
+        if req.patient_directory_id:
+            directory_patient = db.query(PatientDirectoryModel).filter(
+                PatientDirectoryModel.id == req.patient_directory_id,
+                PatientDirectoryModel.facility_id == assigned_facility_id,
+                PatientDirectoryModel.is_active.is_(True),
+            ).first()
+            if directory_patient is None:
+                raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ trong cơ sở hiện tại.")
+        patient = get_or_create_patient(
+            db,
+            clean_pid,
+            req.patient_age,
+            facility_id=assigned_facility_id,
+        ) if clean_pid else None
 
         study_id = str(uuid.uuid4())
         study_code = (
@@ -298,6 +499,9 @@ def create_new_case(
             id=study_id,
             patient=patient,
             patient_id=patient.id if patient else None,
+            directory_patient=directory_patient,
+            patient_directory_id=directory_patient.id if directory_patient else None,
+            patient_age=req.patient_age,
             study_code=study_code,
             study_date=req.study_date,
             idempotency_key_digest=idempotency_digest,
@@ -385,8 +589,12 @@ def _filtered_cases_query(
     statuses=None,
     current_user=None,
 ):
-    query = db.query(StudyModel).outerjoin(PatientModel)
-    if current_user is not None:
+    query = db.query(StudyModel).outerjoin(PatientModel).outerjoin(
+        PatientDirectoryModel,
+        StudyModel.patient_directory_id == PatientDirectoryModel.id,
+    )
+    from fastapi.params import Depends
+    if current_user is not None and not isinstance(current_user, Depends):
         if getattr(current_user, "role", None) == "ADMIN" and not getattr(current_user, "facility_id", None):
             pass
         elif getattr(current_user, "facility_id", None):
@@ -407,11 +615,28 @@ def _filtered_cases_query(
             search_fmt = f"%{search_value}%"
             search_conditions = [
                 PatientModel.anonymized_pid.ilike(search_fmt),
+                PatientDirectoryModel.display_name.ilike(search_fmt),
                 StudyModel.study_code.ilike(search_fmt),
                 StudyModel.clinical_indication.ilike(search_fmt),
             ]
-            if allow_source_pid and len(search_value) <= 64:
-                search_conditions.append(PatientModel.source_pid_hmac == patient_id_digest(search_value))
+            if allow_source_pid and len(search_value) <= 64 and current_user is not None:
+                if getattr(current_user, "facility_id", None):
+                    facility_ids = [current_user.facility_id]
+                elif getattr(current_user, "role", None) == "ADMIN":
+                    facility_ids = [row[0] for row in db.query(FacilityModel.id).all()]
+                else:
+                    facility_ids = []
+                legacy_digest = patient_id_digest(search_value)
+                search_conditions.extend(
+                    and_(
+                        PatientModel.facility_id == facility_id,
+                        or_(
+                            PatientModel.source_pid_hmac == patient_id_digest(search_value, facility_id=facility_id),
+                            PatientModel.legacy_source_pid_hmac == legacy_digest,
+                        ),
+                    )
+                    for facility_id in facility_ids
+                )
             query = query.filter(or_(*search_conditions))
     return query
 
@@ -448,6 +673,7 @@ def _query_cases(
     total = filtered_query.order_by(None).count() if include_total else None
     query = filtered_query.options(
         joinedload(StudyModel.patient),
+        joinedload(StudyModel.directory_patient),
         selectinload(StudyModel.images).selectinload(ImageModel.predictions),
         selectinload(StudyModel.images).selectinload(ImageModel.reviews),
     )
@@ -500,7 +726,9 @@ def _query_cases(
                 "study_code": s.study_code or s.id[:8],
                 "visit_no": s.visit_no,
                 "patient_id": s.patient.anonymized_pid if s.patient else None,
-                "patient_age": s.patient.age_bucket if s.patient else None,
+                "patient_directory_id": s.patient_directory_id,
+                "patient_name": s.directory_patient.display_name if s.directory_patient else None,
+                "patient_age": s.patient_age or (s.patient.age_bucket if s.patient else None),
                 "study_date": s.study_date,
                 "status": s.status,
                 "ovary_side": s.ovary_side,
@@ -536,10 +764,23 @@ def _query_cases(
 @router.post("/api/workspace/cases/search", response_model=WorkspaceCaseSearchResponse)
 def search_workspace_cases(
     request: CaseSearchRequest,
-    current_user: UserModel = Depends(require_clinical),
+    current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Return a bounded, sortable clinical worklist page and its filtered total."""
+    if current_user.role == "DOCTOR":
+        allow_source_pid = True
+        statuses = request.statuses
+    elif current_user.role in {"SENIOR", "TK"} and current_user.facility_id:
+        requested_status = (request.status or "").upper()
+        requested_statuses = {value.upper() for value in (request.statuses or [])}
+        if requested_status not in {"", "ALL", "SIGNED_PRELIM"} or requested_statuses - {"SIGNED_PRELIM"}:
+            raise HTTPException(status_code=403, detail="Chỉ được xem hàng chờ rà soát đã ký sơ bộ.")
+        allow_source_pid = False
+        statuses = ["SIGNED_PRELIM"]
+    else:
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập danh sách ca.")
+
     return _query_cases(
         request.search,
         request.status,
@@ -547,9 +788,9 @@ def search_workspace_cases(
         request.limit,
         request.offset,
         db,
-        allow_source_pid=True,
+        allow_source_pid=allow_source_pid,
         patient_id=request.patient_id,
-        statuses=request.statuses,
+        statuses=statuses,
         sort=request.sort,
         direction=request.direction,
         include_total=True,
@@ -561,10 +802,17 @@ def search_workspace_cases(
 def get_workspace_dashboard_summary(
     date: Annotated[str, Query(max_length=10, pattern=r"^\d{4}-\d{2}-\d{2}$")],
     queue: Literal["doctor", "reviewer"] = "doctor",
-    current_user: UserModel = Depends(require_clinical),
+    current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Return dashboard counters and five queue rows without downloading case history."""
+    is_reviewer = current_user.role in {"SENIOR", "TK"}
+    if is_reviewer:
+        if queue != "reviewer" or not current_user.facility_id:
+            raise HTTPException(status_code=403, detail="Chỉ được xem hàng chờ rà soát trong cơ sở của mình.")
+    elif current_user.role != "DOCTOR":
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập bảng công việc lâm sàng.")
+
     doctor_queue_statuses = (
         "PENDING",
         "ANALYZED",
@@ -609,7 +857,7 @@ def get_workspace_dashboard_summary(
     return {
         "counts": {
             "today": today_q.count(),
-            "pending": count_statuses(pending_statuses),
+            "pending": 0 if is_reviewer else count_statuses(pending_statuses),
             "waiting": count_statuses(reviewer_queue_statuses),
         },
         "items": rows,
@@ -638,20 +886,34 @@ def get_workspace_cases(
     )
 
 
-@router.get("/api/cases/{study_id}")
+@router.get("/api/cases/{study_id}", response_model=CaseDetailResponse)
 def get_case_detail(
     study_id: str,
-    current_user: UserModel = Depends(require_clinical),
+    current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
     Retrieve full case details for viewing/reopening.
     """
+    if current_user.role not in {"DOCTOR", "SENIOR", "TK"}:
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập hồ sơ ca bệnh.")
+
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin ca khám.")
 
-    check_facility_access(current_user, study.facility_id)
+    require_case_read_access(db, current_user, study)
+
+    facility = db.get(FacilityModel, study.facility_id) if study.facility_id else None
+    facility_config = facility.config if facility and isinstance(facility.config, dict) else {}
+    admin_settings = facility_config.get("admin_settings")
+    admin_settings = admin_settings if isinstance(admin_settings, dict) else {}
+    configured_report_header = admin_settings.get("report_header")
+    report_header = (
+        configured_report_header.strip()
+        if isinstance(configured_report_header, str) and configured_report_header.strip()
+        else facility.name if facility else None
+    )
 
     db.add(
         AuditLogModel(
@@ -669,6 +931,15 @@ def get_case_detail(
         db.query(ReviewBatchModel)
         .filter(ReviewBatchModel.study_id == study_id)
         .order_by(ReviewBatchModel.created_at.desc(), ReviewBatchModel.id.desc())
+        .first()
+    )
+    active_correction = (
+        db.query(CorrectionRequestModel)
+        .filter(
+            CorrectionRequestModel.study_id == study.id,
+            CorrectionRequestModel.status.in_(["PENDING", "SUBMITTED"]),
+        )
+        .order_by(CorrectionRequestModel.created_at.desc(), CorrectionRequestModel.id.desc())
         .first()
     )
     batch_review_ids = set()
@@ -719,6 +990,7 @@ def get_case_detail(
                 "rle_mask": last_p.raw_mask_rle,
                 "provenance": safe_prediction_provenance,
                 "model_version": last_p.model_version,
+                "ai_diagnosis": (last_p.response_extras_json or {}).get("ai_diagnosis"),
                 "uncertainty_map_base64": (
                     "data:image/png;base64," + base64.b64encode(last_p.uncertainty_map_png).decode("ascii")
                     if last_p.uncertainty_map_png
@@ -781,10 +1053,19 @@ def get_case_detail(
         "study_code": study.study_code,
         "visit_no": study.visit_no,
         "patient_id": study.patient.anonymized_pid if study.patient else None,
-        "patient_age": study.patient.age_bucket if study.patient else None,
+        "patient_directory_id": study.patient_directory_id,
+        "patient_name": study.directory_patient.display_name if study.directory_patient else None,
+        "report_header": report_header,
+        "patient_age": study.patient_age or (study.patient.age_bucket if study.patient else None),
         "study_date": study.study_date,
         "status": study.status,
         "review_revision": getattr(study, "review_revision", 0),
+        "correction_id": active_correction.id if active_correction else None,
+        "correction_by": active_correction.technician_id if active_correction and active_correction.status == "PENDING" else None,
+        "correction_status": active_correction.status if active_correction else None,
+        "correction_reason": active_correction.reason if active_correction else None,
+        "correction_revision": active_correction.review_revision if active_correction else None,
+        "correction_draft": active_correction.draft_payload if active_correction and active_correction.status == "SUBMITTED" else None,
         "latest_review_request_id": latest_batch.request_id if latest_batch else None,
         "ovary_side": study.ovary_side,
         "contralateral_status": study.contralateral_status,
@@ -970,14 +1251,14 @@ def delete_case(
 def get_case_image(
     study_id: str,
     image_id: str,
-    current_user: UserModel = Depends(require_clinical),
+    current_user: UserModel = Depends(require_case_reader),
     db: Session = Depends(get_db),
 ):
     """Retrieve an image file belonging to a specific study case with facility check."""
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Không tìm thấy thông tin ca khám.")
-    check_facility_access(current_user, study.facility_id)
+    require_case_read_access(db, current_user, study)
 
     image_record = (
         db.query(ImageModel)
@@ -992,7 +1273,7 @@ def get_case_image(
 @router.get("/api/images/{image_id}/source.png")
 def get_image_source_png(
     image_id: str,
-    current_user: UserModel = Depends(require_clinical),
+    current_user: UserModel = Depends(require_case_reader),
     db: Session = Depends(get_db),
 ):
     """Return decoded raw source image with facility tenant isolation."""
@@ -1001,11 +1282,12 @@ def get_image_source_png(
         raise HTTPException(status_code=404, detail="Source image unavailable.")
     if image_record.study_id:
         study = db.query(StudyModel).filter(StudyModel.id == image_record.study_id).first()
-        if study:
-            check_facility_access(current_user, study.facility_id)
-        else:
-            check_facility_access(current_user, None)
+        if not study:
+            raise HTTPException(status_code=404, detail="Source image unavailable.")
+        require_case_read_access(db, current_user, study)
     else:
+        if current_user.role != "DOCTOR":
+            raise HTTPException(status_code=403, detail="Ảnh chưa liên kết với ca không thể được rà soát.")
         check_facility_access(current_user, None)
 
     if not image_record.raw_path or not os.path.isfile(image_record.raw_path):

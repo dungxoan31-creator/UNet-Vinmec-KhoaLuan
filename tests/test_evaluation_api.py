@@ -2,10 +2,28 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
-
-pytestmark = pytest.mark.usefixtures("doctor_access")
+from backend.app.security import get_current_user
+from backend.db.database import UserModel
 
 client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def evaluation_reviewer_access():
+    previous = app.dependency_overrides.get(get_current_user)
+    app.dependency_overrides[get_current_user] = lambda: UserModel(
+        id="evaluation-reviewer",
+        username="evaluation_reviewer",
+        full_name="Synthetic Evaluation Reviewer",
+        role="SENIOR",
+        facility_id="FAC-DEFAULT-TEST",
+    )
+    try:
+        yield
+    finally:
+        if previous is None:
+            app.dependency_overrides.pop(get_current_user, None)
+        else:
+            app.dependency_overrides[get_current_user] = previous
 
 
 def test_get_evaluation_metrics_withholds_unverified_legacy_archives():

@@ -761,9 +761,18 @@ def resend_registration_email(
     return generic_response
 
 
-@router.get("/api/auth/users", response_model=list[UserProfile], dependencies=[Depends(require_admin)])
-def get_system_users(db: Session = Depends(get_db)):
-    return [UserProfile.model_validate(user, from_attributes=True) for user in db.query(UserModel).all()]
+@router.get("/api/auth/users", response_model=list[UserProfile])
+def get_system_users(
+    current_user: UserModel = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    is_global = getattr(current_user, "is_global_admin", False) and not current_user.facility_id
+    query = db.query(UserModel)
+    if not is_global:
+        if not current_user.facility_id:
+            raise HTTPException(status_code=403, detail="Tài khoản chưa được gán cơ sở y tế.")
+        query = query.filter(UserModel.facility_id == current_user.facility_id)
+    return [UserProfile.model_validate(user, from_attributes=True) for user in query.all()]
 
 
 @router.get("/api/auth/current-user", response_model=UserProfile)

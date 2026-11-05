@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.main import app
 from backend.app.routers.auth import create_access_token, hash_password
-from backend.db.database import Base, PatientModel, StudyModel, UserModel, get_db
+from backend.db.database import Base, FacilityModel, PatientModel, StudyModel, UserModel, get_db
 
 
 @pytest.fixture
@@ -18,7 +18,6 @@ def authenticated_api(tmp_path, monkeypatch):
     from backend.app.routers import admin as admin_router
 
     monkeypatch.setattr(admin_router, "_DEPARTMENTS", [{"id": "dep-test", "name": "Test", "code": "TEST", "members": 0}])
-    monkeypatch.setattr(admin_router, "_ADMIN_SETTINGS", dict(admin_router._DEFAULT_ADMIN_SETTINGS))
 
     class CandidateRegistry:
         def __init__(self):
@@ -37,6 +36,7 @@ def authenticated_api(tmp_path, monkeypatch):
     )
     Base.metadata.create_all(engine)
     with Session(engine) as db:
+        db.add(FacilityModel(id="FAC-API-VAL", facility_code="FA-VAL", name="API Val Facility", is_active=True))
         db.add_all(
             [
                 UserModel(
@@ -44,6 +44,7 @@ def authenticated_api(tmp_path, monkeypatch):
                     username="api-validation-admin",
                     full_name="Admin",
                     role="ADMIN",
+                    is_global_admin=True,
                     is_active=True,
                 ),
                 UserModel(
@@ -51,6 +52,7 @@ def authenticated_api(tmp_path, monkeypatch):
                     username="api-validation-doctor",
                     full_name="Doctor",
                     role="DOCTOR",
+                    facility_id="FAC-API-VAL",
                     password_hash=hash_password("current-password"),
                     is_active=True,
                 ),
@@ -70,7 +72,7 @@ def authenticated_api(tmp_path, monkeypatch):
     }
     doctor = {
         "Authorization": "Bearer "
-        + create_access_token({"sub": "api-validation-doctor", "uid": "api-validation-doctor"})
+        + create_access_token({"sub": "api-validation-doctor", "uid": "api-validation-doctor", "role": "DOCTOR", "facility_id": "FAC-API-VAL"})
     }
     try:
         yield client, engine, admin, doctor
@@ -205,7 +207,7 @@ def test_case_creation_accepts_explicit_surgically_absent_contralateral(authenti
             "/api/cases",
             headers={**doctor, "Idempotency-Key": str(uuid4())},
             json={
-                "patient_id": "SYNTHETIC-UNILATERAL-001",
+                "patient_id": "900000108",
                 "study_date": "2026-10-27",
                 "active_ovary_side": "LEFT",
                 "contralateral_status": "SURGICALLY_ABSENT",
@@ -292,6 +294,7 @@ def test_workspace_search_returns_total_and_applies_stable_server_sort(authentic
                     study_code=study_code,
                     status=status,
                     study_date=study_date,
+                    facility_id="FAC-API-VAL",
                 )
             )
         db.commit()
@@ -356,6 +359,7 @@ def test_case_list_defaults_to_bounded_pages_and_supports_offsets(authenticated_
                 study_code=f"PAGE-{index}",
                 study_date="2026-10-21",
                 created_at=datetime(2026, 10, 21, 12, 0),
+                facility_id="FAC-API-VAL",
             )
             for index in range(101)
         ]
@@ -396,20 +400,21 @@ def test_candidate_registration_rolls_back_when_metadata_cannot_be_saved(authent
 
 
 def test_admin_configuration_is_not_updated_when_atomic_save_fails(authenticated_api, monkeypatch):
-    client, _, admin, _ = authenticated_api
+    client, engine, admin, _ = authenticated_api
     from backend.app.routers import admin as admin_router
+    from sqlalchemy.orm import Session as OrmSession
 
-    previous_settings = dict(admin_router._ADMIN_SETTINGS)
     previous_departments = [dict(department) for department in admin_router._DEPARTMENTS]
 
     def fail_replace(*_args):
         raise OSError("simulated configuration storage failure")
 
     monkeypatch.setattr(admin_router.os, "replace", fail_replace)
+    monkeypatch.setattr(OrmSession, "commit", lambda _self: (_ for _ in ()).throw(OSError("simulated database failure")))
     settings = client.put(
         "/api/admin/settings",
         headers=admin,
-        json={"report_header": "Must not be saved"},
+        json={"facility_id": "FAC-API-VAL", "report_header": "Must not be saved"},
     )
     department = client.post(
         "/api/admin/departments",
@@ -418,31 +423,28 @@ def test_admin_configuration_is_not_updated_when_atomic_save_fails(authenticated
     )
 
     assert settings.status_code == department.status_code == 500
-    assert admin_router._ADMIN_SETTINGS == previous_settings
     assert admin_router._DEPARTMENTS == previous_departments
+    with Session(engine) as db:
+        facility = db.get(FacilityModel, "FAC-API-VAL")
+        assert not (facility.config or {}).get("admin_settings")
 
 
-def test_admin_facility_defaults_are_neutral_until_explicitly_configured(
+def test_admin_facility_defaults_use_facility_data_until_explicitly_configured(
     authenticated_api, monkeypatch, tmp_path,
 ):
     client, _engine, admin, _doctor = authenticated_api
-    from backend.app.routers import admin as admin_router
 
     monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(admin_router, "_ADMIN_SETTINGS", dict(admin_router._DEFAULT_ADMIN_SETTINGS))
 
-    defaults = client.get("/api/admin/settings", headers=admin)
+    defaults = client.get("/api/admin/settings?facility_id=FAC-API-VAL", headers=admin)
     assert defaults.status_code == 200
-    assert defaults.json()["hospital_name"] == "Chưa cấu hình"
-    assert defaults.json()["report_header"] == "BẢN NGHIÊN CỨU RUO · CHƯA CẤU HÌNH CƠ SỞ"
-    metadata = client.get("/api/admin/metadata", headers=admin)
-    assert metadata.status_code == 200
-    assert metadata.json()["hospital_name"] == "Chưa cấu hình"
+    assert defaults.json()["facility_name"] == "API Val Facility"
+    assert defaults.json()["report_header"] == "API Val Facility"
 
     configured = client.put(
         "/api/admin/settings",
         headers=admin,
-        json={"hospital_name": "Approved Demo Site", "report_header": "APPROVED DEMO SITE"},
+        json={"facility_id": "FAC-API-VAL", "hospital_name": "Approved Demo Site", "report_header": "APPROVED DEMO SITE"},
     )
     assert configured.status_code == 200, configured.text
     assert configured.json()["settings"]["hospital_name"] == "Approved Demo Site"

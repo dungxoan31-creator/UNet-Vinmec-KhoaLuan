@@ -84,7 +84,7 @@ def test_failed_study_insert_rolls_back_new_patient(tmp_path):
         with Session(engine) as db:
             with pytest.raises(RuntimeError, match="study insert failure"):
                 cases.create_new_case(
-                    CreateCaseRequest(patient_id="PID-ATOMIC", study_date="2026-10-21"),
+                    CreateCaseRequest(patient_id="900000114", study_date="2026-10-21"),
                     idempotency_key=uuid4(),
                     current_user=UserModel(
                         id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"
@@ -92,7 +92,7 @@ def test_failed_study_insert_rolls_back_new_patient(tmp_path):
                     db=db,
                 )
             assert db.is_active, "The failed transaction must be rolled back explicitly"
-            assert db.query(PatientModel).filter_by(source_pid_hmac=cases.patient_id_digest("PID-ATOMIC")).first() is None
+            assert db.query(PatientModel).filter_by(source_pid_hmac=cases.patient_id_digest("900000114")).first() is None
             assert db.query(StudyModel).count() == 0
     finally:
         event.remove(StudyModel, "before_insert", fail_study_insert)

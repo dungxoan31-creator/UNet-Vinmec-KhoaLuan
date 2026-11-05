@@ -1,40 +1,21 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
-import { createDemoPatientStore } from "../frontend/app/intake-session.js";
+import { fileURLToPath } from "node:url";
+import { DEMO_PATIENTS } from "../frontend/app/demo-patients.js";
 
-function mockStorage() {
-  const map = new Map();
-  return {
-    getItem: (k) => (map.has(k) ? map.get(k) : null),
-    setItem: (k, v) => map.set(k, String(v)),
-    removeItem: (k) => map.delete(k),
-  };
-}
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("demo patient store supports update, delete, add, and get operations", () => {
-  const storage = mockStorage();
-  const store = createDemoPatientStore(
-    [{ pid: "100000001", name: "Nguyễn Minh Anh", age: 32 }],
-    () => storage
-  );
-  const key = "test-patients";
+test("intake uses the facility patient-directory API and does not persist demographics in browser storage", () => {
+  const intake = fs.readFileSync(path.join(rootDir, "frontend/app/intake.js"), "utf8");
+  assert.match(intake, /\/api\/patient-directory/);
+  assert.equal(intake.includes("localStorage"), false);
+  assert.equal(intake.includes("generatePatientPid"), false);
+  assert.equal(intake.includes("name=pid"), false);
+});
 
-  // Read initial
-  assert.equal(store.read(key).length, 1);
-
-  // Add
-  store.add(key, { pid: "100000002", name: "Trần Thu Hà", age: 41 });
-  assert.equal(store.read(key).length, 2);
-  assert.equal(store.get(key, "100000002").name, "Trần Thu Hà");
-
-  // Update
-  store.update(key, "100000001", { name: "Nguyễn Minh Anh (Đã sửa)", age: 33 });
-  const updated = store.get(key, "100000001");
-  assert.equal(updated.name, "Nguyễn Minh Anh (Đã sửa)");
-  assert.equal(updated.age, 33);
-
-  // Remove
-  store.remove(key, "100000002");
-  assert.equal(store.read(key).length, 1);
-  assert.equal(store.get(key, "100000002"), undefined);
+test("synthetic demo patients contain no generated or source patient identifiers", () => {
+  assert.ok(DEMO_PATIENTS.length > 0);
+  assert.ok(DEMO_PATIENTS.every(patient => patient.synthetic === true && !Object.hasOwn(patient, "pid")));
 });

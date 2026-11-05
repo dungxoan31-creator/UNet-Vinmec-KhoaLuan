@@ -36,6 +36,20 @@ def verify_password(password: str, hashed: str) -> bool:
 def _signing_key() -> str:
     key = os.environ.get("APP_JWT_SECRET", "")
     if len(key) < 32:
+        try:
+            from backend.app.config import DATA_DIR
+            secret_file = os.path.join(DATA_DIR, ".app_jwt_secret")
+            if os.path.isfile(secret_file):
+                with open(secret_file, "r", encoding="ascii") as sf:
+                    key = sf.read().strip()
+            elif os.environ.get("APP_ENVIRONMENT", "LOCAL") in ("LOCAL", "TEST", "DEV", "DEVELOPMENT"):
+                generated = secrets.token_urlsafe(48)
+                with open(secret_file, "w", encoding="ascii") as sf:
+                    sf.write(generated)
+                key = generated
+        except Exception:
+            pass
+    if len(key) < 32:
         raise HTTPException(status_code=503, detail="Configure APP_JWT_SECRET with at least 32 characters.")
     return key
 
@@ -124,4 +138,18 @@ def require_clinical(current_user: UserModel = Depends(get_current_user)) -> Use
             status_code=403,
             detail="Tài khoản quản trị viên hoặc phi lâm sàng không có quyền truy cập hồ sơ và hình ảnh người bệnh.",
         )
+    return current_user
+
+
+def require_case_reader(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    """Allow clinical and reviewer roles to enter case-read endpoints."""
+    if current_user.role not in {"DOCTOR", "SENIOR", "TK"}:
+        raise HTTPException(status_code=403, detail="Không có quyền xem hồ sơ ca bệnh.")
+    return current_user
+
+
+def require_evaluation_reviewer(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    """Limit model evaluation data to the reviewer role exposed by the UI."""
+    if current_user.role not in {"SENIOR", "TK"}:
+        raise HTTPException(status_code=403, detail="Chỉ chuyên gia rà soát được truy cập đánh giá mô hình.")
     return current_user

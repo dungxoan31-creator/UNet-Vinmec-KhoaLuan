@@ -123,7 +123,7 @@ def test_create_case_legacy_with_valid_patient_id(r2_client_env):
     headers = {**r2_client_env["headers"], "Idempotency-Key": str(uuid.uuid4())}
     db = r2_client_env["db"]
 
-    source_pid = f"PATIENT-{r2_client_env['prefix']}-01"
+    source_pid = f"{int(r2_client_env['prefix'], 16):09d}"
     payload = {
         "patient_id": source_pid,
         "study_date": "2026-10-31",

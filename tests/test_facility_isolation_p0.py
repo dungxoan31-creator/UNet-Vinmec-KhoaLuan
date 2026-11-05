@@ -199,7 +199,7 @@ def facility_env(tmp_path):
 
     # Prepare dummy image file
     img_file = tmp_path / f"test_{prefix}.png"
-    dummy_img = np.zeros((100, 100, 3), dtype=np.uint8)
+    dummy_img = np.repeat(np.random.default_rng(42).integers(30, 200, (256, 256, 1), dtype=np.uint8), 3, axis=2)
     dummy_img[20:80, 20:80] = 200
     cv2.imwrite(str(img_file), dummy_img)
 
@@ -225,6 +225,27 @@ def facility_env(tmp_path):
         test_db.close()
 
 
+def test_same_local_pid_maps_to_separate_patients_per_facility(facility_env):
+    client = facility_env["client"]
+    source_pid = "123456789"
+    created = []
+    for token in (facility_env["token_a"], facility_env["token_b"]):
+        response = client.post(
+            "/api/cases",
+            headers={"Authorization": f"Bearer {token}", "Idempotency-Key": str(uuid.uuid4())},
+            json={"patient_id": source_pid, "study_date": "2026-11-04", "active_ovary_side": "LEFT"},
+        )
+        assert response.status_code == 200, response.text
+        created.append(response.json())
+
+    assert created[0]["patient_id"] != created[1]["patient_id"]
+    db = facility_env["db"]
+    patient_a = db.query(PatientModel).filter_by(anonymized_pid=created[0]["patient_id"]).one()
+    patient_b = db.query(PatientModel).filter_by(anonymized_pid=created[1]["patient_id"]).one()
+    assert patient_a.facility_id == facility_env["fac_a"].id
+    assert patient_b.facility_id == facility_env["fac_b"].id
+
+
 def test_post_case_facility_assignment(facility_env):
     """POST /api/cases automatically assigns facility and blocks unassigned/mismatched users."""
     client = facility_env["client"]
@@ -239,7 +260,7 @@ def test_post_case_facility_assignment(facility_env):
         "/api/cases",
         headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
         json={
-            "patient_id": f"P-{facility_env['prefix']}-1",
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}01",
             "study_date": "2026-10-31",
             "active_ovary_side": "RIGHT",
         },
@@ -256,7 +277,7 @@ def test_post_case_facility_assignment(facility_env):
         "/api/cases",
         headers={"Authorization": f"Bearer {token_none}", "Idempotency-Key": str(uuid.uuid4())},
         json={
-            "patient_id": f"P-{facility_env['prefix']}-2",
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}02",
             "study_date": "2026-10-31",
             "active_ovary_side": "LEFT",
         },
@@ -269,7 +290,7 @@ def test_post_case_facility_assignment(facility_env):
         "/api/cases",
         headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
         json={
-            "patient_id": f"P-{facility_env['prefix']}-3",
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}03",
             "study_date": "2026-10-31",
             "active_ovary_side": "BOTH",
             "facility_id": fac_b.id,
@@ -290,7 +311,7 @@ def test_get_case_detail_isolation(facility_env):
         "/api/cases",
         headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
         json={
-            "patient_id": f"P-{facility_env['prefix']}-10",
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}10",
             "study_date": "2026-10-31",
             "active_ovary_side": "RIGHT",
         },
@@ -327,7 +348,7 @@ def test_case_search_isolation(facility_env):
         "/api/cases",
         headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
         json={
-            "patient_id": f"P-{facility_env['prefix']}-20",
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}20",
             "study_date": "2026-10-31",
             "active_ovary_side": "RIGHT",
         },
@@ -386,7 +407,7 @@ def test_case_lease_isolation(facility_env):
         "/api/cases",
         headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
         json={
-            "patient_id": f"P-{facility_env['prefix']}-30",
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}30",
             "study_date": "2026-10-31",
             "active_ovary_side": "RIGHT",
         },
@@ -431,7 +452,7 @@ def test_case_image_endpoints_isolation(facility_env):
         "/api/cases",
         headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
         json={
-            "patient_id": f"P-{facility_env['prefix']}-40",
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}40",
             "study_date": "2026-10-31",
             "active_ovary_side": "LEFT",
         },
@@ -481,3 +502,189 @@ def test_case_image_endpoints_isolation(facility_env):
         headers={"Authorization": f"Bearer {token_a}"},
     )
     assert resp_a_case_img.status_code == 200
+
+
+def test_viewer_source_and_measurements_isolation(facility_env):
+    """Deep isolation tests across viewer-source, measurements, predict, calibrate, and candidate endpoints."""
+    client = facility_env["client"]
+    token_a = facility_env["token_a"]
+    token_b = facility_env["token_b"]
+    db = facility_env["db"]
+
+    # Doctor A creates case
+    resp_create = client.post(
+        "/api/cases",
+        headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
+        json={
+            "patient_id": f"{int(facility_env['prefix'], 16) % 10_000_000:07d}50",
+            "study_date": "2026-10-31",
+            "active_ovary_side": "RIGHT",
+        },
+    )
+    assert resp_create.status_code == 200
+    study_id = resp_create.json()["study_id"]
+
+    image_id = f"img-{uuid.uuid4().hex[:8]}"
+    img_record = ImageModel(
+        id=image_id,
+        study_id=study_id,
+        filename="test_deep.png",
+        raw_path=facility_env["img_path"],
+        width=100,
+        height=100,
+        pixel_spacing_mm=0.2,
+    )
+    db.add(img_record)
+    db.commit()
+
+    # Doctor B requests viewer-source -> 403
+    resp_b_vs = client.get(
+        f"/api/images/{image_id}/viewer-source",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert resp_b_vs.status_code == 403
+    assert "cơ sở khác" in resp_b_vs.json()["detail"]
+
+    # Doctor B requests measurements -> 403
+    resp_b_meas = client.post(
+        f"/api/images/{image_id}/measurements",
+        headers={"Authorization": f"Bearer {token_b}"},
+        json={"rle_mask": {"shape": [512, 512], "first_val": 0, "counts": [262144]}},
+    )
+    assert resp_b_meas.status_code == 403
+
+    # Doctor B requests region-assignments -> 403
+    resp_b_regions = client.get(
+        f"/api/cases/{study_id}/images/{image_id}/region-assignments",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert resp_b_regions.status_code == 403
+
+    # Doctor B requests calibration -> 403
+    resp_b_cal = client.post(
+        f"/api/images/{image_id}/calibrate",
+        headers={"Authorization": f"Bearer {token_b}"},
+        json={"pixel_spacing_mm": 0.3},
+    )
+    assert resp_b_cal.status_code == 403
+
+    # Doctor A requests viewer-source -> 200
+    resp_a_vs = client.get(
+        f"/api/images/{image_id}/viewer-source",
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert resp_a_vs.status_code == 200
+    assert resp_a_vs.json()["image_id"] == image_id
+
+
+def test_direct_upload_assigns_facility_and_no_fake_pid(facility_env):
+    """Direct upload without existing study attaches doctor's facility and never creates fake ANON-UPLOAD PID."""
+    client = facility_env["client"]
+    token_a = facility_env["token_a"]
+    token_b = facility_env["token_b"]
+    db = facility_env["db"]
+
+    with open(facility_env["img_path"], "rb") as f:
+        img_bytes = f.read()
+
+    # Doctor A uploads directly without study_id or patient_id
+    resp_upload = client.post(
+        "/api/upload",
+        headers={"Authorization": f"Bearer {token_a}"},
+        files={"file": ("direct_upload.png", img_bytes, "image/png")},
+    )
+    assert resp_upload.status_code == 200
+    upload_data = resp_upload.json()
+    created_study_id = upload_data["study_id"]
+    created_image_id = upload_data["image_id"]
+
+    # Verify study in DB
+    created_study = db.query(StudyModel).filter(StudyModel.id == created_study_id).first()
+    assert created_study is not None
+    assert created_study.facility_id == facility_env["fac_a"].id
+    # Never create fake ANON-UPLOAD patient ID
+    assert created_study.patient_id is None
+    assert not (created_study.study_code and created_study.study_code.startswith("ANON-UPLOAD-"))
+
+    # Doctor B cannot access this newly uploaded case
+    resp_b_case = client.get(
+        f"/api/cases/{created_study_id}",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert resp_b_case.status_code == 403
+
+    # Doctor B cannot access the uploaded image
+    resp_b_img = client.get(
+        f"/api/images/{created_image_id}/viewer-source",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert resp_b_img.status_code == 403
+
+    # Doctor A can access both
+    resp_a_case = client.get(
+        f"/api/cases/{created_study_id}",
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert resp_a_case.status_code == 200
+
+    resp_a_img = client.get(
+        f"/api/images/{created_image_id}/viewer-source",
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert resp_a_img.status_code == 200
+
+
+def test_visit_patient_id_mismatch_rejected(facility_env):
+    """Visit cannot link to study with differing non-empty patient_id; inherits study patient_id if omitted."""
+    client = facility_env["client"]
+    token_a = facility_env["token_a"]
+
+    # Doctor A creates case with patient ID
+    pid = f"{int(facility_env['prefix'], 16) % 10_000_000:07d}99"
+    resp_case = client.post(
+        "/api/cases",
+        headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": str(uuid.uuid4())},
+        json={
+            "patient_id": pid,
+            "study_date": "2026-10-31",
+            "active_ovary_side": "LEFT",
+        },
+    )
+    assert resp_case.status_code == 200
+    study_id = resp_case.json()["study_id"]
+    case_pid = resp_case.json()["patient_id"]
+
+    # Attempt to create visit with conflicting patient ID -> 422
+    resp_mismatch = client.post(
+        "/api/v1/visits",
+        headers={"Authorization": f"Bearer {token_a}"},
+        json={
+            "study_id": study_id,
+            "patient_id": "P-CONFLICTING-999",
+        },
+    )
+    assert resp_mismatch.status_code == 422
+    assert "không khớp" in resp_mismatch.json()["detail"]
+
+    # Create visit with matching patient ID -> 201
+    resp_match = client.post(
+        "/api/v1/visits",
+        headers={"Authorization": f"Bearer {token_a}"},
+        json={
+            "study_id": study_id,
+            "patient_id": pid,
+        },
+    )
+    assert resp_match.status_code == 201, f"Failed: {resp_match.json()}"
+    assert resp_match.json()["patient_id"] == case_pid
+
+    # Create visit with null patient ID -> 201 and inherits study patient_id
+    resp_inherit = client.post(
+        "/api/v1/visits",
+        headers={"Authorization": f"Bearer {token_a}"},
+        json={
+            "study_id": study_id,
+        },
+    )
+    assert resp_inherit.status_code == 201
+    assert resp_inherit.json()["patient_id"] == case_pid

@@ -12,7 +12,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+
+from backend.core.patient_identity import (
+    normalize_source_patient_id,
+    patient_id_digest,
+    patient_pid_secret,
+)
+from backend.services.patient_identity import get_or_create_patient
 
 from backend.app.security import get_current_user, require_admin, require_clinical
 from backend.db.database import (
@@ -61,11 +68,17 @@ def _format_visit_response(visit: VisitModel, db: Session) -> VisitResponse:
             )
         )
 
+    patient_pid = None
+    if visit.patient:
+        patient_pid = visit.patient.anonymized_pid
+    elif visit.patient_id:
+        patient_pid = visit.patient_id
+
     return VisitResponse(
         id=visit.id,
         visit_code=visit.visit_code,
         facility_id=visit.facility_id,
-        patient_id=visit.patient_id,
+        patient_id=patient_pid,
         status=visit.status,
         is_locked=visit.is_locked,
         created_at=visit.created_at,
@@ -105,21 +118,77 @@ def create_visit(
     # If linked study provided, validate access and existence
     study = None
     if req.study_id:
-        study = db.query(StudyModel).filter(StudyModel.id == req.study_id).first()
+        study = (
+            db.query(StudyModel)
+            .options(joinedload(StudyModel.patient))
+            .filter(StudyModel.id == req.study_id)
+            .first()
+        )
         if not study:
             raise HTTPException(
                 status_code=404,
                 detail="Không tìm thấy ca khám để liên kết lượt khám.",
             )
         check_facility_access(current_user, study.facility_id)
+        if not facility_id:
+            facility_id = study.facility_id
+        elif study.facility_id and facility_id != study.facility_id:
+            raise HTTPException(status_code=403, detail="Cơ sở của ca khám không khớp với lượt khám.")
+
+        study_pid_values = set()
+        if study.patient_id:
+            study_pid_values.add(study.patient_id)
+        if study.patient and study.patient.anonymized_pid:
+            study_pid_values.add(study.patient.anonymized_pid)
+
+        if req.patient_id and study.patient:
+            secret = patient_pid_secret()
+            req_norm = normalize_source_patient_id(req.patient_id)
+            req_digest = patient_id_digest(req_norm, secret, facility_id=facility_id)
+            legacy_digest = patient_id_digest(req_norm, secret)
+            is_match = (
+                req.patient_id in study_pid_values
+                or req_digest == study.patient.source_pid_hmac
+                or legacy_digest == study.patient.legacy_source_pid_hmac
+            )
+            if not is_match:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Mã bệnh nhân của lượt khám không khớp với ca khám được liên kết.",
+                )
+
+    if not facility_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Vui lòng chỉ định cơ sở y tế (facility_id) cho lượt khám.",
+        )
+
+    # Determine patient synchronization between study and visit
+    target_patient = None
+    if study:
+        if study.patient:
+            target_patient = study.patient
+        elif req.patient_id:
+            target_patient = get_or_create_patient(db, req.patient_id, facility_id=facility_id)
+            study.patient_id = target_patient.id
+            study.patient = target_patient
+        else:
+            target_patient = None
+    else:
+        if req.patient_id:
+            target_patient = get_or_create_patient(db, req.patient_id, facility_id=facility_id)
+        else:
+            target_patient = None
 
     is_locked = True if req.status == "LOCKED" else False
     now = datetime.now(UTC)
+
     visit = VisitModel(
         id=str(uuid.uuid4()),
         visit_code=code,
         facility_id=facility_id,
-        patient_id=req.patient_id,
+        patient_id=target_patient.id if target_patient else None,
+        patient=target_patient,
         status=req.status or "ACTIVE",
         is_locked=is_locked,
         created_at=now,

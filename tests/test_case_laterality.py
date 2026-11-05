@@ -11,7 +11,7 @@ client = TestClient(app)
 
 def test_create_case_with_ovary_laterality():
     payload = {
-        "patient_id": "BN-TEST-LATERALITY-01",
+        "patient_id": "900000115",
         "study_code": "US-TEST-RO-001",
         "study_date": "2026-10-03",
         "patient_age": "30-39",
@@ -29,7 +29,7 @@ def test_create_case_with_ovary_laterality():
 
 def test_missing_study_context_defaults_to_unknown():
     payload = {
-        "patient_id": "BN-TEST-LATERALITY-02",
+        "patient_id": "900000116",
         "study_date": "2026-10-03",
     }
     response = client.post("/api/cases", json=payload, headers={"Idempotency-Key": str(uuid4())})

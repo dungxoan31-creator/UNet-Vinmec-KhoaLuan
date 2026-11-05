@@ -34,6 +34,33 @@ def test_case_setup():
     from backend.db import database
     db = next(database.get_db())
     try:
+        facility = db.query(database.FacilityModel).filter_by(id="FAC-DEFAULT-TEST").first()
+        if not facility:
+            facility = database.FacilityModel(
+                id="FAC-DEFAULT-TEST",
+                facility_code="FAC-DEF-TEST",
+                name="Default Test Facility",
+                is_active=True,
+            )
+            db.add(facility)
+            db.commit()
+
+        doctor = db.query(database.UserModel).filter_by(username="doctor").first()
+        if doctor and doctor.facility_id != "FAC-DEFAULT-TEST":
+            doctor.facility_id = "FAC-DEFAULT-TEST"
+            db.commit()
+
+        other_doctor = db.query(database.UserModel).filter_by(username="bacsi").first()
+        if other_doctor and other_doctor.facility_id != "FAC-DEFAULT-TEST":
+            other_doctor.facility_id = "FAC-DEFAULT-TEST"
+            db.commit()
+
+        admin = db.query(database.UserModel).filter_by(username="admin").first()
+        if admin:
+            admin.is_global_admin = True
+            admin.facility_id = "FAC-DEFAULT-TEST"
+            db.commit()
+
         patient = database.PatientModel(
             id=str(uuid.uuid4()),
             anonymized_pid=f"TEST_HITL_{uuid.uuid4().hex[:8]}",
@@ -47,6 +74,7 @@ def test_case_setup():
             status="ANALYZED",
             ovary_side="BOTH",
             review_revision=0,
+            facility_id="FAC-DEFAULT-TEST",
         )
         db.add(study)
 

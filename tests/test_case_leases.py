@@ -462,7 +462,7 @@ def test_upload_iqa_and_prediction_writes_require_the_active_lease(
     monkeypatch.setattr(
         inference.preprocessor,
         "preprocess_for_inference",
-        lambda _image: (
+        lambda _image, *args, **kwargs: (
             None,
             np.zeros((512, 512), dtype=np.uint8),
             {"scale": 1.0, "pad_w": 0, "pad_h": 0, "new_w": 512, "new_h": 512},
@@ -499,7 +499,8 @@ def test_upload_iqa_and_prediction_writes_require_the_active_lease(
     predicted = client.post(prediction_url, headers=headers)
     assert predicted.status_code == 200, predicted.text
     assert len(prediction_calls) == 1
-    assert predicted.json()["ai_diagnosis"] is None
+    assert predicted.json()["ai_diagnosis"]["status"] in {"PREDICTED", "ABSTAIN", "UNAVAILABLE"}
+    assert predicted.json()["ai_diagnosis"]["research_use_only"] is True
     assert predicted.json()["unified_findings"] is None
     expected_map_data_uri = "data:image/png;base64," + base64.b64encode(uncertainty_map_png).decode("ascii")
     assert predicted.json()["uncertainty_map_base64"] == expected_map_data_uri

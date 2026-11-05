@@ -96,7 +96,7 @@ def test_case_item_schema_fields():
         "id": "stu-1",
         "study_id": "stu-1",
         "study_code": "STU-001",
-        "visit_no": "V-01",
+        "visit_no": "000001",
         "patient_id": None,
         "patient_age": "30-39",
         "study_date": "2026-10-31",
@@ -159,6 +159,25 @@ def test_get_cases_contract(r4_test_env):
     assert validated.patient_id is None
     assert len(validated.images) >= 1
     assert validated.images[0].id == r4_test_env["image"].id
+
+
+def test_case_detail_carries_facility_report_header_and_saved_laterality_status(r4_test_env):
+    env = r4_test_env
+    env["fac"].config = {"admin_settings": {"report_header": "R4 Imaging Unit"}}
+    env["study"].ovary_side = "LEFT"
+    env["study"].contralateral_status = "NOT_VISUALIZED"
+    env["db"].commit()
+
+    response = env["client"].get(
+        f"/api/cases/{env['study'].id}",
+        headers=env["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["report_header"] == "R4 Imaging Unit"
+    assert payload["ovary_side"] == "LEFT"
+    assert payload["contralateral_status"] == "NOT_VISUALIZED"
 
 
 def test_search_cases_contract(r4_test_env):

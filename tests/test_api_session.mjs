@@ -79,6 +79,25 @@ test("transport timeout is surfaced as a retryable API error", async () => {
   }
 });
 
+test("browser fetch failures become localized API errors with recovery guidance", async () => {
+  const oldFetch = globalThis.fetch;
+  const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { onLine: true } });
+  globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  try {
+    await assert.rejects(
+      request("/api/example"),
+      error => error.status === 0
+        && /Không thể kết nối máy chủ.*thử lại/i.test(error.message)
+        && !/Failed to fetch/i.test(error.message),
+    );
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldNavigator) Object.defineProperty(globalThis, "navigator", oldNavigator);
+    else delete globalThis.navigator;
+  }
+});
+
 test("protected image timeout aborts the fetch and surfaces a retryable 408", async () => {
   const oldFetch = globalThis.fetch;
   const oldToken = state.token;
