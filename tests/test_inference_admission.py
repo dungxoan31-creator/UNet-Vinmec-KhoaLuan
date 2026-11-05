@@ -83,7 +83,11 @@ def test_segment_returns_503_when_queue_full_without_blocking_event_loop(monkeyp
     from PIL import Image
 
     from backend.app.main import app
+    from backend.app.config import model_registry
     from backend.app.routers import v1_endpoints
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
 
     monkeypatch.setattr(v1_endpoints.preprocessor, "validate_ultrasound_suitability", lambda _image: {
         "is_suitable": True, "iqa_score": 1.0, "laplacian_variance": 0.0,

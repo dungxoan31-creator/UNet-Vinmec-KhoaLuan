@@ -1,15 +1,12 @@
 {
-  "model": "U-Net++ with ResNet34 ImageNet encoder + scSE attention",
-  "model_version": "milestone_4_boosted_scse_two_stage_candidate_2026-10-27",
+  "model": "U-Net++ with ResNet34 ImageNet encoder",
+  "model_version": "milestone_3_validation_flip_tta_candidate_2026-10-19",
   "architecture": "unetplusplus_resnet34",
-  "checkpoint": "checkpoints/boosted_unetplusplus_scse_2026-10-27/boosted_resnet34_scse_best.pth",
-  "checkpoint_origin": "checkpoints/boosted_unetplusplus_scse_2026-10-27/boosted_resnet34_scse_best.pth",
-  "checkpoint_sha256": "67624bbb0e50e236df7b5c82736eaadab1ff1fff5547c5e813bca545c2dd2045",
+  "checkpoint": "checkpoints/unetplusplus_resnet34_2026-10-06/unetplusplus_resnet34_best.pth",
+  "checkpoint_origin": "checkpoints/unetplusplus_resnet34_2026-10-06/unetplusplus_resnet34_best.pth",
+  "checkpoint_sha256": "ce7580329fd8cab47cf7418e5a5ebd212bf70847983c57f352dc77a98e591e76",
   "threshold": 0.4,
   "horizontal_flip_tta": true,
-  "decoder_attention_type": "scse",
-  "loss_function": "AdvancedHybridLoss(0.5 FocalTversky + 0.3 SoftDice + 0.2 BCE)",
-  "pretraining_source": "MMOTU 2D Ovarian Ultrasound (1000 pairs, zero-shot transfer)",
   "input_normalization": {
     "mean": 0.449,
     "std": 0.226
@@ -32,47 +29,31 @@
     "metric_mask_resolution": "512x512 letterboxed; inference output restored to original size by application"
   },
   "selection_split": "val",
+  "selection_metric_note": "Validation image-level pixel recall; no clinical sensitivity claim",
   "selection_count": 541,
-  "selection_dice_mean": 0.8351150751745461,
-  "selection_iou_mean": 0.7526343508531333,
-  "selection_recall_mean": 0.8725741792157337,
-  "selection_precision_mean": 0.8429559924003996,
-  "selection_specificity_mean": 0.9810167577482636,
+  "selection_dice_mean": 0.8185119683838533,
+  "selection_iou_mean": 0.7337837890879394,
+  "selection_recall_mean": 0.8533403392647684,
+  "selection_precision_mean": 0.8334794918145697,
   "checkpoint_native_threshold_0_5_validation": {
-    "dice_mean": 0.8312618733073203,
-    "iou_mean": 0.7471145101341543,
-    "recall_mean": 0.8714234488837631,
-    "precision_mean": 0.8363568745764375,
-    "specificity_mean": 0.9797096053024758
+    "dice_mean": 0.8170359444945866,
+    "iou_mean": 0.7322870030940946,
+    "recall_mean": 0.8345088659271074,
+    "precision_mean": 0.8452297722216668
   },
-  "threshold_tuning_sweep": {
-    "threshold_0.40": {
-      "dice_mean": 0.8351150751745461,
-      "iou_mean": 0.7526343508531333,
-      "recall_mean": 0.8725741792157337,
-      "precision_mean": 0.8429559924003996,
-      "validation_selection_note": "Validation image-level pixel recall; no clinical sensitivity claim"
-    },
-    "threshold_0.50": {
-      "dice_mean": 0.835622526150517,
-      "iou_mean": 0.7538255060024046,
-      "recall_mean": 0.8650223074227833,
-      "precision_mean": 0.8507892881217112,
-      "validation_selection_note": "Peak standalone validation Dice / balanced precision"
-    }
+  "exploratory_flip_tta_validation": {
+    "selection_split": "val",
+    "count": 541,
+    "threshold": 0.4,
+    "dice_mean": 0.8185119683838533,
+    "iou_mean": 0.7337837890879394,
+    "recall_mean": 0.8533403392647684,
+    "precision_mean": 0.8334794918145697,
+    "evidence": "evaluation/accuracy_2026-10-19/candidates/summary.json"
   },
-  "multi_model_upper_bound_ensemble": {
-    "weights": "0.5 Boosted scSE + 0.5 Baseline ResNet34",
-    "threshold": 0.45,
-    "dice_mean": 0.8431,
-    "iou_mean": 0.7622,
-    "recall_mean": 0.8752,
-    "precision_mean": 0.8533,
-    "note": "Highest attainable accuracy ensemble on 541 validation set"
-  },
-  "selection_evidence": "checkpoints/boosted_unetplusplus_scse_2026-10-27/run_summary.json",
-  "training_evidence": "checkpoints/boosted_unetplusplus_scse_2026-10-27/run_summary.json",
-  "best_epoch": 7,
+  "selection_evidence": "evaluation/accuracy_2026-10-19/saved_checkpoints_cohort/summary.json",
+  "training_evidence": "checkpoints/unetplusplus_resnet34_2026-10-06/run_config.json",
+  "best_epoch": 30,
   "seed": 42,
   "source_patient_identity_verified": false,
   "independent_test_status": "BLOCKED",
@@ -98,5 +79,6 @@
     "note": "Kết quả benchmark mô phỏng in-silico; chưa chứng minh đánh giá độc lập theo bệnh nhân thật do thiếu ID nguồn."
   },
   "clinician_validation": false,
-  "previous_selection_archive": "evaluation/archive/selected_model_baseline_unetplusplus_2026-10-19.json"
+  "previous_selection_archive": "evaluation/archive/selected_model_advanced_hybrid_2026-11-05.json",
+  "loss_function": "0.5 BCEWithLogits + 0.5 SoftDice"
 }

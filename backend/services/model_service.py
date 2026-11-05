@@ -83,18 +83,23 @@ class BaseModelAdapter(ABC):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         pass
 
     def get_info(self) -> dict[str, Any]:
-        engine = getattr(self, "engine", None) if self.is_loaded else None
+        engine = getattr(self, "engine", None) if getattr(self, "engine", None) else getattr(self, "fallback_engine", None)
+        checksum = getattr(self, "checksum", None)
+        if checksum is None and self.is_loaded and engine is not None:
+            checksum = getattr(engine, "model_checksum", None)
         return {
             "name": self.name,
             "version": self.version,
             "architecture": self.architecture,
             "is_loaded": self.is_loaded,
-            "checksum": getattr(engine, "model_checksum", None),
-            "threshold": getattr(engine, "threshold", None),
+            "checkpoint": getattr(self, "checkpoint", None),
+            "checksum": checksum if self.is_loaded else None,
+            "threshold": getattr(engine, "threshold", None) if self.is_loaded else None,
         }
 
     def _record_primary_fallback(self, result: dict[str, Any]) -> dict[str, Any]:
@@ -188,9 +193,10 @@ class AttentionUNetAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         result = self.engine.run_inference(
-            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
+            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
         )
         self.device = self.engine.device
         return result
@@ -232,10 +238,11 @@ class S4MAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
             return self._record_primary_fallback(res)
         raise RuntimeError(
@@ -277,10 +284,11 @@ class UltraSAMAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
             return self._record_primary_fallback(res)
         raise RuntimeError(
@@ -325,10 +333,11 @@ class DS2NetAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
             return self._record_primary_fallback(res)
         raise RuntimeError(
@@ -372,15 +381,207 @@ class SovaSegAdapter(BaseModelAdapter):
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
             return self._record_primary_fallback(res)
         raise RuntimeError(
             f"{self.name}: The manifest-selected primary engine is unavailable; "
             "native SovaSeg inference is not implemented."
+        )
+
+
+class TinyUSFMAdapter(BaseModelAdapter):
+    """
+    Adapter for TinyUSFM compact ultrasound foundation model (5.5M params).
+    Reference: MacDunno/TinyUSFM (Apache-2.0).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native TinyUSFM loading uses the manifest-selected primary engine
+    when called directly, with native prototype available in scripts/prototype_tinyusfm_adapter.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="TinyUSFM Compact Foundation Model",
+            version="1.0.0",
+            architecture="TinyUSFM ViT-Tiny (5.5M Params + FPN Head)",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        """Native TinyUSFM weights loader."""
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native TinyUSFM inference is not implemented."
+        )
+
+
+class CSASegNetAdapter(BaseModelAdapter):
+    """
+    Adapter for CSA-SegNet Channel and Spatial Attention Network.
+    Reference: phamthiloanhd/CSA-SegNet (Academic RUO).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native prototype available in scripts/prototype_csa_attention.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="CSA-SegNet Attention Network",
+            version="1.0.0",
+            architecture="CSA-SegNet Dual Attention + SPPF Bottleneck",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native CSA-SegNet inference is not implemented."
+        )
+
+
+class MedSAMAdapter(BaseModelAdapter):
+    """
+    Adapter for MedSAM Medical Interactive Foundation Model.
+    Reference: bowang-lab/MedSAM (Apache-2.0).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native prototype available in scripts/prototype_medsam_adapter.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="MedSAM Interactive Foundation Model",
+            version="1.0.0",
+            architecture="MedSAM ViT-B Promptable Segmentation",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native MedSAM inference is not implemented."
+        )
+
+
+class MedNeXtAdapter(BaseModelAdapter):
+    """
+    Adapter for MedNeXt Medical ConvNeXt architecture.
+    Reference: MIC-DKFZ/MedNeXt (Apache-2.0).
+    Features 7x7 Depthwise Conv, Inverted Bottleneck, and Global Response Normalization (GRN).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native prototype available in scripts/prototype_mednext_block.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="MedNeXt Medical ConvNeXt",
+            version="1.0.0",
+            architecture="MedNeXt 7x7 Depthwise Inverted Bottleneck",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native MedNeXt inference is not implemented."
         )
 
 
@@ -418,6 +619,8 @@ def _get_candidate_models_file() -> str:
     return os.path.join(data_dir, "candidate_models.json")
 
 
+
+
 class ModelRegistry:
     """
     Central registry for the manifest-selected serving model and metadata-only candidates.
@@ -448,6 +651,14 @@ class ModelRegistry:
         self.register_adapter("ultrasam", UltraSAMAdapter(fallback_engine=primary_engine))
         self.register_adapter("ds2net", DS2NetAdapter(fallback_engine=primary_engine))
         self.register_adapter("sovaseg", SovaSegAdapter(fallback_engine=primary_engine))
+        self.register_adapter("tinyusfm", TinyUSFMAdapter(fallback_engine=primary_engine))
+        self.register_adapter("csasegnet", CSASegNetAdapter(fallback_engine=primary_engine))
+        self.register_adapter("medsam", MedSAMAdapter(fallback_engine=primary_engine))
+        self.register_adapter("mednext", MedNeXtAdapter(fallback_engine=primary_engine))
+
+        # File presence and a claimed hash do not mean native weights were loaded.
+        # Only each adapter's loader may establish its readiness and provenance.
+
         self.load_persisted_candidates()
 
     def load_persisted_candidates(self) -> None:
@@ -522,6 +733,7 @@ class ModelRegistry:
         pixel_spacing_mm: float = 0.1,
         model_key: str | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if model_key is None:
             adapter = self.get_primary_adapter()
@@ -529,10 +741,12 @@ class ModelRegistry:
             adapter = self.adapters.get(model_key)
             if adapter is None:
                 raise ValueError(f"Unknown model key '{model_key}'.")
+            if getattr(adapter, "ADAPTER_MODE", None) == "FALLBACK_TO_PRIMARY_MODEL":
+                raise ValueError(f"Model '{model_key}' has no native loaded implementation; use the selected primary model.")
 
         with self._admission.slot():
             return adapter.predict(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
 
     def get_admin_overview(self) -> dict[str, Any]:

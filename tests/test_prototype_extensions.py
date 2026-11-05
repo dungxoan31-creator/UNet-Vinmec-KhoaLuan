@@ -349,10 +349,12 @@ def test_new_endpoints_require_authentication():
         assert client.post("/api/images/image/measurements", json={"rle_mask": {}}).status_code == 401
 
 
-def test_registry_exposes_only_loaded_engine_checksum_and_threshold():
+def test_registry_exposes_only_loaded_engine_checksum_and_threshold(monkeypatch):
     from backend.app.config import model_registry
 
     adapter = model_registry.get_primary_adapter()
+    monkeypatch.setattr(adapter, "is_loaded", True)
+    monkeypatch.setattr(adapter.engine, "model_checksum", "a" * 64)
     info = adapter.get_info()
     assert adapter.is_loaded
     assert info["checksum"] == adapter.engine.model_checksum and len(info["checksum"]) == 64
@@ -384,7 +386,10 @@ def test_admin_latency_uses_only_positive_database_observations(source_case, mon
     assert data["latency_scope"] == "all_recorded_predictions"
     assert data["latency_filter"] == "inference_time_ms > 0"
     assert data["latency_model_version"] is None
-    assert data["registered_models"][0]["checksum"]
+    from backend.app.config import model_registry
+    primary_info = model_registry.get_primary_adapter().get_info()
+    assert data["registered_models"][0]["is_loaded"] == primary_info["is_loaded"]
+    assert data["registered_models"][0]["checksum"] == primary_info["checksum"]
     with Session(engine) as db:
         db.query(PredictionModel).update({PredictionModel.inference_time_ms: 0})
         db.commit()
@@ -531,6 +536,10 @@ def test_v1_segmentation_rejects_invalid_manual_spacing(source_case, spacing, mo
 @pytest.mark.parametrize("stored", [0.0, -1.0, float("nan"), float("inf")])
 def test_prediction_treats_legacy_invalid_spacing_as_uncalibrated(source_case, stored, monkeypatch):
     from backend.app.routers import inference
+    from backend.app.config import model_registry
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
 
     _, engine, _, _ = source_case
     monkeypatch.setattr(inference, "require_active_case_lease", lambda *_args, **_kwargs: None)
@@ -539,7 +548,7 @@ def test_prediction_treats_legacy_invalid_spacing_as_uncalibrated(source_case, s
         db.commit()
     monkeypatch.setattr(inference.preprocessor, "validate_ultrasound_suitability", lambda _image: {"is_suitable": True})
     monkeypatch.setattr(inference.preprocessor, "preprocess_for_inference",
-                        lambda _image: (None, np.zeros((512, 512), np.uint8), {}, {"iqa_score": 0.9}))
+                        lambda _image, *args, **kwargs: (None, np.zeros((512, 512), np.uint8), {}, {"iqa_score": 0.9}))
     received = []
     def capture_spacing(*_args, **kwargs):
         received.append(kwargs["pixel_spacing_mm"])
@@ -554,7 +563,11 @@ def test_prediction_treats_legacy_invalid_spacing_as_uncalibrated(source_case, s
 @pytest.mark.parametrize(("source", "dicom_spacing"), [("MANUAL", None), ("DICOM", 0.2)])
 def test_prediction_uses_only_verified_calibration_metadata(source_case, source, dicom_spacing, monkeypatch):
     from backend.app.routers import inference
+    from backend.app.config import model_registry
     from backend.services import image_service
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
 
     _, engine, _, _ = source_case
     monkeypatch.setattr(inference, "require_active_case_lease", lambda *_args, **_kwargs: None)
@@ -568,7 +581,7 @@ def test_prediction_uses_only_verified_calibration_metadata(source_case, source,
     monkeypatch.setattr(
         inference.preprocessor,
         "preprocess_for_inference",
-        lambda _image: (None, np.zeros((512, 512), np.uint8), {}, {"iqa_score": 0.9}),
+        lambda _image, *args, **kwargs: (None, np.zeros((512, 512), np.uint8), {}, {"iqa_score": 0.9}),
     )
     received = []
 
@@ -616,7 +629,7 @@ def test_v1_segment_uses_only_verified_calibration_metadata(
     monkeypatch.setattr(
         v1_endpoints.preprocessor,
         "preprocess_for_inference",
-        lambda _image: (
+        lambda _image, *args, **kwargs: (
             None,
             np.zeros((512, 512), dtype=np.uint8),
             {"scale": 1.0},

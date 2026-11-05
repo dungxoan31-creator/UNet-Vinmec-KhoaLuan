@@ -8,12 +8,16 @@ from backend.app.config import selected_checkpoint_path
 def test_selected_checkpoint_requires_matching_checksum(tmp_path):
     checkpoint = tmp_path / "vinmec_unet_best.pth"
     checkpoint.write_bytes(b"selected weights")
+    evidence = tmp_path / "run_summary.json"
+    evidence.write_text(json.dumps({"loss": "0.5 BCE + 0.5 Dice"}), encoding="utf-8")
     manifest = tmp_path / "selected_model.json"
     manifest.write_text(
         json.dumps(
             {
                 "checkpoint": str(checkpoint),
                 "checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+                "loss_function": "0.5 BCE + 0.5 Dice",
+                "training_evidence": str(evidence),
                 "threshold": 0.5,
             }
         ),
@@ -25,7 +29,7 @@ def test_selected_checkpoint_requires_matching_checksum(tmp_path):
     assert selected_checkpoint_path(manifest) is None
 
 
-def test_prototype_uses_validation_selected_research_checkpoint_without_stale_test_claim():
+def test_selected_combo_loss_candidate_has_verified_provenance_and_stays_unvalidated():
     root = Path(__file__).resolve().parents[1]
     manifest = root / "evaluation/selected_model.json"
     selection = json.loads(manifest.read_text(encoding="utf-8"))
@@ -41,6 +45,7 @@ def test_prototype_uses_validation_selected_research_checkpoint_without_stale_te
     assert selection["independent_test_status"] == "BLOCKED"
     assert selection["independent_gate_status"] == "BLOCKED"
     assert selection["test_evaluation"] is None
+    assert selection["loss_function"] == "0.5 BCEWithLogits + 0.5 SoftDice"
     benchmark = selection["synthetic_test_benchmark"]
     assert benchmark["benchmark_tag"] == "[SIMULATED - TECHNICAL BENCHMARK ONLY]"
     assert benchmark["patient_independence_verified"] is False
@@ -48,7 +53,32 @@ def test_prototype_uses_validation_selected_research_checkpoint_without_stale_te
     assert benchmark["label_provenance_verified"] is False
     assert checkpoint.is_file()
     assert hashlib.sha256(checkpoint.read_bytes()).hexdigest() == selection["checkpoint_sha256"]
+    evidence = json.loads((root / selection["training_evidence"]).read_text(encoding="utf-8"))
+    assert selection["loss_function"] == evidence["loss"]
+    assert selection["candidate_only"] is True
+    assert selection["clinician_validation"] is False
     assert selected_checkpoint_path(manifest) == str(checkpoint)
+
+
+def test_checkpoint_is_blocked_when_training_loss_evidence_disagrees(tmp_path):
+    checkpoint = tmp_path / "selected.pth"
+    checkpoint.write_bytes(b"selected weights")
+    evidence = tmp_path / "run_summary.json"
+    evidence.write_text(json.dumps({"loss": "AdvancedHybridLoss(FocalTversky + SoftDice + BCE)"}), encoding="utf-8")
+    manifest = tmp_path / "selected_model.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "checkpoint": str(checkpoint),
+                "checkpoint_sha256": hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+                "loss_function": "0.5 BCE + 0.5 Dice",
+                "training_evidence": str(evidence),
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert selected_checkpoint_path(manifest) is None
 
 
 def test_model_registry_passes_selected_flip_tta_to_inference_engine(monkeypatch):

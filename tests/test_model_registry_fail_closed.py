@@ -80,6 +80,9 @@ def test_registry_rejects_metadata_only_candidate_without_running_primary():
 
 def test_v1_segment_returns_503_when_selected_checkpoint_is_unavailable(monkeypatch):
     import asyncio
+    from io import BytesIO
+
+    from PIL import Image
 
     from backend.app.routers import v1_endpoints
 
@@ -87,11 +90,20 @@ def test_v1_segment_returns_503_when_selected_checkpoint_is_unavailable(monkeypa
         is_loaded = False
 
     monkeypatch.setattr(v1_endpoints.model_registry, "get_primary_adapter", lambda: UnloadedAdapter())
+    monkeypatch.setattr(
+        v1_endpoints.preprocessor,
+        "validate_ultrasound_suitability",
+        lambda _image: {"is_suitable": True},
+    )
+    image_buffer = BytesIO()
+    Image.new("L", (8, 8), color=0).save(image_buffer, format="PNG")
+    upload = v1_endpoints.UploadFile(filename="synthetic.png", file=BytesIO(image_buffer.getvalue()))
 
     with pytest.raises(HTTPException) as error:
-        asyncio.run(v1_endpoints.segment_image_v1(file=None, image_id="image-1", db=None))
+        asyncio.run(v1_endpoints.segment_image_v1(file=upload, image_id=None, db=None))
 
     assert error.value.status_code == 503
+    assert error.value.detail == "Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn."
 
 
 @pytest.mark.parametrize("adapter_type", [S4MAdapter, UltraSAMAdapter, DS2NetAdapter, SovaSegAdapter])

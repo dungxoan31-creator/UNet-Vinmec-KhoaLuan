@@ -10,6 +10,7 @@ RUO inference and measurement service for research review:
 
 import base64
 import hashlib
+import logging
 import math
 import os
 import tempfile
@@ -25,6 +26,8 @@ from backend.core.calibration import normalize_pixel_spacing
 from backend.core.image_utils import MAX_DECODED_IMAGE_PIXELS
 from backend.models.attention_unet import AttentionUNet
 from backend.models.unet import StandardUNet
+
+logger = logging.getLogger(__name__)
 
 
 def _build_model(model_kind, device, decoder_attention_type=None):
@@ -829,7 +832,7 @@ class InferenceEngine:
         padded_gray: np.ndarray,
         pixel_spacing_mm: float | None = None,
         scale: float = 1.0,
-        generate_overlay: bool = True,
+        generate_overlay: bool = False,
     ) -> dict:
         """
         Executes full medical inference pipeline:
@@ -909,11 +912,15 @@ class InferenceEngine:
         morph_analysis = {}
         cdss = {}
 
+        # Classify once on the decoded source image at the API/CLI boundary.
+        # This enhanced letterboxed image is not the classifier's training input.
+        ai_diagnosis = None
+
         # Encode RLE and Overlay
         rle = self.mask_to_rle(clean_mask)
         overlay_base64 = (
             self.generate_overlay_base64(padded_gray, clean_mask, measurements)
-            if (generate_overlay and getattr(self, "default_generate_overlay", True))
+            if generate_overlay
             else None
         )
 
@@ -938,6 +945,7 @@ class InferenceEngine:
             "measurements": measurements,
             "acoustic_profile": morph_analysis,
             "cdss_classification": cdss,
+            "ai_diagnosis": ai_diagnosis,
             "overlay_base64": overlay_base64,
             "uncertainty_map_png": self.encode_uncertainty_heatmap_png(probs),
             "binary_mask_np": clean_mask,
