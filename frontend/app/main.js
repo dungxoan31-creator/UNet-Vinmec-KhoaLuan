@@ -1,5 +1,7 @@
+import { applyBrandIdentity } from "./branding.js";
+applyBrandIdentity();
 import { restoreSession, sessionMonitor } from "./auth.js";
-import { bindGlobal, navigate } from "./navigation.js?v=remove-patients-20261024";
+import { bindGlobal, navigate } from "./navigation.js?v=20261103-add-visit";
 import { nextCase } from "./workflow.js";
 window.addEventListener("ova:next-case", (e) => nextCase(e.detail));
 import { state } from "./state.js";

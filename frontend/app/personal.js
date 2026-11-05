@@ -1,4 +1,5 @@
 import { state, preferences } from "./state.js";
+import { applySessionResponse } from "./auth.js";
 import { request } from "./api.js";
 import { $, esc, field, pageHead, button, modal, toast } from "./ui.js";
 import { startTour } from "./onboarding.js";
@@ -62,10 +63,11 @@ export function renderPersonal(root, route) {
           if (data.new_password !== data.confirmation)
             return toast("Mật khẩu xác nhận không trùng.", true);
           try {
-            await request("/api/auth/change-password", {
+            const result = await request("/api/auth/change-password", {
               method: "POST",
               body: data,
             });
+            applySessionResponse(result);
             d.close();
             toast("Đã đổi mật khẩu.");
           } catch (err) {
@@ -98,7 +100,7 @@ export function renderPersonal(root, route) {
       const workflowStep = root.querySelectorAll(".help-step")[3];
       if (workflowStep) {
         workflowStep.querySelector("h3").textContent =
-          "4. Lưu rà soát nghiên cứu (RUO)";
+          "4. Lưu rà soát tham khảo";
         workflowStep.querySelector("p").textContent =
           "Ctrl+S hoặc Ctrl+Enter lưu rà soát và chuyển ca tiếp theo. Quy trình ký duyệt hai cấp chưa khả dụng.";
       }

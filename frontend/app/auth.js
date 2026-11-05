@@ -1,4 +1,5 @@
 import { state, roles, setBusy } from "./state.js";
+import { BRAND_CLASS, BRAND_LOGO_SRC, BRAND_ALT } from "./branding.js";
 import { request } from "./api.js";
 import { clearUIEvents } from "./hitl-tracker.js";
 import { updateEnvironmentNotices } from "./environment-notices.js";
@@ -21,10 +22,15 @@ function clearActive() {
   state.queue = [];
   state.pendingReview = null;
 }
-function acceptSession(result) {
+export function clearLegacyLocalPatientData(userId) {
+  if (!userId) return;
+  try {
+    localStorage.removeItem(`ova.demo-patients.v1.${encodeURIComponent(userId)}`);
+  } catch {}
+}
+export function applySessionResponse(result) {
   if (!result.access_token || !roles[result.user?.role])
     throw Error("Phản hồi đăng nhập không hợp lệ.");
-  clearActive();
   state.token = result.access_token;
   state.user = result.user;
 
@@ -33,6 +39,12 @@ function acceptSession(result) {
   sessionStorage.setItem("ova.token", state.token);
   sessionStorage.setItem("ova.expiry", expiresAt);
   sessionStorage.setItem("ova.lastUsername", state.user.username);
+}
+function acceptSession(result) {
+  clearActive();
+  if (state.user?.id && state.user.id !== result.user?.id)
+    clearLegacyLocalPatientData(state.user.id);
+  applySessionResponse(result);
   request("/api/capabilities", { signal: null })
     .then((c) => {
       Object.assign(state.capabilities, c);
@@ -43,6 +55,8 @@ function acceptSession(result) {
 }
 export async function logout() {
   clearActive();
+  const userId = state.user?.id;
+  clearLegacyLocalPatientData(userId);
   try {
     if (state.token)
       await request("/api/auth/logout", { method: "POST", signal: null, timeoutMs: 5000 });
@@ -101,7 +115,7 @@ export function renderAuth(mode = "login") {
   );
   const user =
     mode === "expired" ? sessionStorage.getItem("ova.lastUsername") || "" : "";
-  return `<div class="auth-layout"><aside class="auth-aside"><div class="brand-mark"><span class="vinmec-logo-card"><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261029-vinmec-premium" alt="Vinmec International Hospital" width="1616" height="973" decoding="async"></span><div class="brand-subtext"><span class="brand-name">OVARIAN ULTRASOUND · RUO</span><span class="brand-dept">Nguyên mẫu nghiên cứu độc lập</span></div></div><div class="auth-aside-content"><div class="eyebrow-badge"><span class="pulse-dot"></span><span>HUMAN-IN-THE-LOOP CDSS · RUO</span></div><h1>Mỗi đường biên.<br>Một quyết định<br>của người rà soát.</h1><p>Môi trường nghiên cứu để xem phân đoạn, hiệu chỉnh mask và lưu vết thao tác rà soát. Chưa được xác thực lâm sàng; không dùng để chẩn đoán hoặc chăm sóc bệnh nhân.</p></div><div class="auth-aside-footer"><div class="auth-badge"><span class="badge-dot"></span><span>Nguyên mẫu nghiên cứu · Không đại diện cho cơ sở y tế</span></div></div></aside><section class="auth-card"><h2>${titles[mode] || titles.login}</h2><p class="muted">${mode === "expired" ? "Bản nháp được giữ trên thiết bị. Đăng nhập cùng tài khoản để tiếp tục." : verifyEmail ? "Nhập email và mã xác minh được gửi khi đăng ký. Tài khoản vẫn cần quản trị viên duyệt trước khi đăng nhập." : register ? "Tạo tài khoản bác sĩ mới. Email cần được xác minh và tài khoản cần quản trị viên duyệt." : "Sử dụng tài khoản được đơn vị quản trị cấp."}</p><form id="authForm">
+  return `<div class="auth-layout"><aside class="auth-aside"><div class="brand-mark"><span class="${BRAND_CLASS}-card"><img class="${BRAND_CLASS}" src="${BRAND_LOGO_SRC}" alt="${BRAND_ALT}" width="1616" height="973" decoding="async"></span><div class="brand-subtext"><span class="brand-name">SIÊU ÂM BUỒNG TRỨNG</span><span class="brand-dept">Hỗ trợ phân tích hình ảnh</span></div></div><div class="auth-aside-content"><div class="eyebrow-badge"><span class="pulse-dot"></span><span>HUMAN-IN-THE-LOOP CDSS · RUO</span></div><h1>Mỗi đường biên.<br>Một quyết định<br>của người rà soát.</h1><p>Môi trường nghiên cứu hỗ trợ xem phân đoạn, hiệu chỉnh mask và lưu vết thao tác HITL. Bác sĩ rà soát và xác nhận trước khi lưu.</p></div><div class="auth-aside-footer"><div class="auth-badge"><span class="badge-dot"></span><span>Bác sĩ rà soát và xác nhận kết quả</span></div></div></aside><section class="auth-card"><h2>${titles[mode] || titles.login}</h2><p class="muted">${mode === "expired" ? "Bản nháp được giữ trên thiết bị. Đăng nhập cùng tài khoản để tiếp tục." : verifyEmail ? "Nhập email và mã xác minh được gửi khi đăng ký. Tài khoản vẫn cần quản trị viên duyệt trước khi đăng nhập." : register ? "Tạo tài khoản bác sĩ mới. Email cần được xác minh và tài khoản cần quản trị viên duyệt." : "Sử dụng tài khoản được đơn vị quản trị cấp."}</p><form id="authForm">
         ${login || mode === "forgot" || register ? field("Tên đăng nhập", "username", "text", user, 'required autocomplete="username"') : ""}
         ${register ? field("Họ và tên bác sĩ / chuyên môn", "full_name", "text", "", 'required autocomplete="name"') : ""}
         ${register ? field("Email công tác", "email", "email", "", 'required autocomplete="email"') : ""}

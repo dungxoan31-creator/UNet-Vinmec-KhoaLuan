@@ -40,17 +40,18 @@ test("frontend/app/upload.js does not synthesize BN-* or UUID patient_id", () =>
   );
 });
 
-test("frontend/app/intake.js does not advertise synthetic BN-XXXX generation", () => {
+test("frontend/app/intake.js has no manual PID field and labels the anonymous research path", () => {
   const intakeCode = fs.readFileSync(path.join(rootDir, "frontend/app/intake.js"), "utf8");
 
   assert.equal(
     intakeCode.includes("BN-XXXX"),
     false,
-    "intake.js should not mention 'BN-XXXX' in PID placeholder"
+    "intake.js should not mention a generated patient ID"
   );
+  assert.equal(/name=["']pid["']/.test(intakeCode), false, "intake must not require a manual source PID field");
   assert.equal(
-    intakeCode.includes('placeholder="Để trống cho ca nghiên cứu không định danh"'),
+    intakeCode.includes('button("Khảo sát không định danh", "anonymous-study", "primary")'),
     true,
-    "intake.js should guide user that empty PID is for de-identified study"
+    "intake should provide an explicit anonymous research-case path"
   );
 });

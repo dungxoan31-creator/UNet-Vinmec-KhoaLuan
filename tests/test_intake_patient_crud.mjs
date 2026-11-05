@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("intake.js implements edit and delete buttons in patient table", () => {
+test("intake.js implements facility patient CRUD without source PID entry", () => {
   const code = fs.readFileSync(path.join(rootDir, "frontend/app/intake.js"), "utf8");
   assert.match(code, /data-edit-patient/, "intake.js must have data-edit-patient buttons");
   assert.match(code, /data-delete-patient/, "intake.js must have data-delete-patient buttons");
-  assert.match(code, /validatePid/, "intake.js must import or use validatePid");
+  assert.match(code, /validateFullName/, "intake.js must validate patient names");
+  assert.match(code, /validateBirthYear/, "intake.js must validate optional birth year");
+  assert.doesNotMatch(code, /name=["']pid["']/, "intake must not require a source PID");
   assert.match(code, /form-validator\.js/, "intake.js must import form-validator.js");
 });

@@ -7,7 +7,7 @@ import { $, esc, pageHead, badge, loading, errorBox } from "./ui.js";
 export async function renderApproval(root, id, page = 1) {
   root.innerHTML =
     pageHead(
-      id ? "Đối chiếu bản rà soát RUO" : "Hàng chờ rà soát RUO",
+      id ? "Đối chiếu bản rà soát" : "Hàng chờ rà soát",
       "Chỉ xem và đối chiếu hồ sơ. Trang này không phê duyệt lâm sàng.",
     ) + `<div id="approvalData">${loading()}</div>`;
   try {
@@ -28,7 +28,7 @@ export async function renderApproval(root, id, page = 1) {
     }
     const c = await openCase(id),
       target = $("#approvalData", root);
-    target.innerHTML = `<div class="breadcrumb"><a href="#approval">Hàng chờ rà soát RUO</a> / ${esc(c.study_code || c.study_id)}</div><section class="panel"><div class="panel-head"><h2>${esc(c.study_code || c.study_id)} · ${esc(c.patient_id)}</h2><div class="small">Trạng thái bản rà soát RUO: ${badge(c.status)}</div></div><div class="panel-body"><p class="banner warning ruo-approval-notice" role="note">Bản RUO này chỉ để đối chiếu nội bộ. Chức năng ký duyệt, chuyển trạng thái và phát hành kết quả lâm sàng chưa được triển khai.</p><div class="grid-2">${c.images.map((i) => `<section><h3>Buồng trứng ${formatLaterality(i.laterality)}</h3>${i.source ? `<img src="${esc(i.source)}" alt="Ảnh bên ${formatLaterality(i.laterality)}" style="width:100%;max-height:280px;object-fit:contain;background:#20262c">` : "<p>Ảnh sẽ tải trong workstation.</p>"}<p>${esc(i.notes || i.review?.clinical_notes || "Chưa có ghi chú")}</p><a class="btn" href="#viewer/${encodeURIComponent(c.study_id)}">Mở ảnh trong viewer RUO</a></section>`).join("")}</div>${c.signed_by ? `<div class="banner info">Người ghi nhận bản trước: ${esc(c.signed_by)} · Phiên bản ${esc(c.version || "chưa có")}</div>` : ""}${c.reason ? `<div class="banner warning">${esc(c.reason)}</div>` : ""}</div></section>`;
+    target.innerHTML = `<div class="breadcrumb"><a href="#approval">Hàng chờ rà soát</a> / ${esc(c.study_code || c.study_id)}</div><section class="panel"><div class="panel-head"><h2>${esc(c.study_code || c.study_id)} · ${esc(c.patient_id)}</h2><div class="small">Trạng thái bản rà soát: ${badge(c.status)}</div></div><div class="panel-body"><p class="banner warning ruo-approval-notice" role="note">Bản rà soát này chỉ để đối chiếu nội bộ. Chức năng ký duyệt, chuyển trạng thái và phát hành kết quả lâm sàng chưa được triển khai.</p><div class="grid-2">${c.images.map((i) => `<section><h3>Buồng trứng ${formatLaterality(i.laterality)}</h3>${i.source ? `<img src="${esc(i.source)}" alt="Ảnh bên ${formatLaterality(i.laterality)}" style="width:100%;max-height:280px;object-fit:contain;background:#20262c">` : "<p>Ảnh sẽ tải trong workstation.</p>"}<p>${esc(i.notes || i.review?.clinical_notes || "Chưa có ghi chú")}</p><a class="btn" href="#viewer/${encodeURIComponent(c.study_id)}">Mở ca trong Workstation</a></section>`).join("")}</div>${c.signed_by ? `<div class="banner info">Người ghi nhận bản trước: ${esc(c.signed_by)} · Phiên bản ${esc(c.version || "chưa có")}</div>` : ""}${c.reason ? `<div class="banner warning">${esc(c.reason)}</div>` : ""}</div></section>`;
     const previews = [];
     for (const image of c.images) {
       previews.push({ image, html: await approvalImages(image) });

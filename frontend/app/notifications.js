@@ -38,8 +38,8 @@ export async function renderNotifications(root) {
     }
     if (rows.length === 0) {
       target.innerHTML = empty(
-        "Thông báo chưa khả dụng",
-        "Hệ thống hiện chưa có nguồn thông báo lưu bền vững; thông báo và trạng thái đã đọc chưa được hỗ trợ.",
+        "Chưa có thông báo",
+        "Thông báo về ca được phân công hoặc yêu cầu hiệu chỉnh sẽ xuất hiện ở đây.",
       );
       return;
     }
@@ -66,13 +66,6 @@ export async function renderNotifications(root) {
             n.is_read = true;
           });
       } catch (e) {
-        if (e?.status === 501 || e?.message?.includes("501")) {
-          toast(
-            "Tính năng đánh dấu đã đọc đang thử nghiệm và chưa được máy chủ hỗ trợ.",
-            true,
-          );
-          return;
-        }
         throw e;
       }
     };

@@ -37,21 +37,21 @@ export function startTour() {
           ],
           [
             "Hiệu chuẩn và lưu rà soát",
-            "Thiếu spacing chỉ hiển thị pixel. Lưu rà soát RUO không đồng nghĩa ký hoặc phê duyệt lâm sàng.",
+            "Thiếu spacing chỉ hiển thị pixel. Lưu rà soát không đồng nghĩa ký hoặc phê duyệt lâm sàng.",
           ],
         ]
       : r === "TK"
         ? [
             [
-              "Hàng chờ rà soát RUO",
+              "Hàng chờ rà soát",
               "Mở các bản rà soát đã lưu để đối chiếu.",
             ],
             [
-              "Đối chiếu nội bộ RUO",
+              "Đối chiếu nội bộ",
               "Đối chiếu ảnh gốc, mask AI và bản rà soát đã lưu; đây không phải xác nhận lâm sàng.",
             ],
             [
-              "Trạng thái quy trình RUO",
+              "Trạng thái quy trình",
               "Trang đối chiếu chỉ đọc. Chuyển trạng thái và phê duyệt lâm sàng chưa được triển khai.",
             ],
           ]

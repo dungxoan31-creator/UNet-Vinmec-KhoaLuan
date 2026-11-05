@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createIntakeSession, createDemoPatientStore, intakeSidesReady, planBilateralDrop } from '../frontend/app/intake-session.js';
+import { createIntakeSession, intakeSidesReady, planBilateralDrop } from '../frontend/app/intake-session.js';
 import { formatLaterality, suggestLaterality } from '../frontend/app/laterality-hint.js';
 
 test('unknown laterality is never displayed as the right ovary', () => {
@@ -61,27 +61,4 @@ test('single-sided intake requires one confirmed image and an explicit contralat
   assert.equal(intakeSidesReady(noImage, {}, { L: 'SURGICALLY_ABSENT', R: 'NOT_VISUALIZED' }), false);
   assert.equal(intakeSidesReady({ L: {}, R: null }, { L: true }, { L: 'SURGICALLY_ABSENT', R: 'NOT_VISUALIZED' }), false);
   assert.equal(intakeSidesReady({ L: {}, R: {} }, { L: true, R: true }, {}), true);
-});
-
-test('quota/security failures preserve session rows and isolate account namespaces', () => {
-  const seeds = [{ pid: 'seed', name: 'Synthetic', age: 20 }];
-  const blocked = () => { throw new DOMException('denied', 'SecurityError'); };
-  const store = createDemoPatientStore(seeds, blocked);
-  assert.equal(store.read('A').length, 1);
-  assert.equal(store.isTransient('A'), true);
-  const added = { pid: 'new', name: 'Synthetic new', age: 30 };
-  store.save('A', [...store.read('A'), added]);
-  assert.equal(store.read('A').length, 2);
-  assert.equal(store.read('B').length, 1);
-  assert.equal(seeds.length, 1, 'fallback must not mutate the global seeds');
-});
-
-test('malformed saved rows fall back safely and a subsequent successful write is durable', () => {
-  const items = new Map([['A', '[null]']]);
-  const store = createDemoPatientStore([{ pid: 'seed', name: 'Synthetic', age: 20 }], () => ({
-    getItem: key => items.get(key), setItem: (key, value) => items.set(key, value),
-  }));
-  assert.equal(store.read('A')[0].pid, 'seed');
-  assert.equal(store.isTransient('A'), false);
-  assert.equal(JSON.parse(items.get('A'))[0].pid, 'seed');
 });

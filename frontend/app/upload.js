@@ -150,13 +150,12 @@ export async function startBilateral(files, metadata) {
     delete state.case.files;
     pending.lease?.handoff?.();
     pending = null;
-    // UAT-03: Re-enable PID field now that the case flow is complete
-    const pidInput = document.querySelector("[name=pid]");
-    if (pidInput) { pidInput.disabled = false; pidInput.title = ""; }
     location.hash = "#viewer/" + state.case.study_id;
   }
   try {
     const targetPid = (metadata.pid || "").trim();
+    const targetDirectoryId = (metadata.patient_directory_id || "").trim();
+    const targetPatientRef = targetDirectoryId ? `directory:${targetDirectoryId}` : targetPid ? `source:${targetPid}` : "";
     if (
       !pending ||
       pending.owner !== identity ||
@@ -164,17 +163,31 @@ export async function startBilateral(files, metadata) {
       pending.files.R !== files.R ||
       pending.active_ovary_side !== activeOvarySide ||
       pending.contralateral_status !== contralateralStatus ||
-      (pending.patient_id && targetPid && pending.patient_id !== targetPid) ||
-      (pending.requested_pid !== undefined && pending.requested_pid !== targetPid)
+      (pending.requested_patient_ref !== undefined && pending.requested_patient_ref !== targetPatientRef)
     ) {
       pending = null;
-      const result = await request("/api/cases", {
+      // Validate the entire selection before creating any persistent case.
+      for (const side of uploadSides) {
+        for (const entry of imageEntries[side]) {
+          check();
+          const body = new FormData();
+          body.append("file", entry.file);
+          stage(side, `Kiểm tra ảnh ${entry.index + 1}/${imageEntries[side].length} trước khi tạo ca…`);
+          await request("/api/intake/extract-metadata?validate_quality=true", {
+            method: "POST", body, signal,
+          });
+          check();
+        }
+      }
+      const result = metadata.prepared_case || await request("/api/cases", {
         method: "POST",
         body: {
           patient_id: targetPid && targetPid.trim() ? targetPid.trim() : null,
+          patient_directory_id: targetDirectoryId || null,
+          patient_age: metadata.patient_age == null ? null : String(metadata.patient_age),
           active_ovary_side: activeOvarySide,
           contralateral_status: contralateralStatus || "UNKNOWN",
-          clinical_notes: state.capabilities?.synthetic_demo_mode === true ? null : metadata.reason,
+          clinical_notes: state.capabilities?.synthetic_demo_mode === true ? null : (metadata.reason || null),
           study_date: metadata.study_date,
         },
         headers: metadata.idempotency_key
@@ -188,20 +201,15 @@ export async function startBilateral(files, metadata) {
         owner: identity,
         files: { ...files },
         images: [],
-        requested_pid: targetPid,
+        requested_patient_ref: targetPatientRef,
         active_ovary_side: activeOvarySide,
         contralateral_status: contralateralStatus || "UNKNOWN",
+        intakeSidesReady: !metadata.prepared_case,
       };
       document.querySelectorAll(".intake-images .dropzone").forEach(zone => { zone.dataset.uploadLocked = "true"; });
       const visitNumber = document.querySelector("[data-visit-no]");
       if (visitNumber) visitNumber.textContent = /^\d{6}$/.test(result.visit_no || "") ? result.visit_no : "Chưa cấp";
       await ensureCaseLease();
-      // UAT-03: Lock PID field once a case has been created to prevent stale PID on retry
-      const pidInput = document.querySelector("[name=pid]");
-      if (pidInput) {
-        pidInput.disabled = true;
-        pidInput.title = "Mã bệnh nhân đã được ghi nhận cho ca này. Tạo ca mới để thay đổi.";
-      }
       try {
         await tracker.startSession(pending.study_id, {
           participant_code: metadata.participant_code,
@@ -215,6 +223,14 @@ export async function startBilateral(files, metadata) {
       }
     }
     await ensureCaseLease();
+    if (!pending.intakeSidesReady) {
+      await request(`/api/cases/${pending.study_id}/intake-sides`, {
+        method: "PUT", headers: leaseHeaders(), signal,
+        body: { active_ovary_side: activeOvarySide, contralateral_status: contralateralStatus || "UNKNOWN" },
+      });
+      check();
+      pending.intakeSidesReady = true;
+    }
     const setStep = (stepNum) => {
       const spans = document.querySelectorAll(".stepper span");
       spans.forEach((s, idx) => {
@@ -295,8 +311,7 @@ export async function startBilateral(files, metadata) {
         `<div class="actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${pending?.images.length >= 1 ? button("Chuyển sang chế độ vẽ tay", "manual-fallback", "quiet") : ""}${error.qualityImage && state.capabilities.iqa_override ? button("Bỏ qua cảnh báo & tiếp tục", "iqa-override", "quiet") : ""}</div>`;
       $("[data-action=retry-upload-error]")?.addEventListener("click", () => {
         if (metadata.onRetry) { metadata.onRetry(); return; }
-        const freshPid = (document.querySelector("[name=pid]")?.value || metadata.pid || "").trim();
-        startBilateral(files, { ...metadata, pid: freshPid });
+        startBilateral(files, metadata);
       });
       $("[data-action=manual-fallback]")?.addEventListener(
         "click",

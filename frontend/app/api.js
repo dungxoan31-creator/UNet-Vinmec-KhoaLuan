@@ -10,6 +10,15 @@ export class ApiError extends Error {
   }
 }
 
+async function fetchWithNetworkErrors(path, options, message) {
+  try {
+    return await fetch(path, options);
+  } catch (error) {
+    if (error?.name === "AbortError") throw error;
+    throw new ApiError(message, 0);
+  }
+}
+
 async function withTimeout(signal, timeoutMs, operation) {
   const controller = new AbortController();
   const abortFromCaller = () => controller.abort(signal.reason);
@@ -50,7 +59,7 @@ export async function request(
   } = {},
 ) {
   if (!navigator.onLine)
-    throw new ApiError("Mất kết nối. Bản nháp vẫn được giữ trên thiết bị.", 0);
+    throw new ApiError("Mất kết nối mạng. Kiểm tra kết nối rồi thử lại.", 0);
   const identity = state.user?.id;
   const token = state.token;
   const sessionChanged = () => identity !== state.user?.id || token !== state.token;
@@ -62,14 +71,14 @@ export async function request(
     headers["Content-Type"] = "application/json";
 
   return withTimeout(signal, timeoutMs, async (requestSignal) => {
-    const r = await fetch(path, {
+    const r = await fetchWithNetworkErrors(path, {
       method,
       headers,
       body:
         body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
       signal: requestSignal,
       ...fetchOptions,
-    });
+    }, "Không thể kết nối máy chủ. Kiểm tra mạng rồi thử lại.");
     if (sessionChanged())
       throw new DOMException("Đã đổi phiên", "AbortError");
     if (r.status === 401) {
@@ -121,10 +130,10 @@ export async function protectedImage(path, timeoutMs = DEFAULT_REQUEST_TIMEOUT_M
     state.routeController?.signal,
     timeoutMs,
     async (signal) => {
-      const r = await fetch(path, {
+      const r = await fetchWithNetworkErrors(path, {
         signal,
         headers: { Authorization: `Bearer ${token}` },
-      });
+      }, "Không thể kết nối để tải ảnh. Kiểm tra mạng rồi thử lại.");
       if (token !== state.token)
         throw new DOMException("Đã đổi phiên", "AbortError");
       if (r.status === 401) {

@@ -1,6 +1,7 @@
 import { state, role } from "./state.js";
 import { request, protectedImage } from "./api.js";
 import { getCasesPage } from "./cases.js";
+import { patientRecordLabel } from "./patient-labels.js";
 
 import {
   $,
@@ -36,18 +37,18 @@ export async function renderWorklist(root) {
   root.innerHTML =
     pageHead(
       "Danh sách ca",
-      "Theo dõi hồ sơ RUO hai bên và tiếp tục rà soát đã lưu.",
+      "Theo dõi danh sách ca khảo sát và tiếp tục rà soát đã lưu.",
       r === "BS" ? '<a class="btn primary" href="#intake">Tải ảnh mới</a>' : "",
     ) +
-    `<p class="muted">Danh sách hồ sơ nghiên cứu RUO trong phạm vi tài khoản.</p>
-        <div class="filters"><input id="caseSearch" type="search" placeholder="Mã ca, PID giả danh hoặc PID nguồn đầy đủ" aria-label="Tìm ca"><select id="caseStatus" aria-label="Trạng thái"><option value="">Mọi trạng thái</option>${Object.entries(
+    `<p class="muted">Danh sách ca khảo sát trong phạm vi tài khoản.</p>
+        <div class="filters"><input id="caseSearch" type="search" placeholder="Mã ca, tên hồ sơ hoặc mã nghiên cứu" aria-label="Tìm ca"><select id="caseStatus" aria-label="Trạng thái"><option value="">Mọi trạng thái</option>${Object.entries(
           statusLabels,
         )
           .map(([key, label]) => `<option value="${key}">${label}</option>`)
           .join(
             "",
           )}</select><input id="caseDate" type="date" aria-label="Ngày khảo sát">${button("Lưu bộ lọc", "save-filter")}${button("Làm mới", "refresh-cases")}</div>
-        <div class="actions bulk-actions"><span class="muted small" data-export-status="disabled">Xuất dữ liệu đang bị khóa trên máy chủ RUO.</span><label class="small"><input id="autoRefresh" type="checkbox" checked> Tự làm mới mỗi phút</label></div>
+        <div class="actions bulk-actions"><span class="muted small" data-export-status="disabled">Xuất dữ liệu đang bị khóa trên máy chủ.</span><label class="small"><input id="autoRefresh" type="checkbox" checked> Tự làm mới mỗi phút</label></div>
         <div class="worklist-view-switch" role="group" aria-label="Cách hiển thị danh sách ca"><button class="btn small" id="caseTableView" type="button" aria-pressed="true">Dạng bảng</button><button class="btn small" id="caseGridView" type="button" aria-pressed="false">Dạng lưới</button></div>
         <div class="panel" id="caseResults">${loading()}</div>`;
   const target = $("#caseResults", root);
@@ -81,7 +82,7 @@ export async function renderWorklist(root) {
   };
   const renderTable = () =>
     `<div class="table-wrap"><table><thead><tr>${[
-      ["study_code", "Mã ca / PID"],
+      ["study_code", "Mã ca"],
       ["images", "Trái / Phải"],
       ["status", "Trạng thái"],
       ["study_date", "Ngày khảo sát"],
@@ -93,7 +94,7 @@ export async function renderWorklist(root) {
       .join("")}<th></th></tr></thead><tbody>${rows
       .map(
         (c) =>
-          `<tr><td><a href="#case/${encodeURIComponent(c.study_id)}"><strong>${esc(c.study_code || c.study_id)}</strong></a><small>PID ${esc(c.patient_id)}</small><small>Visit No ${esc(c.visit_no || "Chưa cấp")}</small></td><td><div class="case-thumbs">${thumbnail(c, "L")}${thumbnail(c, "R")}</div></td><td>${badge(c.status)}</td><td>${esc(c.study_date || "—")}</td><td><a class="btn small" href="#${r === "TK" && c.status === "SIGNED_PRELIM" ? "approval" : "viewer"}/${encodeURIComponent(c.study_id)}">Mở ca</a></td></tr>`,
+          `<tr><td><a href="#case/${encodeURIComponent(c.study_id)}"><strong>${esc(c.study_code || c.study_id)}</strong></a><small>${esc(patientRecordLabel(c))}</small><small>Visit No ${esc(c.visit_no || "Chưa cấp")}</small></td><td><div class="case-thumbs">${thumbnail(c, "L")}${thumbnail(c, "R")}</div></td><td>${badge(c.status)}</td><td>${esc(c.study_date || "—")}</td><td><a class="btn small" href="#${r === "TK" && c.status === "SIGNED_PRELIM" ? "approval" : "viewer"}/${encodeURIComponent(c.study_id)}">Mở ca</a></td></tr>`,
       )
       .join("")}</tbody></table></div>`;
   const renderGrid = () =>
@@ -101,7 +102,7 @@ export async function renderWorklist(root) {
       .map((c) => {
         const openRoute =
           r === "TK" && c.status === "SIGNED_PRELIM" ? "approval" : "viewer";
-        return `<article class="worklist-grid-card" data-worklist-card="${esc(c.study_id)}" role="listitem"><div class="worklist-grid-card-head">${badge(c.status)}</div><a class="worklist-grid-open" href="#${openRoute}/${encodeURIComponent(c.study_id)}" aria-label="Mở ca ${esc(c.study_code || c.study_id)}"><div class="case-thumbs worklist-grid-thumbs">${thumbnail(c, "L")}${thumbnail(c, "R")}</div><strong>${esc(c.study_code || c.study_id)}</strong><small>PID ${esc(c.patient_id)}</small><small>Visit No ${esc(c.visit_no || "Chưa cấp")}</small></a><dl class="worklist-grid-meta"><div><dt>Ngày khảo sát</dt><dd>${esc(c.study_date || "—")}</dd></div></dl></article>`;
+        return `<article class="worklist-grid-card" data-worklist-card="${esc(c.study_id)}" role="listitem"><div class="worklist-grid-card-head">${badge(c.status)}</div><a class="worklist-grid-open" href="#${openRoute}/${encodeURIComponent(c.study_id)}" aria-label="Mở ca ${esc(c.study_code || c.study_id)}"><div class="case-thumbs worklist-grid-thumbs">${thumbnail(c, "L")}${thumbnail(c, "R")}</div><strong>${esc(c.study_code || c.study_id)}</strong><small>${esc(patientRecordLabel(c))}</small><small>Visit No ${esc(c.visit_no || "Chưa cấp")}</small></a><dl class="worklist-grid-meta"><div><dt>Ngày khảo sát</dt><dd>${esc(c.study_date || "—")}</dd></div></dl></article>`;
       })
       .join("")}</div>`;
   const syncViewButtons = () => {

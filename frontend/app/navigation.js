@@ -9,7 +9,7 @@ import {
   renderCaseDetail,
   getCasesPage,
 } from "./cases.js";
-import { renderIntake } from "./intake.js?v=20261025-autofill-v5";
+import { renderIntake } from "./intake.js?v=20261104-directory";
 import { renderViewer } from "./viewer.js";
 import { renderApproval } from "./approval.js";
 import { renderEvaluation } from "./evaluation.js";
@@ -19,6 +19,7 @@ import { renderReport } from "./report-preview.js";
 import { renderPersonal } from "./personal.js";
 import { nextCase } from "./workflow.js";
 import { showOnboardingPrompt } from "./onboarding.js";
+import { patientRecordLabel } from "./patient-labels.js";
 const routes = {
   dashboard: "grid",
   intake: "upload",
@@ -105,11 +106,11 @@ function shell(route) {
   $("#app").innerHTML = `
     <header class="topbar">
       <button class="icon-btn" id="collapseNav" type="button" aria-label="Thu gọn điều hướng" aria-expanded="true" aria-controls="primaryNav" title="Điều hướng">${icon("menu")}</button>
-      <a class="brand" href="#dashboard" aria-label="${BRAND_NAME} — Siêu âm Buồng trứng · RUO — Tổng quan">
+      <a class="brand" href="#dashboard" aria-label="${BRAND_NAME} — Siêu âm Buồng trứng — Tổng quan">
         <img class="${BRAND_CLASS}" src="${BRAND_LOGO_SRC}" alt="${BRAND_ALT}" width="1616" height="973" decoding="async">
-        <span class="brand-product">Siêu âm<small>Buồng trứng · RUO</small></span>
+        <span class="brand-product">Siêu âm<small>Buồng trứng</small></span>
       </a>
-      <button class="btn top-search" id="quickSearch" type="button">${icon("search")}Tìm PID hoặc mã ca <kbd>Ctrl K</kbd></button>
+      <button class="btn top-search" id="quickSearch" type="button">${icon("search")}Tìm hồ sơ hoặc mã ca <kbd>Ctrl K</kbd></button>
       <span class="spacer"></span>
       ${role() !== "QT" ? `<a class="btn quiet next-label" href="#${role() === "TK" ? "approval" : "cases"}">Ca tiếp theo</a>` : ""}
       <button class="icon-btn" id="themeToggle" type="button" aria-label="Chuyển giao diện sáng tối">${icon("sun")}</button>
@@ -217,10 +218,10 @@ function shell(route) {
 }
 export async function quickSearch() {
   if (role() === "QT")
-    return toast("Tìm kiếm PID không dành cho vai trò quản trị.");
+    return toast("Tra cứu hồ sơ không dành cho vai trò quản trị.");
   modal(
     "Tìm nhanh",
-    '<input id="quickQuery" type="search" class="wide" placeholder="Mã ca, PID giả danh hoặc PID nguồn đầy đủ" aria-label="Từ khóa"><div id="quickResults" style="margin-top:16px"></div>',
+    '<input id="quickQuery" type="search" class="wide" placeholder="Mã ca, tên hồ sơ hoặc mã nghiên cứu" aria-label="Từ khóa"><div id="quickResults" style="margin-top:16px"></div>',
   );
   const query = $("#quickQuery");
   if (!query) return;
@@ -248,7 +249,7 @@ export async function quickSearch() {
         $("#quickResults").innerHTML = rows
           .map(
             (c) =>
-              `<a class="list-row" href="#case/${c.study_id}">${esc(c.study_code)} · ${esc(c.patient_id)}</a>`,
+              `<a class="list-row" href="#case/${c.study_id}">${esc(c.study_code)} · ${esc(patientRecordLabel(c))}</a>`,
           )
           .join("") || "<p>Không có kết quả.</p>";
         $$("#quickResults a").forEach(
