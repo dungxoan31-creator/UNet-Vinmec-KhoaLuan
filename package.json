@@ -13,7 +13,8 @@
     "test:e2e:doctor": "node tests/doctor_workflow_e2e.js",
     "test:e2e:live": "node tests/test_live_ui_features.js",
     "test:e2e:comprehensive": "node tests/e2e/test_comprehensive_workstation.js",
-    "test:smoke": "node tests/browser_hitl_smoke.js"
+    "test:smoke": "node tests/browser_hitl_smoke.js",
+    "test:all": "python scripts/run_all_verifications.py"
   },
   "devDependencies": {
     "playwright-core": "1.63.0"
