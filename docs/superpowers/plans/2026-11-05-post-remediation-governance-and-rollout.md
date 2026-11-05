@@ -127,7 +127,7 @@ Python 3.12 (`.venv`), FastAPI, SQLAlchemy, PyTorch, Node.js (`node:test`), Play
      - [x] Chạy toàn bộ Python pytest suite (`pytest -q`).
      - [x] Kiểm tra `git diff --check HEAD`.
      - [x] Chạy safety và responsive-brand browser E2E smoke.
-  2. [x] Chạy `npm run test:all`: 6/6 bước pass; log `artifacts/all-verifications-20261105-212931-590733.log`.
+  2. [x] Chạy `npm run test:all`: 6/6 bước pass; log `artifacts/all-verifications-20261105-215041-616789.log`.
   3. [x] Soạn thảo release notes với kết quả 28 finding (27 VERIFIED, 1 PARTIAL) và các cổng lâm sàng/hạ tầng còn mở.
   4. [ ] Chưa merge vào nhánh chính; bước này chờ phê duyệt merge riêng.
   5. [x] Tạo commit ngữ nghĩa: `chore(release): add unified verification harness and readiness notes`.

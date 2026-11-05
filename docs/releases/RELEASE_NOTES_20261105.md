@@ -32,7 +32,7 @@ The unified runner completed **6/6 steps**:
 - Python suite: **1,620 passed, 0 failed**, with two warnings (SQLite date-adapter deprecation and the intentional oversized-image safety fixture).
 - `git diff --check HEAD`: passed.
 
-Run log: `artifacts/all-verifications-20261105-212931-590733.log` (ignored by Git).
+Run log: `artifacts/all-verifications-20261105-215041-616789.log` (ignored by Git).
 The existing `.gitignore` rules already exclude `artifacts/`, logs, and test caches, so no duplicate ignore patterns were added.
 
 Previously completed focused evidence remains bounded to the synthetic/local fixtures recorded in `audit/2026-11-04/REMEDIATION_REPORT.md` and the task commits above. Passing software tests do not validate diagnosis, patient-level independence, or clinical safety.
