@@ -7,6 +7,8 @@ __pycache__/
 .pytest_cache/
 
 # Local databases & logs
+**/.app_jwt_secret
+**/.patient_pid_hmac_secret
 ovarian_ai.db
 *.sqlite3
 *.log
@@ -19,6 +21,30 @@ ovarian_ai.db
 artifacts/
 .superpowers/
 Maiil/
+
+# Local UI tooling state and disposable verification output
+.impeccable/
+.playwright-mcp/
+.taste-skill/
+.tmp-verify-*/
+scratch/
+playwright-report/
+test-results/
+/audit/**/probe-runtime/
+/reports/comprehensive-system-test-2026-10-18/product-brand/
+
+# Seeded local synthetic demo workspace (contains local credentials/database)
+/data/demo_workspace/
+
+# One-shot patch generators retained locally for remediation provenance
+/scripts/append_*_tests.py
+/scripts/append_f08_test.py
+/scripts/fix_test_*.py
+/scripts/patch_*.py
+/scripts/remediate_goi_*.py
+/scripts/add_prep_alias.py
+/scripts/debug_init_db.py
+/scripts/fix_cdss_status.py
 
 # Runtime uploads & temporary reports (preserve folders via .gitkeep)
 data/uploads/*
@@ -46,6 +72,9 @@ checkpoints/*.pth
 dataset/
 dataset_backup_archive/
 external_sources/
+nnUNet_raw/
+nnUNet_preprocessed/
+nnUNet_results/
 ai_training/experiments/*/*.pth
 ai_training/models/
 ai_training/dataset_preview/
