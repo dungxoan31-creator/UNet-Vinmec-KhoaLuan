@@ -132,8 +132,8 @@ def test_inference_engine_skips_generate_overlay_call(monkeypatch):
     assert mock_overlay.call_count == 1
 
 
-def test_inference_engine_defaults_to_generating_overlay():
-    """Verify backward compatibility: generate_overlay defaults to True when unspecified."""
+def test_inference_engine_defaults_to_omitting_overlay():
+    """Verify default behavior: generate_overlay defaults to False when unspecified."""
     engine = InferenceEngine(architecture="standard_unet")
     engine.model = DummyModel(logits_value=0.5)
     engine.is_model_ready = True
@@ -142,8 +142,11 @@ def test_inference_engine_defaults_to_generating_overlay():
     padded_gray = np.zeros((512, 512), dtype=np.uint8)
 
     result = engine.run_inference(tensor, padded_gray)
-    assert result["overlay_base64"] is not None
-    assert result["overlay_base64"].startswith("data:image/png;base64,")
+    assert result["overlay_base64"] is None
+
+    result_with_overlay = engine.run_inference(tensor, padded_gray, generate_overlay=True)
+    assert result_with_overlay["overlay_base64"] is not None
+    assert result_with_overlay["overlay_base64"].startswith("data:image/png;base64,")
 
 
 def test_router_run_ai_prediction_parameter_signature():
@@ -162,10 +165,14 @@ def test_router_predict_with_generate_overlay_false(tmp_path, monkeypatch, activ
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
     from backend.app import security
+    from backend.app.config import model_registry
     from backend.app.main import app
     from backend.app.routers import auth, inference
     from backend.db.database import Base, FacilityModel, UserModel, get_db
     from tests.test_vinmec_api_smoke import synthetic_fixture_image
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
 
     image_path = synthetic_fixture_image()
     db_engine = create_engine(
@@ -245,8 +252,14 @@ def test_router_predict_with_generate_overlay_false(tmp_path, monkeypatch, activ
             predicted2 = client.post(f"/api/predict/{image_id2}", headers=lease_headers2)
             assert predicted2.status_code == 200, predicted2.text
             prediction2 = predicted2.json()
-            assert prediction2["overlay_base64"] is not None
-            assert prediction2["overlay_base64"].startswith("data:image/png;base64,")
+            assert prediction2["overlay_base64"] is None
+
+            # Explicit generate_overlay=true returns overlay
+            predicted_ov = client.post(f"/api/predict/{image_id2}?generate_overlay=true", headers=lease_headers2)
+            assert predicted_ov.status_code == 200, predicted_ov.text
+            pred_ov = predicted_ov.json()
+            assert pred_ov["overlay_base64"] is not None
+            assert pred_ov["overlay_base64"].startswith("data:image/png;base64,")
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.dependency_overrides.pop(auth.get_current_user, None)

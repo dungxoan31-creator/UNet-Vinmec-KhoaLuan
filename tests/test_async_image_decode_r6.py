@@ -13,15 +13,15 @@ from starlette.concurrency import run_in_threadpool as starlette_run_in_threadpo
 
 from backend.app.main import app
 from backend.app.routers import inference
-from backend.db.database import Base, ImageModel, get_db
+from backend.db.database import Base, FacilityModel, ImageModel, get_db
 
 pytestmark = pytest.mark.usefixtures("doctor_access")
 
 
 def make_test_dicom(
     modality: str = "US",
-    rows: int = 16,
-    columns: int = 16,
+    rows: int = 128,
+    columns: int = 128,
 ) -> bytes:
     meta = FileMetaDataset()
     meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
@@ -44,14 +44,14 @@ def make_test_dicom(
     dcm.HighBit = 7
     dcm.PixelRepresentation = 0
     dcm.NumberOfFrames = 1
-    dcm.PixelData = np.full((1, rows, columns), 100, dtype=np.uint8).tobytes()
+    dcm.PixelData = np.random.default_rng(42).integers(30, 200, (1, rows, columns), dtype=np.uint8).tobytes()
     buf = BytesIO()
     dcm.save_as(buf)
     return buf.getvalue()
 
 
 def make_test_png(w: int = 64, h: int = 64) -> bytes:
-    img = np.full((h, w, 3), 128, dtype=np.uint8)
+    img = np.repeat(np.random.default_rng(42).integers(30, 200, (h, w, 1), dtype=np.uint8), 3, axis=2)
     _, buf = cv2.imencode(".png", img)
     return buf.tobytes()
 
@@ -135,6 +135,9 @@ def test_upload_image_offloads_cpu_bound_png(tmp_path, monkeypatch):
 
     engine = create_engine(f"sqlite:///{tmp_path / 'upload-async.db'}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(FacilityModel(id="FAC-DEFAULT-TEST", facility_code="FAC-DEF-1", name="Default Facility", is_active=True))
+        db.commit()
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir()
     monkeypatch.setattr(inference, "UPLOAD_DIR", str(upload_dir))
@@ -145,7 +148,7 @@ def test_upload_image_offloads_cpu_bound_png(tmp_path, monkeypatch):
 
     app.dependency_overrides[get_db] = temporary_db
     try:
-        png_bytes = make_test_png(80, 80)
+        png_bytes = make_test_png(256, 256)
         with TestClient(app) as client:
             resp = client.post(
                 "/api/upload",
@@ -176,6 +179,9 @@ def test_upload_image_offloads_cpu_bound_dicom(tmp_path, monkeypatch):
 
     engine = create_engine(f"sqlite:///{tmp_path / 'upload-async-dicom.db'}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        db.add(FacilityModel(id="FAC-DEFAULT-TEST", facility_code="FAC-DEF-2", name="Default Facility", is_active=True))
+        db.commit()
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir()
     monkeypatch.setattr(inference, "UPLOAD_DIR", str(upload_dir))

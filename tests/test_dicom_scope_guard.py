@@ -23,8 +23,8 @@ def make_dicom(
     include_pixel_data: bool = True,
     declare_frame_count: bool = True,
     frame_count_override: int | None = None,
-    rows: int = 16,
-    columns: int = 16,
+    rows: int = 128,
+    columns: int = 128,
 ) -> bytes:
     meta = FileMetaDataset()
     meta.MediaStorageSOPClassUID = SecondaryCaptureImageStorage
@@ -49,7 +49,7 @@ def make_dicom(
     if frames > 1 and declare_frame_count:
         dcm.NumberOfFrames = frame_count_override or frames
     if include_pixel_data:
-        dcm.PixelData = np.full((frames, rows, columns), 100, dtype=np.uint8).tobytes()
+        dcm.PixelData = np.random.default_rng(42).integers(30, 200, (frames, rows, columns), dtype=np.uint8).tobytes()
     buffer = BytesIO()
     dcm.save_as(buffer)
     return buffer.getvalue()
@@ -588,6 +588,48 @@ def test_anisotropic_dicom_spacing_is_not_reduced_to_one_scalar(tmp_path):
     assert extract_dicom_calibration_spacing(str(file_path)) is None
 
 
+def test_synthetic_zero_pixel_spacing_stays_uncalibrated(tmp_path):
+    import pydicom
+
+    from backend.services.calibration_service import get_automatic_calibration
+    from backend.services.image_service import extract_dicom_calibration_spacing
+
+    dicom = pydicom.dcmread(BytesIO(make_dicom("US")))
+    dicom.PixelSpacing = [0, 0]
+    file_path = tmp_path / "synthetic-zero-spacing.dcm"
+    dicom.save_as(file_path)
+
+    assert extract_dicom_calibration_spacing(str(file_path)) is None
+    assert get_automatic_calibration(str(file_path)) == {
+        "pixel_spacing_mm": 0.1,
+        "calibrated": False,
+        "source": "default_uncalibrated",
+        "confidence": 0.0,
+    }
+
+
+def test_synthetic_metadata_minimization_does_not_claim_pixel_phi_was_removed():
+    import pydicom
+
+    from backend.services.dicom_privacy import minimize_dicom_patient_metadata
+
+    dicom = pydicom.dcmread(BytesIO(make_dicom("US", rows=16, columns=16)))
+    dicom.PatientName = "SYNTHETIC^IDENTIFIER"
+    dicom.PatientID = "SYNTHETIC-PATIENT-ID"
+    dicom.BurnedInAnnotation = "UNKNOWN"
+    original_pixels = dicom.PixelData
+
+    minimize_dicom_patient_metadata(
+        dicom, study_key="synthetic-pixel-privacy", series_key="synthetic-series", instance_key="synthetic-image"
+    )
+
+    assert "PatientName" not in dicom
+    assert "PatientID" not in dicom
+    assert dicom.PixelData == original_pixels
+    assert dicom.BurnedInAnnotation == "UNKNOWN"
+    assert dicom.PatientIdentityRemoved == "NO"
+
+
 def test_image_service_owns_shared_dicom_decode_and_spacing_validation(tmp_path):
     from backend.services.image_service import (
         decode_ultrasound_image,
@@ -596,7 +638,7 @@ def test_image_service_owns_shared_dicom_decode_and_spacing_validation(tmp_path)
     )
 
     file_path = tmp_path / "shared-service.dcm"
-    file_path.write_bytes(make_dicom("US", spacing=(0.25, 0.25)))
+    file_path.write_bytes(make_dicom("US", spacing=(0.25, 0.25), rows=16, columns=16))
 
     assert decode_ultrasound_image(str(file_path), grayscale=True).shape == (16, 16)
     assert extract_dicom_calibration_spacing(str(file_path)) == 0.25
@@ -612,7 +654,7 @@ def test_dicom_without_pixel_spacing_decodes_without_claiming_physical_scale(tmp
         extract_dicom_calibration_spacing,
     )
 
-    dicom = pydicom.dcmread(BytesIO(make_dicom("US")))
+    dicom = pydicom.dcmread(BytesIO(make_dicom("US", rows=16, columns=16)))
     del dicom.PixelSpacing
     file_path = tmp_path / "missing-pixel-spacing.dcm"
     dicom.save_as(file_path)
@@ -671,7 +713,7 @@ def test_palette_color_dicom_applies_palette_luts_before_returning_pixels(tmp_pa
 
     from backend.services.image_service import decode_ultrasound_image
 
-    dicom = pydicom.dcmread(BytesIO(make_dicom("US")))
+    dicom = pydicom.dcmread(BytesIO(make_dicom("US", rows=16, columns=16)))
     dicom.PhotometricInterpretation = "PALETTE COLOR"
     dicom.RedPaletteColorLookupTableDescriptor = [4, 0, 8]
     dicom.GreenPaletteColorLookupTableDescriptor = [4, 0, 8]
@@ -714,7 +756,7 @@ def test_palette_color_16bit_lut_is_scaled_to_display_range(tmp_path):
 
     from backend.services.image_service import decode_ultrasound_image
 
-    dicom = pydicom.dcmread(BytesIO(make_dicom("US")))
+    dicom = pydicom.dcmread(BytesIO(make_dicom("US", rows=16, columns=16)))
     dicom.PhotometricInterpretation = "PALETTE COLOR"
     dicom.RedPaletteColorLookupTableDescriptor = [4, 0, 16]
     dicom.GreenPaletteColorLookupTableDescriptor = [4, 0, 16]
@@ -745,7 +787,7 @@ def test_ybr_full_dicom_uses_opencv_bgr_channel_order(tmp_path):
 
     from backend.services.image_service import decode_ultrasound_image
 
-    dicom = pydicom.dcmread(BytesIO(make_dicom("US")))
+    dicom = pydicom.dcmread(BytesIO(make_dicom("US", rows=16, columns=16)))
     dicom.SamplesPerPixel = 3
     dicom.PhotometricInterpretation = "YBR_FULL"
     dicom.PlanarConfiguration = 0
@@ -944,7 +986,7 @@ def test_single_full_frame_spatial_region_provides_isotropic_spacing(tmp_path):
 
     from backend.services.image_service import extract_dicom_calibration_spacing
 
-    dicom = pydicom.dcmread(BytesIO(make_dicom("US")))
+    dicom = pydicom.dcmread(BytesIO(make_dicom("US", rows=16, columns=16)))
     region = Dataset()
     region.RegionSpatialFormat = 1
     region.PhysicalUnitsXDirection = 3

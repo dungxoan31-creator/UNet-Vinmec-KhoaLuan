@@ -13,6 +13,7 @@ import struct
 import uuid
 import zlib
 
+import numpy as np
 import pytest
 
 os.environ.setdefault("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
@@ -162,7 +163,7 @@ def test_upload_accepts_supported_png_and_jpeg(
     app.dependency_overrides[get_db] = temporary_db
     try:
         source = io.BytesIO()
-        Image.new("L", (128, 96), color=112).save(source, format=image_format)
+        Image.fromarray(np.random.default_rng(42).integers(30, 200, (256, 256), dtype=np.uint8)).save(source, format=image_format)
         with TestClient(app) as test_client:
             response = test_client.post(
                 "/api/upload",
@@ -171,7 +172,7 @@ def test_upload_accepts_supported_png_and_jpeg(
 
         assert response.status_code == 200, response.text
         payload = response.json()
-        assert payload["dimensions"] == [128, 96]
+        assert payload["dimensions"] == [256, 256]
         with Session(engine) as session:
             stored = session.get(ImageModel, payload["image_id"])
             assert stored is not None
@@ -239,7 +240,7 @@ def test_upload_stores_uuid_filename_inside_upload_root(
 
     app.dependency_overrides[get_db] = temporary_db
     source = io.BytesIO()
-    Image.new("L", (64, 48), color=112).save(source, format="PNG")
+    Image.fromarray(np.random.default_rng(42).integers(30, 200, (256, 256), dtype=np.uint8)).save(source, format="PNG")
     try:
         with TestClient(app) as test_client:
             response = test_client.post(

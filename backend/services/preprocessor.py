@@ -11,10 +11,22 @@ import numpy as np
 import torch
 
 
+from backend.services.ultrasound_enhancement import CaliperInpainter, SpeckleFilter
+
+
 class UltrasoundPreprocessor:
-    def __init__(self, target_size=(512, 512), clahe_clip_limit=2.0, clahe_grid_size=(8, 8)):
+    def __init__(
+        self,
+        target_size=(512, 512),
+        clahe_clip_limit=2.0,
+        clahe_grid_size=(8, 8),
+        enable_caliper_removal: bool = False,
+        denoise_method: str = "none",
+    ):
         self.target_size = target_size
         self.clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=clahe_grid_size)
+        self.enable_caliper_removal = enable_caliper_removal
+        self.denoise_method = denoise_method
 
     @staticmethod
     def _is_valid_image_array(image_np):
@@ -360,7 +372,12 @@ class UltrasoundPreprocessor:
             "message": suitability["error_message"],
         }
 
-    def preprocess_for_inference(self, image_np):
+    def preprocess_for_inference(
+        self,
+        image_np,
+        enable_caliper_removal: bool | None = None,
+        denoise_method: str | None = None,
+    ):
         """
         Full end-to-end preprocessing pipeline for deep learning inference.
         Returns:
@@ -372,10 +389,28 @@ class UltrasoundPreprocessor:
         if not self._is_valid_image_array(image_np):
             raise ValueError("image_np must be a non-empty image array with 2D grayscale or 3/4-channel color data.")
 
-        if len(image_np.shape) == 3:
-            gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
+        do_caliper = self.enable_caliper_removal if enable_caliper_removal is None else enable_caliper_removal
+        method_denoise = self.denoise_method if denoise_method is None else denoise_method
+
+        if do_caliper:
+            raise ValueError("Tự động xóa caliper chưa được xác thực; dùng ảnh gốc hoặc chỉ định mặt nạ caliper do bác sĩ xác nhận.")
+
+        if method_denoise and method_denoise not in ("none", "lee", "srad", "median"):
+            raise ValueError(f"Denoise method không được hỗ trợ: {method_denoise}. Chỉ chấp nhận: none, lee, srad, median.")
+
+        working_img = image_np.copy()
+
+        if len(working_img.shape) == 3:
+            gray = cv2.cvtColor(working_img, cv2.COLOR_BGR2GRAY)
         else:
-            gray = image_np.copy()
+            gray = working_img.copy()
+
+        if method_denoise == "lee" and SpeckleFilter is not None:
+            gray = SpeckleFilter.lee_filter(gray)
+        elif method_denoise == "srad" and SpeckleFilter is not None:
+            gray = SpeckleFilter.srad_filter(gray, n_iter=8)
+        elif method_denoise == "median":
+            gray = cv2.medianBlur(gray, 3)
 
         # 1. Assess image quality
         iqa_report = self.assess_image_quality(gray)
@@ -391,4 +426,6 @@ class UltrasoundPreprocessor:
         tensor = torch.from_numpy(norm_float).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
 
         return tensor, padded_gray, transform_params, iqa_report
+
+    preprocess = preprocess_for_inference
 

@@ -23,8 +23,12 @@ from backend.services.preprocessor import UltrasoundPreprocessor
 pytestmark = pytest.mark.usefixtures("doctor_access")
 
 
-def test_export_reviewed_mask_at_original_resolution(tmp_path, active_case_lease):
+def test_export_reviewed_mask_at_original_resolution(tmp_path, active_case_lease, monkeypatch):
     from backend.app.main import app
+    from backend.app.config import model_registry
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
 
     engine = create_engine(f"sqlite:///{tmp_path / 'masks.db'}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)

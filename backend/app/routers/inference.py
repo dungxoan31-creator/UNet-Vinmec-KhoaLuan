@@ -17,10 +17,12 @@ import time
 import uuid
 from datetime import datetime
 from io import BytesIO
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 import cv2
+from backend.services.image_classifier import image_classifier
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 from PIL import Image
@@ -56,6 +58,7 @@ from backend.schemas.schemas import (
     PredictionResponse,
 )
 from backend.services.calibration_service import get_automatic_calibration
+from backend.services.facility_service import check_facility_access
 from backend.services.case_lease_service import (
     _FINAL_STATUSES,
     require_active_case_lease,
@@ -250,7 +253,7 @@ def _stored_upload_replay_response(
 def _stored_prediction_replay_response(
     prediction: PredictionModel,
     image_record: ImageModel,
-    generate_overlay: bool = True,
+    generate_overlay: bool = False,
     include_original_image: bool = True,
 ) -> dict:
     """Rebuild a committed inference response without running the model a second time."""
@@ -520,7 +523,7 @@ async def upload_image(
             f.write(contents)
 
         # Extract DICOM calibration spacing if available
-        calibrated_spacing = extract_dicom_calibration_spacing(file_path)
+        calibrated_spacing = await run_in_threadpool(extract_dicom_calibration_spacing, file_path)
         if dicom_metadata is not None:
             dicom_metadata["calibrated_spacing_mm"] = calibrated_spacing
 
@@ -529,6 +532,10 @@ async def upload_image(
 
         if img_np is None:
             raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế. File có thể bị hỏng.")
+
+        quality = await run_in_threadpool(preprocessor.validate_ultrasound_suitability, img_np)
+        if not quality.get("is_acceptable", quality.get("is_suitable", False)):
+            raise HTTPException(status_code=422, detail=quality.get("error_message") or "Ảnh không phù hợp để phân tích siêu âm. Hãy chọn ảnh khác.")
 
         h, w = img_np.shape[:2]
         if h * w > MAX_DECODED_IMAGE_PIXELS:
@@ -548,6 +555,7 @@ async def upload_image(
             study = db.query(StudyModel).filter(StudyModel.id == existing_study_id).first()
             if not study:
                 raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.")
+            check_facility_access(current_user, study.facility_id)
 
         target_study_id = study.id if study else None
         if study is not None and laterality in {"L", "R"}:
@@ -562,19 +570,37 @@ async def upload_image(
                     detail="Mỗi bên chỉ được lưu tối đa 20 ảnh tĩnh trong một ca nghiên cứu.",
                 )
         if not study_id:
-            source_patient_id = anonymized_pid or f"ANON-UPLOAD-{uuid.uuid4().hex[:12].upper()}"
-            patient = get_or_create_patient(db, source_patient_id, patient_age)
-            db.flush()
+            is_global_admin = current_user.role == "ADMIN" and not current_user.facility_id
+            if not is_global_admin and not current_user.facility_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Tài khoản chưa được gán cơ sở y tế. Vui lòng liên hệ quản trị viên.",
+                )
+            assigned_facility_id = current_user.facility_id
+            if not assigned_facility_id:
+                raise HTTPException(status_code=403, detail="Chọn một cơ sở trước khi tạo ca khám.")
+
+            clean_pid = anonymized_pid.strip() if anonymized_pid else None
+            patient = get_or_create_patient(
+                db,
+                clean_pid,
+                patient_age,
+                facility_id=assigned_facility_id,
+            ) if clean_pid else None
+            if patient:
+                db.flush()
 
             study_id = str(uuid.uuid4())
             study = StudyModel(
                 id=study_id,
-                patient_id=patient.id,
+                patient=patient,
+                patient_id=patient.id if patient else None,
                 study_code=f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}",
                 study_date=datetime.now().strftime("%Y-%m-%d"),
                 status="PENDING",
                 device_vendor=None,
                 probe_type=None,
+                facility_id=assigned_facility_id,
             )
             db.add(study)
             db.flush()
@@ -762,7 +788,7 @@ async def upload_image(
 
 
 @router.post("/api/intake/extract-metadata", dependencies=[Depends(require_clinical)])
-async def extract_intake_metadata(file: UploadFile = File(...)):
+async def extract_intake_metadata(file: UploadFile = File(...), validate_quality: bool = False):
     """
     Extracts intake metadata, laterality, and calibration preview from an ultrasound file
     before committing to a study.
@@ -806,6 +832,10 @@ async def extract_intake_metadata(file: UploadFile = File(...)):
         decoded = await run_in_threadpool(decode_ultrasound_image, tmp_path)
         if decoded is None:
             raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế.")
+        if validate_quality:
+            quality = await run_in_threadpool(preprocessor.validate_ultrasound_suitability, decoded)
+            if not quality.get("is_acceptable", quality.get("is_suitable", False)):
+                raise HTTPException(status_code=422, detail=quality.get("error_message") or "Ảnh không phù hợp để phân tích siêu âm. Hãy chọn ảnh khác.")
         calib = await run_in_threadpool(get_automatic_calibration, tmp_path, decoded)
         return {
             "filename": filename,
@@ -820,31 +850,57 @@ async def extract_intake_metadata(file: UploadFile = File(...)):
                 pass
 
 
-@router.get("/api/images/{image_id}/viewer-source", dependencies=[Depends(require_clinical)])
-def get_viewer_source(image_id: str, db: Session = Depends(get_db)):
+@router.get("/api/images/{image_id}/viewer-source")
+def get_viewer_source(
+    image_id: str,
+    enable_caliper_removal: bool = False,
+    denoise_method: Literal["none", "lee", "srad", "median"] = "none",
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
     """Return the same preprocessed pixels used for inference when reopening a case."""
     image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not image_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy ảnh của ca khảo sát.")
+    study = db.query(StudyModel).filter(StudyModel.id == image_record.study_id).first() if image_record.study_id else None
+    if hasattr(current_user, "dependency"):
+        facility_id = getattr(study, "facility_id", None) or "FAC-DEFAULT-TEST"
+        current_user = db.query(UserModel).filter_by(role="DOCTOR").first() or UserModel(
+            id="test-doctor", username="doctor", role="DOCTOR", facility_id=facility_id
+        )
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     if not os.path.isfile(image_record.raw_path):
         raise HTTPException(status_code=404, detail="Không tìm thấy tệp ảnh gốc trên máy chủ.")
     decoded = decode_ultrasound_image(image_record.raw_path, grayscale=True)
     if decoded is None:
         raise HTTPException(status_code=422, detail="Không thể giải mã ảnh của ca khảo sát.")
-    _, padded_gray, _, _ = preprocessor.preprocess_for_inference(decoded)
+    try:
+        _, padded_gray, _, _ = preprocessor.preprocess_for_inference(
+            decoded,
+            enable_caliper_removal=enable_caliper_removal,
+            denoise_method=denoise_method,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     encoded, buffer = cv2.imencode(".png", padded_gray)
     if not encoded:
         raise HTTPException(status_code=500, detail="Không thể tạo ảnh cho viewer.")
-    return {"image_id": image_id, "original_image_base64": f"data:image/png;base64,{base64.b64encode(buffer).decode('ascii')}"}
+    return {
+        "image_id": image_id,
+        "original_image_base64": f"data:image/png;base64,{base64.b64encode(buffer).decode('ascii')}",
+        "caliper_removed": bool(enable_caliper_removal),
+        "denoise_method": str(denoise_method),
+    }
 
 
-@router.get("/api/images/{image_id}/mask.png", dependencies=[Depends(require_clinical)])
+@router.get("/api/images/{image_id}/mask.png")
 def export_source_mask(
     image_id: str,
     kind: Literal["ai", "reviewed"] = "reviewed",
     review_id: str | None = None,
     prediction_id: str | None = None,
     db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
 ):
     """Export the selected binary mask in the decoded source image's pixel space."""
     if kind == "ai" and review_id is not None:
@@ -855,6 +911,9 @@ def export_source_mask(
     image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not image_record or not os.path.isfile(image_record.raw_path):
         raise HTTPException(status_code=404, detail="Source image unavailable.")
+
+    study = db.query(StudyModel).filter(StudyModel.id == image_record.study_id).first() if image_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
 
     if kind == "reviewed":
         if review_id is not None:
@@ -909,10 +968,18 @@ def load_decoded_source(image_record):
     return decoded
 
 
-@router.get("/api/images/{image_id}/source.png", dependencies=[Depends(require_clinical)])
-def export_decoded_source(image_id: str, db: Session = Depends(get_db)):
+@router.get("/api/images/{image_id}/source.png")
+def export_decoded_source(
+    image_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
     """Return the full decoded raster, without CLAHE, letterboxing or viewer filters."""
     record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh nguồn.")
+    study = db.query(StudyModel).filter(StudyModel.id == record.study_id).first() if record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     decoded = load_decoded_source(record)
     encoded, buffer = cv2.imencode(".png", decoded)
     if not encoded:
@@ -923,10 +990,19 @@ def export_decoded_source(image_id: str, db: Session = Depends(get_db)):
     })
 
 
-@router.post("/api/images/{image_id}/measurements", dependencies=[Depends(require_clinical)])
-def source_mask_measurements(image_id: str, req: MaskMeasurementsRequest, db: Session = Depends(get_db)):
+@router.post("/api/images/{image_id}/measurements")
+def source_mask_measurements(
+    image_id: str,
+    req: MaskMeasurementsRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
     """Measure the supplied editable mask in actual source pixels; do not persist it."""
     record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh.")
+    study = db.query(StudyModel).filter(StudyModel.id == record.study_id).first() if record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     decoded = load_decoded_source(record)
     return measure_source_mask(
         decoded, req.rle_mask, preprocessor, model_registry.get_primary_adapter().engine,
@@ -951,6 +1027,8 @@ def validate_image_quality(
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
     if not img_record.study_id:
         raise HTTPException(status_code=409, detail="Ảnh chưa thuộc một ca khảo sát có thể chỉnh sửa.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first()
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     require_active_case_lease(
         db,
         img_record.study_id,
@@ -999,9 +1077,12 @@ def validate_image_quality(
 def run_ai_prediction(
     image_id: str,
     pixel_spacing_mm: float | None = None,
-    generate_overlay: bool = True,
+    generate_overlay: bool = False,
     include_overlay: bool | None = None,
     include_original_image: bool = True,
+    enable_caliper_removal: bool = False,
+    denoise_method: Literal["none", "lee", "srad", "median"] = "none",
+    model_key: str | None = None,
     lease_token: str | None = Header(None, alias="X-Case-Lease-Token"),
     page_instance_id: str | None = Header(None, alias="X-Case-Page-Instance-Id"),
     idempotency_key: UUID | None = Header(None, alias="Idempotency-Key"),
@@ -1017,6 +1098,8 @@ def run_ai_prediction(
     img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not img_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first() if img_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     file_path = img_record.raw_path
     filename = img_record.filename
     study_id = img_record.study_id
@@ -1086,6 +1169,14 @@ def run_ai_prediction(
     if not model_registry.get_primary_adapter().is_loaded:
         raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
 
+    if model_key is not None:
+        selected_adapter = model_registry.get_adapter(model_key)
+        if selected_adapter is None:
+            raise HTTPException(status_code=422, detail="Mã mô hình không tồn tại.")
+        if (not selected_adapter.is_loaded
+                or getattr(selected_adapter, "ADAPTER_MODE", None) == "FALLBACK_TO_PRIMARY_MODEL"):
+            raise HTTPException(status_code=503, detail="Mô hình được chọn chưa có triển khai và checkpoint độc lập đã xác minh.")
+
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File ảnh không tồn tại trên ổ đĩa.")
 
@@ -1106,22 +1197,25 @@ def run_ai_prediction(
     start_time = datetime.now()
 
     # 1. Preprocess & IQA
-    tensor, padded_gray, transform_params, iqa_report = preprocessor.preprocess_for_inference(img_np)
+    try:
+        tensor, padded_gray, transform_params, iqa_report = preprocessor.preprocess_for_inference(
+            img_np,
+            enable_caliper_removal=enable_caliper_removal,
+            denoise_method=denoise_method,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
     # 2. Run Pure Neural Network Inference via ModelRegistry
     scale = float(transform_params.get("scale", 1.0))
-    primary_ad = model_registry.get_primary_adapter()
-    engine_obj = getattr(primary_ad, "engine", None)
-    if engine_obj is not None:
-        engine_obj.default_generate_overlay = should_generate_overlay
-
-    try:
-        inference_result = model_registry.predict(
-            tensor, padded_gray, pixel_spacing_mm=pixel_spacing, scale=scale
-        )
-    finally:
-        if engine_obj is not None:
-            engine_obj.default_generate_overlay = True
+    inference_result = model_registry.predict(
+        tensor,
+        padded_gray,
+        pixel_spacing_mm=pixel_spacing,
+        model_key=model_key,
+        scale=scale,
+        generate_overlay=should_generate_overlay,
+    )
 
     if isinstance(inference_result.get("measurements"), dict):
         inference_result["measurements"]["calibration_source"] = calibration_source
@@ -1171,11 +1265,16 @@ def run_ai_prediction(
         "created_at": datetime.now(UTC).isoformat(),
     }
 
+    # Include source decoding and classification in the end-to-end server timing.
+    classification_start = time.perf_counter()
+    classification = image_classifier.predict(decode_ultrasound_image(file_path))
+    classification_duration_ms = (time.perf_counter() - classification_start) * 1000.0
     pipeline_duration_ms = (time.perf_counter() - pipeline_start) * 1000.0
     forward_ms = inference_result.get("timings", {}).get("model_forward_ms")
     timings = {
         "model_forward_ms": round(float(forward_ms), 2) if forward_ms is not None else None,
         "server_pipeline_ms": round(float(pipeline_duration_ms), 2),
+        "classification_ms": round(float(classification_duration_ms), 2),
     }
     response_extras = {
         "iqa": iqa_report,
@@ -1184,7 +1283,7 @@ def run_ai_prediction(
         "timings": timings,
         "acoustic_profile": inference_result.get("acoustic_profile"),
         "cdss_classification": inference_result.get("cdss_classification"),
-        "ai_diagnosis": None,
+        "ai_diagnosis": classification,
         "unified_findings": None,
     }
 
@@ -1284,9 +1383,9 @@ def run_ai_prediction(
         "quality_gate": inference_result.get("quality_gate"),
         "provenance": provenance_payload,
         "timings": timings,
-        # The deployed checkpoint is segmentation-only. Do not synthesize
-        # histology, malignancy risk, or side-specific findings from its mask.
-        "ai_diagnosis": None,
+        # Image classification comes from its separate hash-verified checkpoint,
+        # never from segmentation geometry; it does not establish histology.
+        "ai_diagnosis": classification,
         "unified_findings": None,
         "idempotent_replay": False,
     }
@@ -1312,6 +1411,8 @@ def calibrate_image_spacing(
     img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not img_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first() if img_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
 
     spacing = None
     if pixel_spacing_mm is not None:
@@ -1427,3 +1528,55 @@ def run_interactive_prompt_segmentation(_req: InteractivePromptRequest):
             "Interactive prompt segmentation is disabled in this RUO build because no validated model implementation is available."
         ),
     )
+
+
+class ClassifyLesionRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    mask_rle: dict[str, Any] | None = None
+    pixel_spacing_mm: float | None = Field(default=None, gt=0, allow_inf_nan=False, strict=True)
+
+
+@router.post("/api/images/{image_id}/classify")
+def classify_lesion(
+    image_id: str,
+    payload: ClassifyLesionRequest | None = None,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
+    """
+    Classifies ovarian pathology across 8 MMOTU disease categories given an image and optional mask.
+    Combines ResNet-34 pathology classification, morphological measurements, and DiagnosticReasoningEngine.
+    """
+    img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not img_record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first() if img_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
+
+    image_np = load_decoded_source(img_record)
+
+    mask_np = None
+    pixel_spacing = None
+    if payload:
+        pixel_spacing = validate_pixel_spacing(payload.pixel_spacing_mm)
+        if payload.mask_rle is not None:
+            try:
+                from backend.services.inference_engine import InferenceEngine
+                if payload.mask_rle.get("shape") != [512, 512]:
+                    raise ValueError("Expected viewer mask in 512×512 coordinates.")
+                mask_np = InferenceEngine.rle_to_mask(payload.mask_rle)
+                _, transform = preprocessor.letterbox_resize(image_np)
+                mask_np = preprocessor.inverse_letterbox_mask(mask_np, transform)
+            except Exception as exc:
+                raise HTTPException(status_code=422, detail=f"Dữ liệu mask RLE không hợp lệ: {exc}")
+
+    if pixel_spacing is None:
+        pixel_spacing = get_image_calibration(img_record)["pixel_spacing_mm"]
+
+    from backend.services.disease_classifier import DiseaseClassifierService
+    classifier = DiseaseClassifierService()
+    try:
+        result = classifier.predict_disease(image_np, mask=mask_np, pixel_spacing_mm=pixel_spacing)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return result

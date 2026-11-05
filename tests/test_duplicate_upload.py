@@ -55,7 +55,7 @@ def test_upload_replay_after_commit_returns_existing_image_without_duplicate(
 
     app.dependency_overrides[get_db] = temporary_db
     key = uuid4()
-    pixels = np.full((120, 180), 90, dtype=np.uint8)
+    pixels = np.full((128, 180), 90, dtype=np.uint8)
     pixels[30:90, 50:130] = 150
     encoded, buffer = cv2.imencode(".png", pixels)
     assert encoded
@@ -163,7 +163,7 @@ def test_concurrent_uploads_with_same_idempotency_key_replay_one_committed_image
 
     app.dependency_overrides[get_db] = temporary_db
     key = str(uuid4())
-    pixels = np.full((120, 180), 90, dtype=np.uint8)
+    pixels = np.full((128, 180), 90, dtype=np.uint8)
     pixels[30:90, 50:130] = 150
     encoded, buffer = cv2.imencode(".png", pixels)
     assert encoded
@@ -336,7 +336,7 @@ def test_unilateral_case_accepts_multiple_frames_for_its_active_side(
             }
             responses = []
             for index, intensity in enumerate((80, 130), start=1):
-                pixels = np.full((120, 180), intensity, dtype=np.uint8)
+                pixels = np.random.default_rng(index).integers(intensity - 40, intensity + 60, (128, 180), dtype=np.uint8)
                 pixels[30:90, 50:130] = min(intensity + 30, 255)
                 ok, encoded = cv2.imencode(".png", pixels)
                 assert ok
