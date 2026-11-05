@@ -1,0 +1,71 @@
+[Unit]
+Description=Ovarian Ultrasound AI Decision Support System - FastAPI Backend
+Documentation=https://github.com/vinmec/ovarian-ultrasound-ai/docs/deployment
+After=network.target network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+Type=exec
+User=ovarian-ai
+Group=ovarian-ai
+
+# Working Directory & Environment
+WorkingDirectory=/opt/ovarian-ai
+EnvironmentFile=/etc/ovarian-ai/ovarian-ai.env
+
+# Execution Command (FastAPI with 4 Uvicorn workers behind local reverse proxy)
+ExecStart=/opt/ovarian-ai/.venv/bin/uvicorn backend.app.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 4 \
+    --proxy-headers \
+    --forwarded-allow-ips="127.0.0.1" \
+    --timeout-keep-alive 65 \
+    --access-log
+
+# Lifecycle & Supervision
+Restart=always
+RestartSec=5s
+TimeoutStartSec=60s
+TimeoutStopSec=30s
+KillMode=mixed
+FinalKillSignal=SIGKILL
+
+# Process Limits (Medical image file descriptors & concurrency)
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# ==============================================================================
+# Security & Process Hardening (Linux Kernel Namespace & FS Sandboxing)
+# ==============================================================================
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+PrivateDevices=false
+DevicePolicy=auto
+
+# Writable paths strictly restricted to data, uploads, reports, and logs
+ReadWritePaths=/opt/ovarian-ai/data /var/log/ovarian-ai
+ReadOnlyPaths=/opt/ovarian-ai /etc/ovarian-ai
+
+# Capabilities & Personality Guard
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# PyTorch JIT / CUDA runtime compatibility (PyTorch requires RWX memory pages for JIT kernels)
+MemoryDenyWriteExecute=false
+
+# Logging Configuration
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ovarian-ai-backend
+
+[Install]
+WantedBy=multi-user.target
