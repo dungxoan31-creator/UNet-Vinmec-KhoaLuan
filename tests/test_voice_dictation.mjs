@@ -11,6 +11,7 @@ function control(value = "") {
     disabled: false,
     hidden: false,
     dispatched: [],
+    setAttribute(name, value) { this[name] = value; },
     addEventListener(type, handler) {
       handlers.set(type, handler);
     },
@@ -27,7 +28,7 @@ function control(value = "") {
   };
 }
 
-function setup({ api = true, available = "available", supportsLocal = true } = {}) {
+function setup({ api = true, available = "available", supportsLocal = true, compact = false } = {}) {
   const calls = { constructors: 0, starts: 0, aborts: 0, installs: 0, availableArgs: null };
   class FakeRecognition {
     static async available(options) {
@@ -68,6 +69,7 @@ function setup({ api = true, available = "available", supportsLocal = true } = {
   const insertButton = control();
   const discardButton = control();
   const binding = bindLocalDictation({
+    compact,
     browser,
     input,
     recordButton,
@@ -138,6 +140,22 @@ test("local transcript stays in preview until the clinician explicitly inserts i
   assert.equal(app.input.value, "Ghi chú cũ Nang có vách mỏng");
   assert.deepEqual(app.input.dispatched, ["input"]);
   assert.equal(app.preview.textContent, "");
+});
+
+test('compact dictation exposes controls only for a reviewed transcript', async () => {
+  const app = setup({compact: true});
+  assert.equal(app.recordButton['aria-label'], 'Nhập bằng giọng nói');
+  assert.equal(app.insertButton.hidden, true);
+  assert.equal(app.discardButton.hidden, true);
+  await app.recordButton.click();
+  app.recognition().onresult({results: [{0: {transcript: 'Thành nhẵn'}}]});
+  assert.equal(app.insertButton.hidden, false);
+  assert.equal(app.discardButton.hidden, false);
+  assert.equal(app.input.value, 'Ghi chú cũ');
+  app.discardButton.click();
+  assert.equal(app.insertButton.hidden, true);
+  assert.equal(app.discardButton.hidden, true);
+  assert.equal(app.input.value, 'Ghi chú cũ');
 });
 
 test("discard clears the preview without changing the note", async () => {

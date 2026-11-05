@@ -6,12 +6,13 @@ import { saveResearchReview } from '../frontend/app/review.js';
 
 Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
 const busyTransitions = [];
+const toasts = [];
 globalThis.window = {
   dispatchEvent(event) {
     if (event.type === 'ova:busy-changed') busyTransitions.push(state.busy);
   },
 };
-globalThis.document = { createElement: () => ({ remove() {} }), querySelector: () => ({ append() {} }) };
+globalThis.document = { createElement: () => ({ remove() {} }), querySelector: () => ({ append(node) { toasts.push(node.textContent); } }) };
 const realTimeout = globalThis.setTimeout;
 globalThis.setTimeout = (...args) => { const timer = realTimeout(...args); timer.unref?.(); return timer; };
 let removals;
@@ -20,6 +21,7 @@ beforeEach(() => {
   removals = 0;
   removedKeys = [];
   busyTransitions.length = 0;
+  toasts.length = 0;
   globalThis.navigator.onLine = true;
   globalThis.localStorage = { removeItem(key) { removals++; removedKeys.push(key); } };
   Object.assign(state, {
@@ -35,6 +37,28 @@ beforeEach(() => {
   });
   Object.assign(tracker, { getTaskMetrics: () => null, getStudyId: () => null, getSessionId: () => null,
     getWatermarks: () => [], track() {}, confirmAck() {}, recordSaveFailure() {}, flush: async () => {} });
+});
+
+test('one-sided save confirmation names only the side and images actually saved', async () => {
+  state.case.images = [state.case.images[0]];
+  globalThis.fetch = async (_url, options) => response(ack(JSON.parse(options.body)));
+
+  const result = await saveResearchReview();
+
+  assert.equal(result.status, 'saved');
+  assert.equal(toasts.at(-1), 'Đã lưu rà soát cho 1 ảnh bên trái.');
+  assert.doesNotMatch(toasts.at(-1), /hai bên/);
+});
+
+test('review save localizes browser transport failures and gives retry guidance', async () => {
+  globalThis.fetch = async () => { throw new TypeError('Failed to fetch'); };
+
+  const result = await saveResearchReview();
+
+  assert.equal(result.status, 'failed');
+  assert.doesNotMatch(result.message, /Failed to fetch/);
+  assert.match(result.message, /Không thể kết nối máy chủ.*thử lại/i);
+  assert.equal(toasts.at(-1), result.message);
 });
 const response = (data, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => data });
 const ack = body => ({ status: 'SUCCESS', study_id: body.study_id, review_revision: body.expected_revision + 1,

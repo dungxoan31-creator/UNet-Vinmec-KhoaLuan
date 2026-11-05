@@ -14,6 +14,19 @@ const notifyReviewDraftStateChanged = () => {
   if (typeof window !== "undefined")
     window.dispatchEvent(new CustomEvent("ova:review-draft-state-changed"));
 };
+
+export function savedReviewMessage(images) {
+  const entries = Array.isArray(images) ? images : [];
+  const sides = new Set(entries.map((image) => image?.laterality).filter((side) => side === "L" || side === "R"));
+  const knownSide = sides.size === 1 ? [...sides][0] : null;
+  const sideLabel = sides.size === 2
+    ? "ở cả hai bên"
+    : knownSide && entries.every((image) => image?.laterality === knownSide)
+      ? (knownSide === "L" ? "bên trái" : "bên phải")
+      : "";
+  return `Đã lưu rà soát cho ${entries.length} ảnh${sideLabel ? ` ${sideLabel}` : ""}.`;
+}
+
 export async function saveResearchReview() {
   const c = state.case,
     identity = state.user?.id,
@@ -120,7 +133,7 @@ export async function saveResearchReview() {
         state.pendingReviewTelemetryAck = null;
     } catch (telemetryErr) {
       console.warn("Telemetry flush warning after successful review commit:", telemetryErr);
-      toast("Đã lưu rà soát. Nhật ký HITL chưa đồng bộ; phiên nghiên cứu chưa hoàn tất.", true);
+      toast("Đã lưu rà soát. Nhật ký HITL chưa đồng bộ; phiên tham khảo chưa hoàn tất.", true);
     }
   };
   try {
@@ -256,7 +269,7 @@ export async function saveResearchReview() {
         state.lastReviewTimeSpent = null;
         c.status = "REVIEWED";
         notifyReviewDraftStateChanged();
-        toast("Đã lưu rà soát của hai bên thành công.");
+        toast(savedReviewMessage(snapshots.map(({ image }) => image)));
       } else {
         // Retain unpersisted edits made after snapshot
         state.dirty = true;
@@ -301,7 +314,7 @@ export async function saveResearchReview() {
               state.lastReviewTimeSpent = null;
               c.status = "REVIEWED";
               notifyReviewDraftStateChanged();
-              toast("Đã xác nhận rà soát trên máy chủ thành công.");
+              toast(savedReviewMessage(snapshots.map(({ image }) => image)));
               void flushReviewAcknowledgements();
               return { status: "saved", studyId: c.study_id, revision: c.review_revision, clean };
             }

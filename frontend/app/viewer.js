@@ -1,10 +1,11 @@
 import { acquireLease } from "./leases.js";
 import { organizeAssessment } from "./assessment-layout.js";
-import { classificationText } from "./image-classification.js";
+import { classificationText, classificationNote } from "./image-classification.js";
 import { logout } from "./auth.js";
 import { saveCorrection } from "./corrections.js";
-import { state, role, saveDraft, saveMaskDraft, restoreMaskDrafts, keepServerVersion } from "./state.js";
+import { state, role, setBusy, saveDraft, saveMaskDraft, restoreMaskDrafts, keepServerVersion } from "./state.js";
 import { openCase } from "./cases.js";
+import { patientRecordLabel } from "./patient-labels.js";
 import { protectedImage, request } from "./api.js";
 import { letterbox, screenToModel, encode, decode } from "./coordinates.js";
 import { cleanMask, components } from "./mask-tools.js";
@@ -155,7 +156,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         <a class="icon-btn" href="#cases" aria-label="Về danh sách">${ icon("list")}</a>
         <div class="viewer-case-meta">
           <strong class="case-code">${ esc(c.study_code || c.study_id)}</strong>
-          <span class="muted small case-pid">PID ${ esc(c.patient_id)}</span>
+          <span class="muted small case-pid">${esc(patientRecordLabel(c))}</span>
         </div>
         ${ badge(c.status)}
       </div>
@@ -227,18 +228,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           <div class="layer-controls" role="group" aria-label="Chế độ xem ảnh">
             ${ ["Gốc", "Mask", "Lớp phủ"].map((label, index) => button(label, "layer-" + index, "small")).join("")}
             <button type="button" class="btn small" data-action="overlay-visibility" aria-label="Hiện/ẩn lớp phủ AI" aria-pressed="false" title="Hiện hoặc ẩn lớp phủ AI">Lớp phủ AI</button>
-            <button type="button" class="btn small" data-action="toggle-caliper-denoise" id="btnCaliperDenoise" aria-pressed="false" title="Tự động xóa thước đo Caliper và khử nhiễu đốm âm học bảo toàn ranh giới">Xóa Caliper &amp; Lọc đốm</button>
-            <select id="selectModelZoo" class="btn small" style="background:#0f172a; color:#e2e8f0; border:1px solid #475569; padding:2px 6px; border-radius:4px; font-size:11px;" title="Chọn mô hình AI từ Model Zoo">
-              <option value="attention_unet">U-Net++ scSE (Chính)</option>
-              <option value="s4m">S4M Foundation Model</option>
-              <option value="ultrasam">UltraSAM Segment Anything</option>
-              <option value="ds2net">DS²Net Dual-Stream</option>
-              <option value="sovaseg">SovaSeg-Net Ovarian</option>
-              <option value="tinyusfm">TinyUSFM Compact (5.5M)</option>
-              <option value="csasegnet">CSA-SegNet SPPF</option>
-              <option value="medsam">MedSAM Interactive HITL</option>
-              <option value="mednext">MedNeXt ConvNeXt</option>
-            </select>
             <button type="button" class="btn small" data-action="rerun-ai-model" id="btnRerunAI" title="Chạy suy luận lại bằng mô hình và thiết lập tiền xử lý đã chọn">Chạy lại AI</button>
           </div>
           <details class="view-more">
@@ -259,7 +248,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
               <label class="range-row">Tương phản<input type="range" id="contrast" min="50" max="180" value="100"></label>
               <label class="range-row toggle-row" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
                 <input type="checkbox" id="caliperDenoiseToggle">
-                <span>Xóa Caliper &amp; Lọc đốm</span>
+                <span>Lọc đốm để đối chiếu (chỉ hiển thị)</span>
               </label>
               ${ button("Mặc định", "image-reset", "small")}
               <span class="muted small" id="draftStatus">Bản nháp trên thiết bị</span>
@@ -272,7 +261,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         <section class="viewer-tabpanel" id="clinicalPanel" aria-label="Thông tin lâm sàng">
           <div class="clinical-panel-notices">
             <div id="localReviewDraftNotice" class="banner warning small local-review-draft-notice" ${state.dirty && !state.draftConflict ? "" : "hidden"} role="status" aria-live="polite">
-              Chưa lưu
+              Bản nháp trên thiết bị chưa được lưu lên máy chủ.
             </div>
             <div id="leaseLostNotice" class="banner warning small lease-lost-notice" ${lease && !lease.editable ? "" : "hidden"} role="alert" aria-live="assertive">
               <span>${lease && !lease.editable ? esc(lease.label) : "Mất kết nối hoặc quyền chỉnh sửa đã hết hạn."} Bản nháp được lưu trên thiết bị nếu trình duyệt cho phép. Tải lại sẽ thử cấp lease; bản nháp chỉ khôi phục tự động khi revision chưa đổi.</span>
@@ -283,7 +272,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             ${ state.draftConflict ? '<div class="banner warning small">Bản nháp dựa trên phiên bản cũ. Đang hiển thị bản máy chủ.' + button("Tải bản nháp cũ", "download-conflict", "small") + button("Giữ bản máy chủ", "keep-server", "small") + "</div>" : ""}
           </div>
           <div id="viewerWarnings"></div>
-          <p id="assessmentSaveStatus" class="small" role="status" aria-live="polite">Chưa lưu</p>
+          <p id="assessmentSaveStatus" class="small" role="status" aria-label="Trạng thái đánh giá" aria-live="polite">Chưa lưu</p>
           <h3>Phân loại hình thái &amp; nguy cơ</h3>
           <label class="field">Hình thái tổn thương
             <select id="iotaMorphology">
@@ -295,18 +284,18 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
               <option value="Khối u đặc">Khối u đặc (Solid Tumor)</option>
             </select>
           </label>
-          <label class="field" title="Do bác sĩ xác nhận">Phân loại O-RADS
+          <label class="field">Phân tầng ACR O-RADS do bác sĩ chọn
             <select id="oradsScore" aria-describedby="oradsHelp">
               <option value="">Chưa đánh giá</option>
-              <option value="O-RADS 1">O-RADS 1 - Bình thường / Nang sinh lý (&lt;30mm)</option>
+              <option value="O-RADS 1">O-RADS 1 - Bình thường / Nang sinh lý (&lt;30 mm)</option>
               <option value="O-RADS 2">O-RADS 2 - Lành tính (&lt;1% nguy cơ)</option>
               <option value="O-RADS 3">O-RADS 3 - Nguy cơ thấp (1% - &lt;10%)</option>
               <option value="O-RADS 4">O-RADS 4 - Nguy cơ trung bình (10% - &lt;50%)</option>
               <option value="O-RADS 5">O-RADS 5 - Nguy cơ cao (≥50%)</option>
             </select>
           </label>
-          <span id="oradsHelp" hidden>Do bác sĩ xác nhận</span>
-          <details id="follicleReference"><summary>Điều kiện áp dụng</summary><p class="muted small">Đối chiếu nang noãn ≤30 mm cần xác nhận hình thái và tình trạng tiền mãn kinh. Thiếu dữ liệu thì chưa phân tầng.</p></details>
+          <p id="oradsHelp" class="muted small">Lựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.</p>
+          <details id="follicleReference"><summary>Điều kiện áp dụng</summary><p class="muted small">Đối chiếu nang noãn &lt;30 mm cần bác sĩ xác nhận hình thái và tình trạng tiền mãn kinh; mốc đúng 30 mm chưa được policy dự án tự phân tầng. Thiếu dữ liệu thì chưa phân tầng.</p></details>
           <div class="chips clinical-morphology-chips">${ ["Dạng nang", "Dạng đặc", "Hỗn hợp", "Bóng cản âm"].map((label) => '<button type="button" class="chip" data-chip="' + esc(label) + '">' + esc(label) + "</button>").join("")}<span id="customChipsWrap"></span><button type="button" class="chip chip-add" data-action="add-chip" title="Thêm đặc điểm mới">+ Thêm</button></div>
           <label class="field">Mô tả hình thái
             <input id="morphology" maxlength="100" placeholder="Chi tiết âm vang, vách ngăn...">
@@ -346,7 +335,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             <details open>
               <summary>Kết quả phân tích AI</summary>
               <p id="imageClassification" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere"></p>
-              <button id="btnApplyAiDiagnosis" class="btn small outline" type="button" style="margin-top:8px" hidden>Áp dụng vào mô tả ca</button>
+              <button id="btnApplyAiDiagnosis" class="btn small outline" type="button" style="margin-top:8px" hidden>Thêm gợi ý AI vào ghi chú</button>
             </details>
           <details>
             <summary class="small">Lịch sử chỉnh sửa</summary>
@@ -376,7 +365,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       image.consistencyAcknowledgement = event.target.checked ? consistencyKey(image) : null;
       recordUiEvent(c.study_id, "field_edit", { field: "review_consistency_ack", source: "manual" });
     };
-    const syncOradsQuickPick = () => {};
     if (role() === "BS") {
       $("#adnexMount").insertAdjacentHTML(
         "beforeend",
@@ -459,7 +447,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     uncertaintyLabel.hidden = true;
     uncertaintyLabel.innerHTML =
       '<span><input id="uncertaintyToggle" type="checkbox" disabled> Xem độ bất định của AI</span><small id="uncertaintyInfo" hidden>Độ bất định của mô hình không phải xác suất ác tính.</small>';
-    $("#assessmentAdvanced").append(uncertaintyLabel);
+    $("#viewerInternalData").append(uncertaintyLabel);
     const abort = new AbortController(),
       events = { signal: abort.signal };
     const popovers = $$(
@@ -513,14 +501,16 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       selectionActive = false;
     const syncDraftNotice = () => {
       const notice = $("#localReviewDraftNotice");
-      if (notice) notice.hidden = true;
+      if (notice) notice.hidden = !state.dirty || Boolean(state.draftConflict);
       const status = $('#assessmentSaveStatus');
       if (status && status.dataset.saving !== 'true') {
-        if (state.dirty && status.dataset.error !== 'true') status.textContent = 'Chưa lưu';
+        if (status.dataset.error === 'true') status.textContent = 'Lưu không thành công';
+        else if (state.dirty) status.textContent = 'Chưa lưu';
         else if (image?.review?.review_id) status.textContent = 'Đã lưu';
         else if (status.dataset.error !== 'true') status.textContent = 'Chưa lưu';
       }
       const segmentation = $('#segmentationState');
+      if (!state.dirty) $('#segmentationDependencyWarning').hidden = true;
       if (segmentation) segmentation.textContent = image?.mask?.some(Boolean)
         ? 'Vùng tổn thương: có phân đoạn'
         : 'Chưa có vùng phân đoạn';
@@ -529,6 +519,17 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       syncDraftNotice();
       const editable = canEditCanvas();
       const blocked = !editable || state.busy || selecting || !image || disposed;
+      const filterToggle = $("#caliperDenoiseToggle");
+      if (filterToggle) filterToggle.disabled = state.busy || selecting || !image || disposed;
+      const rerun = $("#btnRerunAI");
+      if (rerun) {
+        rerun.disabled = blocked || correction || state.dirty || Boolean(image?.review);
+        rerun.title = state.dirty || image?.review
+          ? "Giữ nguyên mask đã rà soát hoặc bản nháp đang chỉnh sửa."
+          : "Phân tích lại bằng checkpoint đã xác minh, với tiền xử lý mặc định.";
+      }
+      const applyAi = $("#btnApplyAiDiagnosis");
+      if (applyAi) applyAi.disabled = blocked || correction;
       for (const id of ["notes", "morphology", "iotaMorphology", "oradsScore", "reviewContentAck"])
         if ($("#" + id)) $("#" + id).disabled = blocked || (correction && ["iotaMorphology", "oradsScore", "reviewContentAck"].includes(id));
       $("[data-action=quick-print]").disabled = blocked || correction;
@@ -540,12 +541,11 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       $("[data-action=calibrate]").disabled = blocked || correction || !state.editing?.leaseToken;
       $("[data-action=sign]").disabled = blocked || !workflowEnabled || !canReviewFullCase();
       if ($("[data-action=save-correction]")) $("[data-action=save-correction]").disabled = blocked;
-      $("[data-action=manual]").hidden = !editable || !image?.mask?.some(Boolean);
+      $("[data-action=manual]").hidden = !editable;
       $("[data-action=no-lesion]").hidden = !editable;
       $("[data-action=manual]").disabled = blocked;
       $("[data-action=no-lesion]").disabled = blocked;
       $$('[data-chip]').forEach((button) => { button.disabled = blocked; });
-      syncOradsQuickPick();
     };
     const canEditCanvas = () =>
       !disposed &&
@@ -553,6 +553,23 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       state.editing?.caseId === c.study_id &&
       state.editing.allowed &&
       !["LOCKED", "SIGNED_PRELIM", "APPROVED"].includes(c.status);
+    function renderClassification() {
+      const result = image?.prediction?.ai_diagnosis;
+      $("#imageClassification").textContent = result ? classificationText(result) : 'Chưa có kết quả phân tích AI';
+      $("#classificationProvenance").textContent = result?.provenance
+        ? `Phân loại ảnh: ${result.provenance.model || 'Chưa ghi nhận'} · SHA-256: ${result.provenance.checkpoint_sha256 || 'Chưa ghi nhận'}` : '';
+      const apply = $("#btnApplyAiDiagnosis");
+      apply.hidden = classificationNote(result) === null;
+      apply.onclick = () => {
+        if (!canEditCanvas() || state.busy || selecting || correction) return;
+        const notes = $("#notes");
+        const next = classificationNote(image?.prediction?.ai_diagnosis, notes.value);
+        if (next === null || next === notes.value) return;
+        notes.value = next;
+        notes.dispatchEvent(new Event("input", { bubbles: true }));
+        toast("Đã thêm gợi ý AI chưa xác nhận vào ghi chú.");
+      };
+    }
     const syncToolButtons = () => {
       $$('[data-tool]').forEach((button) => {
         const viewOnlyTool = ['fit', 'pan', 'fullscreen'].includes(button.dataset.tool);
@@ -668,9 +685,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         context.imageSmoothingEnabled = true;
         if (layer !== 1 || peek || isSecond) {
           let filterStr = `brightness(${brightness}%) contrast(${contrast}%)`;
-          if (caliperDenoise) {
-            filterStr += " blur(0.25px)";
-          }
           context.filter = filterStr;
           context.drawImage(
             isSecond && compareKind !== "original" ? compareCanvas : source,
@@ -1295,7 +1309,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         saveDraft();
         saveMaskDraft(c, image);
       }
-      syncDraftNotice();
+      syncClinicalInputs();
       syncContentWarning();
       $("#draftStatus").textContent = persistDraft
         ? state.online
@@ -1483,6 +1497,9 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       const imageSelect = $("#viewerImageSelect");
       try {
         image = item;
+        ++viewerPreprocessSequence;
+        caliperDenoise = false;
+        $("#caliperDenoiseToggle").checked = false;
         image.manualCalipers ??= Array.isArray(image.review?.hitl_feedback?.manual_calipers)
           ? image.review.hitl_feedback.manual_calipers.map((caliper) => ({ label: caliper.label, points: caliper.points }))
           : [];
@@ -1588,7 +1605,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           $("#uncertaintyToggle").disabled = false;
           uncertaintyLabel.hidden = false;
           $("#uncertaintyInfo").textContent =
-            "Bản đồ entropy biểu thị mức độ tự tin của mô hình AI.";
+            "Bản đồ entropy biểu thị độ bất định của mô hình AI; khác với xác suất chẩn đoán.";
         } else
           $("#uncertaintyInfo").textContent =
             "Bản đồ 512×512 đang tải lại; mask gốc được giữ nguyên.";
@@ -1601,23 +1618,7 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         image.prediction?.provenance?.checkpoint_sha256 ||
         image.prediction?.provenance?.model_checksum ||
         "Bản ghi chưa cung cấp SHA-256.";
-            const aiDiag = image.prediction?.ai_diagnosis;
-      $("#imageClassification").textContent = aiDiag ? classificationText(aiDiag) : 'Chưa có kết quả phân tích AI';
-      $("#classificationProvenance").textContent = aiDiag?.provenance
-        ? `Phân loại ảnh: ${aiDiag.provenance.model || 'Chưa ghi nhận'} · SHA-256: ${aiDiag.provenance.checkpoint_sha256 || 'Chưa ghi nhận'}` : '';
-      const applyBtn = $("#btnApplyAiDiagnosis");
-      if (applyBtn) {
-        applyBtn.hidden = !(aiDiag && aiDiag.status === "PREDICTED" && (aiDiag.suggested_label_vi || aiDiag.suggested_label));
-        applyBtn.onclick = () => {
-          const labelToApply = aiDiag?.suggested_label_vi || aiDiag?.suggested_label;
-          if (!labelToApply) return;
-          if ($("#morphology")) $("#morphology").value = labelToApply;
-          if ($("#iotaMorphology")) $("#iotaMorphology").value = labelToApply;
-          image.morphologyDesc = labelToApply;
-          image.morphology = labelToApply;
-          toast(`Đã áp dụng "${labelToApply}" vào mô tả hình thái.`);
-        };
-      }
+      renderClassification();
       $("#notes").value = image.notes || "";
       $("#morphology").value = image.morphologyDesc || "";
       if ($("#iotaMorphology")) $("#iotaMorphology").value = image.morphology || "";
@@ -2078,23 +2079,24 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       }
       toast(
         caliperDenoise
-          ? "Đang xử lý: Tự động xóa Caliper và lọc đốm âm học…"
-          : "Đã khôi phục ảnh siêu âm gốc"
+          ? "Đang tải ảnh lọc đốm để đối chiếu…"
+          : "Đang khôi phục ảnh hiển thị mặc định…"
       );
 
       // Live Backend Integration: Fetch enhanced / original image from API with race condition protection (F04)
       if (image?.image_id) {
+        const targetImage = image;
         const seq = ++viewerPreprocessSequence;
         const query = caliperDenoise
           ? "?enable_caliper_removal=false&denoise_method=lee"
           : "?enable_caliper_removal=false&denoise_method=none";
         request(`/api/images/${encodeURIComponent(image.image_id)}/viewer-source${query}`)
           .then(async (res) => {
-            if (seq !== viewerPreprocessSequence || disposed) return;
+            if (seq !== viewerPreprocessSequence || disposed || image !== targetImage) return;
             if (res?.original_image_base64) {
               const enhancedBitmap = await imageSourceBitmap(res.original_image_base64);
               try {
-                if (seq === viewerPreprocessSequence && !disposed) {
+                if (seq === viewerPreprocessSequence && !disposed && image === targetImage) {
                   sourceCtx.clearRect(0, 0, 512, 512);
                   sourceCtx.drawImage(enhancedBitmap, 0, 0, 512, 512);
                   schedule();
@@ -2127,16 +2129,17 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
     }
 
     const btnRerunAI = $(`[data-action="rerun-ai-model"]`);
-    const selectModelZoo = $(`#selectModelZoo`);
     if (btnRerunAI) {
       btnRerunAI.onclick = async () => {
         if (!image?.image_id) return toast("Chưa chọn ảnh để chạy dự đoán.", true);
         if (state.busy) return toast("Hệ thống đang xử lý tác vụ khác, vui lòng chờ giây lát.", true);
-        const modelKey = selectModelZoo?.value || "attention_unet";
-        const query = `?enable_caliper_removal=${Boolean(caliperDenoise)}&denoise_method=${caliperDenoise ? "lee" : "none"}&model_key=${encodeURIComponent(modelKey)}&generate_overlay=true`;
-        toast(`Đang chạy suy luận lại với mô hình [${modelKey}]…`);
+        if (!canEditCanvas() || selecting || correction || state.dirty || image.review) return;
+        const targetImage = image;
+        setBusy(true);
+        const query = "?generate_overlay=true";
+        toast("Đang phân tích lại bằng checkpoint đã xác minh…");
         try {
-          const headers = {};
+          const headers = { "Idempotency-Key": crypto.randomUUID() };
           if (state.editing?.leaseToken) {
             headers["X-Case-Lease-Token"] = state.editing.leaseToken;
             headers["X-Case-Page-Instance-Id"] = state.editing.pageInstanceId;
@@ -2145,25 +2148,12 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             method: "POST",
             headers,
           });
-          if (pred && !disposed) {
+          if (pred && !disposed && image === targetImage && canEditCanvas()) {
+            ++viewerPreprocessSequence;
+            caliperDenoise = false;
+            $("#caliperDenoiseToggle").checked = false;
             image.prediction = pred;
-                        const aiDiagPred = pred.ai_diagnosis;
-            $("#imageClassification").textContent = aiDiagPred ? classificationText(aiDiagPred) : 'Chưa có kết quả phân tích AI';
-            $("#classificationProvenance").textContent = aiDiagPred?.provenance
-              ? `Phân loại ảnh: ${aiDiagPred.provenance.model || 'Chưa ghi nhận'} · SHA-256: ${aiDiagPred.provenance.checkpoint_sha256 || 'Chưa ghi nhận'}` : '';
-            const applyBtnPred = $("#btnApplyAiDiagnosis");
-            if (applyBtnPred) {
-              applyBtnPred.hidden = !(aiDiagPred && aiDiagPred.status === "PREDICTED" && (aiDiagPred.suggested_label_vi || aiDiagPred.suggested_label));
-              applyBtnPred.onclick = () => {
-                const labelToApply = aiDiagPred?.suggested_label_vi || aiDiagPred?.suggested_label;
-                if (!labelToApply) return;
-                if ($("#morphology")) $("#morphology").value = labelToApply;
-                if ($("#iotaMorphology")) $("#iotaMorphology").value = labelToApply;
-                image.morphologyDesc = labelToApply;
-                image.morphology = labelToApply;
-                toast(`Đã áp dụng "${labelToApply}" vào mô tả hình thái.`);
-              };
-            }
+            renderClassification();
             if (pred.rle_mask) {
               const decodedMask = decode(pred.rle_mask);
               image.mask = decodedMask;
@@ -2175,14 +2165,20 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
             }
             if (pred.original_image_base64) {
               const bmp = await imageSourceBitmap(pred.original_image_base64);
-              sourceCtx.clearRect(0, 0, 512, 512);
-              sourceCtx.drawImage(bmp, 0, 0, 512, 512);
+              try {
+                if (!disposed && image === targetImage) {
+                  sourceCtx.clearRect(0, 0, 512, 512);
+                  sourceCtx.drawImage(bmp, 0, 0, 512, 512);
+                }
+              } finally { bmp.close?.(); }
             }
             schedule();
-            toast(`Dự đoán thành công bằng mô hình ${modelKey.toUpperCase()}!`);
+            toast("Đã cập nhật đề xuất AI; cần bác sĩ rà soát.");
           }
         } catch (err) {
           toast(err.message || "Lỗi khi chạy dự đoán mô hình.", true);
+        } finally {
+          setBusy(false);
         }
       };
     }
@@ -2278,7 +2274,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
       const handleOrads = (e) => {
         if (state.busy || !canEditCanvas() || selecting || !image) {
           if (image) e.target.value = image.orads || "";
-          syncOradsQuickPick();
           return;
         }
         if (image) image.orads = e.target.value;
@@ -2288,7 +2283,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
           refreshMeasurements: false,
           persistDraft: e.detail?.source !== "quick-pick",
         });
-        syncOradsQuickPick();
       };
       $("#oradsScore").onchange = handleOrads;
       $("#oradsScore").oninput = handleOrads;
@@ -2566,7 +2560,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         if (oradsSelect && !oradsSelect.disabled) {
           oradsSelect.value = oradsVal;
           if (image) image.orads = oradsVal;
-          syncOradsQuickPick();
           changed();
           saveDraft();
           toast(`Đã gán nhanh ${oradsVal}`);
@@ -2704,7 +2697,6 @@ export async function renderViewer(root, id, { readonly = false } = {}) {
         $("#notes").disabled = $("#morphology").disabled = true;
         if ($("#iotaMorphology")) $("#iotaMorphology").disabled = true;
         if ($("#oradsScore")) $("#oradsScore").disabled = true;
-        syncOradsQuickPick();
         $$("[data-chip]").forEach((b) => (b.disabled = true));
       },
       events,

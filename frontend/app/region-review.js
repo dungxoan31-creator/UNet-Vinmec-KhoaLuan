@@ -61,7 +61,7 @@ export function bindRegionReview(root, { request, getContext, onSaved, onCandida
   const isCurrent = (version) => version === generation && !controller?.signal.aborted;
   const render = () => {
     if (!context?.reviewId || !context.maskMatchesReview) {
-      mount.innerHTML = `<p class="muted small">${context?.reviewId ? "Mask nháp khác với review đã lưu. Lưu review hoặc tải lại ảnh trước khi tiếp tục đối chiếu vùng." : "Lưu bản rà soát của ảnh trước khi kiểm tra các vùng đã xác nhận."}</p>`;
+      mount.innerHTML = `<p class="muted small">${context?.reviewId ? "Mask nháp khác với review đã lưu. Lưu review hoặc tải lại ảnh trước khi tiếp tục đối chiếu vùng." : "Lưu kết quả đánh giá của ảnh trước khi kiểm tra các vùng đã xác nhận."}</p>`;
       return;
     }
     const hasEditLease = Boolean(context.canEdit && context.leaseToken && context.pageInstanceId);
@@ -76,7 +76,7 @@ export function bindRegionReview(root, { request, getContext, onSaved, onCandida
     const components = snapshot?.components || [];
     const alreadyConfirmed = Boolean(context.maskMatchesReview && currentAssignment && !latest?.stale && currentAssignment.review_id === context.reviewId);
     mount.innerHTML = `<section class="region-review" aria-labelledby="regionReviewHeading">
-      <h3 id="regionReviewHeading">Đối chiếu vùng mask · RUO</h3>
+      <h3 id="regionReviewHeading">Đối chiếu vùng tổn thương</h3>
       <p class="muted small">Định danh hình học trong một ảnh; không xác định loại tổn thương, không phải CDSS. Gợi ý không được áp dụng tự động. Rê chuột hoặc chuyển tiêu điểm đến vùng để tô sáng mask trên ảnh.</p>
       ${snapshot && currentAssignment && !latest?.stale ? `<p class="small">Snapshot đã lưu · revision ${esc(currentAssignment.review_revision)}</p>` : ""}
       ${latest?.stale ? `<p class="banner warning small" role="status">Có review mới hơn snapshot đã xác nhận. Kiểm tra từng ID trước khi tiếp tục.</p>` : ""}

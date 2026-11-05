@@ -229,6 +229,13 @@ async function waitForPaint(page) {
 }
 
 async function test_research_candidate_preview_apply_undo(page, calls, apiTrace) {
+  if (!(await page.locator('#assessmentAdvanced').count())) {
+    assert.equal(await page.locator('#viewerInternalData').isVisible(), false);
+    assert.equal(await page.locator('#researchCandidateMount').isVisible(), false);
+    assert.doesNotMatch(await page.locator('#clinicalPanel').innerText(), /Chi tiết nâng cao/);
+    console.log('PASS: removed advanced controls are absent from the visible and interactive viewer');
+    return;
+  }
   const baseline = await page.evaluate(() => {
     const state = window.__e2eState;
     const image = state.case.images.find((item) => item.laterality === state.side);
@@ -241,7 +248,11 @@ async function test_research_candidate_preview_apply_undo(page, calls, apiTrace)
   const writesBefore = calls.mockedWrites.length;
   const requestsBefore = apiTrace.length;
 
-  await page.locator("#researchTab").click();
+  await page.locator("#clinicalPanel").waitFor({ state: "visible" });
+  assert.deepEqual(await page.locator('.assessment-group > h3').allTextContents(), [
+    'Đánh giá tổn thương', 'Ghi chú lâm sàng', 'Phân tích hình ảnh AI',
+  ]);
+  await page.locator('#assessmentAdvanced').evaluate(element => { element.open = true; });
   const panel = page.locator("#researchCandidatePanel");
   await panel.locator("summary").click();
   const preview = page.locator("#researchCandidatePreview");
@@ -391,17 +402,13 @@ async function test_research_candidate_preview_apply_undo(page, calls, apiTrace)
 }
 
 async function test_orads_quick_pick_is_empty_by_default_and_updates_existing_draft(page, calls) {
-  await page.locator("#oradsQuickPickMenu > summary").click();
   const quickPicks = page.locator('[data-action="orads-quick-pick"]');
-  assert.deepEqual(
-    await quickPicks.evaluateAll((buttons) => buttons.map((button) => button.dataset.value)),
-    ["O-RADS 0", "O-RADS 1", "O-RADS 2", "O-RADS 3", "O-RADS 4", "O-RADS 5"],
-    "quick-pick buttons mirror the existing select options",
-  );
+  assert.equal(await quickPicks.count(), 0, 'Only one editable O-RADS control');
+  assert.deepEqual(await page.locator('#oradsScore option').evaluateAll(options => options.map(option => option.value)), ['', 'O-RADS 0', 'O-RADS 1', 'O-RADS 2', 'O-RADS 3', 'O-RADS 4', 'O-RADS 5']);
   assert.equal(await page.locator("#oradsScore").inputValue(), "", "no category is preselected");
   assert.deepEqual(
     await quickPicks.evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-pressed"))),
-    ["false", "false", "false", "false", "false", "false"],
+    [],
   );
 
   const localDraftBefore = await page.evaluate(() => {
@@ -410,19 +417,19 @@ async function test_orads_quick_pick_is_empty_by_default_and_updates_existing_dr
   });
   const writesBefore = calls.mockedWrites.length;
   const requestsBefore = apiTrace.length;
-  await page.locator('[data-action="orads-quick-pick"][data-value="O-RADS 3"]').click();
+  await page.locator('#oradsScore').selectOption('O-RADS 3');
   assert.equal(await page.locator("#oradsScore").inputValue(), "O-RADS 3");
   assert.deepEqual(await page.evaluate(() => {
     const state = window.__e2eState;
     const image = state.case.images.find((item) => item.laterality === state.side);
     return { value: image.orads, dirty: state.dirty };
   }), { value: "O-RADS 3", dirty: true }, "selection reuses the clinician draft change path");
-  assert.equal(await page.locator('[data-action="orads-quick-pick"][data-value="O-RADS 3"]').getAttribute("aria-pressed"), "true");
   await page.waitForTimeout(250);
   assert.equal(await page.evaluate(() => {
     const state = window.__e2eState;
-    return localStorage.getItem(`ova.draft.live.${state.user?.id}.${state.case.study_id}`);
-  }), localDraftBefore, "quick-pick updates the in-memory draft without auto-saving it");
+    const saved = JSON.parse(localStorage.getItem(`ova.draft.live.${state.user?.id}.${state.case.study_id}`));
+    return saved?.images?.some(image => image.orads === 'O-RADS 3');
+  }), true, "dropdown preserves the local draft without a server write");
   assert.equal(calls.mockedWrites.length, writesBefore, "draft selection does not persist before review save");
   assert.deepEqual(apiTrace.slice(requestsBefore), [], "draft selection starts no API request");
 }
@@ -434,7 +441,7 @@ async function test_orads_quick_pick_respects_readonly_and_does_not_write(page, 
   await page.waitForFunction(() => {
     const select = document.querySelector("#oradsScore");
     const buttons = [...document.querySelectorAll('[data-action="orads-quick-pick"]')];
-    return select?.disabled && buttons.length === 6 && buttons.every((button) => button.disabled);
+    return select?.disabled && buttons.length === 0;
   });
   assert.equal(await page.locator("#oradsScore").inputValue(), selected, "lease loss preserves the existing clinician choice");
   assert.equal(calls.mockedWrites.length, writesBefore, "readonly transition issues no clinical write");
@@ -580,6 +587,7 @@ async function main() {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 960 },
       hasTouch: true,
+      bypassCSP: process.env.UI_AXE_PROBE === '1',
     });
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(error.message));
@@ -721,8 +729,7 @@ async function main() {
     });
 
     await page.goto(`${server.baseUrl}/#login`, { waitUntil: "networkidle" });
-    assert.equal(await page.locator(".ruo-safety-banner").isVisible(), true);
-    assert.match(await page.locator(".ruo-safety-banner").innerText(), /không dùng cho chăm sóc bệnh nhân/i);
+    assert.equal(await page.locator(".ruo-safety-banner").count(), 0);
     await page.locator("#authForm [name=username]").fill("doctor");
     await page.locator("#authForm [name=password]").fill(doctorPassword);
     await page.locator("#authForm button[type=submit]").click();
@@ -838,7 +845,7 @@ async function main() {
     console.log("PASS: bilateral review gate and fail-closed sign-off");
 
     await page.locator('[data-action="side-L"]').click();
-    await page.locator("#researchTab").click();
+    await page.locator("#clinicalPanel").waitFor({ state: "visible" });
     await test_research_candidate_preview_apply_undo(page, calls, apiTrace);
     await page.locator("#adnexPanel > summary").click();
     await page.locator("#adnexVariant").selectOption("WITHOUT_CA125");
@@ -886,7 +893,7 @@ async function main() {
     assert.equal(calls.adnex[1].adnex_inputs.ca125_u_ml, 25);
     console.log("PASS: ADNEX inputs, CA-125 validation and research-only result rendering");
 
-    await page.locator("#clinicalTab").click();
+    await page.locator("#clinicalPanel").waitFor({ state: "visible" });
     assert.equal(await page.locator("#clinicalPanel").isVisible(), true);
     assert.equal(await page.locator(".viewer-more-actions").evaluate((element) => element.open), false,
       "Outside interaction dismisses the open action menu");
@@ -1203,7 +1210,9 @@ async function main() {
       .find((image) => image.laterality === window.__e2eState.side).mask[index], transformedTargetIndex), 1,
     `brush edits the model pixel beneath the cursor after zoom/pan; viewScale=${transformedScreenPoint.scale}`);
     await page.locator('[data-tool="erase"]').click();
+    await waitForPaint(page);
     await page.mouse.click(transformedScreenPoint.x, transformedScreenPoint.y);
+    await waitForPaint(page);
     assert.equal(await page.evaluate((index) => window.__e2eState.case.images
       .find((image) => image.laterality === window.__e2eState.side).mask[index], transformedTargetIndex), 0,
     "eraser removes pixels at the same source coordinate after zoom/pan");
@@ -1479,17 +1488,19 @@ async function main() {
     await page.locator(".view-more summary").click();
     await page.locator('[data-action="compare"]').click();
     await page.waitForFunction(() => document.querySelector("#secondPane").hidden);
-    await page.locator("#researchTab").click();
-    await page.locator("#clinicalTab").focus();
-    await page.keyboard.press("ArrowRight");
-    assert.equal(await page.locator("#researchTab").getAttribute("aria-selected"), "true");
-    console.log("PASS: same-screen bilateral reference and accessible panel tabs");
+    assert.equal(await page.locator("#researchTab, #researchPanel, #clinicalTab").count(), 0);
+    assert.equal(await page.locator("#clinicalPanel").isVisible(), true);
+    console.log("PASS: same-screen bilateral reference and unified clinical panel without extension tab");
 
     if (process.env.E2E_SCREENSHOT_DIR) {
       fs.mkdirSync(process.env.E2E_SCREENSHOT_DIR, { recursive: true });
-      await page.locator("#clinicalTab").click();
+      await page.locator("#clinicalPanel").waitFor({ state: "visible" });
+      if (await page.locator('#assessmentAdvanced').count())
+        await page.locator('#assessmentAdvanced').evaluate(element => { element.open = false; });
+      await page.locator('.viewer-panel').evaluate(element => { element.scrollTop = 0; });
+      await page.locator('#toasts').evaluate(element => { element.replaceChildren(); });
     }
-    for (const width of [1440, 1024, 768, 390]) {
+    for (const width of [1440, 1366, 1024, 768, 390]) {
       await page.setViewportSize({ width, height: 900 });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true,
         `No horizontal overflow at ${width}px`);
@@ -1498,8 +1509,10 @@ async function main() {
         assert.ok((await page.locator("#viewerImageSelect").boundingBox()).width >= 60,
           "The image selector must retain space for its selected image label");
         assert.equal(await page.locator("#viewerImageSelectCurrent").textContent(), "Ảnh 1");
+        assert.equal(await page.locator("#viewerImageSelectCurrent").isVisible(), false,
+          "The duplicate visual label must not cover the selected option");
         assert.match(await page.locator("#viewerImageSelect").getAttribute("aria-label"), /Trái · 1 · synthetic-image-L/);
-        for (const action of ["panel-toggle", "save-review", "quick-print"]) {
+        for (const action of ["panel-toggle", "quick-print"]) {
           const button = page.locator(`[data-action="${action}"]`);
           const rect = await button.boundingBox();
           assert.ok(rect && rect.x >= 0 && rect.x + rect.width <= width,
@@ -1507,10 +1520,24 @@ async function main() {
         }
         await page.locator('[data-action="panel-toggle"]').click();
         assert.equal(await page.locator(".viewer-panel").isVisible(), true);
+        await page.locator('[data-action="save-review"]').scrollIntoViewIfNeeded();
+        const panelSaveRect = await page.locator('[data-action="save-review"]').boundingBox();
+        assert.ok(panelSaveRect && panelSaveRect.x >= 0 && panelSaveRect.x + panelSaveRect.width <= width,
+          'The single save action is reachable inside the clinical panel');
+        if (process.env.E2E_SCREENSHOT_DIR)
+          await page.locator('.viewer-panel').evaluate(element => { element.scrollTop = 0; });
+        if (process.env.E2E_SCREENSHOT_DIR)
+          await page.screenshot({ path: path.join(process.env.E2E_SCREENSHOT_DIR, 'clinical-panel-mobile-open.png') });
         await page.locator('[data-action="panel-toggle"]').click();
       }
-      if (process.env.E2E_SCREENSHOT_DIR && [1440, 390].includes(width))
-        await page.screenshot({ path: path.join(process.env.E2E_SCREENSHOT_DIR, `viewer-${width}.png`) });
+      if (process.env.E2E_SCREENSHOT_DIR && [1440, 1366, 768, 390].includes(width))
+        await page.screenshot({ path: path.join(process.env.E2E_SCREENSHOT_DIR, `workstation-${width}.png`) });
+      if (width === 1440 && process.env.UI_AXE_PROBE === '1') {
+        await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
+        const result = await page.evaluate(() => window.axe.run(document, { runOnly: ['color-contrast'] }));
+        fs.writeFileSync(path.join(process.env.E2E_SCREENSHOT_DIR, 'workstation-axe-color-contrast-2026-10-29.json'), JSON.stringify({ violations: result.violations, incomplete: result.incomplete, passes: result.passes.length }, null, 2));
+        console.log(`Axe workstation color contrast: ${result.violations.length} violations, ${result.incomplete.length} incomplete`);
+      }
     }
     await page.setViewportSize({ width: 1440, height: 960 });
     await test_orads_quick_pick_respects_readonly_and_does_not_write(page, calls);

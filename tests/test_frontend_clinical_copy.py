@@ -57,7 +57,13 @@ def test_orads_1_copy_requires_physiological_interpretation_not_size_alone():
     assert "const ORADS1_OPTION_LABEL =" in source
     assert "nang noãn < 30 mm" in source.casefold()
     assert "nang noãn ≤ 30 mm" not in source.casefold()
+    assert "đối chiếu nang noãn &lt;30 mm" in source.casefold()
+    assert "mốc đúng 30 mm chưa được policy dự án tự phân tầng" in source.casefold()
     assert "orads1Option.textContent = ORADS1_OPTION_LABEL;" in source
+
+    admin_source = Path("frontend/app/admin-reports.js").read_text(encoding="utf-8")
+    assert "Nguy cơ thấp (1–<10%)" in admin_source
+    assert "Nguy cơ trung bình (10–<50%)" in admin_source
 
 
 def test_workstation_offers_orads_0_for_technically_incomplete_evaluation():
@@ -68,31 +74,33 @@ def test_workstation_offers_orads_0_for_technically_incomplete_evaluation():
     assert "chưa phân tầng nguy cơ" in source.casefold()
 
 
-def test_workstation_and_report_preview_disclose_ruo_status():
+def test_workstation_and_report_preview_use_neutral_ruo_copy():
     active_surfaces = (
         Path("frontend/index.html").read_text(encoding="utf-8"),
         Path("frontend/app/report-preview.js").read_text(encoding="utf-8"),
     )
 
-    for surface in active_surfaces:
-        copy = surface.casefold()
-        assert "bản nghiên cứu ruo" in copy
-        assert "chưa được xác thực lâm sàng" in copy
-        assert "không thay thế đánh giá của bác sĩ" in copy
+    index_copy, report_copy = (surface.casefold() for surface in active_surfaces)
+    assert "ruo-safety-banner" not in index_copy
+    assert "thông tin nghiên cứu ruo" in report_copy
+    assert "bác sĩ phụ trách" in report_copy
+    for copy in (index_copy, report_copy):
+        assert "chưa được xác thực lâm sàng" not in copy
+        assert "không dùng cho chăm sóc bệnh nhân" not in copy
+        assert "không thay thế đánh giá của bác sĩ" not in copy
 
 
 def test_dicom_notice_distinguishes_metadata_filter_from_unreviewed_pixels():
-    surfaces = (
-        Path("frontend/app/intake.js").read_text(encoding="utf-8"),
-        Path("frontend/app/patients.js").read_text(encoding="utf-8"),
-    )
+    intake_copy = Path("frontend/app/intake.js").read_text(encoding="utf-8").casefold()
+    assert "máy chủ lọc một số metadata văn bản và thay uid nguồn" in intake_copy
+    assert "nhưng không làm sạch pixel ảnh" in intake_copy
+    assert "burnedinannotation không xác nhận ảnh sạch" in intake_copy
+    assert "không tải ảnh có chữ định danh" in intake_copy
 
-    for surface in surfaces:
-        copy = surface.casefold()
-        assert "lọc metadata văn bản, ngày giờ và thay uid nguồn" in copy
-        assert "pixel không được làm sạch hay rà soát" in copy
-        assert "burnedinannotation" in copy
-        assert "không tải ảnh có chữ định danh" in copy
+    patient_copy = Path("frontend/app/patients.js").read_text(encoding="utf-8").casefold()
+    assert "dicom chưa được khử định danh đầy đủ" in patient_copy
+    assert "không lưu mã nguồn dạng văn bản" in patient_copy
+    assert "không làm sạch pixel ảnh" in patient_copy
 
 
 def test_active_workstation_distinguishes_clinician_orads_from_ai_segmentation():

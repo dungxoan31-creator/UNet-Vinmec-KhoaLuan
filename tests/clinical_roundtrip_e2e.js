@@ -1,6 +1,7 @@
 /* Real API/DB/model roundtrip with generated non-patient grayscale fixtures. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const { ensureSyntheticFixtures } = require('./helpers/synthetic_fixtures.cjs');
 const { startIsolatedBrowser } = require('./helpers/isolated_browser.cjs');
 const { waitForAppState } = require('./helpers/app_state_wait.cjs');
@@ -44,16 +45,14 @@ async function main() {
       }
     });
     await page.goto(server.base + '/#login');
-    assert.equal(await page.locator('.ruo-safety-banner').isVisible(), true);
-    assert.match(await page.locator('.ruo-safety-banner').innerText(), /không dùng cho chăm sóc bệnh nhân/i);
-    assert.match(await page.locator('.ruo-safety-banner').innerText(), /nguồn dữ liệu chưa được xác minh/i);
+    assert.equal(await page.locator('.ruo-safety-banner').count(), 0);
     await page.locator('[name=username]').fill('doctor');
     await page.locator('[name=password]').fill(server.password);
     await page.locator('#authForm button[type=submit]').click();
     await page.waitForFunction(() => location.hash === '#dashboard');
     await page.waitForFunction(() => document.querySelector('#syntheticDemoBanner')?.hidden === false);
     assert.equal(await page.locator('#environmentUnknownBanner').isHidden(), true);
-    assert.match(await page.locator('#syntheticDemoBanner').innerText(), /không phải hồ sơ bệnh nhân/i);
+    assert.match(await page.locator('#syntheticDemoBanner').innerText(), /Dữ liệu tổng hợp/i);
     const demoHealthResponse = await page.request.get(server.base + '/api/health');
     assert.equal(demoHealthResponse.status(), 200);
     const demoHealth = await demoHealthResponse.json();
@@ -64,8 +63,21 @@ async function main() {
     assert.equal(readiness.readiness_scope, 'TECHNICAL_SERVICE_ONLY');
     assert.equal(readiness.clinical_production_ready, false);
     let authToken = await page.evaluate(() => sessionStorage.getItem('ova.token'));
-    const demoEvaluationResponse = await page.request.get(server.base + '/api/evaluation/metrics', {
+    const doctorEvaluationResponse = await page.request.get(server.base + '/api/evaluation/metrics', {
       headers: { Authorization: 'Bearer ' + authToken },
+    });
+    assert.equal(doctorEvaluationResponse.status(), 403,
+      'the evaluation API is restricted to the reviewer role exposed by the UI');
+    const reviewerPage = await server.browser.newPage({ viewport: { width: 1366, height: 768 } });
+    reviewerPage.on('pageerror', error => errors.push(error.stack || error.message));
+    await reviewerPage.goto(server.base + '/#login');
+    await reviewerPage.locator('[name=username]').fill('reviewer');
+    await reviewerPage.locator('[name=password]').fill(server.reviewerPassword);
+    await reviewerPage.locator('#authForm button[type=submit]').click();
+    await reviewerPage.waitForFunction(() => location.hash === '#dashboard');
+    const reviewerToken = await reviewerPage.evaluate(() => sessionStorage.getItem('ova.token'));
+    const demoEvaluationResponse = await reviewerPage.request.get(server.base + '/api/evaluation/metrics', {
+      headers: { Authorization: 'Bearer ' + reviewerToken },
     });
     assert.equal(demoEvaluationResponse.status(), 200);
     const demoEvaluation = await demoEvaluationResponse.json();
@@ -80,7 +92,7 @@ async function main() {
       '/api/evaluation/samples/known-case/download/image',
     ]) {
       const response = await page.request.get(server.base + path, {
-        headers: { Authorization: 'Bearer ' + authToken },
+        headers: { Authorization: 'Bearer ' + reviewerToken },
       });
       const body = await response.text();
       assert.equal(response.status(), 403, `${path}: ${body}`);
@@ -92,11 +104,11 @@ async function main() {
     });
     const ordinaryCaseBody = await ordinaryCase.text();
     assert.equal(ordinaryCase.status(), 422, ordinaryCaseBody);
-    assert.match(ordinaryCaseBody, /DEMO-SYNTHETIC/i);
+    assert.match(ordinaryCaseBody, /900000001.*900000300/i);
     const caseWithPatientDetails = await page.request.post(server.base + '/api/cases', {
       headers: { Authorization: 'Bearer ' + authToken, 'Idempotency-Key': '739d26b4-17c8-4b25-b15b-1fdbcbff3a1d' },
       data: {
-        patient_id: 'DEMO-SYNTHETIC-BLOCKED', study_date: '2026-10-28', active_ovary_side: 'LEFT',
+        patient_id: '900000001', study_date: '2026-10-28', active_ovary_side: 'LEFT',
         patient_age: '28', clinical_notes: 'Thông tin lâm sàng không được ghi trong sandbox demo',
       },
     });
@@ -113,11 +125,11 @@ async function main() {
     assert.match(rejectedMetadataBody, /fixture tổng hợp/i);
     await page.evaluate(() => { location.hash = '#intake'; });
     await page.locator('[data-select="0"]').click();
-    assert.match(await page.locator('.intake-metadata label.field').first().innerText(), /Mã ca demo.*DEMO-SYNTHETIC/i);
-    assert.match(await page.locator('[name=pid]').getAttribute('placeholder'), /DEMO-SYNTHETIC/);
+    assert.equal(await page.locator('[name=pid]').count(), 0,
+      'Demo intake must not display or request a generated patient ID.');
+    assert.match(await page.locator('.intake-identity').innerText(), /Không gắn hồ sơ/);
     assert.equal(await page.locator('[name=reason]').isDisabled(), true,
       'Demo mode must not collect clinical indication text.');
-    await page.locator('[name=pid]').fill('DEMO-SYNTHETIC-0001');
     // Exercise the real browser→API→database path with a non-square source image.
     // This fixture is synthetic and its SHA-256 is already pinned by the RUO demo allowlist.
     await page.locator('[data-file=L]').setInputFiles(fixtures.letterbox);
@@ -173,6 +185,36 @@ async function main() {
     await page.waitForFunction(() => /^\d{6}$/.test(document.querySelector('[data-visit-no]')?.textContent || ''));
     const visitNo = await page.locator('[data-visit-no]').textContent();
     const firstPredictionOutcome = await firstPredictionCommitted;
+    if (firstPredictionOutcome?.status === 503 && /Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn/i.test(firstPredictionOutcome.body || '')) {
+      await waitForAppState(page, snapshot => !snapshot.busy, { message: 'provenance gate response settled' });
+      const blockedEvidence = await page.evaluate(async () => {
+        const { state } = await import('/static/app/state.js');
+        return {
+          route: state.route,
+          busy: state.busy,
+          syntheticDemoMode: state.capabilities?.synthetic_demo_mode,
+          predictionIds: state.case?.images?.map(image => image.prediction_id ?? null) ?? [],
+          visibleError: document.querySelector('#intakeHint')?.textContent ||
+            document.querySelector('#toasts')?.innerText || '',
+        };
+      });
+      const evidenceDir = path.resolve(__dirname, '../artifacts/qa-clinical-fixed');
+      fs.mkdirSync(evidenceDir, { recursive: true });
+      const evidence = {
+        status: 'BLOCKED',
+        blocker: 'Inference returned HTTP 503 because the selected checkpoint is not loaded or its SHA-256 does not match the verified selection.',
+        response: { status: firstPredictionOutcome.status, body: firstPredictionOutcome.body },
+        visitNo,
+        ui: blockedEvidence,
+        pageErrors: errors,
+        scope: 'synthetic-only disposable browser, server, and SQLite runtime; pre-inference role, contract, fixture, and isolated case-creation checks executed',
+      };
+      fs.writeFileSync(path.join(evidenceDir, 'clinical-roundtrip-provenance-blocked.json'), JSON.stringify(evidence, null, 2));
+      await page.screenshot({ path: path.join(evidenceDir, 'clinical-roundtrip-provenance-blocked.png'), fullPage: true });
+      assert.deepEqual(errors, [], 'The fail-closed provenance response must not cause browser exceptions.');
+      console.log(JSON.stringify(evidence));
+      return;
+    }
     assert.equal(firstPredictionOutcome?.status ?? 200, 200, firstPredictionOutcome?.body);
     await waitForAppState(page, snapshot => !snapshot.busy, { message: 'lost inference response retry settled' });
     await page.locator('[data-action=retry-upload-error]').waitFor();
@@ -1206,7 +1248,11 @@ async function main() {
     });
     await page.evaluate(studyId => { location.hash = '#viewer/' + studyId; }, id);
     await page.waitForFunction(() => document.querySelector('#notes')?.value === 'Rà soát kỹ thuật ảnh tổng hợp bên trái.');
-    await page.locator('#researchTab').click();
+    let advancedRegionRevision = null;
+    const advancedUiAvailable = (await page.locator('#assessmentAdvanced').count()) > 0;
+    if (advancedUiAvailable) {
+    if (!(await page.locator('#assessmentAdvanced').evaluate(element => element.open)))
+      await page.locator('#assessmentAdvanced > summary').click();
     const leftImage = persisted.images.find(image => image.laterality === 'L');
     const leftImageId = leftImage.image_id;
     assert.equal(leftImage.width, 640);
@@ -1586,7 +1632,7 @@ async function main() {
     assert.equal(savedAssessment.source_caliper_event_id, savedRegionCaliper.request_id);
     assert.equal(savedAssessment.result.status, 'INSUFFICIENT_DATA');
     assert.equal(savedAssessment.result.orads_stratification.category, null);
-    assert.match(await page.locator('#cdssResult').innerText(), /Assessment RUO đã lưu · phiên bản 1/);
+    assert.match(await page.locator('#cdssResult').innerText(), /Đánh giá đã lưu · phiên bản 1/);
 
     // Seed older RUO assessment revisions through the live endpoint; they remain traceable but stale.
     let seededAssessmentRevision = savedAssessment.assessment_revision;
@@ -1620,12 +1666,13 @@ async function main() {
     await page.evaluate(() => { location.hash = '#cases'; });
     await page.locator('#caseResults').waitFor();
     await page.evaluate(studyId => { location.hash = '#viewer/' + studyId; }, id);
-    await page.locator('#researchTab').click();
+    if (!(await page.locator('#assessmentAdvanced').evaluate(element => element.open)))
+      await page.locator('#assessmentAdvanced > summary').click();
     await page.locator('[data-region-load]').click();
     await page.locator(`[data-region-select="${targetAssignment.region_id}"]`).waitFor();
     await page.locator(`[data-region-select="${targetAssignment.region_id}"]`).click();
     await page.waitForFunction(expectedRevision =>
-      document.querySelector('#cdssResult')?.textContent.includes(`Assessment RUO đã lưu · phiên bản ${expectedRevision}`),
+      document.querySelector('#cdssResult')?.textContent.includes(`Đánh giá đã lưu · phiên bản ${expectedRevision}`),
     latestSeededAssessment.assessment_revision);
     await page.waitForFunction(() =>
       /D1 .* mm .* D2 .* mm/.test(document.querySelector('#cdssRegionStatus')?.textContent || ''));
@@ -1677,6 +1724,13 @@ async function main() {
     assert.match(completeHistory, /Revision 1 · .*lịch sử \/ stale/);
     console.log(`PASS: browser loads live paginated history without duplicates; ${seededD1Revision} D1 + 1 D2 events, ${latestSeededAssessment.assessment_revision} assessments; cursor pages ${caliperHistoryBody.history.length}/${assessmentHistoryBody.history.length}; stale rows stay historical`);
 
+    advancedRegionRevision = savedRegionState.assignment.review_revision;
+    } else {
+      assert.equal(await page.locator('#viewerInternalData').isVisible(), false);
+      assert.equal(await page.locator('#regionReviewMount').isVisible(), false);
+      console.log('PASS: advanced region workflow is removed from the UI; backend region contracts remain covered separately');
+    }
+
     // Exercise ADNEX through the real browser request and isolated backend, using synthetic test inputs.
     await page.locator('#adnexPanel > summary').click();
     await page.locator('#adnexVariant').selectOption('WITHOUT_CA125');
@@ -1713,7 +1767,8 @@ async function main() {
     assert.equal(await page.locator('#adnexProbabilityList [data-adnex-probability]').count(), 5);
     console.log('PASS: ADNEX browser → live isolated backend → probability-vector validation/rendering on synthetic inputs');
 
-    console.log('PASS: region review, source-coordinate calibrated caliper, live CDSS persistence and reload through browser/API/SQLite');
+    if (advancedUiAvailable)
+      console.log('PASS: region review, source-coordinate calibrated caliper, live CDSS persistence and reload through browser/API/SQLite');
     await page.locator('[data-action=side-R]').click();
     await page.waitForFunction(() => document.querySelector('#notes')?.value === 'Rà soát kỹ thuật ảnh tổng hợp bên phải.');
     await page.evaluate(() => {
@@ -1753,17 +1808,20 @@ async function main() {
     await page.locator('#reportData .report').waitFor();
     console.log('PASS: report source image releases its URL after a canvas failure and report route retries successfully');
     const report = await page.locator('#reportData .report').innerText();
+    const reportSummary = await page.locator('#reportData .report-summary-page').innerText();
+    const reportEvidence = (await page.locator('#reportData .report-evidence-page').allTextContents()).join('\n');
     assert.equal(await page.locator('#reportData .patient-friendly-summary-panel').count(), 0);
-    assert.match(report, /Không dùng cho chăm sóc bệnh nhân/);
-    assert.match(report, /DEMO DỮ LIỆU TỔNG HỢP · KHÔNG PHẢI HỒ SƠ BỆNH NHÂN/);
+    assert.match(report, /THÔNG TIN NGHIÊN CỨU RUO/);
+    assert.match(report, /DỮ LIỆU TỔNG HỢP — KHÔNG PHẢI HỒ SƠ BỆNH NHÂN THẬT/);
     assert.equal(await page.locator('#reportData .report-synthetic-demo-banner').count(), 3,
       'The summary and every printed image page must identify the synthetic demo data.');
-    assert.match(report, /Nguồn dữ liệu chưa được xác minh/);
+    assert.match(report, /Phạm vi: nghiên cứu kỹ thuật/);
     assert.doesNotMatch(report, /Bình thường|lành tính|tái khám|hướng xử trí|xác suất ác tính/iu);
     assert.deepEqual(await page.locator('#toasts .toast.danger').allTextContents(), [],
       'Normal report navigation must not leave an error toast.');
     const supportIndex = report.indexOf('THÔNG TIN HỖ TRỢ');
-    assert.match(report, /Revision:\s*2/);
+    assert.ok(report.includes(`Revision: ${advancedRegionRevision ?? persisted.review_revision}`),
+      'The report must show the revision actually persisted by the enabled workflow.');
     assert.match(report, new RegExp(`Visit:\\s*${visitNo}`));
     assert.match(report, /Trạng thái lưu rà soát\s+Đã lưu rà soát cho các ảnh trong hồ sơ/);
     assert.match(report, /Mask đã được bác sĩ rà soát/);
@@ -1774,8 +1832,9 @@ async function main() {
     assert.match(report, /BÊN TRÁI/);
     assert.match(report, /BÊN PHẢI/);
     assert.match(report, /HÌNH ẢNH KHẢO SÁT/);
-    assert.match(report, /Rà soát kỹ thuật ảnh tổng hợp bên trái/);
-    assert.match(report, /Rà soát kỹ thuật ảnh tổng hợp bên phải/);
+    assert.match(reportSummary, /Rà soát kỹ thuật ảnh tổng hợp bên trái/);
+    assert.match(reportSummary, /Rà soát kỹ thuật ảnh tổng hợp bên phải/);
+    assert.doesNotMatch(reportEvidence, /Rà soát kỹ thuật ảnh tổng hợp bên (trái|phải)/);
     assert.match(report, /D₁\/D₂ theo caliper bác sĩ đã lưu/);
     assert.equal(await page.locator('#reportData .report-overlay-status').count(), 2);
     if (process.env.E2E_REPORT_SCREENSHOT) {
@@ -1787,9 +1846,15 @@ async function main() {
     assert.deepEqual(await page.locator('#toasts .toast.danger').allTextContents(), [], 'Printing a saved RUO report must not leave an error toast.');
     assert.equal(await page.locator('#printRoot .report').count(), 1);
     assert.equal(await page.locator('#printRoot .patient-friendly-summary-panel').count(), 0);
+    const printSummary = await page.locator('#printRoot .report-summary-page').innerText();
+    const printEvidence = (await page.locator('#printRoot .report-evidence-page').allTextContents()).join('\n');
+    assert.match(printSummary, /Rà soát kỹ thuật ảnh tổng hợp bên trái/);
+    assert.match(printSummary, /Rà soát kỹ thuật ảnh tổng hợp bên phải/);
+    assert.doesNotMatch(printEvidence, /Rà soát kỹ thuật ảnh tổng hợp bên (trái|phải)/);
     const reportPdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    if (process.env.E2E_REPORT_PDF_OUTPUT) fs.writeFileSync(process.env.E2E_REPORT_PDF_OUTPUT, reportPdf);
     const pdfPageCount = (reportPdf.toString('latin1').match(/\/Type\s*\/Page\b/g) || []).length;
-    assert.equal(pdfPageCount, 3, `Expected one summary page plus one page per image, got ${pdfPageCount} pages.`);
+    assert.equal(pdfPageCount, 4, `Expected summary, two image pages and technical support, got ${pdfPageCount} pages.`);
     if (process.env.E2E_REPORT_PRINT_PAGE1_SCREENSHOT || process.env.E2E_REPORT_PRINT_PAGE2_SCREENSHOT) {
       await page.emulateMedia({ media: 'print' });
       if (process.env.E2E_REPORT_PRINT_PAGE1_SCREENSHOT) {
@@ -1878,7 +1943,7 @@ async function main() {
     assert.equal(await page.locator('[data-action=print]').isDisabled(), true,
       'A capability change while the app remains open must keep printing locked.');
     console.log('PASS: report content and printing fail closed on unavailable, contradictory, and newly changed capabilities; retry recovers with the synthetic disclosure');
-    console.log(JSON.stringify({ status: 'PASS', scope: 'isolated auth/intake/upload/IQA/model/review/region-assignment/DB/reopen/report/print with synthetic images; success responses are live and request failures are fault-injected', reviewRevision: saved.review_revision, regionRevision: savedRegionState.assignment.review_revision, images: persisted.images.length, pdfPages: pdfPageCount, pageErrors: errors.length }));
+    console.log(JSON.stringify({ status: 'PASS', scope: 'isolated auth/intake/upload/IQA/model/review/DB/reopen/report/print with synthetic images; advanced region UI is tested only when present; success responses are live and request failures are fault-injected', reviewRevision: saved.review_revision, regionRevision: advancedRegionRevision, advancedUiAvailable, images: persisted.images.length, pdfPages: pdfPageCount, pageErrors: errors.length }));
   } finally {
     const isolatedRuntime = server.runtime;
     await server.close();

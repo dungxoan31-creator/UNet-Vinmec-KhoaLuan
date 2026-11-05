@@ -9,12 +9,22 @@ export function bindLocalDictation({
   preview,
   insertButton,
   discardButton,
+  compact = false,
 }) {
   let generation = 0;
   let recognition = null;
   let starting = false;
   let disposed = false;
   let pending = "";
+  const setRecording = (recording) => {
+    const label = recording ? 'Dừng nhập giọng nói' : 'Nhập bằng giọng nói';
+    if (!compact) { recordButton.textContent = recording ? 'Dừng đọc chính tả' : 'Đọc chính tả cục bộ'; return; }
+    recordButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>';
+    recordButton.setAttribute('aria-label', label);
+    recordButton.setAttribute('aria-pressed', String(recording));
+    recordButton.title = label;
+  };
+  if (compact) setRecording(false);
 
   const showPreview = (transcript) => {
     pending = transcript;
@@ -22,19 +32,26 @@ export function bindLocalDictation({
     preview.hidden = !transcript;
     insertButton.disabled = !transcript || input.disabled;
     discardButton.disabled = !transcript;
+    if (compact) {
+      insertButton.hidden = !transcript;
+      discardButton.hidden = !transcript;
+    }
   };
   const clearPreview = () => showPreview("");
+  if (compact) clearPreview();
   const setStatus = (message) => {
     status.textContent = message;
+    if (compact) status.hidden = !message;
   };
 
   const cancel = () => {
+    const hadWork = Boolean(recognition || starting || pending);
     generation++;
     starting = false;
     const activeRecognition = recognition;
     recognition = null;
     clearPreview();
-    recordButton.textContent = "Đọc chính tả cục bộ";
+    setRecording(false);
     if (activeRecognition) {
       try {
         activeRecognition.abort();
@@ -42,7 +59,7 @@ export function bindLocalDictation({
         // A recognizer may already have stopped; discard it either way.
       }
     }
-    setStatus("Đã hủy; bản chép chờ đã được xóa.");
+    setStatus(compact && !hadWork ? '' : "Đã hủy; bản chép chờ đã được xóa.");
   };
 
   const start = async () => {
@@ -116,8 +133,8 @@ export function bindLocalDictation({
           return;
         const message =
           event?.error === "not-allowed" || event?.error === "service-not-allowed"
-            ? "Micro chưa được cấp quyền; bản chép đã bị xóa và không có dịch vụ mạng thay thế."
-            : "Không thể nhận dạng cục bộ; bản chép đã bị xóa, không dùng dịch vụ mạng thay thế.";
+            ? "Quyền micro: cấp quyền trên thiết bị. Bản chép đã được xóa; âm thanh chỉ xử lý cục bộ."
+            : "Nhận dạng cục bộ tạm dừng. Bản chép đã được xóa; âm thanh chỉ xử lý trên thiết bị.";
         cancel();
         setStatus(message);
       };
@@ -125,26 +142,26 @@ export function bindLocalDictation({
         if (disposed || session !== generation || recognition !== nextRecognition)
           return;
         recognition = null;
-        recordButton.textContent = "Đọc chính tả cục bộ";
+        setRecording(false);
         setStatus(
           pending
             ? "Đã dừng. Hãy kiểm tra bản chép xem trước trước khi chèn."
-            : "Không nhận được bản chép; có thể thử lại.",
+            : "Bản chép đang trống. Chọn Đọc chính tả để thử lại.",
         );
       };
 
       nextRecognition.start();
-      recordButton.textContent = "Dừng đọc chính tả";
+      setRecording(true);
       setStatus("Đang nghe tiếng Việt trên thiết bị…");
     } catch (error) {
       if (!disposed && session === generation) {
         recognition = null;
         clearPreview();
-        recordButton.textContent = "Đọc chính tả cục bộ";
+        setRecording(false);
         setStatus(
           error?.name === "NotAllowedError"
-            ? "Micro chưa được cấp quyền; không dùng dịch vụ mạng thay thế."
-            : "Không thể bắt đầu nhận dạng cục bộ; không dùng dịch vụ mạng thay thế.",
+            ? "Quyền micro: cấp quyền trong cài đặt thiết bị."
+            : "Nhận dạng cục bộ đang tạm dừng; âm thanh chỉ xử lý trên thiết bị.",
         );
       }
     } finally {

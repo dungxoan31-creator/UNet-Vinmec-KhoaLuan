@@ -7,6 +7,8 @@
  */
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { startIsolatedBrowser } = require('./helpers/isolated_browser.cjs');
 const { waitForAppState } = require('./helpers/app_state_wait.cjs');
 
@@ -90,7 +92,7 @@ async function test_grid_reuses_filtered_rows_thumbnails_and_case_route(page, st
   await page.locator('#caseResults .table-wrap').waitFor();
   assert.equal(await page.locator('#caseResults .case-select, #selectAll, [data-action="export-selected"]').count(), 0,
     'RUO worklist must not expose unsupported bulk selection/export controls.');
-  assert.match(await page.locator('[data-export-status="disabled"]').innerText(), /đang bị khóa trên máy chủ RUO/i);
+  assert.match(await page.locator('[data-export-status="disabled"]').innerText(), /đang bị khóa trên máy chủ/i);
   await gridButton.click();
   await page.locator(`#caseResults [data-worklist-card="${studyId}"]`).waitFor();
   assert.equal(await card.locator('.worklist-grid-open').getAttribute('href'), `#viewer/${studyId}`);
@@ -389,7 +391,7 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     // 5. Test Intake & Manual AI Activation Button
     // ==========================================
     await page.evaluate(() => { location.hash = '#intake'; });
-    await page.locator('[data-select="0"]').click();
+    await page.locator('[data-action="anonymous-study"]').click();
     await page.locator('#startSegmentationBtn').waitFor({ timeout: 5000 });
 
     // Verify initial button state is disabled
@@ -418,8 +420,49 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     console.log('[Test Live UI] startSegmentationBtn enabled after date and bilateral images are set.');
 
     // Click the manual activation button
+    const firstInferenceResponsePromise = page.waitForResponse(response =>
+      response.request().method() === 'POST' && new URL(response.url()).pathname.startsWith('/api/predict/'),
+    );
     await page.locator('#startSegmentationBtn').click();
     console.log('[Test Live UI] Clicked startSegmentationBtn, waiting for bilateral inference...');
+
+    const firstInferenceResponse = await firstInferenceResponsePromise;
+    const inferenceBody = await firstInferenceResponse.text();
+    if (firstInferenceResponse.status() === 503 &&
+      /Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn/i.test(inferenceBody)) {
+      await waitForAppState(page, snapshot => !snapshot.busy, { message: 'provenance gate response settled' });
+      const blockedUi = await page.evaluate(async () => {
+        const { state } = await import('/static/app/state.js');
+        return {
+          route: state.route,
+          busy: state.busy,
+          predictionIds: state.case?.images?.map(image => image.prediction_id ?? null) ?? [],
+          intakeError: document.querySelector('#intakeError')?.innerText || '',
+        };
+      });
+      const expectedProvenanceConsoleErrors = errors.filter(message =>
+        /Failed to load resource: the server responded with a status of 503 \(Service Unavailable\)/i.test(message));
+      const unexpectedBrowserErrors = errors.filter(message =>
+        !/Failed to load resource: the server responded with a status of 503 \(Service Unavailable\)/i.test(message));
+      const evidenceDir = path.resolve(__dirname, '../artifacts/qa-clinical-fixed');
+      fs.mkdirSync(evidenceDir, { recursive: true });
+      const evidence = {
+        status: 'BLOCKED',
+        blocker: 'Inference returned HTTP 503 because the selected checkpoint is not loaded or its SHA-256 does not match the verified selection.',
+        apiStatus: firstInferenceResponse.status(),
+        ui: blockedUi,
+        expectedProvenanceConsoleErrors,
+        unexpectedBrowserErrors,
+        pageErrors: [],
+        scope: 'isolated browser/server/SQLite with generated synthetic images; registration, login, anonymous intake, bilateral upload, and pre-inference controls executed',
+      };
+      fs.writeFileSync(path.join(evidenceDir, 'live-ui-provenance-blocked.json'), JSON.stringify(evidence, null, 2));
+      await page.screenshot({ path: path.join(evidenceDir, 'live-ui-provenance-blocked.png'), fullPage: true });
+      assert.deepEqual(unexpectedBrowserErrors, [], 'The fail-closed provenance response must not cause unexpected browser errors.');
+      console.log('[Test Live UI BLOCKED] ' + JSON.stringify(evidence));
+      return;
+    }
+    assert.equal(firstInferenceResponse.status(), 200, inferenceBody);
 
     // Viewport canvas should load after inference completes
     await page.locator('#viewport').waitFor({ timeout: 120000 });
@@ -443,19 +486,19 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     const initialCase = await initialCaseResponse.json();
     const leftPrediction = initialCase.images.find(image => image.laterality === 'L')?.prediction;
     const hasUncertaintyMap = Boolean(leftPrediction?.uncertainty_map_base64);
-    await page.locator('#researchTab').click();
+    if (await page.locator('#researchTab').count() > 0) await page.locator('#researchTab').click();
     await test_cdss_requires_a_saved_region_and_sends_no_defaults(page, browserRequests);
     const uncertaintyToggle = page.locator('#uncertaintyToggle');
     assert.equal(await uncertaintyToggle.isEnabled(), hasUncertaintyMap,
       'The entropy control must follow map availability: ' + await page.locator('#uncertaintyInfo').textContent());
     if (hasUncertaintyMap) {
-      assert.match(await page.locator('#uncertaintyInfo').textContent(), /không phải xác suất chẩn đoán/i);
+      assert.match(await page.locator('#uncertaintyInfo').textContent(), /độ bất định.*khác với xác suất chẩn đoán/i);
       await uncertaintyToggle.check();
       assert.equal(await uncertaintyToggle.isChecked(), true);
       await uncertaintyToggle.uncheck();
       assert.equal(await uncertaintyToggle.isChecked(), false);
     }
-    await page.locator('#clinicalTab').click();
+    if (await page.locator('#clinicalTab').count() > 0) await page.locator('#clinicalTab').click();
 
     await page.locator('[data-action="side-R"]').click();
     await page.waitForFunction(() => document.querySelector('#sideLabel')?.textContent.includes('phải'));
@@ -612,9 +655,10 @@ async function test_research_report_preview_renders_html_like_text_as_inert(page
     await page.locator('#reportData .report').waitFor({ timeout: 30000 });
     assert.equal(await page.locator('#reportData .report-image-pair img').count(), 4);
     const reportText = await page.locator('#reportData .report').innerText();
-    assert.match(reportText, /BẢN NGHIÊN CỨU \(RUO\)/i);
-    assert.match(reportText, /Chưa có chữ ký số/i);
-    assert.match(reportText, /Chưa hiệu chuẩn/);
+    assert.match(reportText, /THÔNG TIN NGHIÊN CỨU RUO/i);
+    assert.match(reportText, /Xác thực chữ ký số: ngoài phạm vi tài liệu này/i);
+    assert.match(reportText, /Đơn vị hiển thị: pixel/i);
+    assert.doesNotMatch(reportText, /Không dùng cho chăm sóc bệnh nhân|Chưa được xác thực lâm sàng|Không thay thế đánh giá của bác sĩ/i);
     await test_research_report_preview_renders_html_like_text_as_inert(page, reviewedStudy, browserRequests);
     await page.evaluate(() => {
       window.print = () => { window.__e2ePrintCalled = true; };

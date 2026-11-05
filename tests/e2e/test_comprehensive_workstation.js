@@ -331,7 +331,7 @@ async function runComprehensiveTests() {
     await saveBtn.waitFor({ state: "visible" });
     assert.equal(await saveBtn.isEnabled(), true, "Save review button must be enabled after reviewing both sides");
     await saveBtn.click();
-    await page.getByRole('status').filter({ hasText: 'Đã lưu rà soát của hai bên thành công.' }).waitFor({ timeout: 10000 });
+    await page.getByRole('status').filter({ hasText: /Đã lưu rà soát cho \d+ ảnh ở cả hai bên\./ }).waitFor({ timeout: 10000 });
     const telemetryErrors = page.locator('#toasts .toast.danger').filter({ hasText: 'Nhật ký HITL chưa đồng bộ' });
     assert.equal(await telemetryErrors.count(), 0, 'Review telemetry must not report an error');
     await waitForAppState(page, snapshot => !snapshot.busy,

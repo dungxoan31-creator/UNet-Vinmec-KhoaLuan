@@ -46,7 +46,7 @@ test("frontend/app/navigation.js brand link accessible name contains visible lab
 
   assert.match(
     navCode,
-    /aria-label="\$\{BRAND_NAME\}\s*—\s*Siêu âm Buồng trứng\s*·\s*RUO\s*—\s*Tổng quan"/,
+    /aria-label="\$\{BRAND_NAME\}\s*—\s*Siêu âm Buồng trứng\s*—\s*Tổng quan"/,
     "brand link aria-label must include visible label 'Siêu âm Buồng trứng · RUO' for WCAG 2.5.3"
   );
 });
