@@ -16,6 +16,10 @@ fs.mkdirSync(screenshotDir, { recursive: true });
     await page.goto(base + '/#login');
     await page.locator('#authForm').waitFor();
     await page.evaluate(() => document.fonts.ready);
+    const safetyBanner = page.locator('.ruo-safety-banner');
+    assert.equal(await safetyBanner.isVisible(), true, 'The RUO notice must be visible before sign-in.');
+    assert.equal((await safetyBanner.innerText()).replace(/\s+/g, ' ').trim(),
+      'BẢN NGHIÊN CỨU (RUO) — Chưa được phê duyệt lâm sàng — Không dùng cho quyết định điều trị');
     assert.equal(await page.locator('[data-action^=demo]').count(), 0);
     assert.doesNotMatch(await page.locator('body').innerText(), /demo|minh họa|bản mẫu|thử nghiệm/i);
     const branding = await page.evaluate(() => ({
@@ -31,6 +35,12 @@ fs.mkdirSync(screenshotDir, { recursive: true });
     for (const width of [1440, 1024, 390]) {
       await page.setViewportSize({width, height:900});
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      const bannerLayout = await safetyBanner.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { height: rect.height, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth };
+      });
+      assert.equal(bannerLayout.height, width <= 640 ? 48 : 32, JSON.stringify(bannerLayout));
+      assert.ok(bannerLayout.scrollWidth <= bannerLayout.clientWidth, JSON.stringify(bannerLayout));
       const passwordGeometry = await page.evaluate(() => {
         const input = document.querySelector('#authForm [name=password]').getBoundingClientRect();
         const button = document.querySelector('#showPassword').getBoundingClientRect();
@@ -49,6 +59,7 @@ fs.mkdirSync(screenshotDir, { recursive: true });
     await page.locator('[name=password]').fill(password);
     await page.locator('#authForm button[type=submit]').click();
     await page.locator('#dashData .metrics').waitFor();
+    assert.match(await page.locator('.statusbar').innerText(), /RUO · Không dùng cho quyết định điều trị/i);
     await page.evaluate(() => { location.hash = '#evaluation'; });
     await page.waitForFunction(() => location.hash === '#dashboard');
     assert.equal(await page.locator('#evaluationData').count(), 0,

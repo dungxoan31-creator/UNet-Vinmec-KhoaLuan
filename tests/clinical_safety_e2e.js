@@ -35,7 +35,11 @@ async function login(page, server, checks = null, credentials = {}) {
     assert.match(authCopy, /Môi trường nghiên cứu hỗ trợ xem phân đoạn/i);
     assert.match(authCopy, /bác sĩ rà soát và xác nhận/i);
     assert.doesNotMatch(authCopy, /kiểm toán lâm sàng/i);
-    assert.equal(await page.locator('.ruo-safety-banner').count(), 0);
+    const safetyBanner = page.locator('.ruo-safety-banner');
+    assert.equal(await safetyBanner.count(), 1);
+    assert.equal(await safetyBanner.isVisible(), true);
+    assert.equal((await safetyBanner.innerText()).replace(/\s+/g, ' ').trim(),
+      'BẢN NGHIÊN CỨU (RUO) — Chưa được phê duyệt lâm sàng — Không dùng cho quyết định điều trị');
     assert.doesNotMatch(authCopy, /chưa được xác thực lâm sàng|không dùng cho chăm sóc bệnh nhân/i);
     checks.push('P0 auth copy identifies the RUO research environment and clinician review');
   }
@@ -255,6 +259,8 @@ async function main() {
           `CTA is available without scrolling at 1366x768: ${JSON.stringify(naturalPlacement)}`);
       }
       if (width === 1366) {
+        assert.ok(naturalPlacement.bottom <= 630,
+          `RUO banner must preserve the first-fold CTA at 1366x768: ${JSON.stringify(naturalPlacement)}`);
         await page.screenshot({ path: path.join(out, 'intake-1366-before-action-scroll.png') });
       }
       await page.locator('#startSegmentationBtn').scrollIntoViewIfNeeded();

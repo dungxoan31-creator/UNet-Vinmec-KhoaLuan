@@ -74,20 +74,18 @@ def test_workstation_offers_orads_0_for_technically_incomplete_evaluation():
     assert "chưa phân tầng nguy cơ" in source.casefold()
 
 
-def test_workstation_and_report_preview_use_neutral_ruo_copy():
+def test_workstation_and_statusbar_show_the_global_ruo_disclaimer():
     active_surfaces = (
         Path("frontend/index.html").read_text(encoding="utf-8"),
         Path("frontend/app/report-preview.js").read_text(encoding="utf-8"),
     )
 
     index_copy, report_copy = (surface.casefold() for surface in active_surfaces)
-    assert "ruo-safety-banner" not in index_copy
+    assert 'class="ruo-safety-banner" role="note"' in index_copy
+    assert "bản nghiên cứu (ruo) — chưa được phê duyệt lâm sàng — không dùng cho quyết định điều trị" in index_copy
+    assert "ruo · không dùng cho quyết định điều trị" in index_copy
     assert "thông tin nghiên cứu ruo" in report_copy
     assert "bác sĩ phụ trách" in report_copy
-    for copy in (index_copy, report_copy):
-        assert "chưa được xác thực lâm sàng" not in copy
-        assert "không dùng cho chăm sóc bệnh nhân" not in copy
-        assert "không thay thế đánh giá của bác sĩ" not in copy
 
 
 def test_dicom_notice_distinguishes_metadata_filter_from_unreviewed_pixels():
