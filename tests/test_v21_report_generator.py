@@ -33,16 +33,16 @@ def test_build_structured_findings_report_benign():
     }
 
     report = build_structured_findings_report(findings)
-    assert "BẢN NHÁP NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG PHẢI" in report
+    assert "TÀI LIỆU NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG PHẢI" in report
     assert "32.5 mm" in report
     assert "24.5 mm × 18.0 mm" in report
     assert "U nang tuyến thanh dịch" not in report
     assert "72%" not in report
     assert "O-RADS US đề xuất" not in report
-    assert "không phát hành kết luận chẩn đoán" in report.lower()
+    assert "phần kết luận, phân loại và định hướng chuyên môn do bác sĩ phụ trách hoàn thiện" in report.lower()
     assert "LỜI DẶN DÀNH CHO BỆNH NHÂN" not in report
     assert "THÔNG TIN NGHIÊN CỨU (RUO)" in report
-    assert "Chưa được xác thực lâm sàng" in report
+    assert "Phạm vi: đánh giá kỹ thuật" in report
     assert "Nguy cơ ác tính ước lượng" not in report
 
 
@@ -57,9 +57,9 @@ def test_build_structured_findings_report_abstain():
         },
     }
     report = build_structured_findings_report(findings)
-    assert "không phát hành kết luận chẩn đoán" in report.lower()
+    assert "phần kết luận, phân loại và định hướng chuyên môn do bác sĩ phụ trách hoàn thiện" in report.lower()
     assert "Độ tin cậy thấp" not in report
-    assert "pixel spacing thiếu hoặc không hợp lệ" in report.lower()
+    assert "pixel spacing: cần giá trị hợp lệ" in report.lower()
 
 
 def test_report_omits_unavailable_probabilities_and_missing_mask_is_not_a_negative():
@@ -117,7 +117,7 @@ def test_structured_report_never_echoes_untrusted_diagnosis_fields():
         },
     })
 
-    assert "BẢN NHÁP NGHIÊN CỨU RUO" in report
+    assert "TÀI LIỆU NGHIÊN CỨU RUO" in report
     assert "O-RADS 5" not in report
     assert "O-RADS US đề xuất" not in report
     assert "U bì" not in report
@@ -139,7 +139,7 @@ def test_structured_report_does_not_echo_untrusted_abstain_reason():
     assert "ung thư" not in report.lower()
     assert "99%" not in report
     assert "tái khám gấp" not in report
-    assert "không phát hành kết luận chẩn đoán" in report.lower()
+    assert "phần kết luận, phân loại và định hướng chuyên môn do bác sĩ phụ trách hoàn thiện" in report.lower()
 
 
 @pytest.mark.parametrize("spacing", [0, -0.1, float("nan"), float("inf"), True, "0.1", None])
@@ -164,7 +164,7 @@ def test_structured_report_withholds_physical_sizes_for_invalid_pixel_spacing(sp
     assert "130.5 mm²" not in report
     assert "trong khoảng kích thước cấu hình: 3" not in report
     assert "pixel spacing" in report.lower()
-    assert "mm không khả dụng" in report.lower()
+    assert "kích thước hiện hiển thị theo pixel" in report.lower()
 
 
 def test_structured_report_rejects_untrusted_side_text():
@@ -174,7 +174,7 @@ def test_structured_report_rejects_untrusted_side_text():
         "ovary": {"present": True, "longest_diameter_mm": 22.0, "area_mm2": 100.0},
     })
 
-    assert "BẢN NHÁP NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG CHƯA XÁC ĐỊNH" in report
+    assert "TÀI LIỆU NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG CHƯA XÁC ĐỊNH" in report
     assert "CHẨN ĐOÁN" not in report
     assert "UNG THƯ" not in report
     assert "99%" not in report
@@ -229,7 +229,7 @@ def test_structured_report_handles_non_object_root_and_overflow_spacing():
 
     assert "CHƯA XÁC ĐỊNH" in root_report
     assert "UNTRUSTED" not in root_report
-    assert "pixel spacing thiếu hoặc không hợp lệ" in spacing_report.lower()
+    assert "pixel spacing: cần giá trị hợp lệ" in spacing_report.lower()
 
 
 def test_structured_report_rejects_boolean_and_impossible_follicle_counts():

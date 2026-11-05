@@ -52,6 +52,12 @@
   border-bottom: 1px solid #4a4a4a;
 }
 
+.report-facility-name {
+  margin: 0 auto 0 0;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .report-header .vinmec-logo {
   display: block;
   width: 80px;
@@ -69,7 +75,7 @@
 
 .report-patient-line {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 0.7fr) minmax(0, 1fr);
   gap: 10px 22px;
   padding: 13px 0;
   border-bottom: 1px solid #b8b8b8;
@@ -78,6 +84,17 @@
 .report-patient-line p {
   min-width: 0;
   margin: 0;
+}
+
+.report-patient-line .report-pseudonym-line {
+  grid-column: 1 / -1;
+}
+
+.report-pseudonym {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .report-patient-line strong,
@@ -164,6 +181,23 @@
   margin-top: 12px;
   padding-top: 11px;
   border-top: 1px solid #d4d4d4;
+}
+
+.report-clinical-summary {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.report-clinical-summary li + li {
+  margin-top: 5px;
+}
+
+.report-side-detail-note {
+  margin: 6px 0 0;
+  color: #3f3f3f;
+  font-size: 11px;
 }
 
 .report-entry-index {

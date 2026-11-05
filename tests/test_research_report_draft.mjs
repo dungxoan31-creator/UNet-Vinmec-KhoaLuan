@@ -8,7 +8,7 @@ test("research draft preserves measurement exclusion warning", () => {
     studyCode: "synthetic",
     image: { measurements: { warning: "Một vùng dưới ngưỡng" } },
   });
-  assert.match(result.text, /Cảnh báo số đo: Một vùng dưới ngưỡng/);
+  assert.match(result.text, /Ghi chú đo lường: Một vùng dưới ngưỡng/);
 });
 
 test("test_research_draft_uses_only_reviewed_values", () => {
@@ -50,8 +50,9 @@ test("test_research_draft_uses_only_reviewed_values", () => {
     "Hiệu chuẩn: DICOM PixelSpacing",
   ].join("\n"));
   assert.deepEqual(missingFields, []);
-  assert.match(disclosure, /RUO/);
-  assert.match(disclosure, /chưa được xác thực lâm sàng/i);
+  assert.match(disclosure, /Bản nháp nghiên cứu RUO/);
+  assert.match(disclosure, /bác sĩ kiểm tra và xác nhận/i);
+  assert.doesNotMatch(disclosure, /chưa được xác thực lâm sàng|không thay thế/i);
   assert.doesNotMatch(text, /legacy draft|chưa lưu|20000|250/);
 });
 
@@ -67,9 +68,9 @@ test("test_research_draft_lists_missing_fields", () => {
     "Ghi chú lâm sàng do bác sĩ ghi nhận",
     "Kích thước d₁ × d₂ (px)",
     "Diện tích (px²)",
-    "Thể tích (chưa hiệu chuẩn)",
+    "Thể tích (cần hiệu chuẩn)",
   ]);
-  assert.match(result.text, /Trường còn thiếu:/);
+  assert.match(result.text, /Nội dung cần bổ sung:/);
   for (const field of result.missingFields) assert.ok(result.text.includes(field));
 });
 
@@ -94,8 +95,8 @@ test("test_research_draft_uses_pixels_when_uncalibrated", () => {
   assert.match(result.text, /Kích thước: 42\.00 × 21\.00 px/);
   assert.match(result.text, /Diện tích: 600\.00 px²/);
   assert.doesNotMatch(result.text, /mm|cm[²³]?/);
-  assert.match(result.disclosure, /chưa hiệu chuẩn/i);
-  assert.ok(result.missingFields.includes("Thể tích (chưa hiệu chuẩn)"));
+  assert.match(result.disclosure, /đơn vị hiển thị: px\/px²/i);
+  assert.ok(result.missingFields.includes("Thể tích (cần hiệu chuẩn)"));
 });
 
 test("test_research_draft_omits_nonfinite_measurements", () => {

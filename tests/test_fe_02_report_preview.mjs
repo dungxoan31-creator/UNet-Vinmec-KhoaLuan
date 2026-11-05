@@ -25,6 +25,60 @@ const {
   withReportDecodeTimeout,
 } = await import('../frontend/app/report-preview.js');
 
+test('report summary carries the facility header and contralateral status without inventing images', () => {
+  const asset = [['data:image/png;base64,left', 'data:image/png;base64,left-overlay']];
+  const report = renderReportDocument({
+    study_id: 'study-report-status',
+    report_header: 'Cơ sở kiểm thử',
+    ovary_side: 'LEFT',
+    contralateral_status: 'NOT_VISUALIZED',
+    images: [{ image_id: 'left-image', laterality: 'L', mask: new Uint8Array(512 * 512), review: null }],
+  }, asset);
+  assert.match(report, /Cơ sở kiểm thử/);
+  assert.match(report, /BÊN PHẢI[\s\S]*?Không quan sát được/);
+  assert.match(report, /Chưa có ảnh khảo sát bên này/);
+  assert.doesNotMatch(report, /alt="Ảnh gốc Buồng trứng phải"/);
+
+  const absent = renderReportDocument({
+    study_id: 'study-report-absent',
+    ovary_side: 'RIGHT',
+    contralateral_status: 'SURGICALLY_ABSENT',
+    images: [{ image_id: 'right-image', laterality: 'R', mask: new Uint8Array(512 * 512), review: null }],
+  }, [['data:image/png;base64,right', 'data:image/png;base64,right-overlay']]);
+  assert.match(absent, /BÊN TRÁI[\s\S]*?Đã phẫu thuật cắt bỏ/);
+});
+
+test('report puts saved physician findings and images before technical provenance and keeps research IDs legible', () => {
+  const researchId = `SYN-${'A'.repeat(64)}`;
+  const report = renderReportDocument({
+    study_id: 'study-priority',
+    patient_id: researchId,
+    images: [{
+      image_id: 'left-priority',
+      laterality: 'L',
+      mask: new Uint8Array(512 * 512),
+      review: {
+        review_id: 'review-priority',
+        orads_score: 'O-RADS 2',
+        morphology_description: 'Nang đơn thùy thành nhẵn',
+        clinical_notes: 'Ghi chú bác sĩ kiểm thử',
+      },
+      prediction: { provenance: { model_name: 'Model RUO kiểm thử', checkpoint_sha256: 'abc123' } },
+    }],
+  }, [['data:image/png;base64,source', 'data:image/png;base64,overlay']]);
+  const summaryEnd = report.indexOf('class="report-page report-evidence-page"');
+  const summary = report.slice(0, summaryEnd);
+  assert.match(summary, /Mô tả do bác sĩ ghi nhận/);
+  assert.match(summary, /Nang đơn thùy thành nhẵn/);
+  assert.match(summary, /O-RADS do bác sĩ ghi nhận/);
+  assert.match(summary, /O-RADS 2/);
+  assert.match(summary, /class="report-pseudonym-line"[\s\S]*?class="report-pseudonym"/);
+  assert.ok(report.indexOf('class="report-page report-evidence-page"') < report.indexOf('THÔNG TIN HỖ TRỢ'));
+  assert.ok(report.indexOf('THÔNG TIN HỖ TRỢ') < report.indexOf('abc123'));
+  assert.match(report, /Trang 1\/3/);
+  assert.match(report, /Trang 3\/3/);
+});
+
 test('report environment verification requires explicit RUO and clinical gate capabilities', () => {
   assert.equal(isVerifiedResearchEnvironment({}), false);
   assert.equal(isVerifiedResearchEnvironment({ synthetic_demo_mode: true }), false);
@@ -149,7 +203,7 @@ test('saved review measurements never inherit warnings or geometry from an older
   assert.equal(result.max_diameter_mm, null);
   assert.equal(result.max_diameter_px, undefined);
   assert.doesNotMatch(result.warning, /STALE PREDICTION/);
-  assert.match(result.warning, /hiệu chuẩn.*không được xác minh/i);
+  assert.match(result.warning, /nguồn hiệu chuẩn cần xác nhận.*hiển thị theo pixel/i);
   image.review.hitl_feedback = {
     measurement_context: {
       version: 1, status: 'AVAILABLE', calibration_source: 'DICOM', warning: 'Cảnh báo mask đã duyệt',
@@ -159,7 +213,7 @@ test('saved review measurements never inherit warnings or geometry from an older
   assert.equal(savedReviewMeasurements(image).max_diameter_mm, 12);
   assert.equal(savedReviewMeasurements(image).warning, 'Cảnh báo mask đã duyệt');
   image.review.hitl_feedback.measurement_context.status = 'UNAVAILABLE';
-  assert.match(savedReviewMeasurements(image).warning, /hiệu chuẩn.*không được xác minh/i);
+  assert.match(savedReviewMeasurements(image).warning, /nguồn hiệu chuẩn cần xác nhận.*hiển thị theo pixel/i);
   image.review.hitl_feedback.measurement_context.status = 'AVAILABLE';
   image.review.max_diameter_mm = null;
   assert.equal(savedReviewMeasurements(image).calibrated, true, 'D2 can be the only calibrated caliper');
@@ -184,7 +238,7 @@ test('report suppresses saved physical measurements without trusted calibration 
   assert.equal(saved.max_diameter_mm, null);
   assert.equal(saved.ortho_diameter_mm, null);
   assert.equal(saved.total_area_cm2, null);
-  assert.match(saved.warning, /hiệu chuẩn.*không được xác minh/i);
+  assert.match(saved.warning, /nguồn hiệu chuẩn cần xác nhận.*hiển thị theo pixel/i);
 
   const untrustedImageMeasurements = formatReportMeasurements({
     mask: new Uint8Array([1]),
@@ -339,7 +393,7 @@ assert(
   "FE-02 VULNERABILITY: report-preview.js does not render saved morphology description!"
 );
 assert(
-  content.includes('Mô tả và O-RADS chỉ hiển thị khi có trong bản ghi rà soát'),
+  content.includes('Mô tả và O-RADS hiển thị từ bản ghi rà soát'),
   'The printed report must not attribute AI-derived measurements or unsupported clinical labels to the clinician.',
 );
 assert(
@@ -369,16 +423,19 @@ assert.match(indexHtml, /report-preview\.css/);
 assert.match(reportCss, /\.report-page \+ \.report-page\s*\{[^}]*break-before:\s*page/s);
 assert.match(reportCss, /#printRoot \.report-result-side,[\s\S]*?break-inside:\s*avoid/s);
 assert.match(reportCss, /\.report-evidence-grid\.single-column\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+assert.match(reportCss, /\.report-patient-line \.report-pseudonym-line\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
+assert.match(reportCss, /\.report-pseudonym\s*\{[^}]*white-space:\s*nowrap/s);
 assert.match(content, /study\.visit_no/);
 assert.match(content, /KẾT QUẢ KHẢO SÁT/);
 assert.match(content, /Trang 1\/\$\{pageCount\}/);
 assert.match(content, /Trang \$\{index \+ 2\}\/\$\{pageCount\}/);
-assert.match(content, /class="report-ruo-banner"[\s\S]*?BẢN NGHIÊN CỨU \(RUO\)/);
-assert.match(indexHtml, /class="ruo-safety-banner"[\s\S]*?Không dùng cho chăm sóc bệnh nhân/);
-assert.match(indexHtml, /Nguồn dữ liệu chưa được xác minh/);
+assert.match(content, /THÔNG TIN NGHIÊN CỨU RUO/);
+assert.match(content, /Phạm vi: nghiên cứu kỹ thuật/);
+assert.doesNotMatch(indexHtml, /class="ruo-safety-banner"/);
+assert.doesNotMatch(indexHtml, /Hỗ trợ rà soát hình ảnh siêu âm · Nội dung do bác sĩ xem xét/);
 assert.doesNotMatch(content, /buildPatientSummaryData|patientFriendlyPanel|patient-friendly-summary-panel/);
 assert.doesNotMatch(content, /Bình thường \/ Nang sinh lý|nang cơ năng \/ hoàng thể lành tính|Lời khuyên dành cho bạn/);
-assert.match(content, /Nguồn dữ liệu chưa được xác minh/);
+assert.doesNotMatch(content, /Không dùng cho chăm sóc bệnh nhân|Chưa được xác thực lâm sàng|Không thay thế đánh giá của bác sĩ/);
 assert.doesNotMatch(content, /LỜI DẶN DÀNH CHO BỆNH NHÂN|Đa số các nang buồng trứng là sinh lý hoặc lành tính/);
 assert.match(content, /THÔNG TIN HỖ TRỢ/);
 const printableTemplate = content.slice(
@@ -414,8 +471,8 @@ const multiStillReport = renderReportDocument({
   ['data:image/png;base64,original3', 'data:image/png;base64,overlay3'],
 ]);
 assert.equal((multiStillReport.match(/class="report-page report-evidence-page"/g) || []).length, 3);
-assert.match(multiStillReport, /Trang 1\/4/);
-assert.match(multiStillReport, /Trang 4\/4/);
+assert.match(multiStillReport, /Trang 1\/5/);
+assert.match(multiStillReport, /Trang 5\/5/);
 assert.match(multiStillReport, /Ảnh 1/);
 assert.match(multiStillReport, /Ảnh 3/);
 assert.match(multiStillReport, /BẢN HIỂN THỊ GIẢM ĐỘ PHÂN GIẢI; xem ảnh nguồn trong máy trạm/);
@@ -457,8 +514,8 @@ test('report has no automatic patient-facing classification or care advice', () 
     study_id: 'ruo-source-unverified',
     images: [{ image_id: 'image-ruo', laterality: 'L', mask: new Uint8Array(512 * 512), review: null }],
   }, [['data:image/png;base64,source', 'data:image/png;base64,overlay']]);
-  assert.match(report, /BẢN NGHIÊN CỨU \(RUO\)/);
-  assert.match(report, /Không dùng cho chăm sóc bệnh nhân/);
-  assert.match(report, /Nguồn dữ liệu chưa được xác minh/);
+  assert.match(report, /THÔNG TIN NGHIÊN CỨU RUO/);
+  assert.match(report, /Phạm vi: nghiên cứu kỹ thuật/);
+  assert.doesNotMatch(report, /Không dùng cho chăm sóc bệnh nhân|Chưa được xác thực lâm sàng|Không thay thế đánh giá của bác sĩ/);
   assert.doesNotMatch(report, /Bình thường|lành tính|tái khám|hướng xử trí|xác suất ác tính/iu);
 });

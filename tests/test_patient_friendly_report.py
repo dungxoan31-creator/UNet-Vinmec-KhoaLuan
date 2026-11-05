@@ -24,14 +24,15 @@ def test_patient_summary_is_neutral_and_never_uses_case_findings():
 
     assert summary["status_color"] == "GRAY"
     assert summary["lifestyle_advice"] == []
-    assert "không tạo giải thích" in summary["explanation"].lower()
+    assert "bác sĩ phụ trách" in summary["explanation"].lower()
+    assert "không tạo giải thích" not in summary["explanation"].lower()
     assert "RUO" in summary["disclaimer"]
     assert "18.5" not in report
     assert "78%" not in report
     assert "O-RADS" not in report
     assert "lành tính" not in report.lower()
     assert "tái khám" not in report.lower()
-    assert "chăm sóc bệnh nhân" in report.lower()
+    assert "thông tin chuyên môn do bác sĩ phụ trách" in report.lower()
 
 
 def test_untrusted_validation_flag_cannot_unlock_diagnosis_or_malignancy_claims():
@@ -46,7 +47,7 @@ def test_untrusted_validation_flag_cannot_unlock_diagnosis_or_malignancy_claims(
         },
     })
 
-    assert "không phát hành kết luận chẩn đoán" in report.lower()
+    assert "phần kết luận, phân loại và định hướng chuyên môn do bác sĩ phụ trách hoàn thiện" in report.lower()
     assert "99%" not in report
     assert "78%" not in report
     assert "Nguy cơ ác tính ước lượng" not in report

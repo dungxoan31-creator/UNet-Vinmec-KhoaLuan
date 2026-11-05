@@ -40,8 +40,8 @@ def test_invalid_measurement_numbers_are_omitted_without_aborting_report():
     pdf = generator.generate_pdf_report(payload)
 
     assert pdf.startswith(b"%PDF-")
-    assert normalized["ovary_r3"] == "- Chưa ghi nhận số đo."
-    assert normalized["imageCaliperTag"] == "Chưa ghi nhận số đo"
+    assert normalized["ovary_r3"] == "- Số đo: chờ ghi nhận."
+    assert normalized["imageCaliperTag"] == "Chờ ghi nhận số đo"
 
 
 @pytest.mark.parametrize("spacing", [0, -0.1, float("nan"), float("inf"), True, "0.1", None])
@@ -60,8 +60,8 @@ def test_pdf_generator_withholds_physical_measurements_without_usable_spacing(sp
         }
     )
 
-    assert normalized["ovary_r3"] == "- Chưa ghi nhận số đo."
-    assert normalized["imageCaliperTag"] == "Chưa ghi nhận số đo"
+    assert normalized["ovary_r3"] == "- Số đo: chờ ghi nhận."
+    assert normalized["imageCaliperTag"] == "Chờ ghi nhận số đo"
 
 
 def test_physical_report_measurements_require_usable_calibration_metadata():
@@ -79,8 +79,8 @@ def test_physical_report_measurements_require_usable_calibration_metadata():
         }
     )
 
-    assert normalized["ovary_r3"] == "- Chưa ghi nhận số đo."
-    assert normalized["imageCaliperTag"] == "Chưa ghi nhận số đo"
+    assert normalized["ovary_r3"] == "- Số đo: chờ ghi nhận."
+    assert normalized["imageCaliperTag"] == "Chờ ghi nhận số đo"
 
 
 def test_verified_calibration_preserves_valid_report_measurements():
@@ -118,7 +118,7 @@ def test_client_payload_cannot_mark_a_report_as_approved():
         }
     )
 
-    assert normalized["footerApprovedBy"] == "Bản nháp chưa được bác sĩ duyệt."
+    assert normalized["footerApprovedBy"] == "Bản nháp nghiên cứu · bác sĩ phụ trách hoàn thiện."
     assert "Forged Reviewer" not in normalized["footerApprovedBy"]
 
 
@@ -153,9 +153,10 @@ def test_unverified_clinical_text_is_not_emitted_in_ruo_report(monkeypatch):
 
     assert pdf.startswith(b"%PDF-")
     assert marker not in rendered
-    assert "Không phát hành chẩn đoán lâm sàng trong bản nháp RUO." in rendered
-    assert "Không phát hành kết luận lâm sàng trong bản nháp RUO." in rendered
-    assert "Không phát hành đề nghị chăm sóc trong bản nháp RUO." in rendered
+    assert "Phần ghi nhận chuyên môn do bác sĩ phụ trách hoàn thiện." in rendered
+    assert "Mục kết luận do bác sĩ phụ trách hoàn thiện." in rendered
+    assert "Nội dung đề nghị theo quy trình chuyên môn của cơ sở." in rendered
+    assert "UNVERIFIED-MALIGNANT-AND-SURGERY-CLAIM" not in rendered
 
 
 def test_generated_pdf_labels_draft_and_omits_unverified_signature(monkeypatch):
@@ -180,8 +181,9 @@ def test_generated_pdf_labels_draft_and_omits_unverified_signature(monkeypatch):
 
     rendered_text = "\n".join(rendered_paragraphs)
     assert pdf.startswith(b"%PDF-")
-    assert "Bản nháp chưa được bác sĩ duyệt." in rendered_text
-    assert "TÀI LIỆU NGHIÊN CỨU (RUO)" in rendered_text
+    assert "Bản nháp nghiên cứu · bác sĩ phụ trách hoàn thiện." in rendered_text
+    assert "TÀI LIỆU NGHIÊN CỨU RUO" in rendered_text
+    assert "Xác thực chữ ký số: ngoài phạm vi phiên bản RUO." in rendered_text
     assert "LỜI DẶN DÀNH CHO BỆNH NHÂN" not in rendered_text
     assert "Quý khách vui lòng mang kết quả này đến Bác sĩ điều trị" not in rendered_text
     assert "Unverified Doctor Title" not in rendered_text

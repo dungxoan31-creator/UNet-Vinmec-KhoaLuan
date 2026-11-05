@@ -10,6 +10,7 @@ import { isVerifiedResearchEnvironment, updateEnvironmentNotices } from "./envir
 export const REPORT_IMAGE_MAX_DIMENSION = 2048;
 export const REPORT_IMAGE_CONCURRENCY = 2;
 export const REPORT_IMAGE_DECODE_TIMEOUT_MS = 45_000;
+const RUO_REPORT_DISCLOSURE = '<div class="report-ruo-banner"><strong>THÔNG TIN NGHIÊN CỨU RUO</strong><span>Phạm vi: nghiên cứu kỹ thuật · Rà soát nội dung: bác sĩ phụ trách · Xác thực chữ ký số: ngoài phạm vi tài liệu này</span></div>';
 
 export async function withReportDecodeTimeout(decodePromise, timeoutMs = REPORT_IMAGE_DECODE_TIMEOUT_MS) {
   const timeout = Number.isFinite(timeoutMs) && timeoutMs > 0
@@ -86,7 +87,7 @@ function researchDraftPanel(study) {
 
   const heading = document.createElement("summary");
   heading.id = "researchDraftHeading";
-  heading.textContent = "Tạo bản nháp nghiên cứu (chưa lưu vào hồ sơ)";
+  heading.textContent = "Tạo bản nháp tham khảo (chưa lưu vào hồ sơ)";
   const disclosure = document.createElement("p");
   disclosure.id = "researchDraftDisclosure";
   disclosure.className = "muted small";
@@ -98,7 +99,7 @@ function researchDraftPanel(study) {
   sideLabel.textContent = "Bên khảo sát";
   const sideSelect = document.createElement("select");
   sideSelect.id = "researchDraftSide";
-  sideSelect.setAttribute("aria-label", "Chọn bên cho bản nháp nghiên cứu");
+  sideSelect.setAttribute("aria-label", "Chọn bên cho bản nháp tham khảo");
   const placeholder = document.createElement("option");
   placeholder.value = "";
   placeholder.textContent = "Chọn bên…";
@@ -179,7 +180,7 @@ function researchDraftPanel(study) {
     draftText.disabled = false;
     disclosure.textContent = result.disclosure;
     missing.textContent = result.missingFields.length
-      ? `Thiếu dữ liệu: ${result.missingFields.join("; ")}`
+      ? `Cần bổ sung: ${result.missingFields.join("; ")}`
       : "Không ghi nhận trường thiếu trong dữ liệu được đưa vào bản nháp.";
     copyButton.disabled = false;
     copyStatus.textContent = "";
@@ -197,7 +198,7 @@ function researchDraftPanel(study) {
       await navigator.clipboard.writeText(
         `${draftText.value.trimEnd()}\n\n${selectedDisclosure}`,
       );
-      copyStatus.textContent = "Đã sao chép bản nháp nghiên cứu.";
+      copyStatus.textContent = "Đã sao chép bản nháp tham khảo.";
     } catch {
       copyStatus.textContent = "Không thể sao chép; hãy chọn và sao chép thủ công.";
     }
@@ -255,10 +256,10 @@ export function savedReviewMeasurements(image) {
   const warning = calibrated
     ? (typeof context.warning === "string" ? context.warning : null)
     : hasStoredPhysicalValues
-      ? "Nguồn hiệu chuẩn không được xác minh; số đo vật lý đã lưu bị ẩn."
+      ? "Nguồn hiệu chuẩn cần xác nhận; số đo đang hiển thị theo pixel."
       : contextKnown
         ? (typeof context.warning === "string" ? context.warning : null)
-        : "Thông tin vùng bị loại khỏi phép đo chưa được lưu trong lần rà soát này.";
+        : "Vùng loại khỏi phép đo: trạng thái lưu của lần rà soát này.";
   return {
     calibrated,
     max_diameter_mm: calibrated ? review.max_diameter_mm : null,
@@ -333,7 +334,7 @@ function reportMeasurementValues(image) {
     warning: typeof measurements.warning === "string"
       ? measurements.warning
       : (measurements.calibrated === true || Object.values(manual).some((value) => value?.calibrated === true)) && !calibrated
-        ? "Nguồn hiệu chuẩn không được xác minh; số đo vật lý đã lưu bị ẩn."
+        ? "Hiệu chuẩn: cần xác nhận · số đo hiện hiển thị theo pixel."
         : null,
   };
 }
@@ -348,9 +349,9 @@ export function formatReportMeasurements(image) {
     values.manual
       ? `D₁/D₂ theo caliper bác sĩ đã lưu; diện tích theo ${values.source}.`
       : `Nguồn số đo: ${values.source}.`,
-    values.calibrated ? null : "Chưa hiệu chuẩn · số đo đang hiển thị theo pixel.",
+    values.calibrated ? null : "Đơn vị hiển thị: pixel · quy đổi sang đơn vị thực cần thông số hiệu chuẩn.",
     values.calibrated
-      ? `Nguồn hiệu chuẩn: ${values.calibrationSource === "DICOM" ? "DICOM" : values.calibrationSource === "MANUAL" ? "nhập tay" : "chưa xác định"}.`
+      ? `Nguồn hiệu chuẩn: ${values.calibrationSource === "DICOM" ? "DICOM" : values.calibrationSource === "MANUAL" ? "nhập tay" : "chờ xác nhận"}.`
       : null,
     values.warning,
   ]
@@ -377,10 +378,30 @@ function reportDate(value) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : value || "Chưa ghi nhận";
 }
 
-function reportSideOverview(images, side) {
+export function reportContralateralStatus(study, side) {
+  const oppositeSide = study?.ovary_side === "LEFT" ? "R" : study?.ovary_side === "RIGHT" ? "L" : null;
+  if (side !== oppositeSide) return null;
+  return {
+    NOT_VISUALIZED: "Không quan sát được",
+    SURGICALLY_ABSENT: "Đã phẫu thuật cắt bỏ",
+    NORMAL: "Đã ghi nhận bình thường",
+    SUSPECTED: "Có ghi nhận nghi ngờ",
+  }[study?.contralateral_status] || null;
+}
+
+function reportSideOverview(images, side, study) {
+  const recordedStatus = reportContralateralStatus(study, side);
+  const clinicalSummary = images.length
+    ? `<ul class="report-clinical-summary">${images.map((image, index) => {
+      const morphology = image.review?.morphology_description || image.review?.lesion_type || "Chưa ghi nhận";
+      const notes = image.review?.clinical_notes || image.notes;
+      const noteText = typeof notes === "string" && notes.trim() ? ` · Ghi chú bác sĩ: ${esc(notes.trim())}` : "";
+      return `<li><strong>Ảnh ${index + 1}</strong> · Mô tả do bác sĩ ghi nhận: ${esc(morphology)} · O-RADS do bác sĩ ghi nhận: ${formatOradsAttribution(image)}${noteText}</li>`;
+    }).join("")}</ul>`
+    : "";
   const summary = images.length
-    ? `<p>${images.length} ảnh tĩnh đã được gắn với bên này. Số đo và nhận định được liệt kê riêng theo từng ảnh ở các trang hình ảnh.</p>`
-    : '<p class="report-missing-side">Chưa có ảnh khảo sát bên này.</p>';
+    ? `<p>${images.length} ảnh tĩnh đã được gắn với bên này.</p>${clinicalSummary}<p class="report-side-detail-note">Ảnh gốc, lớp phủ và số đo theo từng ảnh được trình bày ở các trang sau.</p>`
+    : `<p class="report-missing-side">Chưa có ảnh khảo sát bên này.${recordedStatus ? ` Tình trạng đã ghi nhận: ${esc(recordedStatus)}.` : ""}</p>`;
   return `<section class="report-result-side"><h3>${esc(reportSideName(side))}</h3>${summary}</section>`;
 }
 
@@ -396,9 +417,7 @@ function reportEvidenceSide(entries, side) {
       const resolutionNote = downscaled
         ? " · BẢN HIỂN THỊ GIẢM ĐỘ PHÂN GIẢI; xem ảnh nguồn trong máy trạm"
         : "";
-      const morphology = image.review?.morphology_description || image.morphologyDesc || image.morphology || image.review?.lesion_type || "Chưa ghi nhận";
-      const notes = image.review?.clinical_notes || image.notes || "Chưa ghi nhận";
-      return `<article class="report-evidence-entry">${itemLabel}<p class="report-overlay-status">${esc(reportReviewStatus(image))}</p><div class="report-image-pair"><figure><img src="${original}" alt="Ảnh gốc ${esc(reportLaterality(image))}"><figcaption>ẢNH GỐC${resolutionNote}</figcaption></figure><figure><img src="${overlay}" alt="Lớp phủ trên ảnh ${esc(reportLaterality(image))}"><figcaption>LỚP PHỦ${resolutionNote}</figcaption></figure></div><p class="report-clinical-review-status">${esc(reportClinicalReviewStatus(image))}</p>${formatReportMeasurements(image)}<dl class="report-observations"><div><dt>O-RADS do bác sĩ ghi nhận</dt><dd>${formatOradsAttribution(image)}</dd></div><div><dt>Mô tả</dt><dd>${esc(morphology)}</dd></div><div><dt>Ghi chú</dt><dd>${esc(notes)}</dd></div></dl></article>`;
+      return `<article class="report-evidence-entry">${itemLabel}<p class="report-overlay-status">${esc(reportReviewStatus(image))}</p><div class="report-image-pair"><figure><img src="${original}" alt="Ảnh gốc ${esc(reportLaterality(image))}"><figcaption>ẢNH GỐC${resolutionNote}</figcaption></figure><figure><img src="${overlay}" alt="Lớp phủ trên ảnh ${esc(reportLaterality(image))}"><figcaption>LỚP PHỦ${resolutionNote}</figcaption></figure></div><p class="report-clinical-review-status">${esc(reportClinicalReviewStatus(image))}</p>${formatReportMeasurements(image)}</article>`;
     })
     .join("");
 
@@ -429,8 +448,9 @@ function reportTechnicalInformation(entries) {
 }
 
 export function renderReportDocument(study, assets) {
+  const reportHeader = typeof study.report_header === "string" ? study.report_header.trim() : "";
   const syntheticDemoDisclosure = state.capabilities?.synthetic_demo_mode === true
-    ? '<div class="report-synthetic-demo-banner">DEMO DỮ LIỆU TỔNG HỢP · KHÔNG PHẢI HỒ SƠ BỆNH NHÂN</div>'
+    ? '<div class="report-synthetic-demo-banner">CHẾ ĐỘ DEMO · DỮ LIỆU TỔNG HỢP — KHÔNG PHẢI HỒ SƠ BỆNH NHÂN THẬT</div>'
     : "";
   const orderedImages = study.images
     .map((image, index) => ({ image, assets: assets[index] }))
@@ -451,7 +471,7 @@ export function renderReportDocument(study, assets) {
       : "Chưa lưu rà soát";
   const caseCode = study.study_code || study.study_id || "Chưa ghi nhận";
   const visitNumber = study.visit_no || "Chưa được cấp";
-  const pageCount = 1 + orderedImages.length;
+  const pageCount = 2 + orderedImages.length;
   const evidencePages = orderedImages.map((entry, index) => {
     const side = entry.image.laterality === "L" ? "L" : entry.image.laterality === "R" ? "R" : "U";
     const oneSide = { L: [], R: [], U: [] };
@@ -459,39 +479,43 @@ export function renderReportDocument(study, assets) {
     const body = side === "U"
       ? `<div class="report-evidence-unassigned"><h2>ẢNH CHƯA XÁC ĐỊNH BÊN</h2>${reportEvidenceSide(oneSide.U, "U")}</div>`
       : `<div class="report-evidence-grid single-column">${reportEvidenceSide(oneSide[side], side)}</div>`;
-  return `<section class="report-page report-evidence-page"><header class="report-evidence-header"><h1>HÌNH ẢNH KHẢO SÁT · ẢNH ${entry.imageNumber}</h1><div class="report-patient-line"><p>PID: <strong>${esc(study.patient_id || "Chưa ghi nhận")}</strong></p><p>Visit: <strong>${esc(visitNumber)}</strong></p><p>${esc(reportLaterality(entry.image))}</p></div></header><div class="report-ruo-banner"><strong>BẢN NGHIÊN CỨU (RUO)</strong><span>Chưa được xác thực lâm sàng · Không dùng cho chăm sóc bệnh nhân · Không thay thế đánh giá của bác sĩ · Nguồn dữ liệu chưa được xác minh · Chưa có chữ ký số</span></div>${syntheticDemoDisclosure}${body}<section class="report-note-block report-image-notes"><h2>LƯU Ý</h2><ul><li>Lớp phủ chỉ mang tính hỗ trợ; cần đối chiếu ảnh gốc.</li><li>Trạng thái đã lưu rà soát mask không đồng nghĩa đã hoàn tất mô tả hoặc phân tầng.</li><li>Phiếu không có chữ ký số xác thực và không dùng để chỉ định điều trị.</li></ul></section><footer class="report-footer"><span>Study ID: ${esc(study.study_id)}</span><span>Revision: ${esc(study.review_revision ?? 0)}</span><span>Trang ${index + 2}/${pageCount}</span></footer></section>`;
+      return `<section class="report-page report-evidence-page"><header class="report-evidence-header"><h1>HÌNH ẢNH KHẢO SÁT · ẢNH ${entry.imageNumber}</h1><div class="report-patient-line"><p>Hồ sơ tại cơ sở: <strong>${esc(study.patient_name || "Không gắn hồ sơ")}</strong></p><p class="report-pseudonym-line">Mã nghiên cứu: <strong class="report-pseudonym">${esc(study.patient_id || "Chưa cấp")}</strong></p><p>Visit: <strong>${esc(visitNumber)}</strong></p><p>${esc(reportLaterality(entry.image))}</p></div></header>${RUO_REPORT_DISCLOSURE}${syntheticDemoDisclosure}${body}<footer class="report-footer"><span>Study ID: ${esc(study.study_id)}</span><span>Revision: ${esc(study.review_revision ?? 0)}</span><span>Trang ${index + 2}/${pageCount}</span></footer></section>`;
   }).join("");
 
   return `<article class="report" aria-label="Kết quả khảo sát buồng trứng">
     <section class="report-page report-summary-page">
       <header class="report-header">
+        ${reportHeader ? `<p class="report-facility-name">${esc(reportHeader)}</p>` : ""}
         <h1>KẾT QUẢ KHẢO SÁT</h1>
       </header>
-      <div class="report-ruo-banner"><strong>BẢN NGHIÊN CỨU (RUO)</strong><span>Chưa được xác thực lâm sàng · Không dùng cho chăm sóc bệnh nhân · Không thay thế đánh giá của bác sĩ · Nguồn dữ liệu chưa được xác minh · Chưa có chữ ký số</span></div>
+      ${RUO_REPORT_DISCLOSURE}
       ${syntheticDemoDisclosure}
-      <div class="report-patient-line"><p>PID: <strong>${esc(study.patient_id || "Chưa ghi nhận")}</strong></p><p>Visit: <strong>${esc(visitNumber)}</strong></p><p>Ngày khảo sát: <strong>${esc(reportDate(study.study_date))}</strong></p></div>
+      <div class="report-patient-line"><p>Hồ sơ tại cơ sở: <strong>${esc(study.patient_name || "Không gắn hồ sơ")}</strong></p><p class="report-pseudonym-line">Mã nghiên cứu (giả danh): <strong class="report-pseudonym">${esc(study.patient_id || "Chưa cấp")}</strong></p><p>Visit: <strong>${esc(visitNumber)}</strong></p><p>Ngày khảo sát: <strong>${esc(reportDate(study.study_date))}</strong></p></div>
 
       <section class="report-block report-case-block">
         <h2>THÔNG TIN CA</h2>
-        <dl><div><dt>Mã ca</dt><dd>${esc(caseCode)}</dd></div><div><dt>Trạng thái lưu rà soát</dt><dd>${esc(status)}</dd><small>Trạng thái lưu không xác nhận đã hoàn tất mô tả, O-RADS hoặc kết luận.</small></div></dl>
+        <dl><div><dt>Mã ca</dt><dd>${esc(caseCode)}</dd></div><div><dt>Trạng thái lưu rà soát</dt><dd>${esc(status)}</dd><small>Trạng thái lưu phản ánh dữ liệu rà soát; mô tả, O-RADS và kết luận được quản lý riêng.</small></div></dl>
       </section>
 
       <section class="report-block report-results-block">
         <h2>KẾT QUẢ GHI NHẬN</h2>
-        <div class="report-results-grid">${reportSideOverview(sides.L.map(({ image }) => image), "L")}${reportSideOverview(sides.R.map(({ image }) => image), "R")}</div>
-        ${sides.U.length ? `<div class="report-unassigned">${reportSideOverview(sides.U.map(({ image }) => image), "U")}</div>` : ""}
+        <div class="report-results-grid">${reportSideOverview(sides.L.map(({ image }) => image), "L", study)}${reportSideOverview(sides.R.map(({ image }) => image), "R", study)}</div>
+        ${sides.U.length ? `<div class="report-unassigned">${reportSideOverview(sides.U.map(({ image }) => image), "U", study)}</div>` : ""}
       </section>
 
-      ${reportTechnicalInformation(orderedImages)}
-
       <section class="report-note-block">
-        <h2>LƯU Ý</h2>
-        <p>Số đo hỗ trợ được tính từ lớp phủ và ghi rõ nguồn ngay dưới số đo; ảnh gốc cùng lớp phủ được trình bày ở phần hình ảnh. Mô tả và O-RADS chỉ hiển thị khi có trong bản ghi rà soát. Hệ thống không tự đưa ra kết luận chẩn đoán. Phiếu này chưa phải hướng dẫn theo dõi hoặc điều trị cho bệnh nhân.</p>
+        <h2>THÔNG TIN BẢN GHI</h2>
+        <p>Số đo hỗ trợ được tính từ lớp phủ và ghi rõ nguồn ngay dưới số đo; ảnh gốc cùng lớp phủ được trình bày ở phần hình ảnh. Mô tả và O-RADS hiển thị từ bản ghi rà soát. Hệ thống hỗ trợ phân đoạn và tổng hợp thông tin; bác sĩ phụ trách hoàn thiện phần kết luận và kế hoạch chuyên môn.</p>
       </section>
 
       <footer class="report-footer"><span>Study ID: ${esc(study.study_id)}</span><span>Revision: ${esc(study.review_revision ?? 0)}</span><span>Trang 1/${pageCount}</span></footer>
     </section>
     ${evidencePages}
+    <section class="report-page report-support-page">
+      <header class="report-header"><h1>THÔNG TIN HỖ TRỢ</h1></header>
+      ${reportTechnicalInformation(orderedImages)}
+      <footer class="report-footer"><span>Study ID: ${esc(study.study_id)}</span><span>Revision: ${esc(study.review_revision ?? 0)}</span><span>Trang ${pageCount}/${pageCount}</span></footer>
+    </section>
   </article>`;
 }
 
@@ -608,12 +632,12 @@ export async function renderReport(root, id) {
   root.innerHTML =
     pageHead(
       "Phiếu kết quả",
-      "Bản nghiên cứu RUO; trạng thái rà soát và nguồn dữ liệu được ghi riêng cho từng bên.",
+      "Kết quả từng bên được lưu riêng và cần bác sĩ xác nhận.",
       button("← Quay lại máy trạm", "back-to-viewer", "small quiet") +
         " " +
         button("Tải hồ sơ kết quả", "export-research", "small") +
         " " +
-        button("In bản RUO / Lưu PDF", "print", "primary"),
+        button("In báo cáo / Lưu PDF", "print", "primary"),
     ) + `<div id="reportData">${loading()}</div>`;
   const target = root.querySelector("#reportData"),
     identity = state.user?.id,
@@ -629,7 +653,7 @@ export async function renderReport(root, id) {
     };
   }
   const exportDisabledMessage =
-    "Xuất dữ liệu nghiên cứu đang khóa đến khi có hồ sơ xác minh phê duyệt, consent và khử định danh.";
+    "Xuất dữ liệu tham khảo đang khóa đến khi có hồ sơ xác minh phê duyệt, consent và khử định danh.";
   printBtn.disabled = true;
   if (exportBtn) exportBtn.disabled = true;
 
@@ -657,7 +681,7 @@ export async function renderReport(root, id) {
     if (exportBtn) exportBtn.disabled = true;
     target.innerHTML = `<section class="banner warning report-environment-block" role="alert">
       <strong>Đã khóa phiếu vì chưa xác minh được môi trường dữ liệu.</strong>
-      <p>Không tải nội dung ca hoặc cho phép in cho đến khi máy chủ xác nhận chế độ RUO, trạng thái xác thực và nguồn dữ liệu.</p>
+      <p>Không tải nội dung ca hoặc cho phép in cho đến khi máy chủ xác nhận chế độ, trạng thái xác thực và nguồn dữ liệu.</p>
       <button class="btn small" type="button" data-action="retry-environment">Kiểm tra lại môi trường</button>
       <p class="muted small" data-environment-status aria-live="polite"></p>
     </section>`;
@@ -692,7 +716,7 @@ export async function renderReport(root, id) {
     if (exportBtn) {
       exportBtn.disabled = false;
       exportBtn.title = exportDisabledMessage;
-      exportBtn.setAttribute("aria-label", "Tải hồ sơ kết quả — xuất nghiên cứu đang khóa");
+      exportBtn.setAttribute("aria-label", "Tải hồ sơ kết quả — xuất tham khảo đang khóa");
       exportBtn.onclick = () => toast(exportDisabledMessage, true);
     }
     if (!c.images || c.images.length === 0) {

@@ -1,5 +1,5 @@
 const disclosure =
-  "Bản nháp nghiên cứu RUO; chưa được xác thực lâm sàng và không thay thế nhận định của bác sĩ.";
+  "Bản nháp nghiên cứu RUO; nội dung cần bác sĩ kiểm tra và xác nhận.";
 
 const textValue = (...values) =>
   values.find((value) => typeof value === "string" && value.trim())?.trim() ||
@@ -73,7 +73,7 @@ export function buildResearchDraft({ studyCode, image } = {}) {
     lines.push(`Diện tích: ${formatNumber(area)} ${areaUnit}`);
   else missingFields.push(`Diện tích (${areaUnit})`);
   if (typeof measurements.warning === "string" && measurements.warning.trim())
-    lines.push(`Cảnh báo số đo: ${measurements.warning.trim()}`);
+    lines.push(`Ghi chú đo lường: ${measurements.warning.trim()}`);
 
   if (calibrated) {
     const volume = numberValue(measurements.total_volume_cm3);
@@ -83,17 +83,17 @@ export function buildResearchDraft({ studyCode, image } = {}) {
     const source = textValue(measurements.calibration_source);
     if (source) lines.push(`Hiệu chuẩn: ${source}`);
   } else {
-    missingFields.push("Thể tích (chưa hiệu chuẩn)");
+    missingFields.push("Thể tích (cần hiệu chuẩn)");
   }
 
   if (missingFields.length)
-    lines.push(`Trường còn thiếu: ${missingFields.join("; ")}`);
+    lines.push(`Nội dung cần bổ sung: ${missingFields.join("; ")}`);
 
   return {
     text: lines.join("\n"),
     missingFields,
     disclosure: calibrated
       ? disclosure
-      : `${disclosure} Chưa hiệu chuẩn: chỉ hiển thị số đo px/px², không quy đổi sang đơn vị thực.`,
+      : `${disclosure} Đơn vị hiển thị: px/px²; quy đổi sang đơn vị thực cần thông số hiệu chuẩn.`,
   };
 }
