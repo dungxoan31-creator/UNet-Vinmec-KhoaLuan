@@ -2729,7 +2729,7 @@ body.viewer-mode > .statusbar .model-status {
 }
 
 /* Intake keeps identity, laterality and the next action within reach on laptops. */
-.intake-workspace { padding-bottom: 12px; scroll-padding-bottom: 130px; }
+.intake-workspace { padding-bottom: 52px; scroll-padding-bottom: 130px; }
 .intake-workspace .page-heading { margin: 12px 0; }
 .intake-workspace .page-heading h1 { font-size: 24px; }
 .intake-identity { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
@@ -2775,7 +2775,8 @@ body:has(.intake-workspace) #toasts { top: 76px; bottom: auto; pointer-events: n
 #reviewContentWarning label { display: block; }
 .intake-side-confirm[hidden], #reviewContentWarning[hidden], #reviewContentAckLabel[hidden] { display: none; }
 @media (max-width: 800px) {
-  .intake-action-bar { flex-wrap: wrap; gap: 8px; }
+  .intake-metadata .panel-body { grid-template-columns: minmax(0, 1fr); }
+  .intake-action-bar { flex-wrap: wrap; gap: 8px; bottom: 38px; }
   .intake-action-bar .btn { width: 100%; }
   .intake-file-item { grid-template-columns: 64px minmax(0, 1fr); }
   .intake-file-item > img { width: 64px; height: 64px; }
@@ -2829,4 +2830,22 @@ body:has(.intake-workspace) #toasts { top: 76px; bottom: auto; pointer-events: n
 }
 .measure-values {
   font-variant-numeric: tabular-nums lining-nums;
+}
+
+@media (min-width: 1200px) and (max-height: 820px) {
+  .intake-workspace { padding-bottom: 24px; }
+  .intake-workspace .page-heading { margin: 8px 0; }
+  .intake-metadata .panel-body { padding: 12px; gap: 8px 16px; }
+  .intake-swap { margin: 4px 0; }
+  .intake-images .upload-card { padding: 10px; }
+  .intake-images h2 { margin-bottom: 8px; font-size: 15px; }
+  .intake-images .dropzone { min-height: 100px; padding: 8px; gap: 4px; }
+  .intake-file-list { gap: 6px; max-height: 320px; margin-top: 6px; }
+  .intake-file-item { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; padding: 8px; }
+  .intake-file-item > img { width: 64px; height: 56px; }
+  .intake-file-details { gap: 2px; }
+  .intake-file-details > strong { font-size: 12px; }
+  .intake-file-details > small { line-height: 1.25; }
+  .intake-side-confirm { gap: 6px; padding: 4px 0; }
+  .intake-action-bar { gap: 12px; margin-top: 8px; padding: 8px 12px; }
 }

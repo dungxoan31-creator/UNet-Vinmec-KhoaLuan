@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backend.db.database import (
+    FacilityModel,
     ImageModel,
     PatientModel,
     PredictionModel,
@@ -28,10 +29,13 @@ def main() -> None:
     count = int(sys.argv[1]) if len(sys.argv) > 1 else 51
     if count < 1 or count > 100:
         raise SystemExit("count must be between 1 and 100")
-    if len(sys.argv) != 3:
-        raise SystemExit("usage: seed_synthetic_signed_prelim_queue.py COUNT FIXTURE_PNG")
+    if len(sys.argv) < 3 or len(sys.argv) > 5:
+        raise SystemExit("usage: seed_synthetic_signed_prelim_queue.py COUNT FIXTURE_PNG [FACILITY_ID] [STUDY_CODE_PREFIX]")
 
     source_path = Path(sys.argv[2]).resolve(strict=True)
+    facility_id = sys.argv[3] if len(sys.argv) > 3 and sys.argv[3] else os.environ.get("APP_DOCTOR_FACILITY_ID", "fac-vinmec-times-city")
+    study_code_prefix = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else "SYNTHETIC-SIGNED"
+    patient_prefix = "SYNTHETIC-QUEUE" if study_code_prefix == "SYNTHETIC-SIGNED" else f"{study_code_prefix}-PATIENT"
     source_bytes = source_path.read_bytes()
     content_hash = hashlib.sha256(source_bytes).hexdigest()
     upload_path = Path(os.environ["APP_DATA_DIR"]) / "uploads" / "synthetic-signed-queue.png"
@@ -41,14 +45,22 @@ def main() -> None:
     created_at = datetime.now(UTC).replace(microsecond=0) - timedelta(seconds=count)
     seeded = []
     with SessionLocal() as db:
+        if not db.get(FacilityModel, facility_id):
+            db.add(FacilityModel(
+                id=facility_id,
+                name=f"Synthetic facility {study_code_prefix}",
+                facility_code=f"SYN-{uuid.uuid4().hex[:12]}",
+                is_active=True,
+            ))
+            db.flush()
         for index in range(count):
             patient_id = str(uuid.uuid4())
             study_id = str(uuid.uuid4())
-            study_code = f"SYNTHETIC-SIGNED-{index + 1:04d}"
+            study_code = f"{study_code_prefix}-{index + 1:04d}"
             db.add(
                 PatientModel(
                     id=patient_id,
-                    anonymized_pid=f"SYNTHETIC-QUEUE-{index + 1:04d}",
+                    anonymized_pid=f"{patient_prefix}-{index + 1:04d}",
                     age_bucket=None,
                     menopausal_status=None,
                 )
@@ -62,6 +74,7 @@ def main() -> None:
                     status="SIGNED_PRELIM",
                     ovary_side="LEFT",
                     contralateral_status="NOT_VISUALIZED",
+                    facility_id=facility_id,
                     review_revision=1,
                     created_at=created_at + timedelta(seconds=index),
                 )
@@ -112,7 +125,7 @@ def main() -> None:
                     created_at=created_at + timedelta(seconds=index),
                 )
             )
-            seeded.append({"study_id": study_id, "study_code": study_code})
+            seeded.append({"study_id": study_id, "study_code": study_code, "image_id": image_id})
         db.commit()
 
     print(json.dumps(seeded, separators=(",", ":")))

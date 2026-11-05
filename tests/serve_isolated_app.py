@@ -19,6 +19,7 @@ os.environ.setdefault("APP_JWT_SECRET", "test-secret-at-least-32-characters-long
 os.environ.setdefault("APP_PATIENT_PID_HMAC_SECRET", "test-only-patient-id-hmac-key-2026-10-21")
 os.environ.setdefault("APP_DOCTOR_PASSWORD", "doctor-local-test-2026")
 os.environ.setdefault("APP_ADMIN_PASSWORD", "admin-local-test-2026")
+os.environ.setdefault("APP_DOCTOR_FACILITY_ID", "fac-vinmec-times-city")
 
 from backend.app import config
 from backend.db import database
@@ -49,6 +50,19 @@ with database.SessionLocal() as db:
             full_name="Nguyễn Hữu Dũng (tổng hợp)",
             role="DOCTOR",
             password_hash=hash_password(secrets.token_urlsafe(32)),
+        ))
+        db.commit()
+    if not db.query(database.UserModel).filter_by(username="reviewer").first():
+        reviewer_password = os.environ.get("APP_E2E_REVIEWER_PASSWORD", "synthetic-safety-reviewer-2026")
+        db.add(database.UserModel(
+            id=str(uuid.uuid4()),
+            username="reviewer",
+            full_name="Synthetic Senior Reviewer",
+            role="SENIOR",
+            facility_id=os.environ.get("APP_DOCTOR_FACILITY_ID", "fac-vinmec-times-city"),
+            password_hash=hash_password(reviewer_password),
+            is_active=True,
+            must_change_password=False,
         ))
         db.commit()
 

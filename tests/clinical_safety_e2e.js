@@ -7,9 +7,9 @@ const { ensureSyntheticFixtures } = require('./helpers/synthetic_fixtures.cjs');
 const { startIsolatedBrowser } = require('./helpers/isolated_browser.cjs');
 const { waitForAppState } = require('./helpers/app_state_wait.cjs');
 const json = (route, data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
-const out = path.resolve(__dirname, '../artifacts/qa-clinical-fixed');
+const out = path.resolve(process.env.CLINICAL_SAFETY_EVIDENCE_DIR || path.join(__dirname, '../artifacts/qa-clinical-fixed'));
 fs.mkdirSync(out, { recursive: true });
-function seedSignedPrelimQueue(server, count, fixturePath) {
+function seedSignedPrelimQueue(server, count, fixturePath, facilityId = '', studyCodePrefix = 'SYNTHETIC-SIGNED') {
   const root = path.resolve(__dirname, '..');
   const python = process.env.PYTHON || path.join(root, process.platform === 'win32'
     ? '.venv/Scripts/python.exe' : '.venv/bin/python');
@@ -17,6 +17,8 @@ function seedSignedPrelimQueue(server, count, fixturePath) {
     path.join(__dirname, 'seed_synthetic_signed_prelim_queue.py'),
     String(count),
     fixturePath,
+    facilityId,
+    studyCodePrefix,
   ], {
     cwd: root,
     env: { ...process.env, APP_DATA_DIR: server.runtime,
@@ -25,18 +27,20 @@ function seedSignedPrelimQueue(server, count, fixturePath) {
   });
   return JSON.parse(stdout);
 }
-async function login(page, server, checks = null) {
+async function login(page, server, checks = null, credentials = {}) {
   await page.goto(server.base + '/#login');
   if (checks) {
     const authCopy = await page.locator('.auth-aside').innerText();
     assert.match(authCopy, /HUMAN-IN-THE-LOOP CDSS · RUO/);
-    assert.match(authCopy, /Chưa được xác thực lâm sàng; không dùng để chẩn đoán hoặc chăm sóc bệnh nhân/);
+    assert.match(authCopy, /Môi trường nghiên cứu hỗ trợ xem phân đoạn/i);
+    assert.match(authCopy, /bác sĩ rà soát và xác nhận/i);
     assert.doesNotMatch(authCopy, /kiểm toán lâm sàng/i);
-    assert.match(await page.locator('.ruo-safety-banner').innerText(), /Không dùng cho chăm sóc bệnh nhân/);
-    checks.push('P0 auth copy labels the unvalidated RUO scope before login');
+    assert.equal(await page.locator('.ruo-safety-banner').count(), 0);
+    assert.doesNotMatch(authCopy, /chưa được xác thực lâm sàng|không dùng cho chăm sóc bệnh nhân/i);
+    checks.push('P0 auth copy identifies the RUO research environment and clinician review');
   }
-  await page.locator('[name=username]').fill('doctor');
-  await page.locator('[name=password]').fill(server.password);
+  await page.locator('[name=username]').fill(credentials.username || 'doctor');
+  await page.locator('[name=password]').fill(credentials.password || server.password);
   await page.locator('#authForm button[type=submit]').click();
   await page.waitForFunction(() => location.hash === '#dashboard');
   assert.equal(await page.locator('#environmentUnknownBanner').isHidden(), true);
@@ -57,6 +61,14 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => { window.__printCalls = 0; window.print = () => { window.__printCalls++; }; });
     await login(page, server, checks);
+    const intakeToken = await page.evaluate(() => sessionStorage.getItem('ova.token'));
+    for (const name of ['Synthetic Patient 1', 'Synthetic Patient 2', 'Synthetic Patient 3', 'Synthetic Patient 4']) {
+      const response = await page.request.post(server.base + '/api/patient-directory', {
+        headers: { Authorization: `Bearer ${intakeToken}` },
+        data: { display_name: name },
+      });
+      assert.equal(response.status(), 201, await response.text());
+    }
     const feedbackRequests = [];
     page.on('request', request => {
       if (new URL(request.url()).pathname === '/api/feedback') feedbackRequests.push(request.method());
@@ -78,38 +90,43 @@ async function main() {
     });
     await page.evaluate(() => { location.hash = '#cases'; });
     await page.locator('[data-export-status="disabled"]').waitFor();
-    assert.match(await page.locator('[data-export-status="disabled"]').innerText(), /đang bị khóa trên máy chủ RUO/i);
+    assert.match(await page.locator('[data-export-status="disabled"]').innerText(), /đang bị khóa trên máy chủ/i);
     assert.equal(await page.locator('[data-action="export-selected"], .case-select, #selectAll').count(), 0,
       'Unavailable case export must not expose a dead button or selection controls.');
     assert.deepEqual(unavailableExportRequests, [], 'Worklist must not call an unimplemented bulk export endpoint.');
     checks.push('P0 unavailable bulk case export is explained and exposes no dead endpoint action');
     await page.evaluate(() => { location.hash = '#dashboard'; });
     await page.waitForFunction(() => location.hash === '#dashboard');
+    const reviewerPage = await server.browser.newPage({ viewport: { width: 1366, height: 768 } });
+    reviewerPage.on('pageerror', error => errors.push(error.message));
+    const reviewerDashboardPromise = reviewerPage.waitForResponse(response =>
+      response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/workspace/dashboard/summary');
+    await login(reviewerPage, server, null, { username: 'reviewer', password: server.reviewerPassword });
+    const reviewerDashboard = await reviewerDashboardPromise;
+    assert.equal(reviewerDashboard.status(), 200, await reviewerDashboard.text());
+    const reviewerToken = await reviewerPage.evaluate(() => sessionStorage.getItem('ova.token'));
+    const reviewerWrite = await reviewerPage.request.post(server.base + '/api/reviews/batch', {
+      headers: { Authorization: `Bearer ${reviewerToken}` }, data: {},
+    });
+    assert.equal(reviewerWrite.status(), 403, await reviewerWrite.text());
+    checks.push('P0 reviewer dashboard uses the scoped read-only queue; review-write API denies reviewer role');
     const evaluationRequests = [];
-    page.on('request', request => {
+    reviewerPage.on('request', request => {
       const pathname = new URL(request.url()).pathname;
       if (pathname.startsWith('/api/evaluation/')) evaluationRequests.push(pathname);
     });
-    await page.evaluate(async () => {
-      const { state } = await import('/static/app/state.js');
-      state.user.role = 'SENIOR';
-      location.hash = '#evaluation';
-    });
-    await page.locator('#evaluationData .panel').waitFor();
-    const evaluationCopy = await page.locator('#evaluationData').innerText();
+    await reviewerPage.evaluate(() => { location.hash = '#evaluation'; });
+    await reviewerPage.locator('#evaluationData .panel').waitFor();
+    const evaluationCopy = await reviewerPage.locator('#evaluationData').innerText();
     assert.match(evaluationCopy, /Archive lịch sử: BỊ CHẶN/);
     assert.match(evaluationCopy, /Không hiển thị metrics hoặc ảnh mẫu/);
-    assert.equal(await page.locator('#evaluationSamples, #errorGroup, [data-sample]').count(), 0,
+    assert.equal(await reviewerPage.locator('#evaluationSamples, #errorGroup, [data-sample]').count(), 0,
       'blocked legacy data must not expose sample controls or case imagery');
     assert.deepEqual(evaluationRequests, ['/api/evaluation/metrics'],
       'the page must not fetch unverified archived samples');
     checks.push('P0 evaluation page withholds legacy metrics/samples and issues no sample request');
-    await page.evaluate(async () => {
-      const { state } = await import('/static/app/state.js');
-      state.user.role = 'DOCTOR';
-      location.hash = '#dashboard';
-    });
-    await page.waitForFunction(() => location.hash === '#dashboard');
+    await reviewerPage.evaluate(() => { location.hash = '#dashboard'; });
+    await reviewerPage.waitForFunction(() => location.hash === '#dashboard');
     const file = name => ({ name, mimeType: 'image/png', buffer: pngBytes });
     const rightPng = fs.readFileSync(fixtures.right).toString('base64');
     await page.evaluate(() => { location.hash = '#intake'; });
@@ -128,12 +145,13 @@ async function main() {
       if (!/closed|aborted|handled|invalid|interception/i.test(error.message)) throw error;
     });
     await paint(page);
-    assert.equal(await page.locator('[name=pid]').inputValue(), '100000002');
+    assert.equal(await page.locator('[name=pid]').count(), 0,
+      'Normal intake must not generate or request source patient identifiers.');
     assert.equal(await page.locator('[name=study-date]').inputValue(), '2026-09-01T08:30');
     assert.equal(await page.locator('.intake-file-item').count(), 0,
       'leaving the first patient form must not carry its pending image into the next case');
     assert.equal(await page.locator('#metadataProposals button').count(), 0);
-    checks.push('QA-001 stale metadata cannot cross patient/form');
+    checks.push('QA-001 stale metadata cannot cross facility-directory selection; intake has no generated PID');
     await page.unroute('**/api/intake/extract-metadata');
     await page.route('**/api/intake/extract-metadata', route => json(route, { metadata: {
       pid: { value: 'SYNTHETIC-CURRENT', source: 'dicom', confidence: 0.99 },
@@ -141,13 +159,11 @@ async function main() {
     } }));
     await page.locator('[data-file=L]').setInputFiles(file('left.png'));
     await page.locator('#metadataProposals button').first().waitFor();
-    assert.equal(await page.locator('[name=pid]').inputValue(), '100000002');
     assert.equal(await page.locator('[name=study-date]').inputValue(), '2026-09-01T08:30');
     await page.locator('#metadataProposals button').first().click();
-    assert.equal(await page.locator('[name=pid]').inputValue(), 'SYNTHETIC-CURRENT');
-    checks.push('QA-001 valid metadata is a proposal; only explicit apply changes the field');
+    assert.equal(await page.locator('[name=study-date]').inputValue(), '2025-01-02T11:22');
+    checks.push('QA-001 DICOM patient identifiers are ignored; date metadata remains a proposal until explicit apply');
     await page.unroute('**/api/intake/extract-metadata');
-    const dicomMetadataBaselinePid = await page.locator('[name=pid]').inputValue();
     const dicomMetadataBaselineDate = await page.locator('[name=study-date]').inputValue();
     const dicomMetadataResponsePromise = page.waitForResponse(response =>
       response.request().method() === 'POST' &&
@@ -166,23 +182,17 @@ async function main() {
     assert.equal(dicomMetadataBody.calibration.calibrated, true);
     assert.equal(dicomMetadataBody.calibration.pixel_spacing_mm, 0.1);
     await page.waitForTimeout(500);
-    const dicomPidProposal = page.locator('#metadataProposals > div')
-      .filter({ hasText: 'PID nguồn (L, synthetic_ovary.dcm)' });
     const dicomDateProposal = page.locator('#metadataProposals > div')
       .filter({ hasText: 'Ngày DICOM (L, synthetic_ovary.dcm)' });
-    assert.equal(await dicomPidProposal.count(), 1,
-      `DICOM PID proposal was not rendered: ${await page.locator('#metadataProposals').innerText()}`);
+    assert.equal(await page.locator('#metadataProposals').getByText(/PID nguồn/).count(), 0,
+      'Source IDs extracted from DICOM must not be exposed as an intake field or proposal.');
     assert.equal(await dicomDateProposal.count(), 1,
       `DICOM date proposal was not rendered: ${await page.locator('#metadataProposals').innerText()}`);
-    assert.equal(await page.locator('[name=pid]').inputValue(), dicomMetadataBaselinePid);
-    assert.equal(await page.locator('[name=study-date]').inputValue(), dicomMetadataBaselineDate);
-    await dicomPidProposal.locator('button').click();
-    assert.equal(await page.locator('[name=pid]').inputValue(), '000000001');
     assert.equal(await page.locator('[name=study-date]').inputValue(), dicomMetadataBaselineDate);
     await page.locator('#metadataProposals > div')
       .filter({ hasText: 'Ngày DICOM (L, synthetic_ovary.dcm)' }).locator('button').click();
     assert.equal(await page.locator('[name=study-date]').inputValue(), '2026-10-25T14:30');
-    checks.push('P0 live synthetic DICOM metadata and PixelSpacing stay proposals until explicit apply');
+    checks.push('P0 DICOM source patient IDs stay out of intake; date/spacing metadata remain reviewable proposals');
     await page.route('**/api/intake/extract-metadata', route => json(route, { metadata: {} }));
     await page.locator('#files-L .intake-file-item')
       .filter({ hasText: 'left.png' }).locator('[data-remove-file]').click();
@@ -225,7 +235,30 @@ async function main() {
     checks.push('QA-004 swapping files invalidates prior side confirmations');
     for (const width of [1366, 1024, 768]) {
       await page.setViewportSize({ width, height: 768 });
-      await page.evaluate(() => window.scrollTo(0, 0)); await paint(page);
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        for (const element of document.querySelectorAll('body *')) {
+          const overflowY = getComputedStyle(element).overflowY;
+          if (['auto', 'scroll'].includes(overflowY)) element.scrollTop = 0;
+        }
+      }); await paint(page);
+      const naturalPlacement = await page.locator('#startSegmentationBtn').evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        let scroller = element.parentElement;
+        while (scroller && scroller.scrollHeight <= scroller.clientHeight + 1) scroller = scroller.parentElement;
+        return { top: rect.top, bottom: rect.bottom, height: innerHeight,
+          scroller: scroller ? (scroller.id || scroller.className || scroller.tagName) : 'document',
+          scrollTop: scroller?.scrollTop ?? document.scrollingElement.scrollTop };
+      });
+      if (width === 1366) {
+        assert.ok(naturalPlacement.top >= 0 && naturalPlacement.bottom <= naturalPlacement.height - 32,
+          `CTA is available without scrolling at 1366x768: ${JSON.stringify(naturalPlacement)}`);
+      }
+      if (width === 1366) {
+        await page.screenshot({ path: path.join(out, 'intake-1366-before-action-scroll.png') });
+      }
+      await page.locator('#startSegmentationBtn').scrollIntoViewIfNeeded();
+      await paint(page);
       const geometry = await page.locator('#startSegmentationBtn').evaluate(element => {
         const rect = element.getBoundingClientRect();
         return { top: rect.top, bottom: rect.bottom, height: innerHeight, overflow: document.documentElement.scrollWidth > innerWidth + 1 };
@@ -237,10 +270,15 @@ async function main() {
         const target = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
         return target === element || element.contains(target);
       }), true, 'CTA must not be covered by toast/shell elements');
-      geometries.push({ width, ...geometry });
+      const scrollAfter = await page.locator('#startSegmentationBtn').evaluate(element => {
+        let scroller = element.parentElement;
+        while (scroller && scroller.scrollHeight <= scroller.clientHeight + 1) scroller = scroller.parentElement;
+        return scroller?.scrollTop ?? document.scrollingElement.scrollTop;
+      });
+      geometries.push({ width, naturalPlacement, scrollTopAfter: scrollAfter, ...geometry });
       await page.screenshot({ path: path.join(out, `intake-${width}.png`) });
     }
-    checks.push('QA-006 CTA remains visible at laptop/tablet sizes');
+    checks.push('QA-006 CTA is reachable without overlap at laptop/tablet sizes; initial below-fold placement is recorded');
 
     await page.locator('[data-action=change-patient]').click();
     await page.locator('[data-select="2"]').click();
@@ -306,7 +344,7 @@ async function main() {
       const { state } = await import('/static/app/state.js');
       return { busy: state.busy, hint: document.querySelector('#intakeHint')?.textContent,
         startDisabled: document.querySelector('#startSegmentationBtn')?.disabled,
-        pid: document.querySelector('[name=pid]')?.value,
+        patientDirectoryId: state.case?.patient_directory_id,
         date: document.querySelector('[name=study-date]')?.value,
         files: [...document.querySelectorAll('.intake-file-item')].map(row => ({
           name: row.querySelector('strong')?.textContent,
@@ -488,6 +526,7 @@ async function main() {
     assert.equal(await page.locator('#reviewContentWarning').isVisible(), true);
     await page.locator('#reviewContentAck').check();
     checks.push('QA-009 neutral templates and unresolved/mismatched content are gated before save');
+    await page.locator('#notes').fill('Nhận định O-RADS 2.');
     await page.locator('[data-action=quick-print]').click();
     await waitForAppState(page, snapshot => !snapshot.busy, { message: 'failed review save settled' });
     assert.equal(batchCalls, 1);
@@ -509,6 +548,19 @@ async function main() {
     assert.match(await page.locator('#reportData .report').innerText(), /actual-reviewer/);
     assert.doesNotMatch(await page.locator('#reportData .report').innerText(), /Người rà soát: doctor\b/);
     checks.push('QA-002/003 confirmed snapshot prints persisted reviewer and revision');
+    const printRoot = page.locator('#printRoot .report');
+    await printRoot.waitFor({ state: 'attached' });
+    const printText = await printRoot.innerText();
+    assert.match(printText, /O-RADS 2/);
+    assert.match(printText, /Nhận định O-RADS 2\./);
+    await page.emulateMedia({ media: 'print' });
+    await page.pdf({ path: path.join(out, 'remediated-actual-print.pdf'), format: 'A4', printBackground: true });
+    await page.emulateMedia({ media: 'screen' });
+    fs.writeFileSync(path.join(out, 'remediated-actual-print-text.json'), JSON.stringify({
+      scope: 'synthetic saved review rendered by the real browser print handler',
+      reportPages: await printRoot.locator('.report-summary-page, .report-evidence-page').count(),
+      text: printText,
+    }, null, 2));
     // Opening a raw draft explicitly is allowed, but cannot claim a reviewer.
     fixture.images.forEach(image => { image.review = null; }); fixture.review_revision = 0;
     await page.evaluate(() => { location.hash = '#report/safety-study?draft=1'; });
@@ -531,53 +583,66 @@ async function main() {
 
     const seededQueueCases = seedSignedPrelimQueue(server, 51, fixtures.left);
     assert.equal(seededQueueCases.length, 51);
+    const foreignQueueCases = seedSignedPrelimQueue(server, 1, fixtures.left,
+      'synthetic-other-facility', 'SYNTHETIC-FOREIGN');
+    const reviewerScopeDenied = await reviewerPage.request.post(server.base + '/api/workspace/cases/search', {
+      headers: { Authorization: `Bearer ${reviewerToken}` },
+      data: { status: 'PENDING', limit: 50, offset: 0 },
+    });
+    assert.equal(reviewerScopeDenied.status(), 403, await reviewerScopeDenied.text());
+    const foreignDetail = await reviewerPage.request.get(server.base + `/api/cases/${foreignQueueCases[0].study_id}`, {
+      headers: { Authorization: `Bearer ${reviewerToken}` },
+    });
+    assert.equal(foreignDetail.status(), 403, await foreignDetail.text());
+    checks.push('P0 reviewer cannot broaden the queue to pending cases or read another facility case');
     const reviewerSearchRequests = [];
     let queueTransitionWrites = 0;
-    page.on('request', request => {
+    reviewerPage.on('request', request => {
       const url = new URL(request.url());
       if (request.method() === 'POST' && url.pathname === '/api/workspace/cases/search') {
         reviewerSearchRequests.push(request.postDataJSON());
       }
       if (request.method() === 'POST' && url.pathname.endsWith('/transitions')) queueTransitionWrites += 1;
     });
-    const firstQueuePageResponsePromise = page.waitForResponse(response =>
+    const firstQueuePageResponsePromise = reviewerPage.waitForResponse(response =>
       response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/workspace/cases/search');
-    await page.evaluate(async () => {
-      const { state } = await import('/static/app/state.js');
-      state.user.role = 'SENIOR';
-      location.hash = '#approval';
-    });
+    await reviewerPage.evaluate(() => { location.hash = '#approval'; });
     const firstQueuePageResponse = await firstQueuePageResponsePromise;
     assert.equal(firstQueuePageResponse.status(), 200, await firstQueuePageResponse.text());
     const firstQueuePage = await firstQueuePageResponse.json();
     assert.equal(firstQueuePage.total, 51);
     assert.equal(firstQueuePage.items.length, 50);
     assert.ok(firstQueuePage.items.every(item => item.status === 'SIGNED_PRELIM'));
-    assert.equal(await page.locator('#approvalData tbody tr').count(), 50);
-    assert.match(await page.locator('#approvalData').innerText(), /51 ca · Trang 1\/2/);
+    assert.equal(await reviewerPage.locator('#approvalData tbody tr').count(), 50);
+    assert.match(await reviewerPage.locator('#approvalData').innerText(), /51 ca · Trang 1\/2/);
     assert.equal(reviewerSearchRequests[0].status, 'SIGNED_PRELIM');
     assert.equal(reviewerSearchRequests[0].statuses, null);
     assert.equal(reviewerSearchRequests[0].limit, 50);
     assert.equal(reviewerSearchRequests[0].offset, 0);
 
-    const secondQueuePageResponsePromise = page.waitForResponse(response =>
+    const secondQueuePageResponsePromise = reviewerPage.waitForResponse(response =>
       response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/workspace/cases/search');
-    await page.locator('#approvalNext').click();
+    await reviewerPage.locator('#approvalNext').click();
     const secondQueuePageResponse = await secondQueuePageResponsePromise;
     assert.equal(secondQueuePageResponse.status(), 200, await secondQueuePageResponse.text());
     const secondQueuePage = await secondQueuePageResponse.json();
     assert.equal(secondQueuePage.items.length, 1);
     assert.equal(secondQueuePage.items[0].study_id, seededQueueCases[0].study_id);
     assert.ok(secondQueuePage.items.every(item => item.status === 'SIGNED_PRELIM'));
-    assert.equal(await page.locator('#approvalData tbody tr').count(), 1);
-    assert.match(await page.locator('#approvalData').innerText(), /51 ca · Trang 2\/2/);
+    assert.equal(await reviewerPage.locator('#approvalData tbody tr').count(), 1);
+    assert.match(await reviewerPage.locator('#approvalData').innerText(), /51 ca · Trang 2\/2/);
     assert.equal(reviewerSearchRequests[1].offset, 50);
     checks.push('P0 live synthetic SIGNED_PRELIM reviewer queue filters and paginates correctly across 50 rows');
 
-    const queueDetailResponsePromise = page.waitForResponse(response =>
+    const queueDetailResponsePromise = reviewerPage.waitForResponse(response =>
       response.request().method() === 'GET' &&
       new URL(response.url()).pathname === `/api/cases/${seededQueueCases[0].study_id}`);
-    await page.locator(`#approvalData a[href="#approval/${seededQueueCases[0].study_id}"]`).click();
+    const sourceImagePromise = reviewerPage.waitForResponse(response =>
+      response.request().method() === 'GET' &&
+      new URL(response.url()).pathname === `/api/images/${seededQueueCases[0].image_id}/source.png`);
+    await reviewerPage.locator(`#approvalData a[href="#approval/${seededQueueCases[0].study_id}"]`).click();
+    const sourceImageResponse = await sourceImagePromise;
+    assert.equal(sourceImageResponse.status(), 200, await sourceImageResponse.text());
     const queueDetailResponse = await queueDetailResponsePromise;
     assert.equal(queueDetailResponse.status(), 200, await queueDetailResponse.text());
     const signedQueueDetail = await queueDetailResponse.json();
@@ -585,10 +650,10 @@ async function main() {
     assert.equal(signedQueueDetail.patient_id, 'SYNTHETIC-QUEUE-0001');
     assert.equal(signedQueueDetail.images.length, 1);
     assert.ok(signedQueueDetail.images[0].review);
-    await page.locator('.ruo-approval-notice').waitFor();
-    await page.waitForFunction(() => document.querySelectorAll('#page .approval-images img').length === 3);
-    assert.match(await page.locator('#page').innerText(), /chỉ để đối chiếu nội bộ/);
-    assert.equal(await page.locator('#page [data-action=approve], #page [data-action=reject], #page [data-action=lock]').count(), 0);
+    await reviewerPage.locator('.ruo-approval-notice').waitFor();
+    await reviewerPage.waitForFunction(() => document.querySelectorAll('#page .approval-images img').length === 3);
+    assert.match(await reviewerPage.locator('#page').innerText(), /chỉ để đối chiếu nội bộ/);
+    assert.equal(await reviewerPage.locator('#page [data-action=approve], #page [data-action=reject], #page [data-action=lock]').count(), 0);
     assert.equal(queueTransitionWrites, 0);
     checks.push('P0 persisted SIGNED_PRELIM detail loads synthetic image/review evidence and remains read-only');
 
@@ -648,10 +713,11 @@ async function main() {
     await quotaPage.evaluate(() => { location.hash = '#intake'; });
     await quotaPage.locator('[data-select="0"]').waitFor();
     assert.equal(await quotaPage.locator('[data-select]').count(), 4);
-    assert.match(await quotaPage.locator('main').innerText(), /chỉ giữ trong phiên này/);
+    assert.doesNotMatch(await quotaPage.locator('main').innerText(), /chỉ giữ trong phiên này/,
+      'Facility directory records are loaded from the isolated server, not local browser storage.');
     await quotaPage.locator('[data-select="0"]').click();
     await quotaPage.locator('[data-file=L]').waitFor();
-    checks.push('QA-005 quota fallback retains usable intake and discloses non-durable state');
+    checks.push('QA-005 independent browser reads the server-backed directory regardless of local storage quota');
     assert.deepEqual(errors, []);
     fs.writeFileSync(path.join(out, 'safety-results.json'), JSON.stringify({ status: 'PASS', checks, geometries,
       pageErrors: errors, scope: 'synthetic UI fault injection; isolated auth and reviewer queue reads; clinical writes mocked' }, null, 2));
