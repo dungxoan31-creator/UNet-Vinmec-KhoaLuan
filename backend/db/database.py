@@ -76,14 +76,33 @@ if _env_db_path:
     DB_PATH = os.path.abspath(_env_db_path) if os.path.isabs(_env_db_path) else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", _env_db_path))
 else:
     DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "ovarian_ai.db"))
-if os.environ.get("DATABASE_URL"):
-    raise RuntimeError(
-        "DATABASE_URL is set, but this build does not implement PostgreSQL. "
-        "Refusing to silently use SQLite; configure APP_DB_PATH for the supported SQLite backend."
-    )
-DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
+_env_database_url = os.environ.get("DATABASE_URL")
+if _env_database_url:
+    if _env_database_url.startswith(("postgresql://", "postgres://", "postgresql+psycopg://")):
+        if _env_database_url.startswith("postgres://"):
+            DATABASE_URL = "postgresql+psycopg://" + _env_database_url[len("postgres://"):]
+        elif _env_database_url.startswith("postgresql://"):
+            DATABASE_URL = "postgresql+psycopg://" + _env_database_url[len("postgresql://"):]
+        else:
+            DATABASE_URL = _env_database_url
+        engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,
+            pool_size=10,
+            max_overflow=20,
+        )
+    elif _env_database_url.startswith("sqlite://"):
+        DATABASE_URL = _env_database_url
+        engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
+    else:
+        raise ValueError(
+            f"Unsupported database scheme in DATABASE_URL: {_env_database_url}. "
+            "Supported schemes: postgresql://, postgresql+psycopg://, sqlite://."
+        )
+else:
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False, "timeout": 30})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -135,11 +154,18 @@ class VisitModel(Base):
 
 class PatientModel(Base):
     __tablename__ = "patients"
+    __table_args__ = (
+        Index("uq_patient_facility_source_pid_hmac", "facility_id", "source_pid_hmac", unique=True),
+        Index("uq_patient_facility_legacy_source_pid_hmac", "facility_id", "legacy_source_pid_hmac", unique=True),
+    )
 
     id = Column(String(36), primary_key=True)
     anonymized_pid = Column(String(64), unique=True, nullable=False)
     source_pid_hmac = Column(String(64), unique=True, nullable=True)
+    legacy_source_pid_hmac = Column(String(64), nullable=True)
     pid_hmac_key_id = Column(String(64), nullable=True)
+    pid_hmac_scope_version = Column(Integer, default=0, server_default="0", nullable=False)
+    facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=True, index=True)
     age_bucket = Column(String(20), nullable=True)
     menopausal_status = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
@@ -147,11 +173,29 @@ class PatientModel(Base):
     studies = relationship("StudyModel", back_populates="patient", cascade="all, delete-orphan")
 
 
+class PatientDirectoryModel(Base):
+    """Facility-scoped intake directory with only the minimum review-facing demographics."""
+
+    __tablename__ = "patient_directory"
+
+    id = Column(String(36), primary_key=True)
+    facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=False, index=True)
+    display_name = Column(String(120), nullable=False)
+    birth_year = Column(Integer, nullable=True)
+    version = Column(Integer, default=1, server_default="1", nullable=False)
+    is_active = Column(Boolean, default=True, server_default="true", nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), nullable=False)
+
+    studies = relationship("StudyModel", back_populates="directory_patient")
+
+
 class StudyModel(Base):
     __tablename__ = "studies"
     __table_args__ = (
         Index("uq_studies_idempotency_key_digest", "idempotency_key_digest", unique=True),
         Index("uq_studies_visit_no", "visit_no", unique=True),
+        Index("ix_studies_facility_status_created", "facility_id", "status", "created_at"),
         CheckConstraint(
             f"status IS NOT NULL AND status IN ({_STUDY_STATUS_SQL})",
             name="ck_studies_status",
@@ -168,6 +212,8 @@ class StudyModel(Base):
 
     id = Column(String(36), primary_key=True)
     patient_id = Column(String(36), ForeignKey("patients.id"), nullable=True)
+    patient_directory_id = Column(String(36), ForeignKey("patient_directory.id"), nullable=True, index=True)
+    patient_age = Column(String(20), nullable=True)
     study_code = Column(String(64), nullable=True)
     visit_no = Column(String(6), nullable=True)
     idempotency_key_digest = Column(String(64), nullable=True)
@@ -182,9 +228,11 @@ class StudyModel(Base):
     review_revision = Column(Integer, default=0, nullable=False)
     visit_id = Column(String(36), ForeignKey("visits.id"), nullable=True)
     facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=True)
+    assignee_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
     patient = relationship("PatientModel", back_populates="studies")
+    directory_patient = relationship("PatientDirectoryModel", back_populates="studies")
     visit = relationship("VisitModel", back_populates="studies")
     facility = relationship("FacilityModel")
     images = relationship("ImageModel", back_populates="study", cascade="all, delete-orphan")
@@ -406,6 +454,7 @@ class UserModel(Base):
     title = Column(String(50), default="")
     hospital = Column(String(100), default="Chưa cấu hình")
     facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=True)
+    is_global_admin = Column(Boolean, default=False, server_default="0", nullable=False)
     avatar = Column(String(255), default="doctor_avatar.png")
     is_active = Column(Boolean, default=True)
     must_change_password = Column(Boolean, default=False, nullable=False)
@@ -643,19 +692,82 @@ class UIEventModel(Base):
     study = relationship("StudyModel")
 
 
-def init_db():
-    conn = None
-    try:
-        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        conn = engine.connect()
-        conn.exec_driver_sql("BEGIN IMMEDIATE")
-        Base.metadata.create_all(bind=conn, checkfirst=True)
-    except Exception as exc:
-        if conn is not None:
-            conn.rollback()
-            conn.close()
-        raise RuntimeError("Database schema creation failed") from exc
+class NotificationModel(Base):
+    __tablename__ = "notifications"
 
+    id = Column(String(36), primary_key=True)
+    recipient_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    facility_id = Column(String(36), ForeignKey("facilities.id"), nullable=True)
+    study_id = Column(String(36), ForeignKey("studies.id"), nullable=True)
+    event_type = Column(String(64), nullable=False)
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+    dedup_key = Column(String(128), unique=True, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
+
+
+class CorrectionRequestModel(Base):
+    __tablename__ = "correction_requests"
+
+    id = Column(String(36), primary_key=True)
+    study_id = Column(String(36), ForeignKey("studies.id"), nullable=False, index=True)
+    doctor_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    technician_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    status = Column(String(32), default="PENDING", nullable=False, index=True)
+    review_revision = Column(Integer, default=0, nullable=False)
+    reason = Column(Text, nullable=True)
+    draft_payload = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+
+
+def _ensure_audit_immutability_postgres(engine_or_conn) -> None:
+    """Enforce append-only immutability for audit_logs in PostgreSQL (FDA 21 CFR Part 11 / ISO 27799)."""
+    trigger_func_sql = (
+        "CREATE OR REPLACE FUNCTION trg_audit_logs_immutable() "
+        "RETURNS TRIGGER AS $$ "
+        "BEGIN "
+        "    RAISE EXCEPTION 'Audit log is append-only and immutable; UPDATE and DELETE are forbidden under FDA 21 CFR Part 11 / ISO 27799.'; "
+        "END; "
+        "$$ LANGUAGE plpgsql;"
+    )
+    do_block_sql = (
+        "DO $$ "
+        "BEGIN "
+        "    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_audit_logs_no_update') THEN "
+        "        CREATE TRIGGER trg_audit_logs_no_update "
+        "        BEFORE UPDATE ON audit_logs "
+        "        FOR EACH ROW EXECUTE FUNCTION trg_audit_logs_immutable(); "
+        "    END IF; "
+        "    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_audit_logs_no_delete') THEN "
+        "        CREATE TRIGGER trg_audit_logs_no_delete "
+        "        BEFORE DELETE ON audit_logs "
+        "        FOR EACH ROW EXECUTE FUNCTION trg_audit_logs_immutable(); "
+        "    END IF; "
+        "END $$;"
+    )
+    with engine_or_conn.begin() as tx_conn:
+        tx_conn.execute(text(trigger_func_sql))
+        tx_conn.execute(text(do_block_sql))
+
+
+def _ensure_audit_immutability(connection: sqlite3.Connection) -> None:
+    """Enforce append-only immutability for audit_logs (F06: FDA 21 CFR Part 11 / ISO 27799)."""
+    triggers = (
+        "CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_update "
+        "BEFORE UPDATE ON audit_logs "
+        "BEGIN SELECT RAISE(ABORT, 'Audit log is append-only and immutable; UPDATE is forbidden.'); END",
+        "CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_delete "
+        "BEFORE DELETE ON audit_logs "
+        "BEGIN SELECT RAISE(ABORT, 'Audit log is append-only and immutable; DELETE is forbidden.'); END",
+    )
+    for statement in triggers:
+        connection.execute(statement)
+
+
+def _run_sqlite_schema_migrations(conn) -> None:
     try:
         raw_conn = conn.connection.driver_connection
         _migrate_auth_email_schema_on_connection(raw_conn)
@@ -673,6 +785,12 @@ def init_db():
             cursor.execute("ALTER TABLE studies ADD COLUMN contralateral_status VARCHAR(30);")
         if "review_revision" not in columns:
             cursor.execute("ALTER TABLE studies ADD COLUMN review_revision INTEGER DEFAULT 0;")
+        if "assignee_id" not in columns:
+            cursor.execute("ALTER TABLE studies ADD COLUMN assignee_id VARCHAR(36) REFERENCES users(id);")
+        if "patient_directory_id" not in columns:
+            cursor.execute("ALTER TABLE studies ADD COLUMN patient_directory_id VARCHAR(36) REFERENCES patient_directory(id);")
+        if "patient_age" not in columns:
+            cursor.execute("ALTER TABLE studies ADD COLUMN patient_age VARCHAR(20);")
         _migrate_case_idempotency_on_connection(cursor)
         _migrate_visit_numbers_on_connection(cursor)
         _migrate_visits_on_connection(cursor)
@@ -715,8 +833,6 @@ def init_db():
                     cursor.execute("UPDATE images SET file_hash = ? WHERE id = ?", (digest, image_id))
                     claimed.add((study_id, digest))
             cursor.execute("CREATE UNIQUE INDEX uq_study_file_hash ON images(study_id, file_hash)")
-        # A study can contain multiple still-image planes for each ovary.
-        # File hash remains unique per study to reject accidental duplicates.
         cursor.execute("DROP INDEX IF EXISTS uq_study_laterality;")
         cursor.execute("PRAGMA table_info(reviews);")
         review_columns = [col[1] for col in cursor.fetchall()]
@@ -741,10 +857,14 @@ def init_db():
             cursor.execute("ALTER TABLE users ADD COLUMN tokens_revoked_at DATETIME;")
         if user_columns and "facility_id" not in user_columns:
             cursor.execute("ALTER TABLE users ADD COLUMN facility_id VARCHAR(36);")
+        if user_columns and "is_global_admin" not in user_columns:
+            cursor.execute("ALTER TABLE users ADD COLUMN is_global_admin BOOLEAN DEFAULT 0;")
         _migrate_reference_integrity_on_connection(conn)
         _ensure_review_action_domain(raw_conn)
         _ensure_hitl_event_type_domain(raw_conn)
         _ensure_hitl_session_domains(raw_conn)
+        _ensure_audit_immutability(raw_conn)
+        cursor.execute("CREATE INDEX IF NOT EXISTS ix_studies_facility_status_created ON studies(facility_id, status, created_at);")
         conn.commit()
         _migrate_study_contralateral_constraint(raw_conn)
     except Exception as exc:
@@ -755,29 +875,85 @@ def init_db():
         if conn is not None:
             conn.close()
 
+
+def init_db():
+    conn = None
+    try:
+        if engine.dialect.name == "sqlite":
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            conn = engine.connect()
+            conn.exec_driver_sql("BEGIN IMMEDIATE")
+            Base.metadata.create_all(bind=conn, checkfirst=True)
+            _run_sqlite_schema_migrations(conn)
+        else:
+            Base.metadata.create_all(bind=engine, checkfirst=True)
+            with engine.begin() as connection:
+                connection.execute(text(
+                    "ALTER TABLE studies ADD COLUMN IF NOT EXISTS "
+                    "patient_directory_id VARCHAR(36) REFERENCES patient_directory(id)"
+                ))
+                connection.execute(text(
+                    "ALTER TABLE studies ADD COLUMN IF NOT EXISTS patient_age VARCHAR(20)"
+                ))
+            _ensure_postgres_patient_identity_columns(engine)
+            _ensure_audit_immutability_postgres(engine)
+    except Exception as exc:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            conn.close()
+        if "SQLite schema migration failed" in str(exc):
+            raise
+        raise RuntimeError("Database schema creation failed") from exc
+
+    _migrate_patient_facility_scope(engine)
+
     # Bootstrap only accounts whose credentials have been configured by the operator.
+    from backend.app.security import hash_password
     with SessionLocal() as db:
+        default_facility = db.query(FacilityModel).first()
+        if not default_facility:
+            default_facility = FacilityModel(
+                id="fac-vinmec-times-city",
+                facility_code="FAC-VINMEC-TC",
+                name="Vinmec Times City (Cơ sở Chính)",
+                is_active=True,
+            )
+            db.add(default_facility)
+            db.commit()
+            db.refresh(default_facility)
+
         for username, role, password_key, name_key, label in [
             ("doctor", "DOCTOR", "APP_DOCTOR_PASSWORD", "APP_DOCTOR_FULL_NAME", "Bác sĩ"),
             ("bacsi", "DOCTOR", "APP_DOCTOR_PASSWORD", "APP_DOCTOR_FULL_NAME", "Bác sĩ"),
             ("admin", "ADMIN", "APP_ADMIN_PASSWORD", "APP_ADMIN_FULL_NAME", "Quản trị viên"),
         ]:
             user = db.query(UserModel).filter(UserModel.username == username).first()
-            if user and user.full_name in ("BS.CKI Nguyễn Văn A", "BS.CKII Trần Quản Trị"):
-                user.full_name = os.environ.get(name_key) or label
-                user.title = ""
+            if user:
+                if user.full_name in ("BS.CKI Nguyễn Văn A", "BS.CKII Trần Quản Trị"):
+                    user.full_name = os.environ.get(name_key) or label
+                    user.title = ""
+                if role == "ADMIN" and user.facility_id is None:
+                    user.is_global_admin = True
+                # DO NOT automatically guess or backfill facility_id for existing legacy accounts
             elif not user and os.environ.get(password_key):
                 db.add(UserModel(
                     id=str(uuid.uuid4()), username=username, role=role,
                     full_name=os.environ.get(name_key) or label, title="",
+                    facility_id=os.environ.get("APP_DOCTOR_FACILITY_ID") if role == "DOCTOR" else None,
+                    is_global_admin=True if role == "ADMIN" and not os.environ.get("APP_DOCTOR_FACILITY_ID") else False,
+                    password_hash=hash_password(os.environ[password_key]),
+                    is_active=True,
                 ))
         db.commit()
 
     try:
-        print("[Database] SQLite DB initialized and verified.")
+        dialect_name = "PostgreSQL" if engine.dialect.name == "postgresql" else "SQLite"
+        print(f"[Database] {dialect_name} DB initialized and verified.")
     except Exception:
         pass
-
 
 def migrate_auth_email_schema(db_path: str) -> None:
     """Add registration email fields to existing SQLite databases without losing users."""
@@ -824,6 +1000,12 @@ def _migrate_patient_identity_on_connection(cursor: sqlite3.Cursor) -> None:
         cursor.execute("ALTER TABLE patients ADD COLUMN source_pid_hmac VARCHAR(64);")
     if "pid_hmac_key_id" not in columns:
         cursor.execute("ALTER TABLE patients ADD COLUMN pid_hmac_key_id VARCHAR(64);")
+    if "legacy_source_pid_hmac" not in columns:
+        cursor.execute("ALTER TABLE patients ADD COLUMN legacy_source_pid_hmac VARCHAR(64);")
+    if "pid_hmac_scope_version" not in columns:
+        cursor.execute("ALTER TABLE patients ADD COLUMN pid_hmac_scope_version INTEGER NOT NULL DEFAULT 0;")
+    if "facility_id" not in columns:
+        cursor.execute("ALTER TABLE patients ADD COLUMN facility_id VARCHAR(36) REFERENCES facilities(id);")
 
     indexes = cursor.execute("PRAGMA index_list(patients)").fetchall()
     has_digest_index = False
@@ -836,16 +1018,28 @@ def _migrate_patient_identity_on_connection(cursor: sqlite3.Cursor) -> None:
                 break
     if not has_digest_index:
         cursor.execute("CREATE UNIQUE INDEX uq_patients_source_pid_hmac ON patients(source_pid_hmac)")
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_patient_facility_source_pid_hmac "
+        "ON patients(facility_id, source_pid_hmac)"
+    )
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_patient_facility_legacy_source_pid_hmac "
+        "ON patients(facility_id, legacy_source_pid_hmac)"
+    )
 
     secret = patient_pid_secret()
     key_id = patient_pid_key_id(secret)
     rows = cursor.execute(
-        "SELECT id, anonymized_pid, source_pid_hmac, pid_hmac_key_id FROM patients ORDER BY id"
+        "SELECT id, anonymized_pid, source_pid_hmac, pid_hmac_key_id, legacy_source_pid_hmac FROM patients ORDER BY id"
     ).fetchall()
-    for patient_id, stored_pid, stored_digest, stored_key_id in rows:
+    for patient_id, stored_pid, stored_digest, stored_key_id, legacy_digest in rows:
         if stored_digest is not None:
             if stored_key_id != key_id or not is_synthetic_patient_id(stored_pid):
                 raise RuntimeError("Stored patient pseudonyms do not match the configured HMAC key.")
+            continue
+        if legacy_digest is not None:
+            if stored_key_id != key_id or not is_synthetic_patient_id(stored_pid):
+                raise RuntimeError("Stored legacy patient mappings do not match the configured HMAC key.")
             continue
         if stored_key_id is not None:
             raise RuntimeError("Patient identity mapping is incomplete; refusing to continue.")
@@ -854,6 +1048,106 @@ def _migrate_patient_identity_on_connection(cursor: sqlite3.Cursor) -> None:
             "UPDATE patients SET anonymized_pid = ?, source_pid_hmac = ?, pid_hmac_key_id = ? WHERE id = ?",
             (new_synthetic_patient_id(), patient_id_digest(source_id, secret), key_id, patient_id),
         )
+
+
+def _ensure_postgres_patient_identity_columns(engine) -> None:
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS facility_id VARCHAR(36)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_patients_facility_id ON patients(facility_id)"))
+        connection.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS legacy_source_pid_hmac VARCHAR(64)"))
+        connection.execute(
+            text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS pid_hmac_scope_version INTEGER NOT NULL DEFAULT 0")
+        )
+        connection.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS uq_patient_facility_source_pid_hmac ON patients(facility_id, source_pid_hmac)")
+        )
+        connection.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS uq_patient_facility_legacy_source_pid_hmac ON patients(facility_id, legacy_source_pid_hmac)")
+        )
+        connection.execute(text(
+            "DO $$ BEGIN "
+            "IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_patients_facility_id_facilities') THEN "
+            "ALTER TABLE patients ADD CONSTRAINT fk_patients_facility_id_facilities "
+            "FOREIGN KEY (facility_id) REFERENCES facilities(id); "
+            "END IF; END $$;"
+        ))
+
+
+def _migrate_patient_facility_scope(engine) -> None:
+    """Backfill single-facility legacy identities; stop on ambiguous cross-facility links."""
+    from backend.core.patient_identity import (
+        is_synthetic_patient_id,
+        new_synthetic_patient_id,
+        normalize_source_patient_id,
+        patient_id_digest,
+        patient_pid_key_id,
+        patient_pid_secret,
+    )
+
+    secret = patient_pid_secret()
+    key_id = patient_pid_key_id(secret)
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    with session_factory() as db:
+        try:
+            patients = db.query(PatientModel).order_by(PatientModel.id).all()
+            for patient in patients:
+                linked_facilities = {
+                    value
+                    for (value,) in db.query(StudyModel.facility_id)
+                    .filter(StudyModel.patient_id == patient.id)
+                    .distinct()
+                    .all()
+                    if value
+                }
+                linked_facilities.update(
+                    value
+                    for (value,) in db.query(VisitModel.facility_id)
+                    .filter(VisitModel.patient_id == patient.id)
+                    .distinct()
+                    .all()
+                    if value
+                )
+                if patient.facility_id:
+                    linked_facilities.add(patient.facility_id)
+                if len(linked_facilities) > 1:
+                    raise RuntimeError(
+                        "A legacy patient identity is linked to multiple facilities; reviewed reconciliation is required."
+                    )
+                if linked_facilities:
+                    patient.facility_id = next(iter(linked_facilities))
+
+                if patient.pid_hmac_scope_version == 0:
+                    if patient.source_pid_hmac:
+                        if patient.pid_hmac_key_id != key_id or not is_synthetic_patient_id(patient.anonymized_pid):
+                            raise RuntimeError("Stored legacy patient pseudonyms do not match the configured HMAC key.")
+                        if patient.legacy_source_pid_hmac not in (None, patient.source_pid_hmac):
+                            raise RuntimeError("Legacy patient identity mapping is inconsistent.")
+                        patient.legacy_source_pid_hmac = patient.source_pid_hmac
+                        patient.source_pid_hmac = None
+                    elif patient.legacy_source_pid_hmac is None and not is_synthetic_patient_id(patient.anonymized_pid):
+                        source_id = normalize_source_patient_id(patient.anonymized_pid)
+                        patient.anonymized_pid = new_synthetic_patient_id()
+                        patient.legacy_source_pid_hmac = patient_id_digest(source_id, secret)
+                        patient.pid_hmac_key_id = key_id
+                    if patient.legacy_source_pid_hmac and patient.pid_hmac_key_id != key_id:
+                        raise RuntimeError("Stored legacy patient mappings do not match the configured HMAC key.")
+                elif patient.pid_hmac_scope_version == 1:
+                    if patient.source_pid_hmac and (
+                        patient.pid_hmac_key_id != key_id
+                        or not is_synthetic_patient_id(patient.anonymized_pid)
+                        or not patient.facility_id
+                    ):
+                        raise RuntimeError("Stored facility-scoped patient pseudonyms are incomplete or use a different key.")
+                    if patient.legacy_source_pid_hmac and patient.pid_hmac_key_id != key_id:
+                        raise RuntimeError("Stored legacy patient mappings do not match the configured HMAC key.")
+                else:
+                    raise RuntimeError("Unknown patient identity scope version; refusing to continue.")
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            if isinstance(exc, RuntimeError):
+                raise
+            raise RuntimeError("Patient facility identity migration failed") from exc
 
 
 def _migrate_visit_numbers_on_connection(cursor: sqlite3.Cursor) -> None:

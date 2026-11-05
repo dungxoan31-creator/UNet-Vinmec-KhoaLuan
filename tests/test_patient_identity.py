@@ -3,6 +3,8 @@ from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
+import numpy as np
+
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -10,10 +12,30 @@ from backend.app.config import UPLOAD_DIR
 from backend.app.main import app
 from backend.core.patient_identity import patient_id_digest
 from backend.db.database import PatientModel, SessionLocal, StudyModel
+from backend.services.patient_identity import get_or_create_patient
+from tests.helpers.fixture_factory import create_test_facility
+
+
+def test_same_source_id_in_two_facilities_has_distinct_patient_records():
+    source_pid = f"LOCAL-{uuid4().hex}"
+    with SessionLocal() as db:
+        facility_a = create_test_facility(db, f"fac-a-{uuid4().hex[:8]}")
+        facility_b = create_test_facility(db, f"fac-b-{uuid4().hex[:8]}")
+
+        patient_a = get_or_create_patient(db, source_pid, facility_id=facility_a.id)
+        patient_b = get_or_create_patient(db, source_pid, facility_id=facility_b.id)
+        same_facility_patient = get_or_create_patient(db, source_pid, facility_id=facility_a.id)
+
+        assert patient_a.id != patient_b.id
+        assert patient_a.id == same_facility_patient.id
+        assert patient_a.facility_id == facility_a.id
+        assert patient_b.facility_id == facility_b.id
+        assert patient_a.source_pid_hmac == patient_id_digest(source_pid, facility_id=facility_a.id)
+        assert patient_b.source_pid_hmac == patient_id_digest(source_pid, facility_id=facility_b.id)
 
 
 def test_case_intake_pseudonymizes_and_reuses_source_patient_id(doctor_access, caplog):
-    source_pid = "EXTERNAL-PATIENT-SENTINEL-9f14d12a"
+    source_pid = "937142809"
 
     with TestClient(app) as client:
         first = client.post("/api/cases", json={"patient_id": source_pid, "study_date": "2026-10-21"},
@@ -49,7 +71,7 @@ def test_case_intake_pseudonymizes_and_reuses_source_patient_id(doctor_access, c
 
     with SessionLocal() as db:
         patient = db.query(PatientModel).filter_by(anonymized_pid=first_data["patient_id"]).one()
-        assert patient.source_pid_hmac == patient_id_digest(source_pid)
+        assert patient.source_pid_hmac == patient_id_digest(source_pid, facility_id="FAC-DEFAULT-TEST")
         assert patient.pid_hmac_key_id
         persisted_values = " ".join(str(value) for value in vars(patient).values())
         assert source_pid not in persisted_values
@@ -58,7 +80,7 @@ def test_case_intake_pseudonymizes_and_reuses_source_patient_id(doctor_access, c
 def test_legacy_upload_path_pseudonymizes_source_patient_id(doctor_access):
     source_pid = "LEGACY-UPLOAD-PID-SENTINEL-5f92"
     buffer = BytesIO()
-    Image.new("L", (64, 64), color=120).save(buffer, format="PNG")
+    Image.fromarray(np.random.default_rng(42).integers(30, 200, (256, 256), dtype=np.uint8)).save(buffer, format="PNG")
 
     with TestClient(app) as client:
         response = client.post(
@@ -76,13 +98,13 @@ def test_legacy_upload_path_pseudonymizes_source_patient_id(doctor_access):
         patient = db.get(PatientModel, study.patient_id)
         assert patient is not None
         assert patient.anonymized_pid.startswith("SYN-")
-        assert patient.source_pid_hmac == patient_id_digest(source_pid)
+        assert patient.source_pid_hmac == patient_id_digest(source_pid, facility_id="FAC-DEFAULT-TEST")
         assert source_pid not in " ".join(str(value) for value in vars(patient).values())
 
 
 def test_legacy_upload_rejects_whitespace_only_pid_without_side_effects(doctor_access):
     buffer = BytesIO()
-    Image.new("L", (64, 64), color=120).save(buffer, format="PNG")
+    Image.fromarray(np.random.default_rng(42).integers(30, 200, (256, 256), dtype=np.uint8)).save(buffer, format="PNG")
     upload_dir = Path(UPLOAD_DIR)
     files_before = {path.name for path in upload_dir.iterdir()}
     with SessionLocal() as db:
@@ -104,9 +126,13 @@ def test_legacy_upload_rejects_whitespace_only_pid_without_side_effects(doctor_a
         assert db.query(StudyModel).count() == studies_before
 
 
-def test_patient_pid_key_requires_a_separate_strong_secret(monkeypatch):
+def test_patient_pid_key_requires_a_separate_strong_secret(monkeypatch, tmp_path):
     from backend.core.patient_identity import patient_pid_secret
 
+    from backend.app import config
+
+    monkeypatch.setattr(config, "DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("APP_ENVIRONMENT", "PRODUCTION")
     monkeypatch.delenv("APP_PATIENT_PID_HMAC_SECRET", raising=False)
     try:
         patient_pid_secret()
@@ -136,7 +162,7 @@ def test_case_search_treats_sql_injection_payload_as_plain_text(doctor_access):
             "/api/cases",
             headers={"Idempotency-Key": str(uuid4())},
             json={
-                "patient_id": f"PATIENT-{uuid.uuid4().hex}",
+                "patient_id": f"{uuid.uuid4().int % 1_000_000_000:09d}",
                 "study_code": marker,
                 "study_date": "2026-10-29",
             },

@@ -21,6 +21,8 @@ from pydantic import (
     model_validator,
 )
 
+VisitNumber = Annotated[StrictStr, StringConstraints(pattern=r"^[0-9]{6}$", min_length=6, max_length=6)]
+
 from backend.core.hitl_event_types import CLIENT_HITL_EVENT_TYPES
 
 ORADS_REVIEW_VALUE = Literal[
@@ -85,6 +87,7 @@ class AdminCreateUserRequest(BaseModel):
     role: AdminRole = "DOCTOR"
     department: StrictStr | None = Field(default=None, max_length=100)
     password: StrictStr | None = Field(default=None, max_length=256)
+    facility_id: StrictStr | None = Field(default=None, max_length=36)
 
 
 class AdminUpdateUserRequest(BaseModel):
@@ -95,6 +98,7 @@ class AdminUpdateUserRequest(BaseModel):
     role: AdminRole | None = None
     department: StrictStr | None = Field(default=None, max_length=100)
     is_active: StrictBool | StrictStr | None = None
+    facility_id: StrictStr | None = Field(default=None, max_length=36)
 
     @model_validator(mode="after")
     def reject_explicit_null_values(self):
@@ -163,6 +167,7 @@ class AdminModelRegistrationRequest(BaseModel):
 class AdminSettingsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
+    facility_id: StrictStr | None = Field(default=None, min_length=1, max_length=36)
     hospital_name: StrictStr | None = Field(default=None, min_length=1, max_length=120)
     report_header: StrictStr | None = Field(default=None, min_length=1, max_length=200)
     unit: Literal["auto"] | None = None
@@ -170,7 +175,7 @@ class AdminSettingsRequest(BaseModel):
     @model_validator(mode="after")
     def require_setting(self):
         fields = self.model_fields_set
-        if not fields:
+        if not fields.intersection({"hospital_name", "report_header", "unit"}):
             raise ValueError("At least one supported setting must be supplied")
         for field in ("hospital_name", "report_header", "unit"):
             if field in fields and getattr(self, field) is None:
@@ -678,6 +683,8 @@ class UserProfile(BaseModel):
     username: str
     full_name: str
     role: str  # DOCTOR, ADMIN
+    facility_id: str | None = None
+    is_global_admin: bool = False
     department: str
     title: str
     hospital: str
@@ -711,9 +718,46 @@ class DoctorProductivityItem(BaseModel):
     raw_accepted_count: int
     modified_count: int
     rejected_count: int
-    consensus_rate_pct: float
-    avg_review_seconds: float
+    consensus_rate_pct: float | None
+    avg_review_seconds: float | None
+    review_duration_count: int = 0
     last_active: str
+
+
+class AdminDrilldownCaseItem(BaseModel):
+    study_id: str
+    study_code: str
+    visit_no: VisitNumber | None = None
+    study_date: str
+    status: str
+    doctor_id: str
+    doctor_name: str
+    orads: str
+    lesion_type: str
+    measurements_summary: str
+
+
+class AdminAnalyticsSummary(BaseModel):
+    total_cases: int
+    completed_cases: int
+    pending_cases: int
+    total_images: int
+    total_predictions: int
+    total_reviews: int
+    overall_consensus_rate_pct: float | None
+    avg_iqa_score: float | None
+    iqa_pass_rate_pct: float | None
+    iqa_scored_count: int = 0
+    active_doctors_count: int
+    orads_distribution: dict[str, int]
+    lesion_distribution: dict[str, int]
+    action_distribution: dict[str, int]
+    iqa_tiers: dict[str, int] = {}
+    timeline_trend: list[dict[str, Any]] = []
+    demographics: dict[str, int] = {}
+    avg_review_seconds: float | None
+    review_duration_count: int = 0
+    generated_at: str
 
 
 class CaseSearchRequest(BaseModel):
@@ -747,7 +791,8 @@ class CreateCaseRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    patient_id: str | None = Field(default=None, max_length=64)
+    patient_id: StrictStr | None = Field(default=None, min_length=9, max_length=64, pattern=r"^([0-9]{9}|DEMO-SYNTHETIC-[A-Za-z0-9-]+)$")
+    patient_directory_id: StrictStr | None = Field(default=None, min_length=1, max_length=36)
     study_code: str | None = Field(default=None, max_length=64)
     study_date: StrictStr
     patient_age: str | None = Field(default=None, max_length=20)
@@ -757,7 +802,7 @@ class CreateCaseRequest(BaseModel):
     contralateral_status: Literal["UNKNOWN", "NOT_VISUALIZED", "SURGICALLY_ABSENT", "NORMAL", "SUSPECTED"] = "UNKNOWN"
     facility_id: str | None = Field(default=None, max_length=64)
 
-    @field_validator("study_code", "patient_age", "probe_type", "patient_id", mode="before")
+    @field_validator("study_code", "patient_age", "probe_type", mode="before")
     @classmethod
     def normalize_optional_metadata(cls, value: Any) -> Any:
         if isinstance(value, str):
@@ -798,6 +843,41 @@ class CreateCaseRequest(BaseModel):
             raise ValueError(f"Ngày khám '{v}' không đúng định dạng YYYY-MM-DD hoặc YYYY-MM-DDTHH:MM hợp lệ.")
 
 
+class PatientDirectoryCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    display_name: StrictStr = Field(min_length=1, max_length=120)
+    birth_year: StrictInt | None = Field(default=None, ge=1900, le=2100)
+
+    @field_validator("birth_year")
+    @classmethod
+    def validate_birth_year_not_in_future(cls, value: int | None) -> int | None:
+        if value is not None and value > datetime.now().year:
+            raise ValueError("Năm sinh không thể ở tương lai.")
+        return value
+
+
+class PatientDirectoryUpdateRequest(PatientDirectoryCreateRequest):
+    expected_version: StrictInt = Field(ge=1)
+
+
+class PatientDirectoryItem(BaseModel):
+    id: str
+    display_name: str
+    birth_year: int | None = None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class CaseIntakeSidesRequest(BaseModel):
+    """Complete laterality on an explicitly reserved, image-free examination."""
+
+    model_config = ConfigDict(extra="forbid")
+    active_ovary_side: Literal["RIGHT", "LEFT", "BOTH"]
+    contralateral_status: Literal["UNKNOWN", "NOT_VISUALIZED", "SURGICALLY_ABSENT", "NORMAL", "SUSPECTED"] = "UNKNOWN"
+
+
 class CaseImageSummary(BaseModel):
     id: str
     filename: str
@@ -808,8 +888,10 @@ class CaseItem(BaseModel):
     id: str
     study_id: str | None = None
     study_code: str
-    visit_no: str | None = None
+    visit_no: VisitNumber | None = None
     patient_id: str | None = None
+    patient_directory_id: str | None = None
+    patient_name: str | None = None
     patient_age: str | None = None
     study_date: str
     status: str  # PENDING, ANALYZED, REVIEWED
@@ -830,6 +912,101 @@ class WorkspaceCaseSearchResponse(BaseModel):
 
 
 WorkspaceCaseSearchResult = WorkspaceCaseSearchResponse
+
+
+class CaseCreateResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    study_id: str
+    study_code: str
+    visit_no: VisitNumber | None = None
+    patient_id: str | None = None
+    patient_directory_id: str | None = None
+    patient_name: str | None = None
+    patient_age: str | None = None
+    study_date: str | None = None
+    status: str | None = None
+    ovary_side: str | None = None
+    contralateral_status: str | None = None
+    message: str
+
+
+class CaseDetailImagePrediction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    ai_diagnosis: dict[str, Any] | None = None
+    prediction_id: str
+    confidence_score: float | None = None
+    inference_time_ms: float | None = None
+    iqa_score: float | None = None
+    measurements: dict[str, Any] = Field(default_factory=dict)
+    rle_mask: Any = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    model_version: str | None = None
+    uncertainty_map_base64: str | None = None
+
+
+class CaseDetailImageReview(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    review_id: str
+    prediction_id: str | None = None
+    doctor_id: str | None = None
+    doctor_action: str | None = None
+    time_spent_seconds: float | None = None
+    lesion_type: str | None = None
+    orads: Any = None
+    orads_score: Any = None
+    morphology_description: str | None = None
+    clinical_notes: str | None = None
+    hitl_feedback: dict[str, Any] = Field(default_factory=dict)
+    reviewed_at: str | None = None
+    reviewer_id: str | None = None
+    max_diameter_mm: float | None = None
+    ortho_diameter_mm: float | None = None
+    total_area_cm2: float | None = None
+    verified_mask_rle: Any = None
+    created_at: str | None = None
+
+
+class CaseDetailImage(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    image_id: str
+    laterality: str | None = None
+    filename: str | None = None
+    width: int | None = None
+    height: int | None = None
+    pixel_spacing_mm: float | None = None
+    calibration_source: str | None = None
+    is_calibrated: bool | None = None
+    calibration_confidence: float | None = None
+    prediction: CaseDetailImagePrediction | None = None
+    review: CaseDetailImageReview | None = None
+
+
+class CaseDetailResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    study_id: str
+    study_code: str | None = None
+    visit_no: VisitNumber | None = None
+    patient_id: str | None = None
+    patient_directory_id: str | None = None
+    patient_name: str | None = None
+    report_header: str | None = None
+    patient_age: str | None = None
+    study_date: str | None = None
+    status: str | None = None
+    review_revision: int = 0
+    correction_id: str | None = None
+    correction_by: str | None = None
+    correction_status: str | None = None
+    correction_reason: str | None = None
+    correction_revision: int | None = None
+    correction_draft: dict[str, Any] | None = None
+    latest_review_request_id: str | None = None
+    ovary_side: str | None = None
+    contralateral_status: str | None = None
+    probe_type: str | None = None
+    clinical_indication: str | None = None
+    images: list[CaseDetailImage] = Field(default_factory=list)
+    created_at: str
 
 
 class ImageValidationResult(BaseModel):
@@ -1223,3 +1400,95 @@ class FacilityResponse(BaseModel):
     is_active: bool
     created_at: datetime
 
+
+class CaseAssignRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assignee_id: str = Field(..., min_length=1, max_length=36)
+
+
+class CaseClaimResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    status: str
+    study_id: str
+    assignee_id: str
+
+
+class CorrectionCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    technician_id: str = Field(..., min_length=1, max_length=36)
+    reason: str = Field(..., min_length=1, max_length=1000)
+
+
+class CorrectionSaveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    correction_id: str = Field(..., min_length=1, max_length=36)
+    base_revision: StrictInt = Field(ge=0)
+    lease_token: str = Field(min_length=32, max_length=256, pattern=r"^[A-Za-z0-9_-]+$")
+    page_instance_id: str = Field(min_length=16, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+    draft_payload: dict[str, Any]
+
+    @field_validator("draft_payload")
+    @classmethod
+    def validate_correction_draft(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if set(value) != {"images"} or not isinstance(value.get("images"), list):
+            raise ValueError("Correction draft must contain only an images list.")
+        image_rows = value["images"]
+        if not image_rows or len(image_rows) > 20:
+            raise ValueError("Correction draft must contain between 1 and 20 images.")
+        seen_ids: set[str] = set()
+        for row in image_rows:
+            if not isinstance(row, dict) or set(row) - {"image_id", "verified_mask_rle", "notes", "morphology"}:
+                raise ValueError("Correction image fields are not recognized.")
+            image_id = row.get("image_id")
+            if not isinstance(image_id, str) or not image_id or image_id in seen_ids:
+                raise ValueError("Correction image IDs must be unique non-empty strings.")
+            seen_ids.add(image_id)
+            mask = row.get("verified_mask_rle")
+            if not isinstance(mask, dict):
+                raise ValueError("Each correction image requires a binary mask.")
+            DoctorReviewRequest.validate_mask_rle(mask)
+            if not isinstance(row.get("notes", ""), str) or len(row.get("notes", "")) > 10000:
+                raise ValueError("Correction notes exceed the allowed size.")
+            if not isinstance(row.get("morphology", ""), str) or len(row.get("morphology", "")) > 1000:
+                raise ValueError("Correction morphology exceeds the allowed size.")
+        return value
+
+
+class NotificationResponseItem(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    recipient_id: str
+    facility_id: str | None = None
+    study_id: str | None = None
+    case_id: str | None = None
+    event_type: str
+    title: str
+    message: str
+    is_read: bool = False
+    read_at: str | None = None
+    created_at: str
+
+
+class NotificationListResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    items: list[NotificationResponseItem]
+    total: int
+
+
+class NotificationReadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ids: list[str] = Field(default_factory=list)
+
+
+
+class CDSSMultiLesionEvaluateRequest(BaseModel):
+    lesions: list[dict[str, Any]]
+    patient_context: dict[str, Any] | None = None
+    adnex_inputs: ADNEXInputs | None = None

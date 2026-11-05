@@ -133,6 +133,43 @@ def test_concurrent_init_db_calls_create_one_consistent_schema(tmp_path, monkeyp
         engine.dispose()
 
 
+def test_init_db_preserves_user_changed_password_despite_old_bootstrap_environment(tmp_path, monkeypatch):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from backend.app.security import hash_password, verify_password
+    from backend.db import database
+
+    db_path = tmp_path / "bootstrap-password.sqlite3"
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+    monkeypatch.setattr(database, "DB_PATH", str(db_path))
+    monkeypatch.setattr(database, "engine", engine)
+    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=engine))
+    monkeypatch.setenv("APP_DOCTOR_PASSWORD", "BootstrapOriginalPassword123!")
+    monkeypatch.setenv("APP_DOCTOR_FACILITY_ID", "FAC-DEFAULT-TEST")
+    monkeypatch.setenv("APP_PATIENT_PID_HMAC_SECRET", "bootstrap-password-test-hmac-secret-32-bytes")
+    monkeypatch.delenv("APP_ADMIN_PASSWORD", raising=False)
+
+    try:
+        database.init_db()
+        with database.SessionLocal() as db:
+            doctor = db.query(database.UserModel).filter_by(username="doctor").one()
+            doctor.password_hash = hash_password("UserChosenPassword2026!")
+            db.commit()
+
+        database.init_db()
+
+        with database.SessionLocal() as db:
+            doctor = db.query(database.UserModel).filter_by(username="doctor").one()
+            assert verify_password("UserChosenPassword2026!", doctor.password_hash)
+            assert not verify_password("BootstrapOriginalPassword123!", doctor.password_hash)
+    finally:
+        engine.dispose()
+
+
 def test_init_db_refuses_to_guess_missing_study_context_for_legacy_rows(tmp_path, monkeypatch):
     import sqlite3
 
@@ -261,14 +298,15 @@ def test_init_db_pseudonymizes_legacy_patient_ids_atomically(tmp_path, monkeypat
             study = db.get(database.StudyModel, "legacy-study")
             assert patient is not None
             assert patient.anonymized_pid.startswith("SYN-")
-            assert patient.source_pid_hmac == patient_id_digest("SOURCE-PID-DO-NOT-RETAIN")
+            assert patient.source_pid_hmac is None
+            assert patient.legacy_source_pid_hmac == patient_id_digest("SOURCE-PID-DO-NOT-RETAIN")
             assert patient.pid_hmac_key_id == patient_pid_key_id()
             assert study is not None and study.patient_id == patient.id
             stable_synthetic_id = patient.anonymized_pid
 
         with sqlite3.connect(db_path) as connection:
             persisted = " ".join(str(value) for row in connection.execute(
-                "SELECT anonymized_pid, source_pid_hmac, pid_hmac_key_id FROM patients"
+                "SELECT anonymized_pid, source_pid_hmac, legacy_source_pid_hmac, pid_hmac_key_id FROM patients"
             ) for value in row)
             assert "SOURCE-PID-DO-NOT-RETAIN" not in persisted
 
@@ -279,9 +317,67 @@ def test_init_db_pseudonymizes_legacy_patient_ids_atomically(tmp_path, monkeypat
             patient = db.get(database.PatientModel, "legacy-patient")
             assert patient is not None
             assert patient.anonymized_pid == stable_synthetic_id
-            assert patient.source_pid_hmac == patient_id_digest(
+            assert patient.legacy_source_pid_hmac == patient_id_digest(
                 "SOURCE-PID-DO-NOT-RETAIN", b"migration-test-hmac-secret-at-least-32-bytes"
             )
+    finally:
+        engine.dispose()
+
+
+def test_init_db_stops_when_legacy_patient_is_linked_across_facilities(tmp_path, monkeypatch):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session, sessionmaker
+
+    from backend.core.patient_identity import patient_id_digest, patient_pid_key_id
+    from backend.db import database
+
+    db_path = tmp_path / "ambiguous-patient-identity.sqlite3"
+    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    monkeypatch.setattr(database, "DB_PATH", str(db_path))
+    monkeypatch.setattr(database, "engine", engine)
+    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=engine))
+    monkeypatch.setenv("APP_PATIENT_PID_HMAC_SECRET", "migration-test-hmac-secret-at-least-32-bytes")
+    monkeypatch.delenv("APP_DOCTOR_PASSWORD", raising=False)
+    monkeypatch.delenv("APP_ADMIN_PASSWORD", raising=False)
+
+    try:
+        database.Base.metadata.create_all(engine)
+        source_pid = "LOCAL-LEGACY-AMBIGUOUS"
+        with Session(engine) as db:
+            facility_a = database.FacilityModel(id="FAC-LEGACY-A", facility_code="LEG-A", name="Legacy A")
+            facility_b = database.FacilityModel(id="FAC-LEGACY-B", facility_code="LEG-B", name="Legacy B")
+            db.add_all([facility_a, facility_b])
+            db.add(database.PatientModel(
+                id="legacy-shared-patient",
+                anonymized_pid="SYN-" + "A" * 32,
+                source_pid_hmac=patient_id_digest(source_pid),
+                pid_hmac_key_id=patient_pid_key_id(),
+                pid_hmac_scope_version=0,
+            ))
+            db.add_all([
+                database.StudyModel(
+                    id="legacy-study-a", patient_id="legacy-shared-patient", facility_id=facility_a.id,
+                    study_date="2026-11-04", status="PENDING", ovary_side="LEFT",
+                    contralateral_status="NOT_VISUALIZED",
+                ),
+                database.StudyModel(
+                    id="legacy-study-b", patient_id="legacy-shared-patient", facility_id=facility_b.id,
+                    study_date="2026-11-04", status="PENDING", ovary_side="LEFT",
+                    contralateral_status="NOT_VISUALIZED",
+                ),
+            ])
+            db.commit()
+
+        with pytest.raises(RuntimeError, match="multiple facilities; reviewed reconciliation"):
+            database.init_db()
+
+        with Session(engine) as db:
+            patient = db.get(database.PatientModel, "legacy-shared-patient")
+            assert patient.source_pid_hmac == patient_id_digest(source_pid)
+            assert patient.legacy_source_pid_hmac is None
+            assert patient.facility_id is None
+            assert db.get(database.StudyModel, "legacy-study-a").patient_id == patient.id
+            assert db.get(database.StudyModel, "legacy-study-b").patient_id == patient.id
     finally:
         engine.dispose()
 
