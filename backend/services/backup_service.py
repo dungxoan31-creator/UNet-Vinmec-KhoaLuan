@@ -16,7 +16,7 @@ class BackupService:
         self,
         db_path: str | None = None,
         data_dir: str | None = None,
-        backup_dir: str = "backups",
+        backup_dir: str | None = None,
     ):
         from backend.db.database import DB_PATH
 
@@ -38,7 +38,15 @@ class BackupService:
         else:
             self.data_dir = os.path.abspath(os.path.join(project_root, "data"))
 
-        self.backup_dir = os.path.abspath(backup_dir) if os.path.isabs(backup_dir) else os.path.abspath(os.path.join(project_root, backup_dir))
+        configured_backup_dir = backup_dir or os.environ.get("APP_BACKUP_DIR")
+        if configured_backup_dir:
+            self.backup_dir = (
+                os.path.abspath(configured_backup_dir)
+                if os.path.isabs(configured_backup_dir)
+                else os.path.abspath(os.path.join(project_root, configured_backup_dir))
+            )
+        else:
+            self.backup_dir = os.path.join(self.data_dir, "backups")
         os.makedirs(self.backup_dir, exist_ok=True)
 
     def create_backup(self, include_images: bool = True) -> dict[str, Any]:

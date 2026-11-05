@@ -139,7 +139,7 @@ export async function renderUsers(target) {
           user?.department || "",
           'required maxlength="100"',
         ) +
-        '<p class="muted small">Máy chủ gửi quy trình thiết lập mật khẩu riêng; không hiển thị mật khẩu tại đây.</p><button class="btn primary" type="submit">Lưu</button>',
+        '<p class="muted small">Mật khẩu khởi tạo tạm thời sẽ được tạo và hiển thị một lần duy nhất sau khi lưu để quản trị viên bàn giao cho bác sĩ.</p><button class="btn primary" type="submit">Lưu</button>',
       async (e, d) => {
         const submit = e.submitter;
         if (submit.disabled) return;

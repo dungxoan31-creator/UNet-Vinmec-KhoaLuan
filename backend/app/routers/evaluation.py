@@ -17,9 +17,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 
 from backend.app.config import SYNTHETIC_DEMO_MODE
-from backend.app.security import require_clinical
+from backend.app.security import require_evaluation_reviewer
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_evaluation_reviewer)])
 
 
 def _deny_benchmark_sample_access_in_synthetic_demo():
@@ -416,7 +416,7 @@ def _read_evaluation_sample_rows() -> list[dict[str, Any]] | None:
 
 @router.get(
     "/samples",
-    dependencies=[Depends(require_clinical), Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
+    dependencies=[Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
 )
 def get_evaluation_samples(
     category: str | None = None,
@@ -479,7 +479,7 @@ def get_evaluation_samples(
 
 @router.get(
     "/samples/{case_id}/workstation-bundle",
-    dependencies=[Depends(require_clinical), Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
+    dependencies=[Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
 )
 def get_sample_workstation_bundle(case_id: str):
     """
@@ -540,7 +540,7 @@ def get_sample_workstation_bundle(case_id: str):
 
 @router.get(
     "/samples/{case_id}/download/{artifact_type}",
-    dependencies=[Depends(require_clinical), Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
+    dependencies=[Depends(_deny_benchmark_sample_access_in_synthetic_demo)],
 )
 def download_evaluation_artifact(case_id: str, artifact_type: str):
     """
