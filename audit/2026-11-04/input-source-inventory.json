@@ -1,0 +1,569 @@
+[
+  {
+    "file": "frontend/app/admin-audit.js",
+    "line": 17,
+    "markup": "<input name=\"q\" type=\"search\" aria-label=\"Tìm nhật ký\" placeholder=\"Người dùng, hành vi, mã ca\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-audit.js",
+    "line": 17,
+    "markup": "<input name=\"actor\" placeholder=\"Người thực hiện\" aria-label=\"Người thực hiện\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-audit.js",
+    "line": 17,
+    "markup": "<select name=\"action\" aria-label=\"Hành vi\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-audit.js",
+    "line": 17,
+    "markup": "<input name=\"from\" type=\"date\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-audit.js",
+    "line": 17,
+    "markup": "<input name=\"to\" type=\"date\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-metadata.js",
+    "line": 7,
+    "markup": "<input id=\"metadataQuery\" aria-label=\"Tìm mã ca\" placeholder=\"Tìm mã ca khảo sát\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-models.js",
+    "line": 52,
+    "markup": "<select name=\"architecture\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-reports.js",
+    "line": 85,
+    "markup": "<select id=\"filterDays\" class=\"input-select\" style=\"padding:5px 8px; border-radius:5px; border:1px solid #cbd5e1; font-size:12.5px; background:#ffffff;\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-reports.js",
+    "line": 97,
+    "markup": "<select id=\"filterStatus\" class=\"input-select\" style=\"padding:5px 8px; border-radius:5px; border:1px solid #cbd5e1; font-size:12.5px; background:#ffffff;\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-reports.js",
+    "line": 107,
+    "markup": "<select id=\"filterDoctor\" class=\"input-select\" style=\"padding:5px 8px; border-radius:5px; border:1px solid #cbd5e1; font-size:12.5px; background:#ffffff; max-width:200px;\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-users.js",
+    "line": 54,
+    "markup": "<input id=\"userSearch\" type=\"search\" value=\"${esc(query)}\" placeholder=\"Tìm tài khoản\" aria-label=\"Tìm tài khoản\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin-users.js",
+    "line": 134,
+    "markup": "<select name=\"role\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/admin.js",
+    "line": 68,
+    "markup": "<select name=\"unit\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 62,
+    "markup": "<select id=\"adnexVariant\" name=\"model_variant\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 70,
+    "markup": "<input id=\"adnexCa125\" name=\"ca125_u_ml\" type=\"number\" min=\"0\" max=\"1000000\" step=\"any\" inputmode=\"decimal\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 75,
+    "markup": "<input id=\"adnexAge\" name=\"age_years\" type=\"number\" min=\"0\" max=\"130\" step=\"any\" inputmode=\"decimal\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 78,
+    "markup": "<select id=\"adnexOncology\" name=\"is_oncology_center\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 83,
+    "markup": "<select id=\"adnexPersistent\" name=\"is_persistent_adnexal_mass\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 88,
+    "markup": "<select id=\"adnexSurgery\" name=\"surgery_indicated\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 93,
+    "markup": "<select id=\"adnexComplete\" name=\"ultrasound_exam_complete\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 98,
+    "markup": "<select id=\"adnexPhysiologic\" name=\"physiologic_follicle_confirmed\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 103,
+    "markup": "<input id=\"adnexDiameter\" name=\"max_lesion_diameter_mm\" type=\"number\" min=\"0\" max=\"10000\" step=\"any\" inputmode=\"decimal\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 106,
+    "markup": "<input id=\"adnexSolidDiameter\" name=\"largest_solid_component_mm\" type=\"number\" min=\"0\" max=\"10000\" step=\"any\" inputmode=\"decimal\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 109,
+    "markup": "<input id=\"adnexLocules\" name=\"cyst_locules_count\" type=\"number\" min=\"0\" step=\"1\" inputmode=\"numeric\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 112,
+    "markup": "<input id=\"adnexPapillary\" name=\"papillary_projections_count\" type=\"number\" min=\"0\" step=\"1\" inputmode=\"numeric\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 115,
+    "markup": "<select id=\"adnexShadow\" name=\"acoustic_shadowing\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/adnex.js",
+    "line": 120,
+    "markup": "<select id=\"adnexAscites\" name=\"has_ascites\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/cases.js",
+    "line": 117,
+    "markup": "<input id=\"selectAll\" type=\"checkbox\" aria-label=\"Chọn tất cả ca trên trang\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/cases.js",
+    "line": 117,
+    "markup": "<input type=\"checkbox\" class=\"case-select\" value=\"${esc(c.study_id)}\" aria-label=\"Chọn ${esc(c.study_code)}\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/cases.js",
+    "line": 204,
+    "markup": "<select id=\"correctionTechnician\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/cases.js",
+    "line": 204,
+    "markup": "<textarea id=\"correctionReason\" maxlength=\"1000\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/cdss-panel.js",
+    "line": 85,
+    "markup": "<select id=\"${id}\" name=\"${name}\" autocomplete=\"off\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/cdss-panel.js",
+    "line": 97,
+    "markup": "<input id=\"${name}\" name=\"${name}\" type=\"number\" min=\"${min}\" step=\"${step}\" inputmode=\"${step === 1 ? \"numeric\" : \"decimal\"}\" autocomplete=\"off\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/cdss-panel.js",
+    "line": 156,
+    "markup": "<input id=\"cdssConfirm\" type=\"checkbox\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/dicom-inspect.js",
+    "line": 43,
+    "markup": "<input type=\"radio\" name=\"frame\" value=\"${n}\" ${n === 0 ? \"checked\" : \"\"}>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/evaluation.js",
+    "line": 136,
+    "markup": "<select id=\"errorGroup\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 60,
+    "markup": "<input id=\"patientSearch\" type=\"search\" placeholder=\"Nhập tên có dấu hoặc không dấu\" value=\"${esc(search)}\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 105,
+    "markup": "<input name=\"birth_year\" type=\"number\" value=\"${esc(initialBirthYear)}\" required min=\"1900\" max=\"${currentYear}\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 107,
+    "markup": "<select name=\"gender\" required>",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 248,
+    "markup": "<select name=\"reason\" disabled>",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 249,
+    "markup": "<select name=\"reason\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 254,
+    "markup": "<input type=\"datetime-local\" name=\"study-date\" value=\"${nowLocal()}\" required>",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 260,
+    "markup": "<input type=\"file\" data-file=\"${side}\" accept=\".png,.jpg,.jpeg,.dcm\" multiple class=\"visually-hidden\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 262,
+    "markup": "<input type=\"checkbox\" data-unavailable=\"${side}\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/intake.js",
+    "line": 263,
+    "markup": "<select data-unavailable-status=\"${side}\" disabled>",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/navigation.js",
+    "line": 223,
+    "markup": "<input id=\"quickQuery\" type=\"search\" class=\"wide\" placeholder=\"Mã ca hoặc mã bệnh nhân (PID)\" aria-label=\"Từ khóa\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/patient-compare.js",
+    "line": 11,
+    "markup": "<select id=\"visitA\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/patient-compare.js",
+    "line": 11,
+    "markup": "<select id=\"visitB\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/patient-compare.js",
+    "line": 11,
+    "markup": "<select id=\"compareSide\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/patient-compare.js",
+    "line": 62,
+    "markup": "<input id=\"visitOpacity\" type=\"range\" min=\"0\" max=\"100\" value=\"50\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/patients.js",
+    "line": 10,
+    "markup": "<input id=\"pidSearch\" type=\"search\" placeholder=\"PID nguồn đầy đủ hoặc PID giả danh\" aria-label=\"Tìm PID\" style=\"margin-bottom:20px\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/personal.js",
+    "line": 79,
+    "markup": "<select name=\"theme\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/personal.js",
+    "line": 79,
+    "markup": "<select name=\"language\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/personal.js",
+    "line": 79,
+    "markup": "<select name=\"layout\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/personal.js",
+    "line": 117,
+    "markup": "<textarea name=\"message\" required>",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/region-review.js",
+    "line": 94,
+    "markup": "<select data-region-choice=\"${component.component_index}\" ${!hasEditLease || submitting ? \"disabled\" : \"\"}>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/region-review.js",
+    "line": 102,
+    "markup": "<input type=\"checkbox\" data-region-retire=\"${esc(id)}\" ${retiredRegionIds.has(id) ? \"checked\" : \"\"}>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/region-review.js",
+    "line": 105,
+    "markup": "<input type=\"checkbox\" data-region-accepted ${accepted ? \"checked\" : \"\"} ${!hasEditLease || submitting ? \"disabled\" : \"\"}>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/research-candidate.js",
+    "line": 15,
+    "markup": "<select id=\"researchCandidate-${name}\" name=\"${name}\" autocomplete=\"off\" required>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/review.js",
+    "line": 343,
+    "markup": "<select name=\"rating\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/review.js",
+    "line": 343,
+    "markup": "<select name=\"issue\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/ui.js",
+    "line": 51,
+    "markup": "<input name=\"${esc(name)}\" type=\"${type}\" value=\"${esc(value)}\" ${extra}>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/upload.js",
+    "line": 358,
+    "markup": "<textarea name=\"reason\" required minlength=\"5\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 168,
+    "markup": "<select id=\"viewerImageSelect\" aria-label=\"Ảnh hoặc mặt cắt đang xem\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 244,
+    "markup": "<input type=\"range\" id=\"brushSize\" min=\"2\" max=\"64\" value=\"16\" aria-label=\"Cỡ cọ\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 245,
+    "markup": "<input id=\"opacity\" type=\"range\" min=\"0\" max=\"100\" value=\"35\" aria-label=\"Độ mờ lớp phủ\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 246,
+    "markup": "<input type=\"range\" id=\"brightness\" min=\"50\" max=\"180\" value=\"100\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 247,
+    "markup": "<input type=\"range\" id=\"contrast\" min=\"50\" max=\"180\" value=\"100\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 249,
+    "markup": "<input type=\"checkbox\" id=\"caliperDenoiseToggle\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 277,
+    "markup": "<select id=\"iotaMorphology\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 287,
+    "markup": "<select id=\"oradsScore\" aria-describedby=\"oradsHelp\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 300,
+    "markup": "<input id=\"morphology\" maxlength=\"100\" placeholder=\"Chi tiết âm vang, vách ngăn...\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 303,
+    "markup": "<textarea id=\"notes\" rows=\"2\" placeholder=\"Kết luận hoặc lưu ý theo dõi...\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 307,
+    "markup": "<input type=\"checkbox\" id=\"reviewContentAck\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 442,
+    "markup": "<select id=\"displayPreset\" aria-label=\"Thiết lập sáng và tương phản\">",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 448,
+    "markup": "<input id=\"uncertaintyToggle\" type=\"checkbox\" disabled>",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/viewer.js",
+    "line": 2324,
+    "markup": "<input name=\"custom_tag\" type=\"text\" maxlength=\"30\" placeholder=\"VD: Vách dày, Dịch vẩn...\" required>",
+    "status": "PARTIALLY TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/worklist.js",
+    "line": 43,
+    "markup": "<input id=\"caseSearch\" type=\"search\" placeholder=\"Mã ca, PID giả danh hoặc PID nguồn đầy đủ\" aria-label=\"Tìm ca\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/worklist.js",
+    "line": 43,
+    "markup": "<select id=\"caseStatus\" aria-label=\"Trạng thái\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/worklist.js",
+    "line": 49,
+    "markup": "<input id=\"caseDate\" type=\"date\" aria-label=\"Ngày khảo sát\">",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  },
+  {
+    "file": "frontend/app/worklist.js",
+    "line": 50,
+    "markup": "<input id=\"autoRefresh\" type=\"checkbox\" checked>",
+    "status": "NOT TESTED",
+    "reason": "Source markup inventory; dynamic templates and unrendered states not behaviorally certified"
+  }
+]

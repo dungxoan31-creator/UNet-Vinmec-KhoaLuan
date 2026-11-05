@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import {createDemoPatientStore} from '../../frontend/app/intake-session.js';
+const data=new Map(), storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+const seeds=[{pid:'100000001',name:'Synthetic seed',age:30}];
+const one=createDemoPatientStore(seeds,()=>storage),two=createDemoPatientStore(seeds,()=>storage);
+one.read('audit');two.read('audit');one.add('audit',{pid:'123456789',name:'Synthetic alpha',age:36});
+const stale=two.read('audit');two.add('audit',{pid:'234567890',name:'Synthetic beta',age:37});
+const disk=JSON.parse(data.get('audit'));
+const empty=createDemoPatientStore(seeds,()=>storage);empty.save('empty',[]);
+const reopened=createDemoPatientStore(seeds,()=>storage).read('empty');
+fs.writeFileSync(new URL('./store-probe-results.json',import.meta.url),JSON.stringify({staleReader:stale,persistedAfterSecondWriter:disk,firstUpdateLost:!disk.some(p=>p.pid==='123456789'),emptyStoreAfterReopen:reopened},null,2));
+console.log('Reproduced stale store overwrite:',!disk.some(p=>p.pid==='123456789'),'Empty store reseeded:',reopened.length);

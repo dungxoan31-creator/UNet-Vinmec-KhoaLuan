@@ -1,0 +1,143 @@
+{
+  "status": "PASS",
+  "assumption": "A2",
+  "n_phantoms": 50,
+  "n_iterations": 5,
+  "metrics": {
+    "dmax_mae_mm": 0.002,
+    "dmax_mae_pct": 0.01,
+    "dorth_mae_mm": 0.002,
+    "dorth_mae_pct": 0.01,
+    "mean_mae_mm": 0.002,
+    "mean_mae_pct": 0.01,
+    "icc_dmax": 0.9999,
+    "icc_dorth": 0.9999
+  },
+  "bland_altman": {
+    "dmax": {
+      "mean_bias_mm": -0.0002,
+      "sd_bias_mm": 0.0028,
+      "loa_upper_mm": 0.0054,
+      "loa_lower_mm": -0.0057,
+      "ci95_bias_lower_mm": -0.0009,
+      "ci95_bias_upper_mm": 0.0006
+    },
+    "dorth": {
+      "mean_bias_mm": 0.0006,
+      "sd_bias_mm": 0.0028,
+      "loa_upper_mm": 0.0061,
+      "loa_lower_mm": -0.0049,
+      "ci95_bias_lower_mm": -0.0002,
+      "ci95_bias_upper_mm": 0.0014
+    }
+  },
+  "thresholds": {
+    "target_mae_mm": 1.0,
+    "target_mae_pct": 2.0,
+    "target_icc": 0.9,
+    "passes_mae": true,
+    "passes_icc": true
+  },
+  "phantoms_sample": [
+    {
+      "id": "PHANTOM-001",
+      "shape_type": "ellipse",
+      "gt_max_mm": 23.9,
+      "gt_orth_mm": 14.53,
+      "measured_max_mean_mm": 23.92,
+      "measured_orth_mean_mm": 14.58,
+      "max_error_mm": 0.023,
+      "orth_error_mm": 0.058
+    },
+    {
+      "id": "PHANTOM-002",
+      "shape_type": "ellipse",
+      "gt_max_mm": 20.85,
+      "gt_orth_mm": 12.9,
+      "measured_max_mean_mm": 20.9,
+      "measured_orth_mean_mm": 12.95,
+      "max_error_mm": 0.041,
+      "orth_error_mm": 0.043
+    },
+    {
+      "id": "PHANTOM-003",
+      "shape_type": "ellipse",
+      "gt_max_mm": 17.35,
+      "gt_orth_mm": 13.77,
+      "measured_max_mean_mm": 17.29,
+      "measured_orth_mean_mm": 13.71,
+      "max_error_mm": 0.059,
+      "orth_error_mm": 0.056
+    },
+    {
+      "id": "PHANTOM-004",
+      "shape_type": "ellipse",
+      "gt_max_mm": 24.43,
+      "gt_orth_mm": 19.83,
+      "measured_max_mean_mm": 24.47,
+      "measured_orth_mean_mm": 19.87,
+      "max_error_mm": 0.035,
+      "orth_error_mm": 0.038
+    },
+    {
+      "id": "PHANTOM-005",
+      "shape_type": "ellipse",
+      "gt_max_mm": 14.6,
+      "gt_orth_mm": 14.25,
+      "measured_max_mean_mm": 14.53,
+      "measured_orth_mean_mm": 14.18,
+      "max_error_mm": 0.071,
+      "orth_error_mm": 0.071
+    },
+    {
+      "id": "PHANTOM-006",
+      "shape_type": "ellipse",
+      "gt_max_mm": 20.88,
+      "gt_orth_mm": 12.91,
+      "measured_max_mean_mm": 20.93,
+      "measured_orth_mean_mm": 12.96,
+      "max_error_mm": 0.054,
+      "orth_error_mm": 0.051
+    },
+    {
+      "id": "PHANTOM-007",
+      "shape_type": "ellipse",
+      "gt_max_mm": 17.91,
+      "gt_orth_mm": 14.27,
+      "measured_max_mean_mm": 18.11,
+      "measured_orth_mean_mm": 14.04,
+      "max_error_mm": 0.202,
+      "orth_error_mm": 0.228
+    },
+    {
+      "id": "PHANTOM-008",
+      "shape_type": "ellipse",
+      "gt_max_mm": 12.68,
+      "gt_orth_mm": 10.57,
+      "measured_max_mean_mm": 12.74,
+      "measured_orth_mean_mm": 10.43,
+      "max_error_mm": 0.057,
+      "orth_error_mm": 0.134
+    },
+    {
+      "id": "PHANTOM-009",
+      "shape_type": "ellipse",
+      "gt_max_mm": 12.93,
+      "gt_orth_mm": 8.7,
+      "measured_max_mean_mm": 12.9,
+      "measured_orth_mean_mm": 8.65,
+      "max_error_mm": 0.025,
+      "orth_error_mm": 0.053
+    },
+    {
+      "id": "PHANTOM-010",
+      "shape_type": "ellipse",
+      "gt_max_mm": 12.64,
+      "gt_orth_mm": 8.4,
+      "measured_max_mean_mm": 12.6,
+      "measured_orth_mean_mm": 8.36,
+      "max_error_mm": 0.039,
+      "orth_error_mm": 0.047
+    }
+  ]
+}

@@ -1,0 +1,6513 @@
+[
+  {
+    "screen": "login",
+    "tag": "INPUT",
+    "id": "",
+    "name": "username",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên đăng nhập"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 326.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "login",
+    "tag": "INPUT",
+    "id": "",
+    "name": "password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 419.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "register",
+    "tag": "INPUT",
+    "id": "",
+    "name": "username",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên đăng nhập"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 203.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "register",
+    "tag": "INPUT",
+    "id": "",
+    "name": "full_name",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Họ và tên bác sĩ / chuyên môn"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 296.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "register",
+    "tag": "INPUT",
+    "id": "",
+    "name": "email",
+    "type": "email",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Email công tác"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 389.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "register",
+    "tag": "INPUT",
+    "id": "",
+    "name": "department",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Khoa / Phòng ban"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 482.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "register",
+    "tag": "INPUT",
+    "id": "",
+    "name": "password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 575.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "register",
+    "tag": "INPUT",
+    "id": "",
+    "name": "confirm",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Nhập lại mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 668.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "forgot",
+    "tag": "INPUT",
+    "id": "",
+    "name": "username",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên đăng nhập"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 425.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "reset",
+    "tag": "INPUT",
+    "id": "",
+    "name": "password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu mới"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 332.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "reset",
+    "tag": "INPUT",
+    "id": "",
+    "name": "confirm",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Nhập lại mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 425.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "reset",
+    "tag": "INPUT",
+    "id": "",
+    "name": "token",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã khôi phục được cấp"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 518.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "verify-email",
+    "tag": "INPUT",
+    "id": "",
+    "name": "email",
+    "type": "email",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Email công tác"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 369.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "verify-email",
+    "tag": "INPUT",
+    "id": "",
+    "name": "code",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã xác thực 6 chữ số"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 462.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "first",
+    "tag": "INPUT",
+    "id": "",
+    "name": "current_password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu hiện tại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 332.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "first",
+    "tag": "INPUT",
+    "id": "",
+    "name": "password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu mới"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 425.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "first",
+    "tag": "INPUT",
+    "id": "",
+    "name": "confirm",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Nhập lại mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 518.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "expired",
+    "tag": "INPUT",
+    "id": "",
+    "name": "username",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên đăng nhập"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 337.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "expired",
+    "tag": "INPUT",
+    "id": "",
+    "name": "password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 430.25,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "login-return",
+    "tag": "INPUT",
+    "id": "",
+    "name": "username",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên đăng nhập"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 326.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "login-return",
+    "tag": "INPUT",
+    "id": "",
+    "name": "password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 419.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-intake",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 266,
+      "y": 272.109375,
+      "w": 1149,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-cases",
+    "tag": "INPUT",
+    "id": "caseSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": "Tìm ca",
+    "labels": [],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 265,
+      "y": 214.109375,
+      "w": 599.578125,
+      "h": 42.5
+    }
+  },
+  {
+    "screen": "doctor-cases",
+    "tag": "SELECT",
+    "id": "caseStatus",
+    "name": "",
+    "type": "select-one",
+    "text": "Mọi trạng thái\nĐã tải lên\nChờ phân đoạn\nAI xong\nAI xong\nĐang rà soát\nRà soát một bên\nĐã lưu rà soát\nChờ đối chiếu\nĐã duyệt\nCần xem lại\nĐã khóa nội bộ",
+    "label": "Trạng thái",
+    "labels": [],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 874.578125,
+      "y": 214.359375,
+      "w": 160,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-cases",
+    "tag": "INPUT",
+    "id": "caseDate",
+    "name": "",
+    "type": "date",
+    "text": "",
+    "label": "Ngày khảo sát",
+    "labels": [],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1044.578125,
+      "y": 213.109375,
+      "w": 164,
+      "h": 44.5
+    }
+  },
+  {
+    "screen": "doctor-cases",
+    "tag": "INPUT",
+    "id": "autoRefresh",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Tự làm mới mỗi phút"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 1281.265625,
+      "y": 278.609375,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "doctor-preferences",
+    "tag": "SELECT",
+    "id": "",
+    "name": "theme",
+    "type": "select-one",
+    "text": "Theo màn hình: quản lý sáng, workstation tối\nSáng\nTối",
+    "label": null,
+    "labels": [
+      "Giao diện\nTheo màn hình: quản lý sáng, workstation tối\nSáng\nTối"
+    ],
+    "required": false,
+    "value": "system",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 234.609375,
+      "w": 520,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-preferences",
+    "tag": "SELECT",
+    "id": "",
+    "name": "language",
+    "type": "select-one",
+    "text": "Tiếng Việt\nEnglish – điều hướng",
+    "label": null,
+    "labels": [
+      "Ngôn ngữ\nTiếng Việt\nEnglish – điều hướng"
+    ],
+    "required": false,
+    "value": "vi",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 327.609375,
+      "w": 520,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-preferences",
+    "tag": "SELECT",
+    "id": "",
+    "name": "layout",
+    "type": "select-one",
+    "text": "Một ảnh\nSong song với ảnh gốc",
+    "label": null,
+    "labels": [
+      "Bố cục viewer\nMột ảnh\nSong song với ảnh gốc"
+    ],
+    "required": false,
+    "value": "single",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 420.609375,
+      "w": 520,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-profile",
+    "tag": "INPUT",
+    "id": "",
+    "name": "full_name",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên hiển thị"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "Bác sĩ",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 234.609375,
+      "w": 520,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-profile",
+    "tag": "INPUT",
+    "id": "",
+    "name": "username",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tài khoản"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "doctor",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 327.609375,
+      "w": 520,
+      "h": 42
+    }
+  },
+  {
+    "screen": "doctor-profile",
+    "tag": "INPUT",
+    "id": "",
+    "name": "department",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Khoa"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 420.609375,
+      "w": 520,
+      "h": 42
+    }
+  },
+  {
+    "screen": "intake-seeds",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 266,
+      "y": 272.109375,
+      "w": 1149,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 266,
+      "y": 272.109375,
+      "w": 1149,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "INPUT",
+    "id": "",
+    "name": "pid",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã bệnh nhân (PID) · tự động"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "718656298",
+    "disabled": false,
+    "box": {
+      "x": 405,
+      "y": 216,
+      "w": 630,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "INPUT",
+    "id": "",
+    "name": "full_name",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Họ và tên"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 405,
+      "y": 309,
+      "w": 630,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "INPUT",
+    "id": "",
+    "name": "national_id",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Số CCCD / Hộ chiếu"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 405,
+      "y": 402,
+      "w": 630,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "INPUT",
+    "id": "",
+    "name": "birth_year",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Năm sinh"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 405,
+      "y": 495,
+      "w": 630,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "INPUT",
+    "id": "",
+    "name": "phone",
+    "type": "tel",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Số điện thoại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 405,
+      "y": 588,
+      "w": 630,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "SELECT",
+    "id": "",
+    "name": "gender",
+    "type": "select-one",
+    "text": "Chọn giới tính\nNữ\nNam\nKhác\nKhông muốn nêu",
+    "label": null,
+    "labels": [
+      "Giới tính\nChọn giới tính\nNữ\nNam\nKhác\nKhông muốn nêu"
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 405,
+      "y": 681,
+      "w": 630,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-create",
+    "tag": "INPUT",
+    "id": "",
+    "name": "hometown",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Quê quán"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 405,
+      "y": 774,
+      "w": 630,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "INPUT",
+    "id": "",
+    "name": "pid",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã bệnh nhân (PID)"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "718656298",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 303.765625,
+      "w": 548.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "INPUT",
+    "id": "",
+    "name": "study-date",
+    "type": "datetime-local",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Ngày giờ khảo sát\nHiện tại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "2026-11-04T21:37",
+    "disabled": false,
+    "box": {
+      "x": 850.5,
+      "y": 303.765625,
+      "w": 470.78125,
+      "h": 43
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "SELECT",
+    "id": "",
+    "name": "reason",
+    "type": "select-one",
+    "text": "Khác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ",
+    "label": null,
+    "labels": [
+      "Lý do khảo sát\nKhác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ"
+    ],
+    "required": false,
+    "value": "Khác / chưa ghi nhận",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 395.765625,
+      "w": 1117,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh trái"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 547.234375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 282,
+      "y": 846.0625,
+      "w": 531.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh phải"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1132.734375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 871.5,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "patient-created-upload",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 867.5,
+      "y": 846.0625,
+      "w": 531.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "case-detail",
+    "tag": "SELECT",
+    "id": "correctionTechnician",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn TK",
+    "label": null,
+    "labels": [
+      "TK được giao\nChọn TK"
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 617.5,
+      "w": 1109,
+      "h": 42
+    }
+  },
+  {
+    "screen": "case-detail",
+    "tag": "TEXTAREA",
+    "id": "correctionReason",
+    "name": "",
+    "type": "textarea",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Lý do hiệu chỉnh"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 710.5,
+      "w": 1109,
+      "h": 96
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "viewerImageSelect",
+    "name": "",
+    "type": "select-one",
+    "text": "",
+    "label": "Ảnh hoặc mặt cắt đang xem",
+    "labels": [
+      "Ảnh hoặc mặt cắt đang xem"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 763.6875,
+      "y": 9.5,
+      "w": 38,
+      "h": 28
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "iotaMorphology",
+    "name": "",
+    "type": "select-one",
+    "text": "-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilo",
+    "label": null,
+    "labels": [
+      "Hình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 1068.203125,
+      "y": 195,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "oradsScore",
+    "name": "",
+    "type": "select-one",
+    "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; ho",
+    "label": null,
+    "labels": [
+      "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 1068.203125,
+      "y": 335,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexVariant",
+    "name": "model_variant",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 594,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "adnexAge",
+    "name": "age_years",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 673.5,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexOncology",
+    "name": "is_oncology_center",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 759,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexPersistent",
+    "name": "is_persistent_adnexal_mass",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 844.5,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexSurgery",
+    "name": "surgery_indicated",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 930,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexComplete",
+    "name": "ultrasound_exam_complete",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1015.5,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexPhysiologic",
+    "name": "physiologic_follicle_confirmed",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1101,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "adnexDiameter",
+    "name": "max_lesion_diameter_mm",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1186.5,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "adnexSolidDiameter",
+    "name": "largest_solid_component_mm",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1272,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "adnexLocules",
+    "name": "cyst_locules_count",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1357.5,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "adnexPapillary",
+    "name": "papillary_projections_count",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1443,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexShadow",
+    "name": "acoustic_shadowing",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1528.5,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "adnexAscites",
+    "name": "has_ascites",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1614,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "assessment_source",
+    "name": "assessment_source",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 779.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "modality",
+    "name": "modality",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 868.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "ultrasound_exam_complete",
+    "name": "ultrasound_exam_complete",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 958.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "max_diameter_mm",
+    "name": "max_diameter_mm",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1047.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "locules_count",
+    "name": "locules_count",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1137.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "has_solid_component",
+    "name": "has_solid_component",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1226.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "papillary_projections_count",
+    "name": "papillary_projections_count",
+    "type": "number",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1316.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "fluid_echogenicity",
+    "name": "fluid_echogenicity",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1405.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "acoustic_shadowing",
+    "name": "acoustic_shadowing",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1495.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "wall_irregular",
+    "name": "wall_irregular",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1584.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "color_score",
+    "name": "color_score",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1674.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "has_ascites",
+    "name": "has_ascites",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1763.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "has_peritoneal_nodules",
+    "name": "has_peritoneal_nodules",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1853.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "b1_unilocular_cyst",
+    "name": "b1_unilocular_cyst",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 1982.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "b2_solid_component_lt_7mm",
+    "name": "b2_solid_component_lt_7mm",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2071.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "b3_acoustic_shadows",
+    "name": "b3_acoustic_shadows",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2161.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "b4_smooth_multilocular_lt_100mm",
+    "name": "b4_smooth_multilocular_lt_100mm",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2250.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "b5_no_detectable_blood_flow",
+    "name": "b5_no_detectable_blood_flow",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2340.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "m1_irregular_solid_tumor",
+    "name": "m1_irregular_solid_tumor",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2429.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "m2_ascites",
+    "name": "m2_ascites",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2519.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "m3_four_or_more_papillary_projections",
+    "name": "m3_four_or_more_papillary_projections",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2608.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "m4_irregular_multilocular_solid_ge_100mm",
+    "name": "m4_irregular_multilocular_solid_ge_100mm",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2698.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "m5_very_strong_color_doppler",
+    "name": "m5_very_strong_color_doppler",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2787.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "is_premenopausal",
+    "name": "is_premenopausal",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2027.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "is_persistent_adnexal_mass",
+    "name": "is_persistent_adnexal_mass",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2117.46875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "SELECT",
+    "id": "surgery_indicated",
+    "name": "surgery_indicated",
+    "type": "select-one",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1068.203125,
+      "y": 2206.96875,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "cdssConfirm",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      ""
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "on",
+    "disabled": true,
+    "box": {
+      "x": 1072.203125,
+      "y": 2071.46875,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "INPUT",
+    "id": "morphology",
+    "name": "",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mô tả hình thái"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 1068.203125,
+      "y": 616.5,
+      "w": 355.796875,
+      "h": 36
+    }
+  },
+  {
+    "screen": "viewer-empty",
+    "tag": "TEXTAREA",
+    "id": "notes",
+    "name": "",
+    "type": "textarea",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Nhận định của bác sĩ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 1068.203125,
+      "y": 688,
+      "w": 355.796875,
+      "h": 78
+    }
+  },
+  {
+    "screen": "intake-1920",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 266,
+      "y": 273.265625,
+      "w": 1629,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "INPUT",
+    "id": "",
+    "name": "pid",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã bệnh nhân (PID)"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "100000001",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 303.765625,
+      "w": 788.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "INPUT",
+    "id": "",
+    "name": "study-date",
+    "type": "datetime-local",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Ngày giờ khảo sát\nHiện tại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "2026-11-04T21:38",
+    "disabled": false,
+    "box": {
+      "x": 1090.5,
+      "y": 303.765625,
+      "w": 710.78125,
+      "h": 43
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "SELECT",
+    "id": "",
+    "name": "reason",
+    "type": "select-one",
+    "text": "Khác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ",
+    "label": null,
+    "labels": [
+      "Lý do khảo sát\nKhác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ"
+    ],
+    "required": false,
+    "value": "Khác / chưa ghi nhận",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 395.765625,
+      "w": 1597,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh trái"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 667.234375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 282,
+      "y": 846.0625,
+      "w": 771.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh phải"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1492.734375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 1111.5,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-1920",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 1107.5,
+      "y": 846.0625,
+      "w": 771.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "intake-1440",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 266,
+      "y": 272.109375,
+      "w": 1149,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "INPUT",
+    "id": "",
+    "name": "pid",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã bệnh nhân (PID)"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "100000001",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 303.765625,
+      "w": 548.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "INPUT",
+    "id": "",
+    "name": "study-date",
+    "type": "datetime-local",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Ngày giờ khảo sát\nHiện tại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "2026-11-04T21:38",
+    "disabled": false,
+    "box": {
+      "x": 850.5,
+      "y": 303.765625,
+      "w": 470.78125,
+      "h": 43
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "SELECT",
+    "id": "",
+    "name": "reason",
+    "type": "select-one",
+    "text": "Khác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ",
+    "label": null,
+    "labels": [
+      "Lý do khảo sát\nKhác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ"
+    ],
+    "required": false,
+    "value": "Khác / chưa ghi nhận",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 395.765625,
+      "w": 1117,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh trái"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 547.234375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 282,
+      "y": 846.0625,
+      "w": 531.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh phải"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1132.734375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 871.5,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-1440",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 867.5,
+      "y": 846.0625,
+      "w": 531.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "intake-1366",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 266,
+      "y": 270.828125,
+      "w": 1075,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "INPUT",
+    "id": "",
+    "name": "pid",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã bệnh nhân (PID)"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "100000001",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 303.765625,
+      "w": 511.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "INPUT",
+    "id": "",
+    "name": "study-date",
+    "type": "datetime-local",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Ngày giờ khảo sát\nHiện tại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "2026-11-04T21:38",
+    "disabled": false,
+    "box": {
+      "x": 813.5,
+      "y": 303.765625,
+      "w": 433.78125,
+      "h": 43
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "SELECT",
+    "id": "",
+    "name": "reason",
+    "type": "select-one",
+    "text": "Khác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ",
+    "label": null,
+    "labels": [
+      "Lý do khảo sát\nKhác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ"
+    ],
+    "required": false,
+    "value": "Khác / chưa ghi nhận",
+    "disabled": false,
+    "box": {
+      "x": 282,
+      "y": 395.765625,
+      "w": 1043,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh trái"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 528.734375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 282,
+      "y": 846.0625,
+      "w": 494.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh phải"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1077.234375,
+      "y": 697.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 834.5,
+      "y": 791.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-1366",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 830.5,
+      "y": 846.0625,
+      "w": 494.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "intake-768",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 18,
+      "y": 326.828125,
+      "w": 733,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "INPUT",
+    "id": "",
+    "name": "pid",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã bệnh nhân (PID)"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "100000001",
+    "disabled": false,
+    "box": {
+      "x": 34,
+      "y": 319.765625,
+      "w": 340.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "INPUT",
+    "id": "",
+    "name": "study-date",
+    "type": "datetime-local",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Ngày giờ khảo sát\nHiện tại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "2026-11-04T21:38",
+    "disabled": false,
+    "box": {
+      "x": 394.5,
+      "y": 319.765625,
+      "w": 262.78125,
+      "h": 43
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "SELECT",
+    "id": "",
+    "name": "reason",
+    "type": "select-one",
+    "text": "Khác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ",
+    "label": null,
+    "labels": [
+      "Lý do khảo sát\nKhác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ"
+    ],
+    "required": false,
+    "value": "Khác / chưa ghi nhận",
+    "disabled": false,
+    "box": {
+      "x": 34,
+      "y": 411.765625,
+      "w": 701,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh trái"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 383.984375,
+      "y": 713.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 38,
+      "y": 807.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 34,
+      "y": 862.0625,
+      "w": 701,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh phải"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 383.984375,
+      "y": 1154.359375,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 38,
+      "y": 1248.359375,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-768",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 34,
+      "y": 1302.859375,
+      "w": 701,
+      "h": 42
+    }
+  },
+  {
+    "screen": "intake-390",
+    "tag": "INPUT",
+    "id": "patientSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tìm theo tên hoặc mã hồ sơ"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 14,
+      "y": 323.328125,
+      "w": 363,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "INPUT",
+    "id": "",
+    "name": "pid",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mã bệnh nhân (PID)"
+    ],
+    "required": false,
+    "readOnly": true,
+    "value": "100000001",
+    "disabled": false,
+    "box": {
+      "x": 30,
+      "y": 383.765625,
+      "w": 155.5,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "INPUT",
+    "id": "",
+    "name": "study-date",
+    "type": "datetime-local",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Ngày giờ khảo sát\nHiện tại"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "2026-11-04T21:38",
+    "disabled": false,
+    "box": {
+      "x": 205.5,
+      "y": 383.765625,
+      "w": 77.78125,
+      "h": 43
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "SELECT",
+    "id": "",
+    "name": "reason",
+    "type": "select-one",
+    "text": "Khác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ",
+    "label": null,
+    "labels": [
+      "Lý do khảo sát\nKhác / chưa ghi nhận\nTheo dõi hình thái\nKhảo sát định kỳ"
+    ],
+    "required": false,
+    "value": "Khác / chưa ghi nhận",
+    "disabled": false,
+    "box": {
+      "x": 30,
+      "y": 475.765625,
+      "w": 331,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh trái"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 194.984375,
+      "y": 813.5625,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 34,
+      "y": 907.5625,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 30,
+      "y": 984.5625,
+      "w": 331,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "file",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Chọn ảnh phải"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 194.984375,
+      "y": 1294.859375,
+      "w": 1,
+      "h": 42
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "INPUT",
+    "id": "",
+    "name": "",
+    "type": "checkbox",
+    "text": "",
+    "label": null,
+    "labels": [
+      " Đã phẫu thuật cắt bỏ / Không khảo sát được"
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "on",
+    "disabled": false,
+    "box": {
+      "x": 34,
+      "y": 1388.859375,
+      "w": 13,
+      "h": 13
+    }
+  },
+  {
+    "screen": "upload-390",
+    "tag": "SELECT",
+    "id": "",
+    "name": "",
+    "type": "select-one",
+    "text": "Chọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được",
+    "label": null,
+    "labels": [
+      "Tình trạng bên không có ảnh\nChọn tình trạng\nĐã phẫu thuật cắt bỏ\nKhông quan sát được"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": true,
+    "box": {
+      "x": 30,
+      "y": 1465.859375,
+      "w": 331,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-login",
+    "tag": "INPUT",
+    "id": "",
+    "name": "username",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên đăng nhập"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 326.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-login",
+    "tag": "INPUT",
+    "id": "",
+    "name": "password",
+    "type": "password",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Mật khẩu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "<redacted>",
+    "disabled": false,
+    "box": {
+      "x": 905.140625,
+      "y": 419.75,
+      "w": 384,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-reports",
+    "tag": "SELECT",
+    "id": "filterDays",
+    "name": "",
+    "type": "select-one",
+    "text": "Toàn bộ thời gian\nHôm nay (24 giờ)\n7 ngày gần nhất\n30 ngày gần nhất\nQuý này (90 ngày)",
+    "label": null,
+    "labels": [
+      "🕒 Thời gian:\nToàn bộ thời gian\nHôm nay (24 giờ)\n7 ngày gần nhất\n30 ngày gần nhất\nQuý này (90 ngày)"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 475.46875,
+      "y": 337.609375,
+      "w": 150,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-reports",
+    "tag": "SELECT",
+    "id": "filterStatus",
+    "name": "",
+    "type": "select-one",
+    "text": "Tất cả trạng thái\nĐã hoàn tất / Ký duyệt\nChờ xử lý / Chưa ký",
+    "label": null,
+    "labels": [
+      "🩺 Trạng thái ca:\nTất cả trạng thái\nĐã hoàn tất / Ký duyệt\nChờ xử lý / Chưa ký"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 748.09375,
+      "y": 337.609375,
+      "w": 172,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-reports",
+    "tag": "SELECT",
+    "id": "filterDoctor",
+    "name": "",
+    "type": "select-one",
+    "text": "Tất cả bác sĩ\nBác sĩ (0 ca)\nBác sĩ (0 ca)\nNguyễn Hữu Dũng (tổng hợp) (0 ca)",
+    "label": null,
+    "labels": [
+      "👨‍⚕️ Bác sĩ:\nTất cả bác sĩ\nBác sĩ (0 ca)\nBác sĩ (0 ca)\nNguyễn Hữu Dũng (tổng hợp) (0 ca)"
+    ],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1000.140625,
+      "y": 337.609375,
+      "w": 200,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-users",
+    "tag": "INPUT",
+    "id": "userSearch",
+    "name": "",
+    "type": "search",
+    "text": "",
+    "label": "Tìm tài khoản",
+    "labels": [],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 265,
+      "y": 250.109375,
+      "w": 991.578125,
+      "h": 42.5
+    }
+  },
+  {
+    "screen": "admin-audit",
+    "tag": "INPUT",
+    "id": "",
+    "name": "q",
+    "type": "search",
+    "text": "",
+    "label": "Tìm nhật ký",
+    "labels": [],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 265,
+      "y": 319.609375,
+      "w": 273.046875,
+      "h": 42.5
+    }
+  },
+  {
+    "screen": "admin-audit",
+    "tag": "INPUT",
+    "id": "",
+    "name": "actor",
+    "type": "text",
+    "text": "",
+    "label": "Người thực hiện",
+    "labels": [],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 548.046875,
+      "y": 319.609375,
+      "w": 224,
+      "h": 42.5
+    }
+  },
+  {
+    "screen": "admin-audit",
+    "tag": "SELECT",
+    "id": "",
+    "name": "action",
+    "type": "select-one",
+    "text": "Mọi hành vi\nLOGIN\nLOGIN_FAILED\nUPLOAD_IMAGE\nINFERENCE_RUN\nMASK_EDIT\nSIGN_PRELIM\nAPPROVE\nREJECT\nLOCK\nUNLOCK\nEXPORT_REPORT\nROLE_CHANGE",
+    "label": "Hành vi",
+    "labels": [],
+    "required": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 782.046875,
+      "y": 319.859375,
+      "w": 168,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-audit",
+    "tag": "INPUT",
+    "id": "",
+    "name": "from",
+    "type": "date",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Từ "
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 978.59375,
+      "y": 319.859375,
+      "w": 138,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-audit",
+    "tag": "INPUT",
+    "id": "",
+    "name": "to",
+    "type": "date",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Đến "
+    ],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 1152.609375,
+      "y": 319.859375,
+      "w": 138,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-cases",
+    "tag": "INPUT",
+    "id": "metadataQuery",
+    "name": "",
+    "type": "text",
+    "text": "",
+    "label": "Tìm mã ca",
+    "labels": [],
+    "required": false,
+    "readOnly": false,
+    "value": "",
+    "disabled": false,
+    "box": {
+      "x": 265,
+      "y": 319.609375,
+      "w": 224,
+      "h": 42.5
+    }
+  },
+  {
+    "screen": "admin-settings",
+    "tag": "INPUT",
+    "id": "",
+    "name": "report_header",
+    "type": "text",
+    "text": "",
+    "label": null,
+    "labels": [
+      "Tên đơn vị trên phiếu"
+    ],
+    "required": true,
+    "readOnly": false,
+    "value": "BẢN NGHIÊN CỨU RUO · CHƯA CẤU HÌNH CƠ SỞ",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 354.109375,
+      "w": 560,
+      "h": 42
+    }
+  },
+  {
+    "screen": "admin-settings",
+    "tag": "SELECT",
+    "id": "",
+    "name": "unit",
+    "type": "select-one",
+    "text": "Theo hiệu chuẩn; thiếu spacing chỉ dùng pixel",
+    "label": null,
+    "labels": [
+      "Đơn vị\nTheo hiệu chuẩn; thiếu spacing chỉ dùng pixel"
+    ],
+    "required": false,
+    "value": "auto",
+    "disabled": false,
+    "box": {
+      "x": 286,
+      "y": 447.109375,
+      "w": 560,
+      "h": 42
+    }
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "oradsScore",
+    "name": "",
+    "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+    "value": "O-RADS 2",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexVariant",
+    "name": "model_variant",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexAge",
+    "name": "age_years",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexOncology",
+    "name": "is_oncology_center",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexPersistent",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexSurgery",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexComplete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexPhysiologic",
+    "name": "physiologic_follicle_confirmed",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexDiameter",
+    "name": "max_lesion_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexSolidDiameter",
+    "name": "largest_solid_component_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexLocules",
+    "name": "cyst_locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexPapillary",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexShadow",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "adnexAscites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "assessment_source",
+    "name": "assessment_source",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "modality",
+    "name": "modality",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "ultrasound_exam_complete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "max_diameter_mm",
+    "name": "max_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "locules_count",
+    "name": "locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "has_solid_component",
+    "name": "has_solid_component",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "papillary_projections_count",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "fluid_echogenicity",
+    "name": "fluid_echogenicity",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "acoustic_shadowing",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "wall_irregular",
+    "name": "wall_irregular",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "color_score",
+    "name": "color_score",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "has_ascites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "has_peritoneal_nodules",
+    "name": "has_peritoneal_nodules",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "b1_unilocular_cyst",
+    "name": "b1_unilocular_cyst",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "b2_solid_component_lt_7mm",
+    "name": "b2_solid_component_lt_7mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "b3_acoustic_shadows",
+    "name": "b3_acoustic_shadows",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "b4_smooth_multilocular_lt_100mm",
+    "name": "b4_smooth_multilocular_lt_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "b5_no_detectable_blood_flow",
+    "name": "b5_no_detectable_blood_flow",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "m1_irregular_solid_tumor",
+    "name": "m1_irregular_solid_tumor",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "m2_ascites",
+    "name": "m2_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "m3_four_or_more_papillary_projections",
+    "name": "m3_four_or_more_papillary_projections",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "m4_irregular_multilocular_solid_ge_100mm",
+    "name": "m4_irregular_multilocular_solid_ge_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "m5_very_strong_color_doppler",
+    "name": "m5_very_strong_color_doppler",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "is_premenopausal",
+    "name": "is_premenopausal",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "is_persistent_adnexal_mass",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "surgery_indicated",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "morphology",
+    "name": "",
+    "text": "",
+    "value": "Synthetic morphology audit",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Mô tả hình thái"
+    ]
+  },
+  {
+    "screen": "viewer-with-inference",
+    "id": "notes",
+    "name": "",
+    "text": "",
+    "value": "Synthetic independent physician note",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Nhận định của bác sĩ"
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "oradsScore",
+    "name": "",
+    "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+    "value": "O-RADS 2",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexVariant",
+    "name": "model_variant",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexAge",
+    "name": "age_years",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexOncology",
+    "name": "is_oncology_center",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexPersistent",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexSurgery",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexComplete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexPhysiologic",
+    "name": "physiologic_follicle_confirmed",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexDiameter",
+    "name": "max_lesion_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexSolidDiameter",
+    "name": "largest_solid_component_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexLocules",
+    "name": "cyst_locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexPapillary",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexShadow",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "adnexAscites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "assessment_source",
+    "name": "assessment_source",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "modality",
+    "name": "modality",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "ultrasound_exam_complete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "max_diameter_mm",
+    "name": "max_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "locules_count",
+    "name": "locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "has_solid_component",
+    "name": "has_solid_component",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "papillary_projections_count",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "fluid_echogenicity",
+    "name": "fluid_echogenicity",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "acoustic_shadowing",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "wall_irregular",
+    "name": "wall_irregular",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "color_score",
+    "name": "color_score",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "has_ascites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "has_peritoneal_nodules",
+    "name": "has_peritoneal_nodules",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "b1_unilocular_cyst",
+    "name": "b1_unilocular_cyst",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "b2_solid_component_lt_7mm",
+    "name": "b2_solid_component_lt_7mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "b3_acoustic_shadows",
+    "name": "b3_acoustic_shadows",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "b4_smooth_multilocular_lt_100mm",
+    "name": "b4_smooth_multilocular_lt_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "b5_no_detectable_blood_flow",
+    "name": "b5_no_detectable_blood_flow",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "m1_irregular_solid_tumor",
+    "name": "m1_irregular_solid_tumor",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "m2_ascites",
+    "name": "m2_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "m3_four_or_more_papillary_projections",
+    "name": "m3_four_or_more_papillary_projections",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "m4_irregular_multilocular_solid_ge_100mm",
+    "name": "m4_irregular_multilocular_solid_ge_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "m5_very_strong_color_doppler",
+    "name": "m5_very_strong_color_doppler",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "is_premenopausal",
+    "name": "is_premenopausal",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "is_persistent_adnexal_mass",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "surgery_indicated",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "morphology",
+    "name": "",
+    "text": "",
+    "value": "Synthetic morphology audit",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Mô tả hình thái"
+    ]
+  },
+  {
+    "screen": "viewer-after-save",
+    "id": "notes",
+    "name": "",
+    "text": "",
+    "value": "Synthetic independent physician note",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Nhận định của bác sĩ"
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "oradsScore",
+    "name": "",
+    "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+    "value": "O-RADS 2",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexVariant",
+    "name": "model_variant",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexAge",
+    "name": "age_years",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexOncology",
+    "name": "is_oncology_center",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexPersistent",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexSurgery",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexComplete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexPhysiologic",
+    "name": "physiologic_follicle_confirmed",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexDiameter",
+    "name": "max_lesion_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexSolidDiameter",
+    "name": "largest_solid_component_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexLocules",
+    "name": "cyst_locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexPapillary",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexShadow",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "adnexAscites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "assessment_source",
+    "name": "assessment_source",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "modality",
+    "name": "modality",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "ultrasound_exam_complete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "max_diameter_mm",
+    "name": "max_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "locules_count",
+    "name": "locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "has_solid_component",
+    "name": "has_solid_component",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "papillary_projections_count",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "fluid_echogenicity",
+    "name": "fluid_echogenicity",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "acoustic_shadowing",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "wall_irregular",
+    "name": "wall_irregular",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "color_score",
+    "name": "color_score",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "has_ascites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "has_peritoneal_nodules",
+    "name": "has_peritoneal_nodules",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "b1_unilocular_cyst",
+    "name": "b1_unilocular_cyst",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "b2_solid_component_lt_7mm",
+    "name": "b2_solid_component_lt_7mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "b3_acoustic_shadows",
+    "name": "b3_acoustic_shadows",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "b4_smooth_multilocular_lt_100mm",
+    "name": "b4_smooth_multilocular_lt_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "b5_no_detectable_blood_flow",
+    "name": "b5_no_detectable_blood_flow",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "m1_irregular_solid_tumor",
+    "name": "m1_irregular_solid_tumor",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "m2_ascites",
+    "name": "m2_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "m3_four_or_more_papillary_projections",
+    "name": "m3_four_or_more_papillary_projections",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "m4_irregular_multilocular_solid_ge_100mm",
+    "name": "m4_irregular_multilocular_solid_ge_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "m5_very_strong_color_doppler",
+    "name": "m5_very_strong_color_doppler",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "is_premenopausal",
+    "name": "is_premenopausal",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "is_persistent_adnexal_mass",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "surgery_indicated",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "morphology",
+    "name": "",
+    "text": "",
+    "value": "Synthetic morphology audit",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Mô tả hình thái"
+    ]
+  },
+  {
+    "screen": "viewer-network-save-failure",
+    "id": "notes",
+    "name": "",
+    "text": "",
+    "value": "Synthetic unsaved network fault",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Nhận định của bác sĩ"
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "oradsScore",
+    "name": "",
+    "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+    "value": "O-RADS 2",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexVariant",
+    "name": "model_variant",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexAge",
+    "name": "age_years",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexOncology",
+    "name": "is_oncology_center",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexPersistent",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexSurgery",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexComplete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexPhysiologic",
+    "name": "physiologic_follicle_confirmed",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexDiameter",
+    "name": "max_lesion_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexSolidDiameter",
+    "name": "largest_solid_component_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexLocules",
+    "name": "cyst_locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexPapillary",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexShadow",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "adnexAscites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "assessment_source",
+    "name": "assessment_source",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "modality",
+    "name": "modality",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "ultrasound_exam_complete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "max_diameter_mm",
+    "name": "max_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "locules_count",
+    "name": "locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "has_solid_component",
+    "name": "has_solid_component",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "papillary_projections_count",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "fluid_echogenicity",
+    "name": "fluid_echogenicity",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "acoustic_shadowing",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "wall_irregular",
+    "name": "wall_irregular",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "color_score",
+    "name": "color_score",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "has_ascites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "has_peritoneal_nodules",
+    "name": "has_peritoneal_nodules",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "b1_unilocular_cyst",
+    "name": "b1_unilocular_cyst",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "b2_solid_component_lt_7mm",
+    "name": "b2_solid_component_lt_7mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "b3_acoustic_shadows",
+    "name": "b3_acoustic_shadows",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "b4_smooth_multilocular_lt_100mm",
+    "name": "b4_smooth_multilocular_lt_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "b5_no_detectable_blood_flow",
+    "name": "b5_no_detectable_blood_flow",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "m1_irregular_solid_tumor",
+    "name": "m1_irregular_solid_tumor",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "m2_ascites",
+    "name": "m2_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "m3_four_or_more_papillary_projections",
+    "name": "m3_four_or_more_papillary_projections",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "m4_irregular_multilocular_solid_ge_100mm",
+    "name": "m4_irregular_multilocular_solid_ge_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "m5_very_strong_color_doppler",
+    "name": "m5_very_strong_color_doppler",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "is_premenopausal",
+    "name": "is_premenopausal",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "is_persistent_adnexal_mass",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "surgery_indicated",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "morphology",
+    "name": "",
+    "text": "",
+    "value": "Synthetic morphology audit",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Mô tả hình thái"
+    ]
+  },
+  {
+    "screen": "viewer-1920",
+    "id": "notes",
+    "name": "",
+    "text": "",
+    "value": "Synthetic unsaved network fault",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Nhận định của bác sĩ"
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "oradsScore",
+    "name": "",
+    "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+    "value": "O-RADS 2",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexVariant",
+    "name": "model_variant",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexAge",
+    "name": "age_years",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexOncology",
+    "name": "is_oncology_center",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexPersistent",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexSurgery",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexComplete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexPhysiologic",
+    "name": "physiologic_follicle_confirmed",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexDiameter",
+    "name": "max_lesion_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexSolidDiameter",
+    "name": "largest_solid_component_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexLocules",
+    "name": "cyst_locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexPapillary",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexShadow",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "adnexAscites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "assessment_source",
+    "name": "assessment_source",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "modality",
+    "name": "modality",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "ultrasound_exam_complete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "max_diameter_mm",
+    "name": "max_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "locules_count",
+    "name": "locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "has_solid_component",
+    "name": "has_solid_component",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "papillary_projections_count",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "fluid_echogenicity",
+    "name": "fluid_echogenicity",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "acoustic_shadowing",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "wall_irregular",
+    "name": "wall_irregular",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "color_score",
+    "name": "color_score",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "has_ascites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "has_peritoneal_nodules",
+    "name": "has_peritoneal_nodules",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "b1_unilocular_cyst",
+    "name": "b1_unilocular_cyst",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "b2_solid_component_lt_7mm",
+    "name": "b2_solid_component_lt_7mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "b3_acoustic_shadows",
+    "name": "b3_acoustic_shadows",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "b4_smooth_multilocular_lt_100mm",
+    "name": "b4_smooth_multilocular_lt_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "b5_no_detectable_blood_flow",
+    "name": "b5_no_detectable_blood_flow",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "m1_irregular_solid_tumor",
+    "name": "m1_irregular_solid_tumor",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "m2_ascites",
+    "name": "m2_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "m3_four_or_more_papillary_projections",
+    "name": "m3_four_or_more_papillary_projections",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "m4_irregular_multilocular_solid_ge_100mm",
+    "name": "m4_irregular_multilocular_solid_ge_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "m5_very_strong_color_doppler",
+    "name": "m5_very_strong_color_doppler",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "is_premenopausal",
+    "name": "is_premenopausal",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "is_persistent_adnexal_mass",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "surgery_indicated",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "morphology",
+    "name": "",
+    "text": "",
+    "value": "Synthetic morphology audit",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Mô tả hình thái"
+    ]
+  },
+  {
+    "screen": "viewer-1440",
+    "id": "notes",
+    "name": "",
+    "text": "",
+    "value": "Synthetic unsaved network fault",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Nhận định của bác sĩ"
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "oradsScore",
+    "name": "",
+    "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+    "value": "O-RADS 2",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexVariant",
+    "name": "model_variant",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexAge",
+    "name": "age_years",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexOncology",
+    "name": "is_oncology_center",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexPersistent",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexSurgery",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexComplete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexPhysiologic",
+    "name": "physiologic_follicle_confirmed",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexDiameter",
+    "name": "max_lesion_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexSolidDiameter",
+    "name": "largest_solid_component_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexLocules",
+    "name": "cyst_locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexPapillary",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexShadow",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "adnexAscites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "assessment_source",
+    "name": "assessment_source",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "modality",
+    "name": "modality",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "ultrasound_exam_complete",
+    "name": "ultrasound_exam_complete",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "max_diameter_mm",
+    "name": "max_diameter_mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "locules_count",
+    "name": "locules_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "has_solid_component",
+    "name": "has_solid_component",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "papillary_projections_count",
+    "name": "papillary_projections_count",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "fluid_echogenicity",
+    "name": "fluid_echogenicity",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "acoustic_shadowing",
+    "name": "acoustic_shadowing",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "wall_irregular",
+    "name": "wall_irregular",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "color_score",
+    "name": "color_score",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "has_ascites",
+    "name": "has_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "has_peritoneal_nodules",
+    "name": "has_peritoneal_nodules",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "b1_unilocular_cyst",
+    "name": "b1_unilocular_cyst",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "b2_solid_component_lt_7mm",
+    "name": "b2_solid_component_lt_7mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "b3_acoustic_shadows",
+    "name": "b3_acoustic_shadows",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "b4_smooth_multilocular_lt_100mm",
+    "name": "b4_smooth_multilocular_lt_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "b5_no_detectable_blood_flow",
+    "name": "b5_no_detectable_blood_flow",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "m1_irregular_solid_tumor",
+    "name": "m1_irregular_solid_tumor",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "m2_ascites",
+    "name": "m2_ascites",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "m3_four_or_more_papillary_projections",
+    "name": "m3_four_or_more_papillary_projections",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "m4_irregular_multilocular_solid_ge_100mm",
+    "name": "m4_irregular_multilocular_solid_ge_100mm",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "m5_very_strong_color_doppler",
+    "name": "m5_very_strong_color_doppler",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "is_premenopausal",
+    "name": "is_premenopausal",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "is_persistent_adnexal_mass",
+    "name": "is_persistent_adnexal_mass",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "surgery_indicated",
+    "name": "surgery_indicated",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      ""
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "morphology",
+    "name": "",
+    "text": "",
+    "value": "Synthetic morphology audit",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Mô tả hình thái"
+    ]
+  },
+  {
+    "screen": "viewer-1366",
+    "id": "notes",
+    "name": "",
+    "text": "",
+    "value": "Synthetic unsaved network fault",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Nhận định của bác sĩ"
+    ]
+  },
+  {
+    "screen": "after-password-change",
+    "id": "",
+    "name": "username",
+    "text": "",
+    "value": "doctor",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Tên đăng nhập"
+    ]
+  },
+  {
+    "screen": "after-password-change",
+    "id": "",
+    "name": "password",
+    "text": "",
+    "value": "",
+    "label": null,
+    "disabled": false,
+    "labels": [
+      "Mật khẩu"
+    ]
+  }
+]

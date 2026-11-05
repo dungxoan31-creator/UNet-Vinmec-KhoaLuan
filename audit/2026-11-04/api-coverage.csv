@@ -1,0 +1,122 @@
+﻿file,line,method,path,function,status,effective_path,observed_statuses,evidence
+backend/app/main.py,157,GET,/,serve_ui,NOT TESTED,/,[],Source inventory only; no behavioral claim
+backend/app/main.py,175,GET,/admin,serve_admin_ui,NOT TESTED,/admin,[],Source inventory only; no behavioral claim
+backend/app/main.py,193,GET,/slides,serve_slides_ui,NOT TESTED,/slides,[],Source inventory only; no behavioral claim
+backend/app/main.py,204,GET,/api/notifications,get_notifications,PARTIALLY TESTED,/api/notifications,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/main.py,236,POST,/api/notifications/read,read_notifications,NOT TESTED,/api/notifications/read,[],Source inventory only; no behavioral claim
+backend/app/main.py,266,POST,/api/feedback,submit_feedback,NOT TESTED,/api/feedback,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,80,GET,/api/admin/models,get_admin_model_info,PARTIALLY TESTED,/api/admin/models,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,99,GET,/api/admin/audit-logs,get_audit_logs,NOT TESTED,/api/admin/audit-logs,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,129,GET,/api/admin/doctor-stats,get_doctor_productivity_stats,PARTIALLY TESTED,/api/admin/doctor-stats,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,248,GET,/api/admin/analytics/summary,get_admin_analytics_summary,PARTIALLY TESTED,/api/admin/analytics/summary,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,449,GET,/api/admin/reports/cases,get_admin_drilldown_cases,PARTIALLY TESTED,/api/admin/reports/cases,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,556,GET,/api/admin/reports/cases/export-csv,export_admin_drilldown_cases_csv,NOT TESTED,/api/admin/reports/cases/export-csv,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,592,GET,/api/admin/reports/doctor-productivity/export-csv,export_doctor_productivity_csv,NOT TESTED,/api/admin/reports/doctor-productivity/export-csv,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,612,GET,/api/admin/export-dataset,export_ground_truth_dataset,NOT TESTED,/api/admin/export-dataset,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,630,GET,/api/admin/export-ground-truth,export_ground_truth_masks,NOT TESTED,/api/admin/export-ground-truth,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,642,POST,/api/admin/backups/create,trigger_backup,NOT TESTED,/api/admin/backups/create,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,658,GET,/api/admin/backups/list,list_backups,NOT TESTED,/api/admin/backups/list,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,804,GET,/api/admin/audit-events,get_audit_events,PARTIALLY TESTED,/api/admin/audit-events,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,877,GET,/api/admin/audit-events/export,export_audit_events,NOT TESTED,/api/admin/audit-events/export,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,933,GET,/api/admin/departments,get_admin_departments,PARTIALLY TESTED,/api/admin/departments,"[200, 401]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,954,POST,/api/admin/departments,create_admin_department,NOT TESTED,/api/admin/departments,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,976,PATCH,/api/admin/departments/{dept_id},update_admin_department,NOT TESTED,/api/admin/departments/{dept_id},[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1003,DELETE,/api/admin/departments/{dept_id},delete_admin_department,NOT TESTED,/api/admin/departments/{dept_id},[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1018,GET,/api/admin/cases,get_admin_cases,PARTIALLY TESTED,/api/admin/cases,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,1090,POST,/api/admin/users,create_admin_user,NOT TESTED,/api/admin/users,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1145,PATCH,/api/admin/users/{user_id},update_admin_user,NOT TESTED,/api/admin/users/{user_id},[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1238,POST,/api/admin/users/{user_id}/reset-password,admin_reset_user_password,NOT TESTED,/api/admin/users/{user_id}/reset-password,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1273,DELETE,/api/admin/users/{user_id},delete_admin_user,NOT TESTED,/api/admin/users/{user_id},[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1297,POST,/api/admin/models/register,register_admin_model,NOT TESTED,/api/admin/models/register,[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1347,DELETE,/api/admin/models/{model_id},remove_admin_candidate_model,NOT TESTED,/api/admin/models/{model_id},[],Source inventory only; no behavioral claim
+backend/app/routers/admin.py,1386,GET,/api/admin/settings,get_admin_settings,PARTIALLY TESTED,/api/admin/settings,"[200, 401]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,1393,PUT,/api/admin/settings,update_admin_settings,PARTIALLY TESTED,/api/admin/settings,"[200, 401]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/admin.py,1406,GET,/api/admin/metadata,get_admin_metadata,PARTIALLY TESTED,/api/admin/metadata,"[200, 401]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/auth.py,351,POST,/api/auth/login,login,PARTIALLY TESTED,/api/auth/login,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/auth.py,421,POST,/api/auth/register,register,NOT TESTED,/api/auth/register,[],Source inventory only; no behavioral claim
+backend/app/routers/auth.py,528,POST,/api/auth/verify-email,verify_registration_email,NOT TESTED,/api/auth/verify-email,[],Source inventory only; no behavioral claim
+backend/app/routers/auth.py,667,POST,/api/auth/resend-verification,resend_registration_email,NOT TESTED,/api/auth/resend-verification,[],Source inventory only; no behavioral claim
+backend/app/routers/auth.py,764,GET,/api/auth/users,get_system_users,PARTIALLY TESTED,/api/auth/users,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/auth.py,778,GET,/api/auth/current-user,get_current_user_profile,PARTIALLY TESTED,/api/auth/current-user,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/auth.py,801,POST,/api/auth/forgot-password,forgot_password,NOT TESTED,/api/auth/forgot-password,[],Source inventory only; no behavioral claim
+backend/app/routers/auth.py,828,POST,/api/auth/reset-password,reset_password,NOT TESTED,/api/auth/reset-password,[],Source inventory only; no behavioral claim
+backend/app/routers/auth.py,916,POST,/api/auth/change-password,change_password,PARTIALLY TESTED,/api/auth/change-password,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/auth.py,957,POST,/api/auth/logout,logout,NOT TESTED,/api/auth/logout,[],Source inventory only; no behavioral claim
+backend/app/routers/auth.py,966,POST,/api/auth/refresh,refresh_token,NOT TESTED,/api/auth/refresh,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,190,POST,/api/workspace/cases/{study_id}/lease,post_case_lease,PARTIALLY TESTED,/api/workspace/cases/{study_id}/lease,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/cases.py,213,DELETE,/api/workspace/cases/{study_id}/lease,delete_case_lease,PARTIALLY TESTED,/api/workspace/cases/{study_id}/lease,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/cases.py,231,POST,/api/workspace/cases/{study_id}/assign,assign_case,NOT TESTED,/api/workspace/cases/{study_id}/assign,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,232,POST,/api/cases/{study_id}/assign,assign_case,NOT TESTED,/api/cases/{study_id}/assign,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,313,POST,/api/workspace/cases/{study_id}/claim,claim_case,NOT TESTED,/api/workspace/cases/{study_id}/claim,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,314,POST,/api/cases/{study_id}/claim,claim_case,NOT TESTED,/api/cases/{study_id}/claim,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,385,PUT,/api/cases/{study_id}/intake-sides,complete_intake_sides,NOT TESTED,/api/cases/{study_id}/intake-sides,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,414,POST,/api/cases,create_new_case,PARTIALLY TESTED,/api/cases,"[200, 401]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/cases.py,515,GET,/api/cases,list_cases,NOT TESTED,/api/cases,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,530,POST,/api/cases/search,search_cases,NOT TESTED,/api/cases/search,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,713,POST,/api/workspace/cases/search,search_workspace_cases,PARTIALLY TESTED,/api/workspace/cases/search,"[200, 401]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/cases.py,737,GET,/api/workspace/dashboard/summary,get_workspace_dashboard_summary,PARTIALLY TESTED,/api/workspace/dashboard/summary,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/cases.py,796,GET,/api/workspace/cases,get_workspace_cases,NOT TESTED,/api/workspace/cases,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,818,GET,/api/cases/{study_id},get_case_detail,PARTIALLY TESTED,/api/cases/{study_id},"[200, 401, 403]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/cases.py,994,GET,/api/samples,get_sample_cases,NOT TESTED,/api/samples,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,1000,GET,/api/samples/{sample_id}/image,get_sample_image,NOT TESTED,/api/samples/{sample_id}/image,[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,1005,DELETE,/api/cases/{study_id},delete_case,NOT TESTED,/api/cases/{study_id},[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,1165,GET,/api/cases/{study_id}/images/{image_id},get_case_image,NOT TESTED,/api/cases/{study_id}/images/{image_id},[],Source inventory only; no behavioral claim
+backend/app/routers/cases.py,1188,GET,/api/images/{image_id}/source.png,get_image_source_png,PARTIALLY TESTED,/api/images/{image_id}/source.png,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/corrections.py,30,GET,/api/workspace/cases/{study_id}/correction-technicians,list_correction_technicians,PARTIALLY TESTED,/api/workspace/cases/{study_id}/correction-technicians,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/corrections.py,56,POST,/api/workspace/cases/{study_id}/corrections,create_correction_request,NOT TESTED,/api/workspace/cases/{study_id}/corrections,[],Source inventory only; no behavioral claim
+backend/app/routers/corrections.py,57,POST,/api/cases/{study_id}/corrections,create_correction_request,NOT TESTED,/api/cases/{study_id}/corrections,[],Source inventory only; no behavioral claim
+backend/app/routers/corrections.py,161,PUT,/api/workspace/cases/{study_id}/corrections,save_draft_correction,NOT TESTED,/api/workspace/cases/{study_id}/corrections,[],Source inventory only; no behavioral claim
+backend/app/routers/corrections.py,162,PUT,/api/cases/{study_id}/corrections,save_draft_correction,NOT TESTED,/api/cases/{study_id}/corrections,[],Source inventory only; no behavioral claim
+backend/app/routers/evaluation.py,237,GET,/metrics,get_evaluation_metrics,NOT TESTED,/api/evaluation/metrics,[],Source inventory only; no behavioral claim
+backend/app/routers/evaluation.py,417,GET,/samples,get_evaluation_samples,NOT TESTED,/api/evaluation/samples,[],Source inventory only; no behavioral claim
+backend/app/routers/evaluation.py,480,GET,/samples/{case_id}/workstation-bundle,get_sample_workstation_bundle,NOT TESTED,/api/evaluation/samples/{case_id}/workstation-bundle,[],Source inventory only; no behavioral claim
+backend/app/routers/evaluation.py,541,GET,/samples/{case_id}/download/{artifact_type},download_evaluation_artifact,NOT TESTED,/api/evaluation/samples/{case_id}/download/{artifact_type},[],Source inventory only; no behavioral claim
+backend/app/routers/health.py,50,GET,/api/health/live,liveness_check,NOT TESTED,/api/health/live,[],Source inventory only; no behavioral claim
+backend/app/routers/health.py,56,GET,/api/health/ready,readiness_check,NOT TESTED,/api/health/ready,[],Source inventory only; no behavioral claim
+backend/app/routers/health.py,101,GET,/api/health,health_check,PARTIALLY TESTED,/api/health,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/health.py,137,GET,/api/capabilities,get_capabilities,PARTIALLY TESTED,/api/capabilities,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/health.py,142,GET,/api/stats,get_dashboard_statistics,NOT TESTED,/api/stats,[],Source inventory only; no behavioral claim
+backend/app/routers/hitl.py,65,POST,/sessions,create_hitl_session,PARTIALLY TESTED,/api/hitl/sessions,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/hitl.py,150,POST,/sessions/{session_id}/events,append_hitl_events,PARTIALLY TESTED,/api/hitl/sessions/{session_id}/events,"[200, 409]",browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/hitl.py,411,GET,/sessions/{session_id},get_hitl_session,NOT TESTED,/api/hitl/sessions/{session_id},[],Source inventory only; no behavioral claim
+backend/app/routers/hitl.py,447,POST,/events,ingest_ui_events,PARTIALLY TESTED,/api/hitl/events,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/inference.py,340,POST,/api/upload,upload_image,PARTIALLY TESTED,/api/upload,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/inference.py,783,POST,/api/intake/extract-metadata,extract_intake_metadata,NOT TESTED,/api/intake/extract-metadata,[],Source inventory only; no behavioral claim
+backend/app/routers/inference.py,846,GET,/api/images/{image_id}/viewer-source,get_viewer_source,PARTIALLY TESTED,/api/images/{image_id}/viewer-source,[401],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/inference.py,889,GET,/api/images/{image_id}/mask.png,export_source_mask,NOT TESTED,/api/images/{image_id}/mask.png,[],Source inventory only; no behavioral claim
+backend/app/routers/inference.py,964,GET,/api/images/{image_id}/source.png,export_decoded_source,PARTIALLY TESTED,/api/images/{image_id}/source.png,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/inference.py,986,POST,/api/images/{image_id}/measurements,source_mask_measurements,PARTIALLY TESTED,/api/images/{image_id}/measurements,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/inference.py,1006,POST,/api/validate-image,validate_image_quality,NOT TESTED,/api/validate-image,[],Source inventory only; no behavioral claim
+backend/app/routers/inference.py,1069,POST,/api/predict/{image_id},run_ai_prediction,PARTIALLY TESTED,/api/predict/{image_id},[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/inference.py,1388,POST,/api/images/{image_id}/calibrate,calibrate_image_spacing,NOT TESTED,/api/images/{image_id}/calibrate,[],Source inventory only; no behavioral claim
+backend/app/routers/inference.py,1515,POST,/api/v1/inference/interactive-prompt,run_interactive_prompt_segmentation,NOT TESTED,/api/v1/inference/interactive-prompt,[],Source inventory only; no behavioral claim
+backend/app/routers/inference.py,1532,POST,/api/images/{image_id}/classify,classify_lesion,PARTIALLY TESTED,/api/images/{image_id}/classify,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/reviews.py,55,POST,/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-assignments,confirm_review_regions,NOT TESTED,/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-assignments,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,62,GET,/api/cases/{study_id}/images/{image_id}/region-assignments,latest_review_regions,NOT TESTED,/api/cases/{study_id}/images/{image_id}/region-assignments,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,81,GET,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/calipers,read_region_calipers,NOT TESTED,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/calipers,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,101,POST,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/calipers,write_region_caliper,NOT TESTED,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/calipers,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,116,GET,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/cdss-assessments,read_region_assessments,NOT TESTED,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/cdss-assessments,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,136,POST,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/cdss-assessments,write_region_assessment,NOT TESTED,/api/cases/{study_id}/images/{image_id}/regions/{region_id}/cdss-assessments,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,151,GET,/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-candidates,get_review_region_candidates,NOT TESTED,/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-candidates,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,173,GET,/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-proposals,get_review_region_proposals,NOT TESTED,/api/cases/{study_id}/images/{image_id}/reviews/{review_id}/region-proposals,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,185,POST,/api/reviews/batch,submit_batch_reviews,PARTIALLY TESTED,/api/reviews/batch,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/reviews.py,204,POST,/api/review,submit_doctor_review,NOT TESTED,/api/review,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,220,POST,/api/cases/{study_id}/research-export,export_case_research_bundle,NOT TESTED,/api/cases/{study_id}/research-export,[],Source inventory only; no behavioral claim
+backend/app/routers/reviews.py,249,POST,/api/generate-report,generate_report_pdf,PARTIALLY TESTED,/api/generate-report,[501],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/v1_endpoints.py,61,POST,/segment/candidate,create_segmentation_candidate_v1,NOT TESTED,/api/v1/segment/candidate,[],Source inventory only; no behavioral claim
+backend/app/routers/v1_endpoints.py,137,POST,/segment,segment_image_v1,NOT TESTED,/api/v1/segment,[],Source inventory only; no behavioral claim
+backend/app/routers/v1_endpoints.py,274,POST,/cdss/evaluate,evaluate_cdss_v1,PARTIALLY TESTED,/api/v1/cdss/evaluate,[200],browser-results.json / deep-browser-results.json / probe-results.json / tenant-results.json
+backend/app/routers/v1_endpoints.py,293,POST,/cdss/evaluate-multi,evaluate_cdss_multi_v1,NOT TESTED,/api/v1/cdss/evaluate-multi,[],Source inventory only; no behavioral claim
+backend/app/routers/v1_endpoints.py,309,POST,/cases/confirm,confirm_case_v1,NOT TESTED,/api/v1/cases/confirm,[],Source inventory only; no behavioral claim
+backend/app/routers/v1_endpoints.py,334,GET,/clinical-templates,list_clinical_templates_v1,NOT TESTED,/api/v1/clinical-templates,[],Source inventory only; no behavioral claim
+backend/app/routers/v1_endpoints.py,342,POST,/clinical-templates/apply,apply_clinical_template_v1,NOT TESTED,/api/v1/clinical-templates/apply,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,93,POST,/api/v1/visits,create_visit,NOT TESTED,/api/v1/visits,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,94,POST,/visits,create_visit,NOT TESTED,/visits,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,219,GET,/api/v1/visits,list_visits,NOT TESTED,/api/v1/visits,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,220,GET,/visits,list_visits,NOT TESTED,/visits,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,262,GET,/api/v1/visits/{visit_code},get_visit_by_code,NOT TESTED,/api/v1/visits/{visit_code},[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,263,GET,/visits/{visit_code},get_visit_by_code,NOT TESTED,/visits/{visit_code},[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,278,POST,/api/v1/visits/{visit_code}/lock,lock_visit,NOT TESTED,/api/v1/visits/{visit_code}/lock,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,279,POST,/visits/{visit_code}/lock,lock_visit,NOT TESTED,/visits/{visit_code}/lock,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,317,POST,/api/v1/facilities,create_facility,NOT TESTED,/api/v1/facilities,[],Source inventory only; no behavioral claim
+backend/app/routers/visits.py,359,GET,/api/v1/facilities,list_facilities,NOT TESTED,/api/v1/facilities,[],Source inventory only; no behavioral claim

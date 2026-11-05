@@ -1,0 +1,26 @@
+{
+  "screens_discovered": 31,
+  "screens_content_inspected_partially": 28,
+  "screen_statuses": {
+    "PARTIALLY TESTED": 28,
+    "BLOCKED": 1,
+    "NOT TESTED": 2
+  },
+  "features_discovered": 42,
+  "features_tested_bounded": 18,
+  "features_exercised_or_inspected": 32,
+  "feature_statuses": {
+    "TESTED": 18,
+    "PARTIALLY TESTED": 14,
+    "BLOCKED": 4,
+    "NOT TESTED": 6
+  },
+  "source_input_occurrences": 81,
+  "defects": 25,
+  "severity": {
+    "P0": 1,
+    "P1": 7,
+    "P2": 14,
+    "P3": 3
+  }
+}

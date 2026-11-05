@@ -1,0 +1,6494 @@
+{
+  "screens": [
+    {
+      "name": "viewer-with-inference",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nPID SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\nĐã lưu rà soát\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nXem phiếu\n?\nCtrl+S\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nNhập tay\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nThông tin lâm sàng\n\nĐã lưu\n\nĐánh giá tổn thương\nHình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)\nĐặc điểm tổn thương\nDạng nang\nDạng đặc\nHỗn hợp\nBóng cản âm\n+ Thêm\nPhân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)\n\nLựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.\n\nMô hình IOTA ADNEX\nBuồng trứng trái\nĐánh giá hình thái và nguy cơ\nGhi chú lâm sàng\nMô tả hình thái\nNhận định của bác sĩ\nPhân tích hình ảnh AI\nKết quả phân tích AI\n\nChưa đủ tin cậy để đề xuất nhãn.\nBa nhóm có điểm cao nhất: Nang lạc nội mạc tử cung: 41.7%; Buồng trứng bình thường: 19.5%; Nang đơn giản: 19.0%.\nĐiểm AI chưa hiệu chuẩn, không phải xác suất mắc bệnh. Bác sĩ cần đối chiếu ảnh và xác nhận kết quả.\n\nChưa có vùng phân đoạn\n\nKhông có vùng tổn thương cần phân đoạn\nXóa phân đoạn và vẽ lại\nLưu kết quả đánh giá\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xem phiếu",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "?",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "iotaMorphology",
+          "name": "",
+          "text": "-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Hình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng nang",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng đặc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hỗn hợp",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Bóng cản âm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "+ Thêm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "oradsScore",
+          "name": "",
+          "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+          "value": "O-RADS 2",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+          ]
+        },
+        {
+          "id": "adnexVariant",
+          "name": "model_variant",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAge",
+          "name": "age_years",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexOncology",
+          "name": "is_oncology_center",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPersistent",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSurgery",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexComplete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPhysiologic",
+          "name": "physiologic_follicle_confirmed",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexDiameter",
+          "name": "max_lesion_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSolidDiameter",
+          "name": "largest_solid_component_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexLocules",
+          "name": "cyst_locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPapillary",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexShadow",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAscites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "adnexReset",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "assessment_source",
+          "name": "assessment_source",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "modality",
+          "name": "modality",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "ultrasound_exam_complete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "max_diameter_mm",
+          "name": "max_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "locules_count",
+          "name": "locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_solid_component",
+          "name": "has_solid_component",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "papillary_projections_count",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "fluid_echogenicity",
+          "name": "fluid_echogenicity",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "acoustic_shadowing",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "wall_irregular",
+          "name": "wall_irregular",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "color_score",
+          "name": "color_score",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_ascites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_peritoneal_nodules",
+          "name": "has_peritoneal_nodules",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b1_unilocular_cyst",
+          "name": "b1_unilocular_cyst",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b2_solid_component_lt_7mm",
+          "name": "b2_solid_component_lt_7mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b3_acoustic_shadows",
+          "name": "b3_acoustic_shadows",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b4_smooth_multilocular_lt_100mm",
+          "name": "b4_smooth_multilocular_lt_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b5_no_detectable_blood_flow",
+          "name": "b5_no_detectable_blood_flow",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m1_irregular_solid_tumor",
+          "name": "m1_irregular_solid_tumor",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m2_ascites",
+          "name": "m2_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m3_four_or_more_papillary_projections",
+          "name": "m3_four_or_more_papillary_projections",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m4_irregular_multilocular_solid_ge_100mm",
+          "name": "m4_irregular_multilocular_solid_ge_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m5_very_strong_color_doppler",
+          "name": "m5_very_strong_color_doppler",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_premenopausal",
+          "name": "is_premenopausal",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_persistent_adnexal_mass",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "surgery_indicated",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssConfirm",
+          "name": "",
+          "text": "",
+          "value": "on",
+          "label": null,
+          "disabled": true,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "morphology",
+          "name": "",
+          "text": "",
+          "value": "Synthetic morphology audit",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Mô tả hình thái"
+          ]
+        },
+        {
+          "id": "notes",
+          "name": "",
+          "text": "",
+          "value": "Synthetic independent physician note",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Nhận định của bác sĩ"
+          ]
+        },
+        {
+          "id": "dictationRecord",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Nhập bằng giọng nói",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Không có vùng tổn thương cần phân đoạn",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xóa phân đoạn và vẽ lại",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu kết quả đánh giá",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "viewer-after-save",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nPID SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\nĐã lưu rà soát\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nXem phiếu\n?\nCtrl+S\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nNhập tay\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nThông tin lâm sàng\n\nĐã lưu\n\nĐánh giá tổn thương\nHình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)\nĐặc điểm tổn thương\nDạng nang\nDạng đặc\nHỗn hợp\nBóng cản âm\n+ Thêm\nPhân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)\n\nLựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.\n\nMô hình IOTA ADNEX\nBuồng trứng trái\nĐánh giá hình thái và nguy cơ\nGhi chú lâm sàng\nMô tả hình thái\nNhận định của bác sĩ\nPhân tích hình ảnh AI\nKết quả phân tích AI\n\nChưa đủ tin cậy để đề xuất nhãn.\nBa nhóm có điểm cao nhất: Nang lạc nội mạc tử cung: 41.7%; Buồng trứng bình thường: 19.5%; Nang đơn giản: 19.0%.\nĐiểm AI chưa hiệu chuẩn, không phải xác suất mắc bệnh. Bác sĩ cần đối chiếu ảnh và xác nhận kết quả.\n\nChưa có vùng phân đoạn\n\nKhông có vùng tổn thương cần phân đoạn\nXóa phân đoạn và vẽ lại\nLưu kết quả đánh giá\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối\nĐã lưu rà soát của hai bên thành công.\nĐã đến cuối hàng chờ.",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xem phiếu",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "?",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "iotaMorphology",
+          "name": "",
+          "text": "-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Hình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng nang",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng đặc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hỗn hợp",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Bóng cản âm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "+ Thêm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "oradsScore",
+          "name": "",
+          "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+          "value": "O-RADS 2",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+          ]
+        },
+        {
+          "id": "adnexVariant",
+          "name": "model_variant",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAge",
+          "name": "age_years",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexOncology",
+          "name": "is_oncology_center",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPersistent",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSurgery",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexComplete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPhysiologic",
+          "name": "physiologic_follicle_confirmed",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexDiameter",
+          "name": "max_lesion_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSolidDiameter",
+          "name": "largest_solid_component_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexLocules",
+          "name": "cyst_locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPapillary",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexShadow",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAscites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "adnexReset",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "assessment_source",
+          "name": "assessment_source",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "modality",
+          "name": "modality",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "ultrasound_exam_complete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "max_diameter_mm",
+          "name": "max_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "locules_count",
+          "name": "locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_solid_component",
+          "name": "has_solid_component",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "papillary_projections_count",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "fluid_echogenicity",
+          "name": "fluid_echogenicity",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "acoustic_shadowing",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "wall_irregular",
+          "name": "wall_irregular",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "color_score",
+          "name": "color_score",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_ascites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_peritoneal_nodules",
+          "name": "has_peritoneal_nodules",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b1_unilocular_cyst",
+          "name": "b1_unilocular_cyst",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b2_solid_component_lt_7mm",
+          "name": "b2_solid_component_lt_7mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b3_acoustic_shadows",
+          "name": "b3_acoustic_shadows",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b4_smooth_multilocular_lt_100mm",
+          "name": "b4_smooth_multilocular_lt_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b5_no_detectable_blood_flow",
+          "name": "b5_no_detectable_blood_flow",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m1_irregular_solid_tumor",
+          "name": "m1_irregular_solid_tumor",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m2_ascites",
+          "name": "m2_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m3_four_or_more_papillary_projections",
+          "name": "m3_four_or_more_papillary_projections",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m4_irregular_multilocular_solid_ge_100mm",
+          "name": "m4_irregular_multilocular_solid_ge_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m5_very_strong_color_doppler",
+          "name": "m5_very_strong_color_doppler",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_premenopausal",
+          "name": "is_premenopausal",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_persistent_adnexal_mass",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "surgery_indicated",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssConfirm",
+          "name": "",
+          "text": "",
+          "value": "on",
+          "label": null,
+          "disabled": true,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "morphology",
+          "name": "",
+          "text": "",
+          "value": "Synthetic morphology audit",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Mô tả hình thái"
+          ]
+        },
+        {
+          "id": "notes",
+          "name": "",
+          "text": "",
+          "value": "Synthetic independent physician note",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Nhận định của bác sĩ"
+          ]
+        },
+        {
+          "id": "dictationRecord",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Nhập bằng giọng nói",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Không có vùng tổn thương cần phân đoạn",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xóa phân đoạn và vẽ lại",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu kết quả đánh giá",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "viewer-network-save-failure",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nPID SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\nĐã lưu rà soát\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nXem phiếu\n?\nCtrl+S\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nNhập tay\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nThông tin lâm sàng\nBản nháp trên thiết bị chưa được lưu lên máy chủ.\n\nLưu không thành công\n\nĐánh giá tổn thương\nHình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)\nĐặc điểm tổn thương\nDạng nang\nDạng đặc\nHỗn hợp\nBóng cản âm\n+ Thêm\nPhân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)\n\nLựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.\n\nMô hình IOTA ADNEX\nBuồng trứng trái\nĐánh giá hình thái và nguy cơ\nGhi chú lâm sàng\nMô tả hình thái\nNhận định của bác sĩ\nPhân tích hình ảnh AI\nKết quả phân tích AI\n\nChưa đủ tin cậy để đề xuất nhãn.\nBa nhóm có điểm cao nhất: Nang lạc nội mạc tử cung: 41.7%; Buồng trứng bình thường: 19.5%; Nang đơn giản: 19.0%.\nĐiểm AI chưa hiệu chuẩn, không phải xác suất mắc bệnh. Bác sĩ cần đối chiếu ảnh và xác nhận kết quả.\n\nChưa có vùng phân đoạn\n\nKhông có vùng tổn thương cần phân đoạn\nXóa phân đoạn và vẽ lại\nLưu kết quả đánh giá\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối\nFailed to fetch",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xem phiếu",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "?",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "iotaMorphology",
+          "name": "",
+          "text": "-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Hình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng nang",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng đặc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hỗn hợp",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Bóng cản âm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "+ Thêm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "oradsScore",
+          "name": "",
+          "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+          "value": "O-RADS 2",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+          ]
+        },
+        {
+          "id": "adnexVariant",
+          "name": "model_variant",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAge",
+          "name": "age_years",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexOncology",
+          "name": "is_oncology_center",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPersistent",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSurgery",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexComplete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPhysiologic",
+          "name": "physiologic_follicle_confirmed",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexDiameter",
+          "name": "max_lesion_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSolidDiameter",
+          "name": "largest_solid_component_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexLocules",
+          "name": "cyst_locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPapillary",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexShadow",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAscites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "adnexReset",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "assessment_source",
+          "name": "assessment_source",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "modality",
+          "name": "modality",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "ultrasound_exam_complete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "max_diameter_mm",
+          "name": "max_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "locules_count",
+          "name": "locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_solid_component",
+          "name": "has_solid_component",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "papillary_projections_count",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "fluid_echogenicity",
+          "name": "fluid_echogenicity",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "acoustic_shadowing",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "wall_irregular",
+          "name": "wall_irregular",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "color_score",
+          "name": "color_score",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_ascites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_peritoneal_nodules",
+          "name": "has_peritoneal_nodules",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b1_unilocular_cyst",
+          "name": "b1_unilocular_cyst",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b2_solid_component_lt_7mm",
+          "name": "b2_solid_component_lt_7mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b3_acoustic_shadows",
+          "name": "b3_acoustic_shadows",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b4_smooth_multilocular_lt_100mm",
+          "name": "b4_smooth_multilocular_lt_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b5_no_detectable_blood_flow",
+          "name": "b5_no_detectable_blood_flow",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m1_irregular_solid_tumor",
+          "name": "m1_irregular_solid_tumor",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m2_ascites",
+          "name": "m2_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m3_four_or_more_papillary_projections",
+          "name": "m3_four_or_more_papillary_projections",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m4_irregular_multilocular_solid_ge_100mm",
+          "name": "m4_irregular_multilocular_solid_ge_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m5_very_strong_color_doppler",
+          "name": "m5_very_strong_color_doppler",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_premenopausal",
+          "name": "is_premenopausal",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_persistent_adnexal_mass",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "surgery_indicated",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssConfirm",
+          "name": "",
+          "text": "",
+          "value": "on",
+          "label": null,
+          "disabled": true,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "morphology",
+          "name": "",
+          "text": "",
+          "value": "Synthetic morphology audit",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Mô tả hình thái"
+          ]
+        },
+        {
+          "id": "notes",
+          "name": "",
+          "text": "",
+          "value": "Synthetic unsaved network fault",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Nhận định của bác sĩ"
+          ]
+        },
+        {
+          "id": "dictationRecord",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Nhập bằng giọng nói",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Không có vùng tổn thương cần phân đoạn",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xóa phân đoạn và vẽ lại",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu kết quả đánh giá",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "viewer-1920",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nPID SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\nĐã lưu rà soát\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nXem phiếu\n?\nCtrl+S\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nNhập tay\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nThông tin lâm sàng\nBản nháp trên thiết bị chưa được lưu lên máy chủ.\n\nLưu không thành công\n\nĐánh giá tổn thương\nHình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)\nĐặc điểm tổn thương\nDạng nang\nDạng đặc\nHỗn hợp\nBóng cản âm\n+ Thêm\nPhân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)\n\nLựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.\n\nMô hình IOTA ADNEX\nBuồng trứng trái\nĐánh giá hình thái và nguy cơ\nGhi chú lâm sàng\nMô tả hình thái\nNhận định của bác sĩ\nPhân tích hình ảnh AI\nKết quả phân tích AI\n\nChưa đủ tin cậy để đề xuất nhãn.\nBa nhóm có điểm cao nhất: Nang lạc nội mạc tử cung: 41.7%; Buồng trứng bình thường: 19.5%; Nang đơn giản: 19.0%.\nĐiểm AI chưa hiệu chuẩn, không phải xác suất mắc bệnh. Bác sĩ cần đối chiếu ảnh và xác nhận kết quả.\n\nChưa có vùng phân đoạn\n\nKhông có vùng tổn thương cần phân đoạn\nXóa phân đoạn và vẽ lại\nLưu kết quả đánh giá\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối\nFailed to fetch",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xem phiếu",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "?",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "iotaMorphology",
+          "name": "",
+          "text": "-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Hình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng nang",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng đặc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hỗn hợp",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Bóng cản âm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "+ Thêm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "oradsScore",
+          "name": "",
+          "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+          "value": "O-RADS 2",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+          ]
+        },
+        {
+          "id": "adnexVariant",
+          "name": "model_variant",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAge",
+          "name": "age_years",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexOncology",
+          "name": "is_oncology_center",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPersistent",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSurgery",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexComplete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPhysiologic",
+          "name": "physiologic_follicle_confirmed",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexDiameter",
+          "name": "max_lesion_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSolidDiameter",
+          "name": "largest_solid_component_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexLocules",
+          "name": "cyst_locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPapillary",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexShadow",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAscites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "adnexReset",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "assessment_source",
+          "name": "assessment_source",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "modality",
+          "name": "modality",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "ultrasound_exam_complete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "max_diameter_mm",
+          "name": "max_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "locules_count",
+          "name": "locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_solid_component",
+          "name": "has_solid_component",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "papillary_projections_count",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "fluid_echogenicity",
+          "name": "fluid_echogenicity",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "acoustic_shadowing",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "wall_irregular",
+          "name": "wall_irregular",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "color_score",
+          "name": "color_score",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_ascites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_peritoneal_nodules",
+          "name": "has_peritoneal_nodules",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b1_unilocular_cyst",
+          "name": "b1_unilocular_cyst",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b2_solid_component_lt_7mm",
+          "name": "b2_solid_component_lt_7mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b3_acoustic_shadows",
+          "name": "b3_acoustic_shadows",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b4_smooth_multilocular_lt_100mm",
+          "name": "b4_smooth_multilocular_lt_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b5_no_detectable_blood_flow",
+          "name": "b5_no_detectable_blood_flow",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m1_irregular_solid_tumor",
+          "name": "m1_irregular_solid_tumor",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m2_ascites",
+          "name": "m2_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m3_four_or_more_papillary_projections",
+          "name": "m3_four_or_more_papillary_projections",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m4_irregular_multilocular_solid_ge_100mm",
+          "name": "m4_irregular_multilocular_solid_ge_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m5_very_strong_color_doppler",
+          "name": "m5_very_strong_color_doppler",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_premenopausal",
+          "name": "is_premenopausal",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_persistent_adnexal_mass",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "surgery_indicated",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssConfirm",
+          "name": "",
+          "text": "",
+          "value": "on",
+          "label": null,
+          "disabled": true,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "morphology",
+          "name": "",
+          "text": "",
+          "value": "Synthetic morphology audit",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Mô tả hình thái"
+          ]
+        },
+        {
+          "id": "notes",
+          "name": "",
+          "text": "",
+          "value": "Synthetic unsaved network fault",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Nhận định của bác sĩ"
+          ]
+        },
+        {
+          "id": "dictationRecord",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Nhập bằng giọng nói",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Không có vùng tổn thương cần phân đoạn",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xóa phân đoạn và vẽ lại",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu kết quả đánh giá",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "viewer-1440",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nPID SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\nĐã lưu rà soát\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nXem phiếu\n?\nCtrl+S\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nNhập tay\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nThông tin lâm sàng\nBản nháp trên thiết bị chưa được lưu lên máy chủ.\n\nLưu không thành công\n\nĐánh giá tổn thương\nHình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)\nĐặc điểm tổn thương\nDạng nang\nDạng đặc\nHỗn hợp\nBóng cản âm\n+ Thêm\nPhân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)\n\nLựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.\n\nMô hình IOTA ADNEX\nBuồng trứng trái\nĐánh giá hình thái và nguy cơ\nGhi chú lâm sàng\nMô tả hình thái\nNhận định của bác sĩ\nPhân tích hình ảnh AI\nKết quả phân tích AI\n\nChưa đủ tin cậy để đề xuất nhãn.\nBa nhóm có điểm cao nhất: Nang lạc nội mạc tử cung: 41.7%; Buồng trứng bình thường: 19.5%; Nang đơn giản: 19.0%.\nĐiểm AI chưa hiệu chuẩn, không phải xác suất mắc bệnh. Bác sĩ cần đối chiếu ảnh và xác nhận kết quả.\n\nChưa có vùng phân đoạn\n\nKhông có vùng tổn thương cần phân đoạn\nXóa phân đoạn và vẽ lại\nLưu kết quả đánh giá\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối\nFailed to fetch",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xem phiếu",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "?",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "iotaMorphology",
+          "name": "",
+          "text": "-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Hình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng nang",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng đặc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hỗn hợp",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Bóng cản âm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "+ Thêm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "oradsScore",
+          "name": "",
+          "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+          "value": "O-RADS 2",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+          ]
+        },
+        {
+          "id": "adnexVariant",
+          "name": "model_variant",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAge",
+          "name": "age_years",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexOncology",
+          "name": "is_oncology_center",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPersistent",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSurgery",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexComplete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPhysiologic",
+          "name": "physiologic_follicle_confirmed",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexDiameter",
+          "name": "max_lesion_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSolidDiameter",
+          "name": "largest_solid_component_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexLocules",
+          "name": "cyst_locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPapillary",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexShadow",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAscites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "adnexReset",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "assessment_source",
+          "name": "assessment_source",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "modality",
+          "name": "modality",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "ultrasound_exam_complete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "max_diameter_mm",
+          "name": "max_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "locules_count",
+          "name": "locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_solid_component",
+          "name": "has_solid_component",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "papillary_projections_count",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "fluid_echogenicity",
+          "name": "fluid_echogenicity",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "acoustic_shadowing",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "wall_irregular",
+          "name": "wall_irregular",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "color_score",
+          "name": "color_score",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_ascites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_peritoneal_nodules",
+          "name": "has_peritoneal_nodules",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b1_unilocular_cyst",
+          "name": "b1_unilocular_cyst",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b2_solid_component_lt_7mm",
+          "name": "b2_solid_component_lt_7mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b3_acoustic_shadows",
+          "name": "b3_acoustic_shadows",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b4_smooth_multilocular_lt_100mm",
+          "name": "b4_smooth_multilocular_lt_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b5_no_detectable_blood_flow",
+          "name": "b5_no_detectable_blood_flow",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m1_irregular_solid_tumor",
+          "name": "m1_irregular_solid_tumor",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m2_ascites",
+          "name": "m2_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m3_four_or_more_papillary_projections",
+          "name": "m3_four_or_more_papillary_projections",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m4_irregular_multilocular_solid_ge_100mm",
+          "name": "m4_irregular_multilocular_solid_ge_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m5_very_strong_color_doppler",
+          "name": "m5_very_strong_color_doppler",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_premenopausal",
+          "name": "is_premenopausal",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_persistent_adnexal_mass",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "surgery_indicated",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssConfirm",
+          "name": "",
+          "text": "",
+          "value": "on",
+          "label": null,
+          "disabled": true,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "morphology",
+          "name": "",
+          "text": "",
+          "value": "Synthetic morphology audit",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Mô tả hình thái"
+          ]
+        },
+        {
+          "id": "notes",
+          "name": "",
+          "text": "",
+          "value": "Synthetic unsaved network fault",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Nhận định của bác sĩ"
+          ]
+        },
+        {
+          "id": "dictationRecord",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Nhập bằng giọng nói",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Không có vùng tổn thương cần phân đoạn",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xóa phân đoạn và vẽ lại",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu kết quả đánh giá",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "viewer-1366",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nPID SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\nĐã lưu rà soát\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nXem phiếu\n?\nCtrl+S\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nNhập tay\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nThông tin lâm sàng\nBản nháp trên thiết bị chưa được lưu lên máy chủ.\n\nLưu không thành công\n\nĐánh giá tổn thương\nHình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)\nĐặc điểm tổn thương\nDạng nang\nDạng đặc\nHỗn hợp\nBóng cản âm\n+ Thêm\nPhân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)\n\nLựa chọn này do bác sĩ nhập; hệ thống không tự suy luận O-RADS. Để trống khi chưa đủ thông tin.\n\nMô hình IOTA ADNEX\nBuồng trứng trái\nĐánh giá hình thái và nguy cơ\nGhi chú lâm sàng\nMô tả hình thái\nNhận định của bác sĩ\nPhân tích hình ảnh AI\nKết quả phân tích AI\n\nChưa đủ tin cậy để đề xuất nhãn.\nBa nhóm có điểm cao nhất: Nang lạc nội mạc tử cung: 41.7%; Buồng trứng bình thường: 19.5%; Nang đơn giản: 19.0%.\nĐiểm AI chưa hiệu chuẩn, không phải xác suất mắc bệnh. Bác sĩ cần đối chiếu ảnh và xác nhận kết quả.\n\nChưa có vùng phân đoạn\n\nKhông có vùng tổn thương cần phân đoạn\nXóa phân đoạn và vẽ lại\nLưu kết quả đánh giá\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối\nFailed to fetch",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xem phiếu",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "?",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "iotaMorphology",
+          "name": "",
+          "text": "-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Hình thái tổn thương\n-- Chọn hình thái --\nNang đơn thùy dịch trong (Unilocular Anechoic)\nNang nhiều thùy (Multilocular)\nNang đơn thùy có phần đặc (Unilocular-Solid)\nNang nhiều thùy có phần đặc (Multilocular-Solid)\nKhối u đặc (Solid Tumor)"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng nang",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Dạng đặc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hỗn hợp",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Bóng cản âm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "+ Thêm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "oradsScore",
+          "name": "",
+          "text": "Chưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)",
+          "value": "O-RADS 2",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Phân tầng ACR O-RADS do bác sĩ chọn\nChưa đánh giá\nO-RADS 0 - Đánh giá chưa đầy đủ do yếu tố kỹ thuật (chưa phân tầng nguy cơ)\nO-RADS 1 - Không có tổn thương hoặc nang sinh lý do bác sĩ xác định (nang noãn < 30 mm; hoàng thể thường ≤ 30 mm)\nO-RADS 2 - Lành tính (<1% nguy cơ)\nO-RADS 3 - Nguy cơ thấp (1% - <10%)\nO-RADS 4 - Nguy cơ trung bình (10% - <50%)\nO-RADS 5 - Nguy cơ cao (≥50%)"
+          ]
+        },
+        {
+          "id": "adnexVariant",
+          "name": "model_variant",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAge",
+          "name": "age_years",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexOncology",
+          "name": "is_oncology_center",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPersistent",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSurgery",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexComplete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPhysiologic",
+          "name": "physiologic_follicle_confirmed",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexDiameter",
+          "name": "max_lesion_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexSolidDiameter",
+          "name": "largest_solid_component_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexLocules",
+          "name": "cyst_locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexPapillary",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexShadow",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexAscites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "adnexEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "adnexReset",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "assessment_source",
+          "name": "assessment_source",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "modality",
+          "name": "modality",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "ultrasound_exam_complete",
+          "name": "ultrasound_exam_complete",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "max_diameter_mm",
+          "name": "max_diameter_mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "locules_count",
+          "name": "locules_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_solid_component",
+          "name": "has_solid_component",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "papillary_projections_count",
+          "name": "papillary_projections_count",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "fluid_echogenicity",
+          "name": "fluid_echogenicity",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "acoustic_shadowing",
+          "name": "acoustic_shadowing",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "wall_irregular",
+          "name": "wall_irregular",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "color_score",
+          "name": "color_score",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_ascites",
+          "name": "has_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "has_peritoneal_nodules",
+          "name": "has_peritoneal_nodules",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b1_unilocular_cyst",
+          "name": "b1_unilocular_cyst",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b2_solid_component_lt_7mm",
+          "name": "b2_solid_component_lt_7mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b3_acoustic_shadows",
+          "name": "b3_acoustic_shadows",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b4_smooth_multilocular_lt_100mm",
+          "name": "b4_smooth_multilocular_lt_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "b5_no_detectable_blood_flow",
+          "name": "b5_no_detectable_blood_flow",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m1_irregular_solid_tumor",
+          "name": "m1_irregular_solid_tumor",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m2_ascites",
+          "name": "m2_ascites",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m3_four_or_more_papillary_projections",
+          "name": "m3_four_or_more_papillary_projections",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m4_irregular_multilocular_solid_ge_100mm",
+          "name": "m4_irregular_multilocular_solid_ge_100mm",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "m5_very_strong_color_doppler",
+          "name": "m5_very_strong_color_doppler",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_premenopausal",
+          "name": "is_premenopausal",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "is_persistent_adnexal_mass",
+          "name": "is_persistent_adnexal_mass",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "surgery_indicated",
+          "name": "surgery_indicated",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssConfirm",
+          "name": "",
+          "text": "",
+          "value": "on",
+          "label": null,
+          "disabled": true,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "cdssEvaluate",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "morphology",
+          "name": "",
+          "text": "",
+          "value": "Synthetic morphology audit",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Mô tả hình thái"
+          ]
+        },
+        {
+          "id": "notes",
+          "name": "",
+          "text": "",
+          "value": "Synthetic unsaved network fault",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Nhận định của bác sĩ"
+          ]
+        },
+        {
+          "id": "dictationRecord",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Nhập bằng giọng nói",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Không có vùng tổn thương cần phân đoạn",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xóa phân đoạn và vẽ lại",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu kết quả đánh giá",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "viewer-768",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nĐã lưu rà soát\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nXem phiếu\n?\nCtrl+S\nLâm sàng\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nNhập tay\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối\nFailed to fetch",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Xem phiếu",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "?",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lâm sàng",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "viewer-390",
+      "text": "Bỏ qua điều hướng\nSTD-261104-E71B\nPID SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\nTrái (T)\nPhải (P)\nẢnh hoặc mặt cắt đang xem\nTrái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png\nLưu rồi in\nLâm sàng\n\nẢnh siêu âm buồng trứng trái. Mask rỗng, chưa có vùng được đánh dấu. Proxy mask D1 chưa có milimét; D2 chưa có milimét; diện tích chưa có centimét vuông. Hiệu chuẩn nhập tay. Mask là phân đoạn hỗ trợ rà soát hình ảnh.\n\nBuồng trứng trái · giữ Space xem ảnh gốc\nd₁\n— mm\nd₂\n— mm\nDiện tích\n— cm²\nHiệu chuẩn thước\nGốc\nMask\nLớp phủ\nLớp phủ AI\nChạy lại AI\nĐối chiếu\nĐiều chỉnh\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối\nFailed to fetch",
+      "controls": [
+        {
+          "id": "",
+          "name": "",
+          "text": "Trái (T)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Phải (P)",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "viewerImageSelect",
+          "name": "",
+          "text": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "value": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+          "label": "Trái · 1 · bb1ef94b-18d4-411a-aa93-131ebfed55b1.png",
+          "disabled": false,
+          "labels": [
+            "Ảnh hoặc mặt cắt đang xem"
+          ]
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lưu rồi in",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xuất dữ liệu tham khảo — đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lâm sàng",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Cọ vẽ (B)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Tẩy (E)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Auto-Zoom tổn thương (A)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D1 (C)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Caliper D2",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Di chuyển (H)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Vừa khung (0)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hoàn tác",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm lại",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Về mask AI (R)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Đa giác (L · G hoàn tất)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Lấp lỗ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Làm trơn (S)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa mảnh nhỏ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Xóa toàn bộ mask",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Toàn màn hình (F)",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Hiệu chuẩn thước",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Gốc",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Mask",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Lớp phủ AI",
+          "value": "",
+          "label": "Hiện/ẩn lớp phủ AI",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "btnRerunAI",
+          "name": "",
+          "text": "Chạy lại AI",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "report-reviewed",
+      "text": "Bỏ qua điều hướng\nSiêu âm\nBuồng trứng\nTìm PID hoặc mã ca\nCtrl K\nCa tiếp theo\nB\nBác sĩ\n\nCông việc\n\nTổng quan\nTải ảnh mới\nDanh sách ca\nThông báo\nTrợ giúp\nTùy chọn\n\nBác sĩ\n\nPhiếu kết quả\n\nKết quả từng bên được lưu riêng và cần bác sĩ xác nhận.\n\n← Quay lại máy trạm\nTải hồ sơ kết quả\nIn báo cáo / Lưu PDF\nTạo bản nháp tham khảo (chưa lưu vào hồ sơ)\nKẾT QUẢ KHẢO SÁT\nTHÔNG TIN NGHIÊN CỨU RUO\nPhạm vi: nghiên cứu kỹ thuật · Rà soát nội dung: bác sĩ phụ trách · Xác thực chữ ký số: ngoài phạm vi tài liệu này\n\nPID: SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\n\nVisit: 000001\n\nNgày khảo sát: 04/11/2026\n\nTHÔNG TIN CA\nMã ca\nSTD-261104-E71B\nTrạng thái lưu rà soát\nĐã lưu rà soát cho các ảnh trong hồ sơ\nTrạng thái lưu phản ánh dữ liệu rà soát; mô tả, O-RADS và kết luận được quản lý riêng.\nKẾT QUẢ GHI NHẬN\nBÊN TRÁI\n\n1 ảnh tĩnh đã được gắn với bên này. Số đo và nhận định được liệt kê riêng theo từng ảnh ở các trang hình ảnh.\n\nBÊN PHẢI\n\nChưa có ảnh khảo sát bên này.\n\nTHÔNG TIN HỖ TRỢ\nModel\nU-Net++ (ResNet34 ImageNet + scSE Attention)\nCheckpoint · SHA-256\n67624bbb0e50e236df7b5c82736eaadab1ff1fff5547c5e813bca545c2dd2045\nReviewer ID\ndoctor\nTHÔNG TIN BẢN GHI\n\nSố đo hỗ trợ được tính từ lớp phủ và ghi rõ nguồn ngay dưới số đo; ảnh gốc cùng lớp phủ được trình bày ở phần hình ảnh. Mô tả và O-RADS hiển thị từ bản ghi rà soát. Hệ thống hỗ trợ phân đoạn và tổng hợp thông tin; bác sĩ phụ trách hoàn thiện phần kết luận và kế hoạch chuyên môn.\n\nStudy ID: 315036cb-9514-4f6e-9d1a-61f2d8bf1325\nRevision: 2\nTrang 1/2\nHÌNH ẢNH KHẢO SÁT · ẢNH 1\n\nPID: SYN-75A6A9D7F7E34ADD8F2671D32064EC6D\n\nVisit: 000001\n\nBuồng trứng trái\n\nTHÔNG TIN NGHIÊN CỨU RUO\nPhạm vi: nghiên cứu kỹ thuật · Rà soát nội dung: bác sĩ phụ trách · Xác thực chữ ký số: ngoài phạm vi tài liệu này\nBÊN TRÁI\n\nẢnh 1\n\nMask đã được bác sĩ rà soát\n\nẢNH GỐC\nLỚP PHỦ\n\nMô tả: đã ghi nhận · O-RADS: đã ghi nhận\n\nChưa có vùng phân đoạn trong mask để hiển thị số đo.\n\nO-RADS do bác sĩ ghi nhận\nO-RADS 2\nMô tả\nSynthetic morphology audit\nGhi chú\nSynthetic independent physician note\nTHÔNG TIN RÀ SOÁT\nLớp phủ hỗ trợ định vị vùng và hiển thị cùng ảnh gốc để bác sĩ đối chiếu.\nTrạng thái lưu mask và nội dung mô tả, phân tầng được quản lý riêng.\nTài liệu; chữ ký số và chỉ định điều trị theo quy trình chuyên môn của cơ sở.\nStudy ID: 315036cb-9514-4f6e-9d1a-61f2d8bf1325\nRevision: 2\nTrang 2/2\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối",
+      "controls": [
+        {
+          "id": "collapseNav",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Thu gọn điều hướng",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "quickSearch",
+          "name": "",
+          "text": "Tìm PID hoặc mã ca\nCtrl K",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "themeToggle",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Chuyển giao diện sáng tối",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "accountMenu",
+          "name": "",
+          "text": "B\nBác sĩ",
+          "value": "",
+          "label": "Mở tài khoản của Bác sĩ",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "← Quay lại máy trạm",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Tải hồ sơ kết quả",
+          "value": "",
+          "label": "Tải hồ sơ kết quả — xuất tham khảo đang khóa",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "In báo cáo / Lưu PDF",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "researchDraftSide",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Chọn bên cho bản nháp tham khảo",
+          "disabled": false,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "researchDraftText",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": [
+            ""
+          ]
+        },
+        {
+          "id": "researchDraftCopy",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": true,
+          "labels": []
+        }
+      ]
+    },
+    {
+      "name": "after-password-change",
+      "text": "Bỏ qua điều hướng\nSIÊU ÂM BUỒNG TRỨNG\nHỗ trợ phân tích hình ảnh\nHUMAN-IN-THE-LOOP CDSS · RUO\nMỗi đường biên.\nMột quyết định\ncủa người rà soát.\n\nMôi trường nghiên cứu hỗ trợ xem phân đoạn, hiệu chỉnh mask và lưu vết thao tác HITL. Bác sĩ rà soát và xác nhận trước khi lưu.\n\nBác sĩ rà soát và xác nhận kết quả\nPhiên làm việc đã hết hạn\n\nBản nháp được giữ trên thiết bị. Đăng nhập cùng tài khoản để tiếp tục.\n\nTên đăng nhập\nMật khẩu\n\nĐăng nhập\nChưa có tài khoản? Đăng ký ngay\nQuên mật khẩu?\n\nĐăng nhập bằng tài khoản do đơn vị quản trị cấp.\n\nHệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\nĐã kết nối",
+      "controls": [
+        {
+          "id": "",
+          "name": "username",
+          "text": "",
+          "value": "doctor",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Tên đăng nhập"
+          ]
+        },
+        {
+          "id": "",
+          "name": "password",
+          "text": "",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": [
+            "Mật khẩu"
+          ]
+        },
+        {
+          "id": "showPassword",
+          "name": "",
+          "text": "",
+          "value": "",
+          "label": "Hiện mật khẩu",
+          "disabled": false,
+          "labels": []
+        },
+        {
+          "id": "",
+          "name": "",
+          "text": "Đăng nhập",
+          "value": "",
+          "label": null,
+          "disabled": false,
+          "labels": []
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "O-RADS initial default",
+      "value": "O-RADS 2"
+    },
+    {
+      "name": "reopened review",
+      "notes": "Synthetic independent physician note",
+      "morphology": "Synthetic morphology audit",
+      "orads": "O-RADS 2"
+    },
+    {
+      "name": "password change response",
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "flows": [
+    {
+      "name": "fill morphology note O-RADS and save",
+      "actions": 4,
+      "ms": 174,
+      "status": 200,
+      "body": {
+        "status": "SUCCESS",
+        "study_id": "315036cb-9514-4f6e-9d1a-61f2d8bf1325",
+        "review_revision": 2,
+        "reviews": [
+          {
+            "review_id": "6877dbb3-6cd7-4714-9515-22004a4bdd95",
+            "image_id": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+            "prediction_id": "91f51b64-22a9-4f71-9589-7ea35f3aec89",
+            "doctor_action": "ACCEPTED_RAW",
+            "reviewed_at": "2026-11-04T14:41:20.147915+00:00"
+          }
+        ],
+        "message": "Đã lưu rà soát nghiên cứu thành công."
+      }
+    }
+  ],
+  "responses": [
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/capabilities",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/workspace/dashboard/summary",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/cases/315036cb-9514-4f6e-9d1a-61f2d8bf1325",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/workspace/cases/315036cb-9514-4f6e-9d1a-61f2d8bf1325/lease",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/images/bb1ef94b-18d4-411a-aa93-131ebfed55b1/source.png",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/images/bb1ef94b-18d4-411a-aa93-131ebfed55b1/measurements",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/sessions/993fd2cf-3fb6-4681-8871-117f87baa656/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/reviews/batch",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/workspace/cases/search",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/sessions/993fd2cf-3fb6-4681-8871-117f87baa656/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/images/bb1ef94b-18d4-411a-aa93-131ebfed55b1/measurements",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/current-user",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/capabilities",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/cases/315036cb-9514-4f6e-9d1a-61f2d8bf1325",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/workspace/cases/315036cb-9514-4f6e-9d1a-61f2d8bf1325/lease",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/sessions/993fd2cf-3fb6-4681-8871-117f87baa656/events",
+      "status": 409
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/images/bb1ef94b-18d4-411a-aa93-131ebfed55b1/source.png",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/images/bb1ef94b-18d4-411a-aa93-131ebfed55b1/measurements",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/sessions/d525b3be-22d3-43f0-8bc6-0e0d7004a071/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/hitl/sessions/d525b3be-22d3-43f0-8bc6-0e0d7004a071/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/capabilities",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/workspace/cases/315036cb-9514-4f6e-9d1a-61f2d8bf1325/lease",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/cases/315036cb-9514-4f6e-9d1a-61f2d8bf1325",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/images/bb1ef94b-18d4-411a-aa93-131ebfed55b1/measurements",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/images/bb1ef94b-18d4-411a-aa93-131ebfed55b1/source.png",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/change-password",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/workspace/cases/search",
+      "status": 401
+    }
+  ],
+  "completed": true
+}

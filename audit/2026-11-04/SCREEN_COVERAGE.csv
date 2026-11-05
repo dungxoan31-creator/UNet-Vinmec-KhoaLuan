@@ -1,0 +1,32 @@
+﻿route,status,evidence,reason
+#login,PARTIALLY TESTED,login.png; browser-results.json,Doctor/admin login executed; exhaustive auth edge cases not tested
+#register,PARTIALLY TESTED,register.png; browser-results.json,Rendered form/text/controls; email/OTP/recovery execution not tested
+#verify-email,PARTIALLY TESTED,verify-email.png; browser-results.json,Rendered form/text/controls; email/OTP/recovery execution not tested
+#forgot,PARTIALLY TESTED,forgot.png; browser-results.json,Rendered form/text/controls; email/OTP/recovery execution not tested
+#reset,PARTIALLY TESTED,reset.png; browser-results.json,Rendered form/text/controls; email/OTP/recovery execution not tested
+#first,PARTIALLY TESTED,first.png; browser-results.json,Rendered form/text/controls; email/OTP/recovery execution not tested
+#expired,PARTIALLY TESTED,expired.png; browser-results.json,Rendered form/text/controls; email/OTP/recovery execution not tested
+#dashboard,PARTIALLY TESTED,dashboard.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#intake,PARTIALLY TESTED,intake-seeds.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#cases,PARTIALLY TESTED,doctor-cases.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#case/:id,PARTIALLY TESTED,case-detail.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#viewer/:id,PARTIALLY TESTED,viewer-with-inference.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#report/:id,PARTIALLY TESTED,report-reviewed.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#notifications,PARTIALLY TESTED,doctor-notifications.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#help,PARTIALLY TESTED,doctor-help.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#preferences,PARTIALLY TESTED,doctor-preferences.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#profile,PARTIALLY TESTED,doctor-profile.png; browser-results.json; deep-browser-results.json,"Screenshot/text/control scan; selected interactions only, not every modal/role/conditional state"
+#approval/:id,BLOCKED,doctor-approval.png,Doctor request reaches 403; actual reviewer/approval content not inspected
+#evaluation,NOT TESTED,doctor-evaluation.png,Doctor redirected to dashboard; screenshot is NOT evidence evaluation content inspected
+#admin/reports,PARTIALLY TESTED,admin-reports.png,"Rendered section; selected API/source checks, not complete CRUD/exports"
+#admin/users,PARTIALLY TESTED,admin-users.png,"Rendered section; selected API/source checks, not complete CRUD/exports"
+#admin/departments,PARTIALLY TESTED,admin-departments.png,"Rendered section; selected API/source checks, not complete CRUD/exports"
+#admin/models,PARTIALLY TESTED,admin-models.png,"Rendered section; selected API/source checks, not complete CRUD/exports"
+#admin/audit,PARTIALLY TESTED,admin-audit.png,"Rendered section; selected API/source checks, not complete CRUD/exports"
+#admin/cases,PARTIALLY TESTED,admin-cases.png,"Rendered section; selected API/source checks, not complete CRUD/exports"
+#admin/settings,PARTIALLY TESTED,admin-settings.png,"Rendered section; selected API/source checks, not complete CRUD/exports"
+#admin/system,PARTIALLY TESTED,admin-system.png,Rendered section; write actions mostly not executed. Backup/list blocked intentionally.
+#403,PARTIALLY TESTED,doctor-403.png,Direct error route rendered; not an actual service outage test
+#404,PARTIALLY TESTED,doctor-404.png,Direct error route rendered; not an actual service outage test
+#maintenance,PARTIALLY TESTED,doctor-maintenance.png,Direct error route rendered; not an actual service outage test
+/slides,NOT TESTED,backend/app/main.py,Secondary presentation asset route discovered; not inspected live

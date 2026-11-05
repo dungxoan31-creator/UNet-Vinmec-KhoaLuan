@@ -1,0 +1,29 @@
+{
+  "staleReader": [
+    {
+      "pid": "100000001",
+      "name": "Synthetic seed",
+      "age": 30
+    }
+  ],
+  "persistedAfterSecondWriter": [
+    {
+      "pid": "100000001",
+      "name": "Synthetic seed",
+      "age": 30
+    },
+    {
+      "pid": "234567890",
+      "name": "Synthetic beta",
+      "age": 37
+    }
+  ],
+  "firstUpdateLost": true,
+  "emptyStoreAfterReopen": [
+    {
+      "pid": "100000001",
+      "name": "Synthetic seed",
+      "age": 30
+    }
+  ]
+}

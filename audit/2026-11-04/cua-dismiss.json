@@ -1,0 +1,66 @@
+{
+  "id": "13bd5598-689e-4906-84ac-f5413715c9f4",
+  "ok": true,
+  "result": {
+    "snapshot": {
+      "id": "d9957c5f-c81e-4f57-be42-25369b497994",
+      "app": {
+        "name": "chrome",
+        "bundleId": "chrome",
+        "pid": 2480
+      },
+      "window": {
+        "title": "Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome",
+        "id": 1966728,
+        "index": null,
+        "x": 10,
+        "y": 10,
+        "width": 1296,
+        "height": 808,
+        "isMinimized": null,
+        "isOffscreen": null,
+        "screenIndex": null
+      },
+      "coordinateSpace": "window",
+      "treeText": "App=chrome (pid 2480)\nWindow: \"Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome\", App: chrome.\n\n0 window Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome\n\t1 region Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome\n\t\t2 region\n\t\t\t3 region\n\t\t\t\t4 region\n\t\t\t\t\t5 button Minimize\n\t\t\t\t\t6 button Maximize\n\t\t\t\t\t7 button Close\n\t\t\t\t8 region\n\t\t\t\t\t9 region\n\t\t\t\t\t\t10 tool bar view_1000\n\t\t\t\t\t\t\t11 button Back\n\t\t\t\t\t\t\t12 button Forward\n\t\t\t\t\t\t\t13 button Reload\n\t\t\t\t\t\t\t14 group\n\t\t\t\t\t\t\t\t15 button View site information\n\t\t\t\t\t\t\t\t16 edit Address and search bar 127.0.0.1:18048/#login, Secondary Actions: SetValue\n\t\t\t\t\t\t\t\t17 region\n\t\t\t\t\t\t\t\t\t18 button Translate\n\t\t\t\t\t\t\t\t\t19 button Bookmark this tab\n\t\t\t\t\t\t\t20 button Chrome\n\t\t\t\t\t21 region\n\t\t\t\t\t\t22 region\n\t\t\t\t\t\t\t23 region\n\t\t\t\t\t\t\t24 document Hệ thống hỗ trợ phân tích siêu âm buồng trứng http://127.0.0.1:18048/#login, Secondary Actions: SetValue, Scroll\n\t\t\t\t\t\t\t\t25 link Bỏ qua điều hướng, Value: http://127.0.0.1:18048/#main, Secondary Actions: SetValue\n\t\t\t\t\t\t\t\t26 complementary\n\t\t\t\t\t\t\t\t\t27 graphic Vinmec International Hospital\n\t\t\t\t\t\t\t\t\t28 text SIÊU ÂM BUỒNG TRỨNG\n\t\t\t\t\t\t\t\t\t29 text Hỗ trợ phân tích hình ảnh\n\t\t\t\t\t\t\t\t\t30 text HUMAN-IN-THE-LOOP CDSS · RUO\n\t\t\t\t\t\t\t\t\t31 heading Mỗi đường biên. Một quyết định của người rà soát.\n\t\t\t\t\t\t\t\t\t32 text Môi trường nghiên cứu hỗ trợ xem phân đoạn, hiệu chỉnh mask và lưu vết thao tác HITL. Bác sĩ rà soát và xác nhận trước khi lưu.\n\t\t\t\t\t\t\t\t\t33 text Bác sĩ rà soát và xác nhận kết quả\n\t\t\t\t\t\t\t\t34 heading Đăng nhập hệ thống\n\t\t\t\t\t\t\t\t35 text Sử dụng tài khoản được đơn vị quản trị cấp.\n\t\t\t\t\t\t\t\t36 text Tên đăng nhập\n\t\t\t\t\t\t\t\t37 edit Tên đăng nhập, Secondary Actions: SetValue\n\t\t\t\t\t\t\t\t38 text Mật khẩu\n\t\t\t\t\t\t\t\t39 edit Mật khẩu [redacted], Secondary Actions: SetValue\n\t\t\t\t\t\t\t\t40 button Hiện mật khẩu, Value: [redacted]\n\t\t\t\t\t\t\t\t41 alert authError\n\t\t\t\t\t\t\t\t42 status authLock\n\t\t\t\t\t\t\t\t43 button Đăng nhập\n\t\t\t\t\t\t\t\t44 link Chưa có tài khoản? Đăng ký ngay, Value: http://127.0.0.1:18048/#register, Secondary Actions: SetValue\n\t\t\t\t\t\t\t\t45 link Quên mật khẩu?, Value: http://127.0.0.1:18048/#forgot, Secondary Actions: SetValue\n\t\t\t\t\t\t\t\t46 text Đăng nhập bằng tài khoản do đơn vị quản trị cấp.\n\t\t\t\t\t\t\t\t47 footer\n\t\t\t\t\t\t\t\t\t48 text Hệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng\n\t\t\t\t\t\t\t\t\t49 text Đã kết nối\n\t\t\t\t\t\t\t\t50 group toasts\n\t\t\t\t\t\t51 region\n\t\t\t\t\t52 region\n\t\t\t\t\t\t53 region\n\t\t\t\t\t\t\t54 button Tab search\n\t\t\t\t\t\t55 region view_21\n\t\t\t\t\t\t\t56 tab\n\t\t\t\t\t\t\t\t57 tab item Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Memory usage - 33.2 MB, Secondary Actions: Select\n\t\t\t\t\t\t\t58 region\n\t\t\t\t\t\t59 button New Tab\n\t\t\t\t\t\t60 region\n\t\t\t\t\t61 region",
+      "elementCount": 62,
+      "focusedElementId": null,
+      "truncation": {
+        "truncated": false,
+        "maxNodes": 1200,
+        "maxDepth": 64,
+        "maxDepthReached": false
+      }
+    },
+    "screenshot": {
+      "format": "png",
+      "width": 1296,
+      "height": 808,
+      "scale": 1,
+      "path": "C:\\Users\\Dung\\AppData\\Local\\Temp\\orca-computer-use\\13bd5598-689e-4906-84ac-f5413715c9f4-screenshot.png",
+      "dataOmitted": true,
+      "expiresAt": "2026-11-05T14:46:49.428Z"
+    },
+    "screenshotStatus": {
+      "state": "captured",
+      "metadata": {
+        "engine": "unknown",
+        "windowId": 1966728
+      }
+    },
+    "action": {
+      "path": "accessibility",
+      "actionName": "primaryAction",
+      "fallbackReason": null,
+      "targetWindowId": 1966728,
+      "targetWindowIndex": null,
+      "verification": {
+        "state": "unverified",
+        "reason": "accessibility_action_unasserted"
+      }
+    }
+  },
+  "_meta": {
+    "runtimeId": "b3a212a0-8217-42f6-a835-5da3d87b269f"
+  }
+}

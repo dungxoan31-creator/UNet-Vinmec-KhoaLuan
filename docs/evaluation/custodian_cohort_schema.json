@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DataCustodianCohortMapping",
+  "description": "Standard schema for external hospital data custodians to supply pseudonymized patient cohort groupings.",
+  "type": "object",
+  "required": [
+    "institution_id",
+    "custodian_attestation_hash",
+    "records"
+  ],
+  "properties": {
+    "institution_id": {
+      "type": "string"
+    },
+    "custodian_attestation_hash": {
+      "type": "string"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "image_sha256",
+          "pseudonymized_patient_group_id"
+        ],
+        "properties": {
+          "image_sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "pseudonymized_patient_group_id": {
+            "type": "string"
+          },
+          "study_date": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
