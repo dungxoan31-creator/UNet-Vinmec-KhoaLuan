@@ -12,6 +12,12 @@ BENCHMARK_PATH = (
     / "audit_remediation_2026_10_28"
     / "gpu_soak.py"
 )
+if not BENCHMARK_PATH.exists():
+    pytest.skip(
+        f"Benchmark artifact not found at {BENCHMARK_PATH} (gitignored or absent in fresh checkout).",
+        allow_module_level=True,
+    )
+
 SPEC = importlib.util.spec_from_file_location("synthetic_gpu_soak", BENCHMARK_PATH)
 assert SPEC is not None and SPEC.loader is not None
 BENCHMARK = importlib.util.module_from_spec(SPEC)

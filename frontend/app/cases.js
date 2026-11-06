@@ -64,6 +64,25 @@ export async function getCasesPage(
     throw Error("Danh sách ca trả về không đúng hợp đồng phân trang.");
   return { items: raw.items.map(normalizeCase), total: raw.total };
 }
+
+export async function getCases(params = {}, options = {}) {
+  if (state.capabilities?.case_workflow === false) {
+    const raw = await request("/api/cases", options);
+    const list = Array.isArray(raw) ? raw : (raw?.items || []);
+    return list.map((c) => ({
+      ...c,
+      study_id: c.study_id || c.id,
+      study_code: c.study_code || c.id,
+      owner_id: c.owner_id || null,
+      images: Array.isArray(c.images)
+        ? c.images.map((image) => ({ ...image, laterality: image.laterality || null }))
+        : [],
+    }));
+  }
+  const page = await getCasesPage(params, options);
+  return page.items;
+}
+
 export async function getCase(id) {
   const c = await request(
     (state.capabilities.case_workflow === true
