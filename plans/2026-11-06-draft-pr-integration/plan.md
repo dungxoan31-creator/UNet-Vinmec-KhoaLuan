@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: completed
 ---
 # Draft PR Integration (No Merge)
 
@@ -22,8 +22,9 @@ Open a draft pull request from `feat/remediation-pr` into `main`, retaining the 
 - [x] Build the branch from `origin/main` and bridge the verified source history.
 - [x] Confirm the staged integration diff passes `git diff --check`.
 - [x] Record the integrated-tree test failures separately from source-branch results.
-- [ ] Push `feat/remediation-pr` and create the required Draft PR into `main`.
-- [ ] Leave the PR unmerged pending review and resolution of all blockers.
+- [x] Push `feat/remediation-pr` and create Draft PR [#1](https://github.com/dungxoan31-creator/UNet-Vinmec-KhoaLuan/pull/1) into `main`.
+- [x] Verify PR #1 remains open and Draft, with no merge timestamp.
+- [x] Leave the PR unmerged pending review and resolution of all blockers.
 
 ## Scope Exclusions
 
