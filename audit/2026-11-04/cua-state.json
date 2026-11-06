@@ -1,0 +1,55 @@
+{
+  "id": "ec8f7eea-4b26-4176-8a87-04feffb512f3",
+  "ok": true,
+  "result": {
+    "snapshot": {
+      "id": "357a16ad-fcc0-4e46-8f6f-ef5fd2add8a6",
+      "app": {
+        "name": "chrome",
+        "bundleId": "chrome",
+        "pid": 2480
+      },
+      "window": {
+        "title": "Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome",
+        "id": 1966728,
+        "index": null,
+        "x": 10,
+        "y": 10,
+        "width": 1296,
+        "height": 808,
+        "isMinimized": null,
+        "isOffscreen": null,
+        "screenIndex": null
+      },
+      "coordinateSpace": "window",
+      "treeText": "App=chrome (pid 2480)\nWindow: \"Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome\", App: chrome.\n\n0 window Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome\n\t1 region Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Google Chrome\n\t\t2 region\n\t\t\t3 region\n\t\t\t\t4 region\n\t\t\t\t\t5 button Minimize\n\t\t\t\t\t6 button Maximize\n\t\t\t\t\t7 button Close\n\t\t\t\t8 region\n\t\t\t\t\t9 region\n\t\t\t\t\t\t10 tool bar view_1000\n\t\t\t\t\t\t\t11 button Back\n\t\t\t\t\t\t\t12 button Forward\n\t\t\t\t\t\t\t13 button Reload\n\t\t\t\t\t\t\t14 group\n\t\t\t\t\t\t\t\t15 button View site information\n\t\t\t\t\t\t\t\t16 edit Address and search bar 127.0.0.1:18048/#login, Secondary Actions: SetValue\n\t\t\t\t\t\t\t\t17 region\n\t\t\t\t\t\t\t\t\t18 button Translate\n\t\t\t\t\t\t\t\t\t19 button Bookmark this tab\n\t\t\t\t\t\t\t20 button Chrome\n\t\t\t\t\t21 region\n\t\t\t\t\t\t22 region\n\t\t\t\t\t\t\t23 region\n\t\t\t\t\t\t24 region\n\t\t\t\t\t25 region\n\t\t\t\t\t\t26 region\n\t\t\t\t\t\t\t27 button Tab search\n\t\t\t\t\t\t28 region view_21\n\t\t\t\t\t\t\t29 tab\n\t\t\t\t\t\t\t\t30 tab item Hệ thống hỗ trợ phân tích siêu âm buồng trứng - Memory usage - 33.2 MB, Secondary Actions: Select\n\t\t\t\t\t\t\t31 region\n\t\t\t\t\t\t32 button New Tab\n\t\t\t\t\t\t33 region\n\t\t\t\t\t34 region\n\t\t35 pane Translate this page?\n\t\t\t36 alert Translate this page?\n\t\t\t\t37 region\n\t\t\t\t\t38 region\n\t\t\t\t\t\t39 region\n\t\t\t\t\t\t40 region\n\t\t\t\t\t\t\t41 region\n\t\t\t\t\t\t\t\t42 region\n\t\t\t\t\t\t\t\t\t43 region\n\t\t\t\t\t\t\t\t\t\t44 tab Vietnamese\n\t\t\t\t\t\t\t\t\t\t\t45 tab item Vietnamese, Secondary Actions: Select\n\t\t\t\t\t\t\t\t\t\t\t46 tab item English, Secondary Actions: Select\n\t\t\t\t\t\t\t\t\t\t47 button Translate options\n\t\t\t\t\t\t\t\t\t\t48 button Close\n\t\t\t\t\t\t\t49 region\n\t\t\t\t\t\t50 region\n\t\t\t\t\t\t\t51 region",
+      "elementCount": 52,
+      "focusedElementId": null,
+      "truncation": {
+        "truncated": false,
+        "maxNodes": 1200,
+        "maxDepth": 64,
+        "maxDepthReached": false
+      }
+    },
+    "screenshot": {
+      "format": "png",
+      "width": 1296,
+      "height": 808,
+      "scale": 1,
+      "path": "C:\\Users\\Dung\\AppData\\Local\\Temp\\orca-computer-use\\ec8f7eea-4b26-4176-8a87-04feffb512f3-screenshot.png",
+      "dataOmitted": true,
+      "expiresAt": "2026-11-05T14:46:39.872Z"
+    },
+    "screenshotStatus": {
+      "state": "captured",
+      "metadata": {
+        "engine": "unknown",
+        "windowId": 1966728
+      }
+    }
+  },
+  "_meta": {
+    "runtimeId": "b3a212a0-8217-42f6-a835-5da3d87b269f"
+  }
+}

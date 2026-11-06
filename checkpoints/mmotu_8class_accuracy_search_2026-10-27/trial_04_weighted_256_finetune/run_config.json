@@ -1,0 +1,256 @@
+{
+  "task": "MMOTU 2D image-level 8-class global category classification",
+  "intended_use": "research only; not a clinical diagnosis or care recommendation",
+  "architecture": "ResNet34",
+  "pretrained_imagenet": true,
+  "encoder_frozen": false,
+  "input": {
+    "channels": 3,
+    "image_size": [
+      256,
+      256
+    ],
+    "color": "RGB; CLAHE applied to luminance channel to preserve Doppler chroma",
+    "resize": "aspect-preserving letterbox",
+    "normalization": {
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    },
+    "manual_masks_used": false
+  },
+  "class_id_to_name": {
+    "0": "chocolate_cyst",
+    "1": "serous_cystadenoma",
+    "2": "teratoma",
+    "3": "theca_cell_tumor",
+    "4": "simple_cyst",
+    "5": "normal_ovary",
+    "6": "mucinous_cystadenoma",
+    "7": "high_grade_serous_cystadenocarcinoma"
+  },
+  "inverse_frequency_weights": {
+    "chocolate_cyst": 0.5530973672866821,
+    "serous_cystadenoma": 0.8169934749603271,
+    "teratoma": 0.5482456088066101,
+    "theca_cell_tumor": 2.1929824352264404,
+    "simple_cyst": 2.659574508666992,
+    "normal_ovary": 0.6944444179534912,
+    "mucinous_cystadenoma": 1.7605633735656738,
+    "high_grade_serous_cystadenocarcinoma": 3.28947377204895
+  },
+  "loss_class_weights": {
+    "chocolate_cyst": 0.5530973672866821,
+    "serous_cystadenoma": 0.8169934749603271,
+    "teratoma": 0.5482456088066101,
+    "theca_cell_tumor": 2.1929824352264404,
+    "simple_cyst": 2.659574508666992,
+    "normal_ovary": 0.6944444179534912,
+    "mucinous_cystadenoma": 1.7605633735656738,
+    "high_grade_serous_cystadenocarcinoma": 3.28947377204895
+  },
+  "split": {
+    "train_counts": {
+      "chocolate_cyst": 226,
+      "serous_cystadenoma": 153,
+      "teratoma": 228,
+      "theca_cell_tumor": 57,
+      "simple_cyst": 47,
+      "normal_ovary": 180,
+      "mucinous_cystadenoma": 71,
+      "high_grade_serous_cystadenocarcinoma": 38
+    },
+    "validation_counts": {
+      "chocolate_cyst": 110,
+      "serous_cystadenoma": 66,
+      "teratoma": 108,
+      "theca_cell_tumor": 31,
+      "simple_cyst": 19,
+      "normal_ovary": 87,
+      "mucinous_cystadenoma": 33,
+      "high_grade_serous_cystadenocarcinoma": 15
+    },
+    "train_validation_filename_overlap": 0,
+    "train_validation_image_hash_overlap": 0,
+    "split_level": "image-level",
+    "patient_identity_available": false,
+    "patient_level_independence_verified": false
+  },
+  "train_label_file": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\metadata\\mmotu_2d_train_cls.txt",
+  "train_label_file_sha256": "f9a79dcf933bf99fb5b905dbf09fe24b19b7dca639034dab6368548c2e7acb47",
+  "validation_label_file": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\metadata\\mmotu_2d_val_cls.txt",
+  "validation_label_file_sha256": "24bdd8185a88e8965353c231190d59860613327658e7edb796e01b973bdedfc6",
+  "train_count": 1000,
+  "validation_count": 469,
+  "validation_role": "model selection partition; not an independent or patient-level clinical test",
+  "test_split_used": false,
+  "patient_identity_available": false,
+  "patient_level_independence_verified": false,
+  "seed": 46,
+  "device": "cuda",
+  "gpu_name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "batch_size": 8,
+  "epochs_requested": 24,
+  "epochs_completed": 24,
+  "best_epoch": 22,
+  "best_selection_metric": "accuracy",
+  "best_selection_score": 0.5757,
+  "best_validation_accuracy": 0.5757,
+  "best_validation_macro_f1": 0.5071,
+  "best_validation_metrics": {
+    "accuracy": 0.5757,
+    "macro_f1": 0.5071,
+    "balanced_accuracy": 0.5221,
+    "per_class": {
+      "chocolate_cyst": {
+        "support": 110,
+        "precision": 0.8118,
+        "recall": 0.6273,
+        "f1": 0.7077
+      },
+      "serous_cystadenoma": {
+        "support": 66,
+        "precision": 0.4839,
+        "recall": 0.6818,
+        "f1": 0.566
+      },
+      "teratoma": {
+        "support": 108,
+        "precision": 0.6571,
+        "recall": 0.6389,
+        "f1": 0.6479
+      },
+      "theca_cell_tumor": {
+        "support": 31,
+        "precision": 0.6522,
+        "recall": 0.4839,
+        "f1": 0.5556
+      },
+      "simple_cyst": {
+        "support": 19,
+        "precision": 0.2333,
+        "recall": 0.3684,
+        "f1": 0.2857
+      },
+      "normal_ovary": {
+        "support": 87,
+        "precision": 0.5595,
+        "recall": 0.5402,
+        "f1": 0.5497
+      },
+      "mucinous_cystadenoma": {
+        "support": 33,
+        "precision": 0.4545,
+        "recall": 0.303,
+        "f1": 0.3636
+      },
+      "high_grade_serous_cystadenocarcinoma": {
+        "support": 15,
+        "precision": 0.2963,
+        "recall": 0.5333,
+        "f1": 0.381
+      }
+    },
+    "confusion_matrix": [
+      [
+        69,
+        10,
+        10,
+        3,
+        2,
+        8,
+        3,
+        5
+      ],
+      [
+        2,
+        45,
+        1,
+        1,
+        9,
+        4,
+        1,
+        3
+      ],
+      [
+        7,
+        11,
+        69,
+        0,
+        2,
+        15,
+        2,
+        2
+      ],
+      [
+        0,
+        5,
+        2,
+        15,
+        0,
+        4,
+        3,
+        2
+      ],
+      [
+        1,
+        4,
+        1,
+        1,
+        7,
+        3,
+        2,
+        0
+      ],
+      [
+        2,
+        4,
+        19,
+        1,
+        6,
+        47,
+        1,
+        7
+      ],
+      [
+        4,
+        12,
+        2,
+        1,
+        4,
+        0,
+        10,
+        0
+      ],
+      [
+        0,
+        2,
+        1,
+        1,
+        0,
+        3,
+        0,
+        8
+      ]
+    ],
+    "sample_count": 469
+  },
+  "optimizer": "AdamW",
+  "loss": "class-weighted CrossEntropyLoss",
+  "sampling_strategy": "shuffle",
+  "encoder_learning_rate": 0.0001,
+  "classifier_head_learning_rate": 0.001,
+  "selection_metric": "validation accuracy",
+  "duration_seconds": 416.64,
+  "best_checkpoint": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\checkpoints\\mmotu_8class_accuracy_search_2026-10-27\\trial_04_weighted_256_finetune\\mmotu_resnet34_8class_best.pth",
+  "best_checkpoint_sha256": "96d900fd57c44f5874363c159fce13cf61864827fbeaef66f34da1eeab189cf1",
+  "last_checkpoint": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\checkpoints\\mmotu_8class_accuracy_search_2026-10-27\\trial_04_weighted_256_finetune\\mmotu_resnet34_8class_last.pth",
+  "last_checkpoint_sha256": "0418a07a9749d9eae9b258a38de7595bd539226a0c7852cfae8101b2ba3de104"
+}

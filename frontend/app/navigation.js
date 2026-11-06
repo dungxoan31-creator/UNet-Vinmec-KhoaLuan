@@ -1,4 +1,5 @@
 import { state, role, can, preferences } from "./state.js";
+import { BRAND_NAME, BRAND_CLASS, BRAND_LOGO_SRC, BRAND_ALT } from "./branding.js";
 import { t } from "./i18n.js";
 import { $, $$, esc, icon, button, modal, toast } from "./ui.js";
 import { renderAuth, bindAuth, logout } from "./auth.js";
@@ -6,12 +7,11 @@ import {
   renderDashboard,
   renderCases,
   renderCaseDetail,
-  getCases,
+  getCasesPage,
 } from "./cases.js";
-import { renderIntake } from "./intake.js?v=demo-patients-1";
+import { renderIntake } from "./intake.js?v=20261104-directory";
 import { renderViewer } from "./viewer.js";
 import { renderApproval } from "./approval.js";
-import { renderPatients } from "./patients.js";
 import { renderEvaluation } from "./evaluation.js";
 import { renderAdmin } from "./admin.js";
 import { renderNotifications } from "./notifications.js";
@@ -19,12 +19,12 @@ import { renderReport } from "./report-preview.js";
 import { renderPersonal } from "./personal.js";
 import { nextCase } from "./workflow.js";
 import { showOnboardingPrompt } from "./onboarding.js";
+import { patientRecordLabel } from "./patient-labels.js";
 const routes = {
   dashboard: "grid",
   intake: "upload",
   cases: "list",
   approval: "check",
-  patients: "users",
   evaluation: "chart",
   admin: "settings",
   notifications: "bell",
@@ -32,8 +32,49 @@ const routes = {
   preferences: "settings",
   profile: "users",
 };
-const authRoutes = ["login", "register", "forgot", "reset", "first", "otp", "expired"];
+const authRoutes = ["login", "register", "verify-email", "forgot", "reset", "first", "expired"];
 let generation = 0;
+let noticeLayoutBound = false;
+function syncNoticeStackHeight() {
+  const notices = [
+    document.querySelector(".ruo-safety-banner"),
+    document.querySelector("#environmentUnknownBanner"),
+    document.querySelector("#syntheticDemoBanner"),
+  ].filter(Boolean);
+  const height = notices.reduce((total, notice) => {
+    if (notice.hidden || getComputedStyle(notice).display === "none") return total;
+    return total + notice.getBoundingClientRect().height;
+  }, 0);
+  document.documentElement.style.setProperty(
+    "--notice-stack-height",
+    `${Math.ceil(height)}px`,
+  );
+}
+function bindNoticeStackLayout() {
+  if (noticeLayoutBound) return;
+  noticeLayoutBound = true;
+  const notices = [
+    document.querySelector(".ruo-safety-banner"),
+    document.querySelector("#environmentUnknownBanner"),
+    document.querySelector("#syntheticDemoBanner"),
+  ].filter(Boolean);
+  if ("ResizeObserver" in window) {
+    const resizeObserver = new ResizeObserver(syncNoticeStackHeight);
+    notices.forEach((notice) => resizeObserver.observe(notice));
+  }
+  const mutationObserver = new MutationObserver(syncNoticeStackHeight);
+  notices.forEach((notice) =>
+    mutationObserver.observe(notice, {
+      attributes: true,
+      childList: true,
+      characterData: true,
+      subtree: true,
+      attributeFilter: ["class", "hidden", "style"],
+    }),
+  );
+  window.addEventListener("resize", syncNoticeStackHeight, { passive: true });
+  syncNoticeStackHeight();
+}
 export function applyTheme(route) {
   document.documentElement.dataset.theme =
     state.preferences.theme === "system"
@@ -44,24 +85,113 @@ export function applyTheme(route) {
 }
 function shell(route) {
   const language = state.preferences.language;
-  $("#app").innerHTML =
-    `<header class="topbar"><button class="icon-btn" id="collapseNav" aria-label="Thu gọn điều hướng">${icon("menu")}</button><a class="brand" href="#dashboard"><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo" alt="Vinmec" width="81" height="50"><span class="brand-product">Siêu âm<small>BUỒNG TRỨNG</small></span></a><button class="btn top-search" id="quickSearch">${icon("search")}Tìm PID hoặc mã ca <kbd>Ctrl K</kbd></button><span class="spacer"></span>${role() !== "QT" ? '<a class="btn quiet next-label" href="#' + (role() === "TK" ? "approval" : "cases") + '">Ca tiếp theo</a>' : ""}<button class="icon-btn" id="themeToggle" aria-label="Chuyển giao diện sáng tối">${icon("sun")}</button><a class="icon-btn" href="#notifications" aria-label="Thông báo">${icon("bell")}</a><button class="btn quiet" id="accountMenu"><span class="avatar">${esc((state.user.full_name || state.user.username).slice(0, 1))}</span><span class="account-name">${esc(state.user.full_name || state.user.username)}</span></button></header><nav class="sidebar" aria-label="Điều hướng chính"><p class="nav-label">CÔNG VIỆC</p>${Object.entries(
-      routes,
+  document.body.classList.remove("nav-open");
+  const navLinks = Object.entries(routes)
+    .filter(
+      ([key]) =>
+        can(key) &&
+        !["preferences", "profile"].includes(key) &&
+        !(role() === "BS" && key === "evaluation"),
     )
-      .filter(
-        ([key]) =>
-          can(key) &&
-          !["preferences", "profile"].includes(key) &&
-          !(role() === "BS" && key === "evaluation"),
-      )
-      .map(
-        ([key, ico]) =>
-          `<a href="#${key}" title="${esc(t(key, language))}" class="${route === key ? "active" : ""}">${icon(ico)}<span>${esc(t(key, language))}</span></a>`,
-      )
-      .join(
-        "",
-      )}<div class="nav-bottom"><a href="#preferences">${icon("settings")}<span>Tùy chọn</span></a><p class="nav-label">${{ BS: "BÁC SĨ", TK: "CHUYÊN GIA DUYỆT", QT: "QUẢN TRỊ" }[role()]}</p></div></nav><main class="main" id="main" tabindex="-1"><div id="globalBanners"></div><div id="page"></div></main>`;
-  $("#collapseNav").onclick = () => document.body.classList.toggle("collapsed");
+    .map(
+      ([key, ico]) =>
+        `<a href="#${key}" title="${esc(t(key, language))}" class="${route === key ? "active" : ""}"${route === key ? ' aria-current="page"' : ""}>${icon(ico)}<span>${esc(t(key, language))}</span></a>`,
+    )
+    .join("");
+  const roleLabel = {
+    BS: "Bác sĩ",
+    TK: "Chuyên gia rà soát",
+    QT: "Quản trị",
+  }[role()];
+  $("#app").innerHTML = `
+    <header class="topbar">
+      <button class="icon-btn" id="collapseNav" type="button" aria-label="Thu gọn điều hướng" aria-expanded="true" aria-controls="primaryNav" title="Điều hướng">${icon("menu")}</button>
+      <a class="brand" href="#dashboard" aria-label="${BRAND_NAME} — Siêu âm Buồng trứng — Tổng quan">
+        <img class="${BRAND_CLASS}" src="${BRAND_LOGO_SRC}" alt="${BRAND_ALT}" width="1616" height="973" decoding="async">
+        <span class="brand-product">Siêu âm<small>Buồng trứng</small></span>
+      </a>
+      <button class="btn top-search" id="quickSearch" type="button">${icon("search")}Tìm hồ sơ hoặc mã ca <kbd>Ctrl K</kbd></button>
+      <span class="spacer"></span>
+      ${role() !== "QT" ? `<a class="btn quiet next-label" href="#${role() === "TK" ? "approval" : "cases"}">Ca tiếp theo</a>` : ""}
+      <button class="icon-btn" id="themeToggle" type="button" aria-label="Chuyển giao diện sáng tối">${icon("sun")}</button>
+      <a class="icon-btn" href="#notifications" aria-label="Thông báo">${icon("bell")}</a>
+      <button class="btn quiet account-menu" id="accountMenu" type="button" aria-label="Mở tài khoản của ${esc(state.user.full_name || state.user.username)}" aria-haspopup="dialog"><span class="avatar" aria-hidden="true">${esc((state.user.full_name || state.user.username).slice(0, 1))}</span><span class="account-name">${esc(state.user.full_name || state.user.username)}</span></button>
+    </header>
+    <button class="nav-scrim" id="navScrim" type="button" aria-label="Đóng điều hướng" hidden></button>
+    <nav class="sidebar" id="primaryNav" aria-label="Điều hướng chính">
+      <p class="nav-label">Công việc</p>
+      ${navLinks}
+      <div class="nav-bottom">
+        <a href="#preferences" aria-label="${esc(t("preferences", language))}" title="${esc(t("preferences", language))}">${icon("settings")}<span>${esc(t("preferences", language))}</span></a>
+        <p class="nav-label">${roleLabel}</p>
+      </div>
+    </nav>
+    <main class="main" id="main" tabindex="-1"><div id="globalBanners"></div><div id="page"></div></main>`;
+  const navToggle = $("#collapseNav");
+  const navScrim = $("#navScrim");
+  const primaryNav = $("#primaryNav");
+  const mobileNav = window.matchMedia("(max-width: 800px)");
+  const setMobileNavOpen = (open, restoreFocus = true) => {
+    document.body.classList.toggle("nav-open", open);
+    navToggle.setAttribute("aria-expanded", String(open));
+    navToggle.setAttribute("aria-label", open ? "Đóng điều hướng" : "Mở điều hướng");
+    navScrim.hidden = !open;
+    if (open) primaryNav.querySelector("a")?.focus();
+    else if (restoreFocus) navToggle.focus();
+  };
+  const updateNavToggle = () => {
+    if (mobileNav.matches) {
+      navToggle.setAttribute("aria-expanded", "false");
+      navToggle.setAttribute("aria-label", "Mở điều hướng");
+    } else {
+      const expanded = !document.body.classList.contains("collapsed");
+      navToggle.setAttribute("aria-expanded", String(expanded));
+      navToggle.setAttribute("aria-label", expanded ? "Thu gọn điều hướng" : "Mở rộng điều hướng");
+      navScrim.hidden = true;
+    }
+  };
+  navToggle.onclick = () => {
+    if (mobileNav.matches) {
+      setMobileNavOpen(!document.body.classList.contains("nav-open"), true);
+      return;
+    }
+    const collapsed = document.body.classList.toggle("collapsed");
+    navToggle.setAttribute("aria-expanded", String(!collapsed));
+    navToggle.setAttribute("aria-label", collapsed ? "Mở rộng điều hướng" : "Thu gọn điều hướng");
+  };
+  navScrim.onclick = () => setMobileNavOpen(false);
+  primaryNav.addEventListener("click", (event) => {
+    if (mobileNav.matches && event.target.closest("a")) setMobileNavOpen(false, false);
+  });
+  primaryNav.addEventListener("keydown", (event) => {
+    if (
+      !mobileNav.matches ||
+      !document.body.classList.contains("nav-open") ||
+      event.key !== "Tab"
+    ) return;
+    const focusable = [...primaryNav.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+      .filter((element) => element.getClientRects().length > 0);
+    if (!focusable.length) {
+      event.preventDefault();
+      navToggle.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  mobileNav.addEventListener("change", () => {
+    document.body.classList.remove("nav-open");
+    navScrim.hidden = true;
+    updateNavToggle();
+  });
+  updateNavToggle();
   $("#themeToggle").onclick = () => {
     preferences({
       theme:
@@ -88,36 +218,48 @@ function shell(route) {
 }
 export async function quickSearch() {
   if (role() === "QT")
-    return toast("Tìm kiếm PID không dành cho vai trò quản trị.");
+    return toast("Tra cứu hồ sơ không dành cho vai trò quản trị.");
   modal(
     "Tìm nhanh",
-    '<input id="quickQuery" type="search" class="wide" placeholder="PID hoặc mã ca" aria-label="Từ khóa"><div id="quickResults" style="margin-top:16px"></div>',
+    '<input id="quickQuery" type="search" class="wide" placeholder="Mã ca, tên hồ sơ hoặc mã nghiên cứu" aria-label="Từ khóa"><div id="quickResults" style="margin-top:16px"></div>',
   );
-  let rows = [];
-  try {
-    rows = await getCases();
-  } catch (e) {
-    $("#quickResults").textContent = e.message;
-  }
   const query = $("#quickQuery");
   if (!query) return;
+  let timer;
+  let sequence = 0;
+  let controller;
   query.oninput = () => {
-    $("#quickResults").innerHTML =
-      rows
-        .filter((c) =>
-          (c.study_code + " " + c.patient_id)
-            .toLowerCase()
-            .includes(query.value.toLowerCase()),
-        )
-        .slice(0, 8)
-        .map(
-          (c) =>
-            `<a class="list-row" href="#case/${c.study_id}">${esc(c.study_code)} · ${esc(c.patient_id)}</a>`,
-        )
-        .join("") || "<p>Không có kết quả.</p>";
-    $$("#quickResults a").forEach(
-      (a) => (a.onclick = () => $("#modal").close()),
-    );
+    const requestId = ++sequence;
+    const search = query.value.trim();
+    clearTimeout(timer);
+    controller?.abort();
+    if (!search) {
+      $("#quickResults").innerHTML = "";
+      return;
+    }
+    $("#quickResults").textContent = "Đang tìm…";
+    timer = setTimeout(async () => {
+      controller = new AbortController();
+      try {
+        const { items: rows } = await getCasesPage(
+          { search },
+          { signal: controller.signal, limit: 8 },
+        );
+        if (requestId !== sequence) return;
+        $("#quickResults").innerHTML = rows
+          .map(
+            (c) =>
+              `<a class="list-row" href="#case/${c.study_id}">${esc(c.study_code)} · ${esc(patientRecordLabel(c))}</a>`,
+          )
+          .join("") || "<p>Không có kết quả.</p>";
+        $$("#quickResults a").forEach(
+          (a) => (a.onclick = () => $("#modal").close()),
+        );
+      } catch (error) {
+        if (requestId !== sequence || error.name === "AbortError") return;
+        $("#quickResults").textContent = error.message;
+      }
+    }, 200);
   };
   query.focus();
 }
@@ -142,6 +284,9 @@ export async function navigate() {
     .slice(1)
     .split("?")[0]
     .split("/");
+  if (!location.hash && typeof location !== "undefined" && location.pathname.endsWith("/admin")) {
+    route = "admin";
+  }
   route = route || "dashboard";
   if (route === "evaluation" && role() === "BS") {
     location.hash = "#dashboard";
@@ -193,8 +338,6 @@ export async function navigate() {
     else if (route === "case") cleanup = await renderCaseDetail(root, id);
     else if (route === "report") cleanup = await renderReport(root, id);
     else if (route === "approval") cleanup = await renderApproval(root, id);
-    else if (route === "patients")
-      cleanup = await renderPatients(root, id ? decodeURIComponent(id) : null);
     else if (route === "evaluation") cleanup = await renderEvaluation(root);
     else if (route === "admin") cleanup = await renderAdmin(root, id);
     else if (route === "notifications")
@@ -209,8 +352,19 @@ export async function navigate() {
   }
 }
 export function bindGlobal() {
+  bindNoticeStackLayout();
   window.addEventListener("hashchange", navigate);
   window.addEventListener("ova:rerender", navigate);
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !document.body.classList.contains("nav-open")) return;
+    document.body.classList.remove("nav-open");
+    const navToggle = $("#collapseNav");
+    const navScrim = $("#navScrim");
+    if (navScrim) navScrim.hidden = true;
+    navToggle?.setAttribute("aria-expanded", "false");
+    navToggle?.setAttribute("aria-label", "Mở điều hướng");
+    navToggle?.focus();
+  });
   window.addEventListener("ova:expired", () => {
     if (state.route === "expired" || !state.user) return;
     state.controller?.abort();
@@ -226,6 +380,12 @@ export function bindGlobal() {
   window.addEventListener("ova:storage-error", () =>
     toast(
       "Không lưu được bản nháp trên thiết bị. Giữ trang mở và thử lưu lại.",
+      true,
+    ),
+  );
+  window.addEventListener("ova:hitl-storage-error", () =>
+    toast(
+      "Không lưu được dự phòng nhật ký HITL trên tab này. Nếu đồng bộ mạng thất bại, nhật ký chưa gửi có thể mất khi đóng trang.",
       true,
     ),
   );

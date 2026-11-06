@@ -1,6 +1,7 @@
 """
 Dataset Loader & Preprocessing Integration for Ovarian Ultrasound Segmentation.
-Complies with Patient-Level Split and Medical Image Standardization (512x512 Letterbox).
+Consumes image-level split CSVs and applies 512x512 Letterbox preprocessing.
+Patient identifiers are not required by or passed into the model training batch.
 """
 
 import os
@@ -11,9 +12,11 @@ import cv2
 import numpy as np
 import pandas as pd
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
 from backend.core.dataset_paths import resolve_dataset_path
+from backend.core.image_utils import is_within_decoded_image_limit
 from backend.services.preprocessor import UltrasoundPreprocessor
 
 
@@ -21,27 +24,73 @@ def cv2_imread_unicode(file_path, flags=cv2.IMREAD_GRAYSCALE):
     """Safely reads images with UTF-8 / Windows paths."""
     if not os.path.exists(file_path):
         return None
+    try:
+        with Image.open(file_path) as image_header:
+            width, height = image_header.size
+    except Exception:
+        return None
+    if not is_within_decoded_image_limit(width, height):
+        raise ValueError(f"Decoded image exceeds the pixel limit: {file_path}")
     with open(file_path, "rb") as f:
         bytes_data = f.read()
     arr = np.frombuffer(bytes_data, dtype=np.uint8)
-    return cv2.imdecode(arr, flags)
+    image = cv2.imdecode(arr, flags)
+    if image is None:
+        return None
+    if image.ndim not in (2, 3) or not is_within_decoded_image_limit(image.shape[1], image.shape[0]):
+        raise ValueError(f"Decoded image exceeds the pixel limit: {file_path}")
+    return image
 
 
 class OvarianUltrasoundDataset(Dataset):
-    def __init__(self, csv_file, target_size=(512, 512), is_train=False, seed=42):
+    def __init__(
+        self,
+        csv_file,
+        target_size=(512, 512),
+        is_train=False,
+        seed=42,
+        rotation_limit=10,
+        elastic_probability=0.0,
+    ):
         self.df = pd.read_csv(csv_file)
         self.csv_dir = os.path.abspath(os.path.dirname(csv_file))
         self.target_size = target_size
         self.is_train = is_train
         self.preprocessor = UltrasoundPreprocessor(target_size=target_size)
+        if not 0 <= elastic_probability <= 1:
+            raise ValueError("elastic_probability must be between 0 and 1")
 
         # Safe medical augmentations (only on train set)
         if self.is_train:
-            self.transform = A.Compose([
+            transforms = [
                 A.HorizontalFlip(p=0.5),
                 A.RandomBrightnessContrast(brightness_limit=0.1, contrast_limit=0.1, p=0.4),
-                A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=10, border_mode=cv2.BORDER_CONSTANT, p=0.4)
-            ], seed=seed)
+                A.Affine(
+                    scale=(0.95, 1.05),
+                    translate_percent=(-0.05, 0.05),
+                    rotate=(-rotation_limit, rotation_limit),
+                    interpolation=cv2.INTER_LINEAR,
+                    mask_interpolation=cv2.INTER_NEAREST,
+                    border_mode=cv2.BORDER_CONSTANT,
+                    fill=0,
+                    fill_mask=0,
+                    p=0.4,
+                ),
+            ]
+            if elastic_probability:
+                transforms.append(
+                    A.ElasticTransform(
+                        alpha=1,
+                        sigma=20,
+                        interpolation=cv2.INTER_LINEAR,
+                        mask_interpolation=cv2.INTER_NEAREST,
+                        border_mode=cv2.BORDER_CONSTANT,
+                        fill=0,
+                        fill_mask=0,
+                        p=elastic_probability,
+                    )
+                )
+            self.transform = A.Compose(transforms, seed=seed)
         else:
             self.transform = None
 
@@ -69,7 +118,6 @@ class OvarianUltrasoundDataset(Dataset):
         img_path = self._resolve_path(str(row["image_path"]).replace("\\", "/"))
         mask_path = self._resolve_path(str(row["mask_path"]).replace("\\", "/"))
         case_id = str(row["case_id"])
-        patient_id = str(row.get("patient_id", "UNKNOWN"))
 
         # 1. Read Raw Files
         raw_img = cv2_imread_unicode(img_path, cv2.IMREAD_GRAYSCALE)
@@ -79,7 +127,13 @@ class OvarianUltrasoundDataset(Dataset):
             raise FileNotFoundError(f"Image not found: {img_path}")
         if raw_mask is None:
             raise FileNotFoundError(f"Mask not found: {mask_path}")
-
+        if raw_img.ndim != 2 or raw_mask.ndim != 2 or raw_img.shape != raw_mask.shape:
+            raise ValueError(
+                f"Image/mask dimensions differ for case {case_id}: "
+                f"image {raw_img.shape}, mask {raw_mask.shape}"
+            )
+        if not np.isin(np.unique(raw_mask), (0, 1, 255)).all():
+            raise ValueError(f"Mask contains non-binary source values for case {case_id}")
         # Ensure mask is strictly binary {0, 1}
         raw_mask = (raw_mask > 0).astype(np.uint8)
 
@@ -104,23 +158,26 @@ class OvarianUltrasoundDataset(Dataset):
             "image": img_tensor,
             "mask": mask_tensor,
             "case_id": case_id,
-            "patient_id": patient_id,
             "image_path": img_path
         }
 
 
-def get_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0, seed=42):
+def get_train_val_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0, seed=42):
     train_csv = os.path.join(splits_dir, "train.csv")
     val_csv = os.path.join(splits_dir, "val.csv")
-    test_csv = os.path.join(splits_dir, "test.csv")
-
     train_ds = OvarianUltrasoundDataset(train_csv, is_train=True, seed=seed)
     val_ds = OvarianUltrasoundDataset(val_csv, is_train=False)
-    test_ds = OvarianUltrasoundDataset(test_csv, is_train=False)
 
     generator = torch.Generator().manual_seed(seed)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, generator=generator)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    return train_loader, val_loader
+
+
+def get_dataloaders(splits_dir="ai_training/splits", batch_size=4, num_workers=0, seed=42):
+    train_loader, val_loader = get_train_val_dataloaders(splits_dir, batch_size, num_workers, seed)
+    test_csv = os.path.join(splits_dir, "test.csv")
+    test_ds = OvarianUltrasoundDataset(test_csv, is_train=False)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     return train_loader, val_loader, test_loader

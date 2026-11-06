@@ -1,0 +1,138 @@
+{
+  "accuracy": 0.6844,
+  "macro_f1": 0.6056,
+  "balanced_accuracy": 0.5996,
+  "per_class": {
+    "chocolate_cyst": {
+      "support": 110,
+      "precision": 0.8351,
+      "recall": 0.7364,
+      "f1": 0.7826
+    },
+    "serous_cystadenoma": {
+      "support": 66,
+      "precision": 0.6806,
+      "recall": 0.7424,
+      "f1": 0.7101
+    },
+    "teratoma": {
+      "support": 108,
+      "precision": 0.6475,
+      "recall": 0.8333,
+      "f1": 0.7287
+    },
+    "theca_cell_tumor": {
+      "support": 31,
+      "precision": 0.5294,
+      "recall": 0.5806,
+      "f1": 0.5538
+    },
+    "simple_cyst": {
+      "support": 19,
+      "precision": 0.75,
+      "recall": 0.3158,
+      "f1": 0.4444
+    },
+    "normal_ovary": {
+      "support": 87,
+      "precision": 0.6867,
+      "recall": 0.6552,
+      "f1": 0.6706
+    },
+    "mucinous_cystadenoma": {
+      "support": 33,
+      "precision": 0.7857,
+      "recall": 0.3333,
+      "f1": 0.4681
+    },
+    "high_grade_serous_cystadenocarcinoma": {
+      "support": 15,
+      "precision": 0.4091,
+      "recall": 0.6,
+      "f1": 0.4865
+    }
+  },
+  "confusion_matrix": [
+    [
+      81,
+      2,
+      17,
+      3,
+      0,
+      5,
+      0,
+      2
+    ],
+    [
+      2,
+      49,
+      6,
+      5,
+      1,
+      2,
+      1,
+      0
+    ],
+    [
+      6,
+      3,
+      90,
+      1,
+      0,
+      5,
+      1,
+      2
+    ],
+    [
+      2,
+      0,
+      5,
+      18,
+      0,
+      2,
+      1,
+      3
+    ],
+    [
+      0,
+      6,
+      1,
+      2,
+      6,
+      4,
+      0,
+      0
+    ],
+    [
+      1,
+      2,
+      16,
+      4,
+      1,
+      57,
+      0,
+      6
+    ],
+    [
+      4,
+      10,
+      4,
+      1,
+      0,
+      3,
+      11,
+      0
+    ],
+    [
+      1,
+      0,
+      0,
+      0,
+      0,
+      5,
+      0,
+      9
+    ]
+  ],
+  "sample_count": 469
+}

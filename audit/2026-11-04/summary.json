@@ -1,0 +1,188 @@
+{
+  "screens_captures": 55,
+  "browser_errors": [],
+  "flows": [
+    {
+      "name": "doctor login",
+      "actions": 3,
+      "ms": 289
+    },
+    {
+      "name": "synthetic patient creation after modal open",
+      "actions": 6,
+      "ms": 644,
+      "pid": "718656298"
+    },
+    {
+      "name": "fill morphology note O-RADS and save",
+      "actions": 4,
+      "ms": 174,
+      "status": 200,
+      "body": {
+        "status": "SUCCESS",
+        "study_id": "315036cb-9514-4f6e-9d1a-61f2d8bf1325",
+        "review_revision": 2,
+        "reviews": [
+          {
+            "review_id": "6877dbb3-6cd7-4714-9515-22004a4bdd95",
+            "image_id": "bb1ef94b-18d4-411a-aa93-131ebfed55b1",
+            "prediction_id": "91f51b64-22a9-4f71-9589-7ea35f3aec89",
+            "doctor_action": "ACCEPTED_RAW",
+            "reviewed_at": "2026-11-04T14:41:20.147915+00:00"
+          }
+        ],
+        "message": "Đã lưu rà soát nghiên cứu thành công."
+      }
+    }
+  ],
+  "deep_checks": [
+    {
+      "name": "O-RADS initial default",
+      "value": "O-RADS 2"
+    },
+    {
+      "name": "reopened review",
+      "notes": "Synthetic independent physician note",
+      "morphology": "Synthetic morphology audit",
+      "orads": "O-RADS 2"
+    },
+    {
+      "name": "password change response",
+      "status": 200
+    }
+  ],
+  "patient_checks": [
+    {
+      "name": "same user fresh browser patient visibility",
+      "pid": "718656298",
+      "found": false
+    }
+  ],
+  "api_probes": [
+    {
+      "name": "scoped admin metadata global counts",
+      "status": 401,
+      "ms": 31
+    },
+    {
+      "name": "scoped admin settings read",
+      "status": 401,
+      "ms": 0
+    },
+    {
+      "name": "scoped admin global setting write",
+      "status": 401,
+      "ms": 16
+    },
+    {
+      "name": "global admin sees scoped write",
+      "status": 200,
+      "ms": 0
+    },
+    {
+      "name": "scoped departments membership",
+      "status": 401,
+      "ms": 15
+    },
+    {
+      "name": "create left case",
+      "status": 200,
+      "ms": 47
+    },
+    {
+      "name": "other tenant case blocked",
+      "status": 401,
+      "ms": 0
+    },
+    {
+      "name": "other facility same local PID",
+      "status": 401,
+      "ms": 16
+    },
+    {
+      "name": "acquire lease",
+      "status": 200,
+      "ms": 16
+    },
+    {
+      "name": "upload nonsquare synthetic",
+      "status": 200,
+      "ms": 188
+    },
+    {
+      "name": "predict real checkpoint synthetic",
+      "status": 200,
+      "ms": 3344
+    },
+    {
+      "name": "cross tenant image blocked",
+      "status": 401,
+      "ms": 15
+    },
+    {
+      "name": "classify synthetic whole image",
+      "status": 200,
+      "ms": 78
+    },
+    {
+      "name": "calibrate after inference",
+      "status": 200,
+      "ms": 16
+    },
+    {
+      "name": "case reopen after calibration",
+      "status": 200,
+      "ms": 31
+    },
+    {
+      "name": "release API lease",
+      "status": 200,
+      "ms": 0
+    },
+    {
+      "name": "clinical PDF explicitly unsupported",
+      "status": 501,
+      "ms": 16
+    },
+    {
+      "name": "missing descriptors fail closed",
+      "status": 200,
+      "ms": 0
+    },
+    {
+      "name": "unauthenticated case blocked",
+      "status": 401,
+      "ms": 16
+    },
+    {
+      "name": "scoped admin global counts",
+      "status": 200,
+      "ms": null
+    },
+    {
+      "name": "scoped admin changes global report header",
+      "status": 200,
+      "ms": null
+    },
+    {
+      "name": "global admin observes facility write",
+      "status": 200,
+      "ms": null
+    },
+    {
+      "name": "scoped admin departments",
+      "status": 200,
+      "ms": null
+    },
+    {
+      "name": "other facility cannot read case",
+      "status": 403,
+      "ms": null
+    },
+    {
+      "name": "same source PID at unrelated facility",
+      "status": 200,
+      "ms": null
+    }
+  ]
+}

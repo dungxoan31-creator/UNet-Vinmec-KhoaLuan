@@ -98,15 +98,27 @@ Run-LoggedProcess -Name "git_status" -FilePath "git" -ArgumentList @("status") -
 Run-LoggedProcess -Name "git_diff" -FilePath "git" -ArgumentList @("diff") -OutputFile (Join-Path $OutputDir "git_diff.patch")
 
 # 2. Checkpoint SHA256 Hash
-$CheckpointPath = Join-Path $RepoRoot "checkpoints\unified_vinmec_refine_2026-10-06\lr_3e-04\baseline_unet_best.pth"
+$SelectedManifestPath = Join-Path $RepoRoot "evaluation\selected_model.json"
+$SelectedManifest = Get-Content -LiteralPath $SelectedManifestPath -Raw | ConvertFrom-Json
+$CheckpointPath = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $SelectedManifest.checkpoint))
+$AllowedRoot = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+if (-not $CheckpointPath.StartsWith($AllowedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Selected checkpoint must stay within the repository.'
+}
 if (Test-Path $CheckpointPath) {
     $cpHash = (Get-FileHash -Path $CheckpointPath -Algorithm SHA256).Hash.ToLower()
     $cpObj = [ordered]@{
         path = $CheckpointPath
         sha256 = $cpHash
+        manifest = $SelectedManifestPath
+        expected_sha256 = $SelectedManifest.checkpoint_sha256
         timestamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:sszzz")
     }
     Write-Utf8File -Path (Join-Path $OutputDir "checkpoint_hash.json") -Content ($cpObj | ConvertTo-Json -Depth 4)
+    if (-not $SelectedManifest.checkpoint_sha256 -or $cpHash -ne $SelectedManifest.checkpoint_sha256) {
+        Write-Host '[verify] Selected checkpoint SHA-256 does not match the serving manifest.'
+        if ($Results.overall_exit_code -eq 0) { $Results.overall_exit_code = 2 }
+    }
 } else {
     $cpObj = [ordered]@{
         path = $CheckpointPath
@@ -140,66 +152,40 @@ Remove-Item $envTempPy -Force -ErrorAction SilentlyContinue
 
 # 4. Node pure checks
 $nodeOut = Join-Path $OutputDir "node.txt"
-Run-LoggedProcess -Name "node_workspace_logic" -FilePath "node" -ArgumentList @("tests/workspace_v2_logic.mjs") -OutputFile $nodeOut
+Run-LoggedProcess -Name "node_logic" -FilePath "node" -ArgumentList @("--test", "tests/*.mjs") -OutputFile $nodeOut
 $nodeReviewOut = Join-Path $OutputDir "node_review.txt"
-Run-LoggedProcess -Name "node_review_logic" -FilePath "node" -ArgumentList @("tests/frontend_review_logic.js") -OutputFile $nodeReviewOut
-$nodeTelemOut = Join-Path $OutputDir "node_telemetry.txt"
-Run-LoggedProcess -Name "node_telemetry_logic" -FilePath "node" -ArgumentList @("tests/workspace_v2_telemetry.mjs") -OutputFile $nodeTelemOut
+Run-LoggedProcess -Name "node_runtime_contract" -FilePath "node" -ArgumentList @("tests/product_runtime.js") -OutputFile $nodeReviewOut
 
 # 5. Live Playwright browser E2E test (if not -SkipBrowser and not -BaselineOnly)
 $browserPassed = $false
 if (-not $SkipBrowser -and -not $BaselineOnly) {
-    Write-Host "[verify] Starting isolated app server for release E2E tests..."
-    $serverLogOut = Join-Path $OutputDir "server_stdout.log"
-    $serverLogErr = Join-Path $OutputDir "server_stderr.log"
-    $serverProc = Start-Process -FilePath $pyPath -ArgumentList @("tests/serve_isolated_app.py") -PassThru -NoNewWindow -RedirectStandardOutput $serverLogOut -RedirectStandardError $serverLogErr
-    try {
-        $healthy = $false
-        for ($i = 0; $i -lt 30; $i++) {
-            Start-Sleep -Milliseconds 800
-            try {
-                $h = Invoke-RestMethod -Uri "http://127.0.0.1:8027/api/health" -TimeoutSec 2 -ErrorAction Stop
-                if ($h.model_ready) {
-                    $healthy = $true
-                    break
-                }
-            } catch {}
-        }
-        if (-not $healthy) {
-            Write-Host "[verify] Error: Isolated server failed to report healthy on port 8027."
-            if ($Results.overall_exit_code -eq 0) { $Results.overall_exit_code = 1 }
-        } else {
-            Write-Host "[verify] Isolated server ready. Running workspace_v2_release_e2e.js..."
-            $e2eOut = Join-Path $OutputDir "release_e2e.txt"
-            $e2eExit = Run-LoggedProcess -Name "workspace_v2_release_e2e" -FilePath "node" -ArgumentList @("tests/workspace_v2_release_e2e.js") -OutputFile $e2eOut
-            if ($e2eExit -eq 0) {
-                $browserPassed = $true
-            }
-        }
-    } finally {
-        if ($serverProc -and -not $serverProc.HasExited) {
-            Write-Host "[verify] Stopping isolated server process..."
-            Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue
-        }
-    }
+    Write-Host "[verify] Browser suites manage independent temporary servers; clinical writes use synthetic fixtures."
+    $viewerExit = Run-LoggedProcess -Name "workstation_release_e2e" -FilePath "node" -ArgumentList @("tests/workstation_viewer_e2e.js") -OutputFile (Join-Path $OutputDir "release_e2e.txt")
+    $safetyExit = Run-LoggedProcess -Name "safety_release_e2e" -FilePath "node" -ArgumentList @("tests/clinical_safety_e2e.js") -OutputFile (Join-Path $OutputDir "safety_e2e.txt")
+    $roundtripExit = Run-LoggedProcess -Name "roundtrip_release_e2e" -FilePath "node" -ArgumentList @("tests/clinical_roundtrip_e2e.js") -OutputFile (Join-Path $OutputDir "roundtrip_e2e.txt")
+    $browserPassed = ($viewerExit -eq 0 -and $safetyExit -eq 0 -and $roundtripExit -eq 0)
 }
 
 # 6. Pytest in isolated runtime
 if ($TestScope -eq "full") {
     $pyTestArgs = @(
         "-c",
-        "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests', '-q', '--tb=short']))`""
+        "`"import pytest, sys; sys.exit(pytest.main(['tests', '-q', '--tb=short']))`""
     )
 } else {
     $pyTestArgs = @(
         "-c",
-        "`"import tests.serve_isolated_app; import pytest, sys; sys.exit(pytest.main(['tests/test_release_evidence.py', 'tests/test_evaluation_report.py', 'tests/test_runtime_configuration.py', 'tests/test_prototype_release_failures.py', '-q', '--tb=short']))`""
+        "`"import pytest, sys; sys.exit(pytest.main(['tests/test_release_evidence.py', 'tests/test_evaluation_report.py', 'tests/test_runtime_configuration.py', 'tests/test_prototype_release_failures.py', '-q', '--tb=short']))`""
     )
 }
 Run-LoggedProcess -Name "pytest_isolated" -FilePath $pyPath -ArgumentList $pyTestArgs -OutputFile (Join-Path $OutputDir "pytest.txt")
 
 # 7. Record Baseline Results & Build Consolidated Report
 $Results.live_browser_verified = $browserPassed
+if ($PrototypeOnly -and -not $browserPassed -and $Results.overall_exit_code -eq 0) {
+    Write-Host "[verify] PrototypeOnly mode requires live browser E2E; verification is incomplete."
+    $Results.overall_exit_code = 1
+}
 $Results.end_time = (Get-Date -Format "yyyy-MM-ddTHH:mm:sszzz")
 $baselineResultsPath = Join-Path $OutputDir "baseline_results.json"
 Write-Utf8File -Path $baselineResultsPath -Content ($Results | ConvertTo-Json -Depth 5)
@@ -213,7 +199,6 @@ if (-not $BaselineOnly) {
         "--hitl", "evaluation/milestone_3_final/hitl/analysis",
         "--user-study", "evaluation/milestone_3_final/user_study",
         "--output", $OutputDir,
-        "--set-current", "evaluation/milestone_3_final/legacy_test_v1",
         "--checks", $baselineResultsPath
     )
     Run-LoggedProcess -Name "build_evaluation_report" -FilePath $pyPath -ArgumentList $reportArgs -OutputFile (Join-Path $OutputDir "build_report.txt")
@@ -244,17 +229,18 @@ Write-Host "================================================================="
 Write-Host " RELEASE EVIDENCE SUMMARY"
 Write-Host "================================================================="
 Write-Host " Regression Test Scope:               $TestScope"
-Write-Host " Prototype Ready (Supervised Pilot): $(if ($finalChecks.prototype_ready) { 'PASS [READY]' } else { 'FAIL [NOT READY]' })"
+Write-Host " Technical Prototype Checks (RUO only): $(if ($finalChecks.prototype_ready) { 'PASS' } else { 'FAIL' })"
+Write-Host " Clinical / Supervised Pilot Approval: NOT GRANTED BY THIS VERIFIER"
 Write-Host " Scientific Evaluation Complete:      $(if ($finalChecks.evaluation_complete) { 'PASS [COMPLETE]' } else { 'PARTIAL / BLOCKED' })"
-Write-Host " Independent Holdout Gate:            BLOCKED (Missing patient-level mapping)"
-Write-Host " Clinician User Study:                $(if ($finalChecks.clinician_validation) { 'VERIFIED' } else { 'NOT_CONDUCTED (Technical Acceptance PASS)' })"
+Write-Host " Independent Holdout Gate:             $($finalChecks.independent_gate_status)"
+Write-Host " Clinician User Study:                $(if ($finalChecks.clinician_validation) { 'VERIFIED' } else { 'NOT_CONDUCTED' })"
 Write-Host " Live Playwright Browser Verified:    $(if ($browserPassed) { 'YES' } else { 'NO / SKIPPED' })"
 Write-Host " Overall Exit Code:                   $($Results.overall_exit_code)"
 Write-Host " Output Directory:                    $OutputDir"
 Write-Host "================================================================="
 
 if ($PrototypeOnly -and $Results.overall_exit_code -eq 0) {
-    Write-Host "[verify] PrototypeOnly mode: Prototype release checks PASS. Exiting 0."
+    Write-Host "[verify] PrototypeOnly mode: technical RUO checks passed; no clinical readiness is implied."
     exit 0
 }
 

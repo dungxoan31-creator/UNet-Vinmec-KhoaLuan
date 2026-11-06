@@ -2,21 +2,31 @@
 
 import math
 
+from backend.core.calibration import normalize_pixel_spacing
 from backend.services.inference_engine import InferenceEngine
 
 
-def calibration_metadata(stored_spacing, dicom_spacing=None):
-    spacing = stored_spacing
-    if spacing is None or not math.isfinite(spacing) or spacing <= 0:
+def calibration_metadata(stored_spacing, dicom_spacing=None, source=None):
+    """Expose millimetres only when a stored value has trusted provenance."""
+    spacing = normalize_pixel_spacing(stored_spacing)
+    if spacing is None:
         return {"pixel_spacing_mm": None, "calibrated": False, "calibration_source": "NONE"}
-    is_dicom = (
-        dicom_spacing is not None and math.isfinite(dicom_spacing) and dicom_spacing > 0
-        and math.isclose(spacing, dicom_spacing, rel_tol=.001, abs_tol=.00005)
+    normalized_dicom_spacing = normalize_pixel_spacing(dicom_spacing)
+    verified_dicom = (
+        normalized_dicom_spacing is not None
+        and math.isclose(spacing, normalized_dicom_spacing, rel_tol=.001, abs_tol=.00005)
     )
-    return {
-        "pixel_spacing_mm": float(spacing), "calibrated": True,
-        "calibration_source": "DICOM" if is_dicom else "MANUAL",
-    }
+    if source == "MANUAL":
+        return {
+            "pixel_spacing_mm": float(spacing), "calibrated": True,
+            "calibration_source": "MANUAL",
+        }
+    if source == "DICOM" and verified_dicom:
+        return {
+            "pixel_spacing_mm": float(spacing), "calibrated": True,
+            "calibration_source": "DICOM",
+        }
+    return {"pixel_spacing_mm": None, "calibrated": False, "calibration_source": "UNKNOWN"}
 
 
 def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
@@ -54,11 +64,21 @@ def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
                 lesion[name] = round(math.dist(a, b) * spacing, 2)
             lesion["area_cm2"] = round(lesion["area_px"] * spacing**2 / 100, 3)
             lesion["perimeter_mm"] = round(lesion["perimeter_mm"] * spacing, 2)
+    if "follicles" in measurements and measurements["follicles"]:
+        if spacing is None or measurements["follicles"].get("analysis_status") == "FAILED":
+            measurements["follicles"]["diameters_mm"] = None
+            measurements["follicles"]["count_in_range"] = None
+        else:
+            diameters_px = measurements["follicles"].get("diameters_px", [])
+            d_mm = [float(d * spacing) for d in diameters_px]
+            measurements["follicles"]["diameters_mm"] = [round(d, 2) for d in d_mm]
+            measurements["follicles"]["count_in_range"] = sum(2.0 <= d <= 9.0 for d in d_mm)
     dominant = (
         measurements["lesions"][0]
         if measurements.get("lesions")
         else (measurements.get("filtered_components", [{}])[0] if measurements.get("filtered_components") else {})
     )
+    has_components = bool(measurements.get("lesions") or measurements.get("filtered_components"))
     total_area = sum(lesion["area_px"] for lesion in measurements.get("lesions", [])) or sum(
         comp["area_px"] for comp in measurements.get("filtered_components", [])
     )
@@ -69,9 +89,9 @@ def measure_source_mask(decoded, rle_mask, preprocessor, engine, calibration):
         "max_diameter_px": dominant.get("max_diameter_px", 0.0),
         "ortho_diameter_px": dominant.get("ortho_diameter_px", 0.0),
         "total_area_px": total_area,
-        "max_diameter_mm": dominant.get("max_diameter_mm", 0.0) if spacing is not None else None,
-        "ortho_diameter_mm": dominant.get("ortho_diameter_mm", 0.0) if spacing is not None else None,
-        "total_area_cm2": round(total_area * spacing**2 / 100, 3) if spacing is not None else None,
+        "max_diameter_mm": dominant.get("max_diameter_mm") if spacing is not None and has_components else None,
+        "ortho_diameter_mm": dominant.get("ortho_diameter_mm") if spacing is not None and has_components else None,
+        "total_area_cm2": round(total_area * spacing**2 / 100, 3) if spacing is not None and has_components else None,
         "measurement_method": "external_contour_min_area_rectangle",
         "proxy_type": "oriented_bounding_box",
         "diameter_reference": "largest_area_contour",

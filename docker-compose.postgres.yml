@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ovarian_ai_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ovarian_cdss}
+      POSTGRES_USER: ${POSTGRES_USER:-cdss_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be configured in environment}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cdss_admin} -d ${POSTGRES_DB:-ovarian_cdss}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ovarian-ultrasound-ai:latest
+    container_name: ovarian_ai_backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - PORT=8000
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-cdss_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ovarian_cdss}
+      - APP_DATA_DIR=/app/data
+      - APP_JWT_SECRET=${APP_JWT_SECRET:?APP_JWT_SECRET must be set}
+      - APP_PATIENT_PID_HMAC_SECRET=${APP_PATIENT_PID_HMAC_SECRET:?APP_PATIENT_PID_HMAC_SECRET must be set}
+      - APP_AUTH_IP_RATE_LIMIT_ENABLED=false
+      - APP_ADMIN_PASSWORD=${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD must be set}
+      - APP_DOCTOR_PASSWORD=${APP_DOCTOR_PASSWORD:?APP_DOCTOR_PASSWORD must be set}
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ./checkpoints:/app/checkpoints:ro
+      - ./evaluation:/app/evaluation:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres_data:

@@ -1,38 +1,29 @@
 {
-  "title": "KLTN Ovarian Ultrasound Dataset Splits (De Cuong So Bo)",
-  "clinical_site": "Vinmec Times City International Hospital",
-  "author": "Nguyen Huu Dung (MIS 65A - NEU)",
-  "supervisor": "ThS. Tran Thanh Hai",
-  "random_seed": 42,
-  "table_1_metrics": {
-    "total_images_collected": 1387,
-    "images_with_initial_masks": 417,
-    "ground_truth_images_verified": 307,
-    "unique_patients_ground_truth": 185,
-    "empty_masks_in_ground_truth": 35
+  "title": "Historical KLTN 307-row split metadata",
+  "audit_date": "2026-10-21",
+  "status": "HISTORICAL_UNVERIFIED_METADATA",
+  "source_metadata_file": "metadata/kltn_ground_truth_307.csv",
+  "source_patient_identity_verified": false,
+  "patient_ids_verified": false,
+  "identity_level": "unverified",
+  "patient_id_status": "IDs are present in the historical CSV but were not verified against source patient records.",
+  "patient_level_independence_verified": false,
+  "zero_leakage_verified": false,
+  "csv_patient_id_cross_split_overlap_count": 0,
+  "reported_row_count": 307,
+  "reported_unique_csv_patient_ids": 185,
+  "reported_empty_mask_rows": 35,
+  "source_image_files_missing_in_workspace": 307,
+  "source_mask_files_missing_in_workspace": 307,
+  "split_rows": {
+    "train": 215,
+    "val": 46,
+    "test": 46
   },
-  "ground_truth_patient_split": {
-    "train": {
-      "patients": 130,
-      "images": 215,
-      "empty_masks": 25,
-      "percentage_images": 70.03,
-      "file": "ai_training/splits/train.csv"
-    },
-    "validation": {
-      "patients": 27,
-      "images": 46,
-      "empty_masks": 5,
-      "percentage_images": 14.98,
-      "file": "ai_training/splits/val.csv"
-    },
-    "test": {
-      "patients": 28,
-      "images": 46,
-      "empty_masks": 5,
-      "percentage_images": 14.98,
-      "file": "ai_training/splits/test.csv"
-    }
+  "unique_csv_ids_by_split": {
+    "train": 130,
+    "val": 27,
+    "test": 28
   },
-  "zero_leakage_verified": true
+  "warning": "Disjoint CSV ID groups do not establish source patient independence. Missing source image and mask files prevent pair integrity verification or training from this cohort."
 }

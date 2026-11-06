@@ -11,10 +11,31 @@ import numpy as np
 import torch
 
 
+from backend.services.ultrasound_enhancement import CaliperInpainter, SpeckleFilter
+
+
 class UltrasoundPreprocessor:
-    def __init__(self, target_size=(512, 512), clahe_clip_limit=2.0, clahe_grid_size=(8, 8)):
+    def __init__(
+        self,
+        target_size=(512, 512),
+        clahe_clip_limit=2.0,
+        clahe_grid_size=(8, 8),
+        enable_caliper_removal: bool = False,
+        denoise_method: str = "none",
+    ):
         self.target_size = target_size
         self.clahe = cv2.createCLAHE(clipLimit=clahe_clip_limit, tileGridSize=clahe_grid_size)
+        self.enable_caliper_removal = enable_caliper_removal
+        self.denoise_method = denoise_method
+
+    @staticmethod
+    def _is_valid_image_array(image_np):
+        return (
+            isinstance(image_np, np.ndarray)
+            and image_np.size > 0
+            and image_np.ndim in (2, 3)
+            and (image_np.ndim == 2 or image_np.shape[2] in (3, 4))
+        )
 
     def crop_fan_beam_roi(self, image_np):
         """
@@ -53,6 +74,9 @@ class UltrasoundPreprocessor:
         Uses cv2.INTER_LINEAR (Bilinear) for images and cv2.INTER_NEAREST (Nearest Neighbor) for masks.
         Returns: padded_image, transform_params
         """
+        if not self._is_valid_image_array(image_np):
+            raise ValueError("image_np must be a non-empty image array with 2D grayscale or 3/4-channel color data.")
+
         if target_size is None:
             target_size = self.target_size
 
@@ -62,6 +86,8 @@ class UltrasoundPreprocessor:
         scale = min(target_w / orig_w, target_h / orig_h)
         new_w = int(orig_w * scale)
         new_h = int(orig_h * scale)
+        if new_w < 1 or new_h < 1:
+            raise ValueError("Input aspect ratio collapses a resize dimension at the requested target size.")
 
         interp = cv2.INTER_NEAREST if is_mask else cv2.INTER_LINEAR
         resized = cv2.resize(image_np, (new_w, new_h), interpolation=interp)
@@ -71,7 +97,7 @@ class UltrasoundPreprocessor:
         pad_y = (target_h - new_h) // 2
 
         if len(image_np.shape) == 3:
-            padded = np.zeros((target_h, target_w, 3), dtype=image_np.dtype)
+            padded = np.zeros((target_h, target_w, image_np.shape[2]), dtype=image_np.dtype)
             padded[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = resized
         else:
             padded = np.zeros((target_h, target_w), dtype=image_np.dtype)
@@ -139,12 +165,16 @@ class UltrasoundPreprocessor:
         is_suitable = True
         error_reasons = []
 
-        if image_np is None or image_np.size == 0:
+        if not self._is_valid_image_array(image_np):
             return {
                 "is_suitable": False,
                 "is_acceptable": False,
                 "iqa_score": 0.0,
+                "laplacian_variance": 0.0,
+                "mean_intensity": 0.0,
+                "contrast_std": 0.0,
                 "error_code": "CORRUPTED_FILE",
+                "error_reasons": ["Invalid or empty image array."],
                 "error_message": "Không thể giải mã dữ liệu ảnh. File có thể bị hỏng.",
                 "checklist": [{"name": "Giải mã file", "status": "FAIL", "desc": "File hỏng hoặc không có dữ liệu"}],
             }
@@ -342,56 +372,45 @@ class UltrasoundPreprocessor:
             "message": suitability["error_message"],
         }
 
-    def compute_roi_mask(self, padded_gray, transform_params):
-        """
-        Generates a strict binary ROI mask isolating the ultrasound imaging cone
-        and zeroing out all letterbox black margins and out-of-sector background.
-        """
-        target_h, target_w = self.target_size
-        pad_x = transform_params["pad_x"]
-        pad_y = transform_params["pad_y"]
-        orig_w = transform_params["orig_w"]
-        orig_h = transform_params["orig_h"]
-        scale = transform_params["scale"]
-
-        new_w = int(orig_w * scale)
-        new_h = int(orig_h * scale)
-
-        roi_mask = np.zeros((target_h, target_w), dtype=np.uint8)
-        roi_mask[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = 1
-
-        # Extract beam sector inside active area
-        active_area = padded_gray[pad_y : pad_y + new_h, pad_x : pad_x + new_w]
-        if active_area.size > 0:
-            _, beam_thresh = cv2.threshold(active_area, 5, 255, cv2.THRESH_BINARY)
-            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (21, 21))
-            beam_closed = cv2.morphologyEx(beam_thresh, cv2.MORPH_CLOSE, kernel)
-
-            # Find largest sector contour
-            contours, _ = cv2.findContours(beam_closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if contours:
-                largest_c = max(contours, key=cv2.contourArea)
-                if cv2.contourArea(largest_c) > 0.15 * (new_w * new_h):
-                    hull = cv2.convexHull(largest_c)
-                    sector_mask = np.zeros_like(active_area)
-                    cv2.drawContours(sector_mask, [hull], -1, 1, -1)
-                    roi_mask[pad_y : pad_y + new_h, pad_x : pad_x + new_w] = sector_mask
-
-        return roi_mask
-
-    def preprocess_for_inference(self, image_np):
+    def preprocess_for_inference(
+        self,
+        image_np,
+        enable_caliper_removal: bool | None = None,
+        denoise_method: str | None = None,
+    ):
         """
         Full end-to-end preprocessing pipeline for deep learning inference.
         Returns:
             - normalized_tensor: torch.Tensor of shape (1, 1, 512, 512), range [0, 1]
             - padded_gray: np.ndarray (512, 512)
-            - transform_params: dict with scaling, padding offsets and strict ROI mask
+            - transform_params: dict with scaling and padding offsets
             - iqa_report: dict with quality scores
         """
-        if len(image_np.shape) == 3:
-            gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
+        if not self._is_valid_image_array(image_np):
+            raise ValueError("image_np must be a non-empty image array with 2D grayscale or 3/4-channel color data.")
+
+        do_caliper = self.enable_caliper_removal if enable_caliper_removal is None else enable_caliper_removal
+        method_denoise = self.denoise_method if denoise_method is None else denoise_method
+
+        if do_caliper:
+            raise ValueError("Tự động xóa caliper chưa được xác thực; dùng ảnh gốc hoặc chỉ định mặt nạ caliper do bác sĩ xác nhận.")
+
+        if method_denoise and method_denoise not in ("none", "lee", "srad", "median"):
+            raise ValueError(f"Denoise method không được hỗ trợ: {method_denoise}. Chỉ chấp nhận: none, lee, srad, median.")
+
+        working_img = image_np.copy()
+
+        if len(working_img.shape) == 3:
+            gray = cv2.cvtColor(working_img, cv2.COLOR_BGR2GRAY)
         else:
-            gray = image_np.copy()
+            gray = working_img.copy()
+
+        if method_denoise == "lee" and SpeckleFilter is not None:
+            gray = SpeckleFilter.lee_filter(gray)
+        elif method_denoise == "srad" and SpeckleFilter is not None:
+            gray = SpeckleFilter.srad_filter(gray, n_iter=8)
+        elif method_denoise == "median":
+            gray = cv2.medianBlur(gray, 3)
 
         # 1. Assess image quality
         iqa_report = self.assess_image_quality(gray)
@@ -399,16 +418,14 @@ class UltrasoundPreprocessor:
         # 2. Letterbox resize to 512x512
         padded_gray, transform_params = self.letterbox_resize(gray, self.target_size)
 
-        # 3. Compute strict ultrasound field-of-view (FOV) ROI mask
-        roi_mask = self.compute_roi_mask(padded_gray, transform_params)
-        transform_params["roi_mask"] = roi_mask
-
-        # 4. Match the training loader: CLAHE without an additional median filter.
+        # 3. Match the training loader: CLAHE without an additional median filter.
         enhanced = self.clahe.apply(padded_gray)
 
-        # 5. Normalize to [0, 1] float tensor
+        # 4. Normalize to [0, 1] float tensor
         norm_float = enhanced.astype(np.float32) / 255.0
         tensor = torch.from_numpy(norm_float).unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
 
         return tensor, padded_gray, transform_params, iqa_report
+
+    preprocess = preprocess_for_inference
 

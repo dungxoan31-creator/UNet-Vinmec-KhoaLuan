@@ -7,6 +7,8 @@ __pycache__/
 .pytest_cache/
 
 # Local databases & logs
+**/.app_jwt_secret
+**/.patient_pid_hmac_secret
 ovarian_ai.db
 *.sqlite3
 *.log
@@ -15,11 +17,46 @@ ovarian_ai.db
 *.copy
 *~
 
+# Temporary artifacts & AI subagent logs
+artifacts/
+.superpowers/
+Maiil/
+
+# Local UI tooling state and disposable verification output
+.impeccable/
+.playwright-mcp/
+.taste-skill/
+.tmp-verify-*/
+scratch/
+playwright-report/
+test-results/
+/audit/**/probe-runtime/
+/reports/comprehensive-system-test-2026-10-18/product-brand/
+
+# Seeded local synthetic demo workspace (contains local credentials/database)
+/data/demo_workspace/
+
+# One-shot patch generators retained locally for remediation provenance
+/scripts/append_*_tests.py
+/scripts/append_f08_test.py
+/scripts/fix_test_*.py
+/scripts/patch_*.py
+/scripts/remediate_goi_*.py
+/scripts/add_prep_alias.py
+/scripts/debug_init_db.py
+/scripts/fix_cdss_status.py
+
 # Runtime uploads & temporary reports (preserve folders via .gitkeep)
 data/uploads/*
 !data/uploads/.gitkeep
 data/reports/*
 !data/reports/.gitkeep
+
+# Runtime active-learning exports may contain masks and identifiers linked to reviews
+/data/active_learning_queue.jsonl
+/data/active_learning_queue.jsonl.lock
+/metadata/active_learning_queue.jsonl
+/metadata/active_learning_queue.jsonl.lock
 
 # System backups and archives (preserve folder via .gitkeep)
 backups/*
@@ -34,6 +71,10 @@ checkpoints/**/*.pth
 checkpoints/*.pth
 dataset/
 dataset_backup_archive/
+external_sources/
+nnUNet_raw/
+nnUNet_preprocessed/
+nnUNet_results/
 ai_training/experiments/*/*.pth
 ai_training/models/
 ai_training/dataset_preview/
@@ -51,7 +92,11 @@ venv/
 .venv/
 env/
 
-# Office temporary lock and backup files
+# Office and documents
+*.docx
+*.xlsx
+*.pptx
+theo-mau-*/
 ~$*.docx
 ~$*.xlsx
 ~$*.pptx

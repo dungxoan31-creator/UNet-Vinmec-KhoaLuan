@@ -5,6 +5,7 @@ Evaluates clinical review timelines, monotonic timings, and before/after paired 
 
 import argparse
 import csv
+import hashlib
 import html
 import json
 import os
@@ -13,6 +14,36 @@ from typing import Any
 import numpy as np
 
 from evaluation.segmentation_metrics import score_masks
+
+
+def verified_clinician_codes(participant_registry: list[dict[str, Any]] | None) -> set[str]:
+    """Return only uniquely registered, consented clinicians with live evidence."""
+    entries_by_code: dict[str, list[dict[str, Any]]] = {}
+    for entry in participant_registry or []:
+        code = str(entry.get("participant_code", "")).strip()
+        if code:
+            entries_by_code.setdefault(code, []).append(entry)
+
+    verified_codes = set()
+    for code, entries in entries_by_code.items():
+        if len(entries) != 1:
+            continue
+        entry = entries[0]
+        role_verified = str(entry.get("role_verified", "")).strip().lower()
+        consent_status = str(entry.get("consent_status", "")).strip().upper()
+        source_evidence = str(entry.get("source_evidence", "")).strip().lower()
+        data_origin = str(entry.get("data_origin", "")).strip().lower()
+        disposition = str(entry.get("disposition", "")).strip().lower()
+        if (
+            role_verified == "verified_clinician"
+            and consent_status == "CONSENTED"
+            and source_evidence
+            and source_evidence != "developer_self_declared"
+            and data_origin == "live"
+            and disposition in {"included", "included_clinical"}
+        ):
+            verified_codes.add(code)
+    return verified_codes
 
 
 def summarize_questionnaire(
@@ -80,7 +111,7 @@ def summarize_questionnaire(
         rating_raw = r.get("rating")
         fb = r.get("feedback")
 
-        if fb:
+        if fb and p_code in clinician_codes | technical_codes:
             feedback_entries.append({
                 "participant_code": p_code,
                 "session_id": r.get("session_id"),
@@ -501,6 +532,13 @@ def main():
     parser.add_argument("--overwrite", action="store_true", help="Allow overwriting output directory")
     args = parser.parse_args()
 
+    participant_registry = None
+    if args.participant_registry:
+        if not os.path.isfile(args.participant_registry):
+            raise FileNotFoundError(f"Missing participant registry: {args.participant_registry}")
+        with open(args.participant_registry, encoding="utf-8") as f:
+            participant_registry = list(csv.DictReader(f))
+
     # 1. Process HITL sessions if --input is provided
     if args.input:
         if not args.output:
@@ -525,14 +563,6 @@ def main():
                 for row in reader:
                     references[row.get("image_id", "")] = row
 
-        participant_registry = None
-        if args.participant_registry and os.path.isfile(args.participant_registry):
-            participant_registry = []
-            with open(args.participant_registry, encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                participant_registry = list(reader)
-
-        import hashlib
         input_hashes = {}
         if os.path.isfile(sessions_file):
             with open(sessions_file, "rb") as f:
@@ -593,11 +623,55 @@ def main():
                 reader = csv.DictReader(f)
                 participants = list(reader)
 
+        declared_clinician_codes = {
+            str(participant.get("participant_code", "")).strip()
+            for participant in participants
+            if str(participant.get("role", "")).strip().lower() == "clinician"
+        }
+        response_codes = {
+            str(response.get("participant_code", "")).strip()
+            for response in responses
+            if response.get("participant_code")
+            and response.get("item_id")
+            and any(
+                str(response.get(field, "")).strip()
+                for field in ("rating", "na_reason", "feedback")
+            )
+        }
+        verified_response_codes = (
+            verified_clinician_codes(participant_registry)
+            & declared_clinician_codes
+            & response_codes
+        )
+        analysis_participants = [
+            {
+                **participant,
+                "role": (
+                    "unverified"
+                    if str(participant.get("role", "")).strip().lower() == "clinician"
+                    and str(participant.get("participant_code", "")).strip() not in verified_response_codes
+                    else participant.get("role")
+                ),
+            }
+            for participant in participants
+        ]
+        if args.study_status in (None, "CONDUCTED"):
+            effective_study_status = "CONDUCTED" if verified_response_codes else "NOT_CONDUCTED"
+        else:
+            effective_study_status = args.study_status
+
         study_summary = summarize_questionnaire(
             responses=responses,
-            participants=participants,
-            study_status=args.study_status,
+            participants=analysis_participants,
+            study_status=effective_study_status,
         )
+        study_summary["participant_provenance"] = {
+            "declared_clinician_count": len(declared_clinician_codes),
+            "verified_clinician_count": len(verified_response_codes),
+            "unverified_declared_clinician_count": len(declared_clinician_codes - verified_response_codes),
+            "participant_registry_supplied": participant_registry is not None,
+            "clinician_validation_verified": bool(verified_response_codes),
+        }
 
         # Save summary.json
         with open(os.path.join(user_study_dir, "summary.json"), "w", encoding="utf-8") as f:
@@ -606,10 +680,13 @@ def main():
         # Save study_status.json
         status_payload = {
             "study_status": study_summary["study_status"],
-            "clinician_count": study_summary["participant_counts"]["clinicians"],
+            "clinician_count": len(verified_response_codes),
+            "declared_clinician_count": len(declared_clinician_codes),
+            "unverified_declared_clinician_count": len(declared_clinician_codes - verified_response_codes),
             "technical_count": study_summary["participant_counts"]["technical_testers"],
             "total_participants": study_summary["participant_counts"]["total_unique"],
-            "has_clinician_validation": study_summary["study_status"] == "CONDUCTED" and study_summary["participant_counts"]["clinicians"] > 0,
+            "has_clinician_validation": study_summary["study_status"] == "CONDUCTED" and bool(verified_response_codes),
+            "clinician_provenance_verified": bool(verified_response_codes),
         }
         with open(os.path.join(user_study_dir, "study_status.json"), "w", encoding="utf-8") as f:
             json.dump(status_payload, f, indent=2)

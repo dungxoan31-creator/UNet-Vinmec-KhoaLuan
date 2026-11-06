@@ -16,11 +16,16 @@ export async function renderNotifications(root) {
     pageHead(
       "Thông báo",
       "Các thay đổi liên quan đến công việc của bạn.",
-      button("Đánh dấu tất cả đã đọc", "read-all"),
     ) +
-    `<div class="tabs"><button class="active" data-filter="all">Tất cả</button><button data-filter="unread">Chưa đọc</button></div><section class="panel" id="notificationsData">${loading()}</section>`;
+    `<section class="panel" id="notificationsData">${loading()}</section>`;
   const target = $("#notificationsData", root);
-  let filter = "all";
+  if (state.capabilities?.notifications === false) {
+    target.innerHTML = empty(
+      "Thông báo chưa khả dụng",
+      "Hệ thống hiện tại chưa bật tính năng thông báo theo cấu hình máy chủ.",
+    );
+    return;
+  }
   try {
     const response = await request("/api/notifications");
     const rows = Array.isArray(response) ? response : response.items;
@@ -31,19 +36,38 @@ export async function renderNotifications(root) {
       n.read = n.read ?? n.is_read ?? false;
       n.caseId = n.caseId ?? n.study_id;
     }
+    if (rows.length === 0) {
+      target.innerHTML = empty(
+        "Chưa có thông báo",
+        "Thông báo về ca được phân công hoặc yêu cầu hiệu chỉnh sẽ xuất hiện ở đây.",
+      );
+      return;
+    }
+
+    let filter = "all";
+    $(".page-heading .actions", root).innerHTML = button(
+      "Đánh dấu tất cả đã đọc",
+      "read-all",
+    );
+    target.insertAdjacentHTML(
+      "beforebegin",
+      `<div class="tabs"><button class="active" data-filter="all">Tất cả</button><button data-filter="unread">Chưa đọc</button></div>`,
+    );
     const mark = async (ids) => {
-      {
+      try {
         await request("/api/notifications/read", {
           method: "POST",
           body: { ids },
         });
+        rows
+          .filter((n) => ids.includes(n.id))
+          .forEach((n) => {
+            n.read = true;
+            n.is_read = true;
+          });
+      } catch (e) {
+        throw e;
       }
-      rows
-        .filter((n) => ids.includes(n.id))
-        .forEach((n) => {
-          n.read = true;
-          n.is_read = true;
-        });
     };
     const draw = () => {
       const visible = rows.filter((n) => filter === "all" || !n.read);
@@ -56,7 +80,7 @@ export async function renderNotifications(root) {
             .join("")
         : empty(
             "Không có thông báo mới",
-            "Thông báo về ca bị từ chối và ca chờ duyệt sẽ xuất hiện ở đây.",
+            "Thông báo về bản rà soát cần chỉnh sửa hoặc chờ đối chiếu sẽ xuất hiện ở đây.",
           );
       $$("[data-read]", root).forEach(
         (b) =>

@@ -1,0 +1,28 @@
+{
+  "dataset": "MMOTU OTU_2d",
+  "task": "binary pixel-mask segmentation",
+  "source_label_type": "image-level global category; not used as a diagnosis",
+  "split_level": "image-level",
+  "patient_identity_available": false,
+  "patient_level_independence_verified": false,
+  "split_policy": "official upstream train_cls.txt and val_cls.txt lists",
+  "split_counts": {
+    "train": 1000,
+    "val": 469
+  },
+  "source_label_files": {
+    "train": {
+      "path": "metadata/mmotu_2d_train_cls.txt",
+      "sha256": "f9a79dcf933bf99fb5b905dbf09fe24b19b7dca639034dab6368548c2e7acb47"
+    },
+    "val": {
+      "path": "metadata/mmotu_2d_val_cls.txt",
+      "sha256": "24bdd8185a88e8965353c231190d59860613327658e7edb796e01b973bdedfc6"
+    }
+  },
+  "mask_policy": "prefer *_binary.PNG; where both variants exist, require exact binary-equivalence",
+  "image_sha256_cross_split_overlap": 0,
+  "test_split_available": false,
+  "vinmec_data_used": false,
+  "dataset_terms": "Upstream code license does not establish image/mask dataset redistribution rights."
+}

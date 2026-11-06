@@ -95,8 +95,8 @@ async function main(){
   await page.waitForFunction(()=>!document.getElementById('reportPrintBtn').disabled,{timeout:30000});
   assert.equal(await page.locator('#reportPreviewError').isVisible(),false);
   assert.ok((await page.locator('#reportPreviewContent').textContent()).includes(pid));
-  assert.ok((await page.locator('#reportPreviewContent').textContent()).includes('Chưa có chữ ký số'));
-  assert.ok((await page.locator('#reportPreviewContent').textContent()).includes('Bản mẫu nghiên cứu - Không thay thế chẩn đoán y khoa'));
+  assert.ok((await page.locator('#reportPreviewContent').textContent()).includes('Xác thực chữ ký số: ngoài phạm vi phiên bản RUO'));
+  assert.ok((await page.locator('#reportPreviewContent').textContent()).includes('Môi trường nghiên cứu RUO'));
   const recordedModel=study.images[0].prediction.model_version;
   assert.ok(recordedModel);
   assert.ok((await page.locator('#reportPreviewContent').textContent()).includes(recordedModel));

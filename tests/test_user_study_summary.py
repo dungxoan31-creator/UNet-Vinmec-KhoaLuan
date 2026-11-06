@@ -4,8 +4,13 @@ Verifies honest handling of clinician vs technical participants,
 non-fabrication of metrics, Likert statistics oracles, and HTML escaping.
 """
 
+import csv
+import json
+import sys
+
 import pytest
 
+from evaluation import hitl_analysis
 from evaluation.hitl_analysis import summarize_questionnaire
 
 
@@ -108,3 +113,138 @@ def test_study_status_preservation():
 
     summary_not_conducted = summarize_questionnaire([], [], study_status="NOT_CONDUCTED")
     assert summary_not_conducted["study_status"] == "NOT_CONDUCTED"
+
+
+@pytest.mark.parametrize(
+    "registry_row",
+    [
+        None,
+        {
+            "participant_code": "CL-01",
+            "role_verified": "unverified",
+            "consent_status": "CONSENTED",
+            "source_evidence": "consent-record:1",
+            "data_origin": "live",
+            "disposition": "included",
+        },
+        {
+            "participant_code": "CL-01",
+            "role_verified": "verified_clinician",
+            "consent_status": "NONE",
+            "source_evidence": "consent-record:1",
+            "data_origin": "live",
+            "disposition": "included",
+        },
+        {
+            "participant_code": "CL-01",
+            "role_verified": "verified_clinician",
+            "consent_status": "CONSENTED",
+            "source_evidence": "developer_self_declared",
+            "data_origin": "live",
+            "disposition": "included",
+        },
+    ],
+)
+def test_questionnaire_cli_quarantines_unverified_clinician_roles(tmp_path, monkeypatch, registry_row):
+    participants_path = tmp_path / "participants.csv"
+    responses_path = tmp_path / "responses.csv"
+    output_dir = tmp_path / "study_output"
+    with participants_path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["participant_code", "role", "source", "consent_status"])
+        writer.writeheader()
+        writer.writerow({
+            "participant_code": "CL-01",
+            "role": "clinician",
+            "source": "hospital",
+            "consent_status": "CONSENTED",
+        })
+    with responses_path.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(
+            stream,
+            fieldnames=["participant_code", "session_id", "item_id", "rating", "na_reason", "feedback"],
+        )
+        writer.writeheader()
+        writer.writerow({
+            "participant_code": "CL-01",
+            "session_id": "S-01",
+            "item_id": "usability",
+            "rating": "5",
+            "na_reason": "",
+            "feedback": "self-declared feedback",
+        })
+
+    args = [
+        "hitl_analysis",
+        "--participants", str(participants_path),
+        "--questionnaire", str(responses_path),
+        "--user-study-output", str(output_dir),
+        "--study-status", "CONDUCTED",
+    ]
+    if registry_row is not None:
+        registry_path = tmp_path / "registry.csv"
+        with registry_path.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=list(registry_row))
+            writer.writeheader()
+            writer.writerow(registry_row)
+        args.extend(["--participant-registry", str(registry_path)])
+
+    monkeypatch.setattr(sys, "argv", args)
+    hitl_analysis.main()
+
+    status = json.loads((output_dir / "study_status.json").read_text(encoding="utf-8"))
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert status["study_status"] == "NOT_CONDUCTED"
+    assert status["clinician_count"] == 0
+    assert status["has_clinician_validation"] is False
+    assert summary["items"] == {}
+    assert summary["feedback"] == []
+
+
+def test_questionnaire_cli_accepts_only_verified_consented_clinician_registry(tmp_path, monkeypatch):
+    participants_path = tmp_path / "participants.csv"
+    responses_path = tmp_path / "responses.csv"
+    registry_path = tmp_path / "registry.csv"
+    output_dir = tmp_path / "study_output"
+
+    for path, fields, row in [
+        (
+            participants_path,
+            ["participant_code", "role", "source", "consent_status"],
+            {"participant_code": "CL-01", "role": "clinician", "source": "hospital", "consent_status": "CONSENTED"},
+        ),
+        (
+            responses_path,
+            ["participant_code", "session_id", "item_id", "rating", "na_reason", "feedback"],
+            {"participant_code": "CL-01", "session_id": "S-01", "item_id": "usability", "rating": "5", "na_reason": "", "feedback": "verified feedback"},
+        ),
+        (
+            registry_path,
+            ["participant_code", "role_verified", "consent_status", "source_evidence", "data_origin", "disposition"],
+            {"participant_code": "CL-01", "role_verified": "verified_clinician", "consent_status": "CONSENTED", "source_evidence": "verified-consent-record:1", "data_origin": "live", "disposition": "included"},
+        ),
+    ]:
+        with path.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields)
+            writer.writeheader()
+            writer.writerow(row)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "hitl_analysis",
+            "--participants", str(participants_path),
+            "--questionnaire", str(responses_path),
+            "--participant-registry", str(registry_path),
+            "--user-study-output", str(output_dir),
+            "--study-status", "CONDUCTED",
+        ],
+    )
+    hitl_analysis.main()
+
+    status = json.loads((output_dir / "study_status.json").read_text(encoding="utf-8"))
+    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
+    assert status["study_status"] == "CONDUCTED"
+    assert status["clinician_count"] == 1
+    assert status["has_clinician_validation"] is True
+    assert summary["items"]["usability"]["n_valid"] == 1

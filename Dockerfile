@@ -1,17 +1,19 @@
-# Multi-stage production Dockerfile for Ovarian Ultrasound AI Decision Support
-FROM python:3.12-slim as base
+# Production Dockerfile for Ovarian Ultrasound AI Decision Support
+FROM python:3.12-slim AS base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=8000
+    PORT=8000 \
+    HOST=0.0.0.0
 
 # Install minimal OS dependencies for OpenCV, DICOM and PDF rendering
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
+    fonts-dejavu-core \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,17 +21,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Install Python dependencies using pinned lockfile for reproducibility (OPS-05, DEP-06..12)
-COPY requirements.txt requirements-lock.txt /app/
+COPY requirements-lock.txt /app/
 RUN pip install --no-cache-dir --upgrade "pip>=26.2" "setuptools>=78.1.1" && \
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.8.0 torchvision==0.23.0 && \
     pip install --no-cache-dir -r requirements-lock.txt
 
 # Copy application source code
 COPY backend/ /app/backend/
 COPY frontend/ /app/frontend/
-COPY templates/ /app/templates/
-COPY knowledge/ /app/knowledge/
-COPY checkpoints/ /app/checkpoints/
-COPY evaluation/ /app/evaluation/
 COPY pyproject.toml MODEL_CARD.md /app/
 
 # Ensure runtime directories exist
@@ -47,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/api/health/ready || exit 1
 
 # Start application with Uvicorn
-CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host \"$HOST\" --port \"$PORT\" --no-access-log"]

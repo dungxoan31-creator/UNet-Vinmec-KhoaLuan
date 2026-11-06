@@ -1,14 +1,16 @@
 import { state, preferences } from "./state.js";
+import { applySessionResponse } from "./auth.js";
 import { request } from "./api.js";
 import { $, esc, field, pageHead, button, modal, toast } from "./ui.js";
 import { startTour } from "./onboarding.js";
 export const shortcuts = [
   ["1 / 2 / 3", "Ảnh gốc / mask / lớp phủ"],
+  ["O", "Bật / tắt lớp phủ AI"],
   ["Space (giữ)", "Xem tạm ảnh gốc"],
   ["C", "Đổi chế độ đối chiếu"],
   ["K", "Đường viền / lớp phủ"],
   ["F", "Toàn màn hình"],
-  ["B / E / L", "Cọ / tẩy / đa giác (nhấp đúp để hoàn tất)"],
+  ["B / E / L / G", "Cọ / tẩy / đa giác / hoàn tất vùng đa giác"],
   ["X", "Đổi cọ và tẩy"],
   ["[ / ] hoặc Alt + cuộn", "Đổi cỡ cọ"],
   ["H / chuột giữa", "Di chuyển ảnh"],
@@ -16,7 +18,8 @@ export const shortcuts = [
   ["S", "Làm trơn mask"],
   ["R / Shift + R", "Khôi phục AI / xóa mask (có xác nhận)"],
   ["Ctrl + Z / Ctrl + Y", "Hoàn tác / làm lại"],
-  ["Ctrl + Enter", "Ký sơ bộ khi đã xem hai bên"],
+  ["Ctrl + S / Ctrl + Enter", "Lưu rà soát và chuyển ca tiếp theo"],
+  ["Ctrl + P / ⌘ + P", "Mở phiếu báo cáo của ca đang xem"],
   ["N / P", "Ca kế tiếp / trước trong hàng chờ"],
   ["Ctrl + K", "Tìm nhanh"],
   ["?", "Bảng phím tắt"],
@@ -60,10 +63,11 @@ export function renderPersonal(root, route) {
           if (data.new_password !== data.confirmation)
             return toast("Mật khẩu xác nhận không trùng.", true);
           try {
-            await request("/api/auth/change-password", {
+            const result = await request("/api/auth/change-password", {
               method: "POST",
               body: data,
             });
+            applySessionResponse(result);
             d.close();
             toast("Đã đổi mật khẩu.");
           } catch (err) {
@@ -91,13 +95,28 @@ export function renderPersonal(root, route) {
         button("Hướng dẫn nhanh", "start-tour") +
           button("Gửi góp ý", "feedback"),
       ) +
-      `<div class="two-col"><section class="panel"><div class="panel-head"><h2>Bắt đầu một khảo sát</h2></div><div class="panel-body"><div class="help-step"><h3>1. Chuẩn bị ảnh</h3><p>Sử dụng ảnh đã ẩn danh. Chọn riêng ảnh trái và phải, mỗi ảnh không quá 20 MB.</p></div><div class="help-step"><h3>2. Rà soát cả hai bên</h3><p>Dùng đường viền để quan sát; giữ Space để xem ảnh gốc. Chuyển bên bằng phím mũi tên.</p></div><div class="help-step"><h3>3. Kiểm tra thước đo</h3><p>Khi thiếu hiệu chuẩn, số đo chỉ có pixel. Không suy ra mm từ kích thước ảnh.</p></div><div class="help-step"><h3>4. Lưu và chuyển duyệt</h3><p>Ctrl+Enter mở bản tóm tắt. Chuyên gia duyệt độc lập trước khi khóa ca.</p></div><p class="muted small">Hỗ trợ phân đoạn siêu âm buồng trứng</p></div></section><section class="panel"><div class="panel-head"><h2>Phím tắt workstation</h2></div><div class="table-wrap"><table class="shortcut-table"><tbody>${shortcuts.map(([k, v]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${v}</td></tr>`).join("")}</tbody></table></div></section></div>`;
+      `<div class="two-col"><section class="panel"><div class="panel-head"><h2>Bắt đầu một khảo sát</h2></div><div class="panel-body"><div class="help-step"><h3>1. Chuẩn bị ảnh</h3><p>Sử dụng ảnh đã ẩn danh. Chọn riêng ảnh trái và phải, mỗi ảnh không quá 20 MB.</p></div><div class="help-step"><h3>2. Rà soát cả hai bên</h3><p>Dùng đường viền để quan sát; giữ Space để xem ảnh gốc. Chuyển bên bằng phím mũi tên.</p></div><div class="help-step"><h3>3. Kiểm tra thước đo</h3><p>Khi thiếu hiệu chuẩn, số đo chỉ có pixel. Không suy ra mm từ kích thước ảnh.</p></div><div class="help-step"><h3>4. Lưu rà soát</h3><p>Ctrl+S hoặc Ctrl+Enter lưu rà soát. Sau khi lưu thành công, hệ thống chuyển sang ca tiếp theo.</p></div><p class="muted small">Hỗ trợ phân đoạn siêu âm buồng trứng</p></div></section><section class="panel"><div class="panel-head"><h2>Phím tắt workstation</h2></div><div class="table-wrap"><table class="shortcut-table"><tbody>${shortcuts.map(([k, v]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${v}</td></tr>`).join("")}</tbody></table></div></section></div>`;
+    if (state.capabilities?.case_workflow !== true) {
+      const workflowStep = root.querySelectorAll(".help-step")[3];
+      if (workflowStep) {
+        workflowStep.querySelector("h3").textContent =
+          "4. Lưu rà soát tham khảo";
+        workflowStep.querySelector("p").textContent =
+          "Ctrl+S hoặc Ctrl+Enter lưu rà soát và chuyển ca tiếp theo. Quy trình ký duyệt hai cấp chưa khả dụng.";
+      }
+      const saveShortcut = [...root.querySelectorAll(".shortcut-table tr")].find(
+        (row) => row.querySelector("kbd")?.textContent === "Ctrl + S / Ctrl + Enter",
+      );
+      if (saveShortcut)
+        saveShortcut.cells[1].textContent =
+          "Lưu rà soát và chuyển ca tiếp theo; ký sơ bộ chưa khả dụng.";
+    }
     $("[data-action=start-tour]").onclick = startTour;
     $("[data-action=feedback]").onclick = () =>
       modal(
         "Báo lỗi / góp ý",
         field("Tiêu đề", "title", "text", "", "required") +
-          '<label class="field">Mô tả<textarea name="message" required></textarea></label><p class="small muted">Không gửi thông tin định danh bệnh nhân.</p><button class="btn primary" type="submit">Gửi góp ý</button>',
+          '<label class="field">Mô tả<textarea name="message" required></textarea></label><p class="small muted">Không gửi tên, ngày sinh, PID/mã bệnh án, ảnh hoặc nội dung lâm sàng của bệnh nhân. Góp ý được lưu trong nhật ký hệ thống.</p><button class="btn primary" type="submit">Gửi góp ý</button>',
         async (e, d) => {
           try {
             {

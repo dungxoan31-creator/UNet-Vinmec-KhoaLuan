@@ -99,3 +99,37 @@ def test_challenge_schema_stores_expiry_and_resend_state(tmp_path):
         assert (saved.attempts, saved.resend_count) == (2, 1)
         assert saved.last_sent_at == now
     engine.dispose()
+
+
+def test_email_migration_rolls_back_all_changes_on_unique_index_failure(tmp_path):
+    path = tmp_path / "duplicate-email.db"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, email VARCHAR(254))"
+        )
+        connection.executemany(
+            "INSERT INTO users (id, username, email) VALUES (?, ?, ?)",
+            [
+                ("one", "doctor-one", "doctor@example.org"),
+                ("two", "doctor-two", "Doctor@example.org"),
+            ],
+        )
+
+    with pytest.raises(RuntimeError, match="migration failed"):
+        database.migrate_auth_email_schema(str(path))
+
+    with sqlite3.connect(path) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
+        indexes = {row[1] for row in connection.execute("PRAGMA index_list(users)")}
+    assert "email_verified" not in columns
+    assert "uq_users_email_lower" not in indexes
+
+
+def test_project_sqlite_connection_enables_foreign_keys(tmp_path):
+    connect = getattr(database, "connect_sqlite", None)
+    assert callable(connect), "raw SQLite connections must use the project connection factory"
+    connection = connect(str(tmp_path / "pragma.db"))
+    try:
+        assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+    finally:
+        connection.close()

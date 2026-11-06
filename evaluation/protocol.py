@@ -104,6 +104,17 @@ def _check_safe_relative_path(root: Path, rel_path_str: str) -> Path | None:
         return None
 
 
+def _resolve_safe_dataset_path(root: Path, recorded: Any, sample_id: str, field: str) -> tuple[Path | None, str | None]:
+    if not isinstance(recorded, str) or not recorded.strip():
+        return None, f"Sample '{sample_id}': {field} must be a non-empty path"
+    try:
+        resolved = resolve_dataset_path(root, recorded.strip()).resolve()
+        resolved.relative_to(root.resolve())
+    except (OSError, RuntimeError, TypeError, ValueError):
+        return None, f"Sample '{sample_id}': {field} escapes root or cannot be resolved: {recorded}"
+    return resolved, None
+
+
 def audit_inputs(root: Path, cases: list[dict[str, Any]], protocol: dict[str, Any], run_kind: str) -> dict[str, Any]:
     """Audit dataset inputs, geometry, hashes, and data independence gate."""
     allowed_runs = protocol.get("run_kinds", [])
@@ -119,6 +130,8 @@ def audit_inputs(root: Path, cases: list[dict[str, Any]], protocol: dict[str, An
         "valid": 0,
         "failed": 0
     }
+    if not cases:
+        errors.append("Input manifest contains no samples")
 
     patient_independence = {
         "run_kind": run_kind,
@@ -137,19 +150,41 @@ def audit_inputs(root: Path, cases: list[dict[str, Any]], protocol: dict[str, An
 
     # Pre-check for independent_test
     if run_kind == "independent_test":
+        checked_development_files = set()
         for case in cases:
             dev_evidence = case.get("development_history_evidence")
             if dev_evidence and dev_evidence.strip():
                 dev_path = _check_safe_relative_path(root, dev_evidence.strip())
                 if dev_path and dev_path.is_file():
+                    if dev_path in checked_development_files:
+                        continue
+                    checked_development_files.add(dev_path)
                     try:
                         content = json.loads(dev_path.read_text(encoding="utf-8"))
-                        if isinstance(content, dict):
-                            for key in ["train_patients", "val_patients", "development_patients"]:
-                                if key in content and isinstance(content[key], list):
-                                    train_val_patients.update(content[key])
-                    except Exception as e:
-                        errors.append(f"Could not parse development history evidence {dev_path}: {e}")
+                    except (OSError, json.JSONDecodeError) as exc:
+                        errors.append(f"Could not parse development history evidence {dev_path}: {exc}")
+                        continue
+                    if not isinstance(content, dict):
+                        errors.append(f"Development history evidence must be a JSON object: {dev_path}")
+                        continue
+                    development_sets = {}
+                    for key in ("train_patients", "val_patients"):
+                        patient_ids = content.get(key)
+                        if (
+                            not isinstance(patient_ids, list)
+                            or not patient_ids
+                            or any(not isinstance(value, str) or not value.strip() for value in patient_ids)
+                        ):
+                            errors.append(
+                                f"Development history evidence requires a non-empty {key} list: {dev_path}"
+                            )
+                        else:
+                            development_sets[key] = {value.strip() for value in patient_ids}
+                    if len(development_sets) == 2:
+                        train_val_patients.update(development_sets["train_patients"])
+                        train_val_patients.update(development_sets["val_patients"])
+        if not checked_development_files:
+            errors.append("Independent Test requires readable development history evidence")
 
     for idx, case in enumerate(cases):
         sample_id = case.get("sample_id", f"sample_{idx}")
@@ -178,13 +213,16 @@ def audit_inputs(root: Path, cases: list[dict[str, Any]], protocol: dict[str, An
                     elif not safe_path.is_file():
                         case_errors.append(f"Sample '{sample_id}' {ev_key} file not found: {ev_val}")
 
-        # Resolve image and mask paths
-        img_resolved = resolve_dataset_path(root, image_path_str)
-        mask_resolved = resolve_dataset_path(root, mask_path_str)
-
-        if not img_resolved.is_file():
+        # Resolve image and mask paths under root before reading any bytes.
+        img_resolved, img_path_error = _resolve_safe_dataset_path(root, image_path_str, sample_id, "image_path")
+        mask_resolved, mask_path_error = _resolve_safe_dataset_path(root, mask_path_str, sample_id, "mask_path")
+        if img_path_error:
+            case_errors.append(img_path_error)
+        elif img_resolved is not None and not img_resolved.is_file():
             case_errors.append(f"Sample '{sample_id}': Image file not found: {img_resolved}")
-        if not mask_resolved.is_file():
+        if mask_path_error:
+            case_errors.append(mask_path_error)
+        elif mask_resolved is not None and not mask_resolved.is_file():
             case_errors.append(f"Sample '{sample_id}': Mask file not found: {mask_resolved}")
 
         if not case_errors:
@@ -238,6 +276,11 @@ def audit_inputs(root: Path, cases: list[dict[str, Any]], protocol: dict[str, An
             status = "BLOCKED"
         elif errors:
             status = "FAILED"
+        elif not label_provenance["verified"]:
+            errors.append(
+                "Independent Test is blocked because this protocol has no verified label provenance attestation"
+            )
+            status = "BLOCKED"
         else:
             status = "READY"
             patient_independence["verified"] = True

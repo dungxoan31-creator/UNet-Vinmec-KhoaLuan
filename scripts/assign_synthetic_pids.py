@@ -10,9 +10,13 @@ import hashlib
 import io
 import json
 import random
+import re
 from collections import Counter
 from pathlib import Path
 
+from backend.core.dataset_paths import resolve_dataset_path
+
+ROOT = Path(__file__).resolve().parents[1]
 SPLITS = ("train", "val", "test")
 STATUS = "partitioned by synthetic patient_id; disjoint split validated"
 
@@ -31,13 +35,14 @@ def assign_synthetic_pids(splits_dir: Path, mapping_output: Path, seed: int = 42
     fields_by_split = {}
     original_hashes = {}
     case_ids = set()
+    image_hashes = {}
     for split in SPLITS:
         path = splits_dir / f"{split}.csv"
         original_hashes[split] = hashlib.sha256(path.read_bytes()).hexdigest()
         with path.open(newline="", encoding="utf-8-sig") as stream:
             reader = csv.DictReader(stream)
             fields = list(reader.fieldnames or ())
-            if not {"case_id", "image_path", "mask_path"}.issubset(fields):
+            if not {"case_id", "image_path", "mask_path", "image_sha256"}.issubset(fields):
                 raise ValueError(f"Missing required CSV columns in {path}")
             rows = list(reader)
         if len(rows) != manifest["counts"][split]:
@@ -47,6 +52,26 @@ def assign_synthetic_pids(splits_dir: Path, mapping_output: Path, seed: int = 42
             if not case_id or case_id in case_ids:
                 raise ValueError(f"Empty or duplicate case_id: {case_id!r}")
             case_ids.add(case_id)
+            image_hash = str(row.get("image_sha256") or "").strip().lower()
+            if not re.fullmatch(r"[0-9a-f]{64}", image_hash):
+                raise ValueError(f"Invalid or missing image SHA-256 in {path}")
+            image_path = resolve_dataset_path(ROOT, str(row.get("image_path") or "").strip())
+            if not image_path.is_file() and not Path(str(row.get("image_path") or "")).is_absolute():
+                local_image_path = splits_dir / str(row["image_path"]).replace("\\", "/")
+                if local_image_path.is_file():
+                    image_path = local_image_path
+            if not image_path.is_file():
+                raise FileNotFoundError(f"Image file missing or unreadable: {row.get('image_path')!r}")
+            actual_image_hash = _sha256_file(image_path)
+            if actual_image_hash != image_hash:
+                raise ValueError(f"Image SHA-256 does not match the source file in {path}")
+            image_hash = actual_image_hash
+            prior_split = image_hashes.get(image_hash)
+            if prior_split == split:
+                raise ValueError(f"Duplicate image SHA-256 within {split}")
+            if prior_split is not None:
+                raise ValueError(f"Image SHA-256 overlap between {prior_split} and {split}")
+            image_hashes[image_hash] = split
             if row.get("patient_id") and prior_synthetic_ids.get(case_id) != row["patient_id"]:
                 raise ValueError("Refusing to replace patient IDs without matching synthetic provenance")
         if "patient_id" not in fields:
@@ -140,6 +165,14 @@ def assign_synthetic_pids(splits_dir: Path, mapping_output: Path, seed: int = 42
         (splits_dir / f"{split}.csv").write_bytes(csv_bytes[split])
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {"counts": counts, "unique_patients_per_split": unique, "patient_split_status": STATUS}
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 if __name__ == "__main__":

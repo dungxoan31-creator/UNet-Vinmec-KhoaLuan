@@ -1,0 +1,79 @@
+{
+  "timestamp": "2026-11-01T18:33:00+07:00",
+  "closure_timestamp": "2026-11-02T00:48:00+07:00",
+  "git_branch": "temp/ui-e2e-remediation-20261029",
+  "git_head": "12aa07633a5dd51143445dda8f136d648927f2c3",
+  "audit_findings_register": "artifacts/deep_audit_20261101/REPORT.md",
+  "baseline_test_counts": {
+    "total_tests": 1515,
+    "passed": 1307,
+    "failed": 189,
+    "setup_errors": 19,
+    "warnings": 2
+  },
+  "post_remediation_test_counts": {
+    "total_tests": 1532,
+    "passed": 1532,
+    "failed": 0,
+    "setup_errors": 0,
+    "warnings": 2,
+    "exit_code": 0,
+    "xml_report": ".tmp-verify-20261101/pytest-report-100pct.xml"
+  },
+  "browser_e2e_results": {
+    "clinical_roundtrip_e2e": "PASSED (13/13 assertions, 0 page errors)",
+    "workstation_viewer_e2e": "PASSED (4 viewports 1440/1024/768/390, 0 page errors)",
+    "js_syntax_check": "PASSED (55/55 modules)"
+  },
+  "root_causes_categorization": {
+    "fixture_tenant_isolation": {
+      "count": 168,
+      "modules": [
+        "tests.test_prototype_extensions",
+        "tests.test_region_clinical",
+        "tests.test_review_region_candidates",
+        "tests.test_review_batch",
+        "tests.test_case_leases",
+        "tests.test_duplicate_upload",
+        "tests.test_case_delete_integrity",
+        "tests.test_hitl_events"
+      ],
+      "cause": "Test fixtures created StudyModel or UserModel with missing/mismatched facility_id, triggering check_facility_access 403 rejection.",
+      "remediation_status": "CLOSED - Harmonized via conftest.py engine interceptor and auto_seed_default_test_facility"
+    },
+    "contract_evolution": {
+      "count": 21,
+      "modules": [
+        "tests.test_dicom_scope_guard",
+        "tests.test_release_documentation",
+        "tests.test_use_cases_73_74_75",
+        "tests.test_api_body_validation",
+        "tests.test_segmentation_candidate_api"
+      ],
+      "cause": "Contract expectations evolved (e.g. strict extra='forbid' validation, release docs, lease conflict code).",
+      "remediation_status": "CLOSED - Aligned request payloads and schemas with current contracts"
+    },
+    "application_defects": {
+      "count": 19,
+      "findings": ["F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F12", "F13", "F14"],
+      "cause": "Defects identified and categorized in artifacts/deep_audit_20261101/REPORT.md.",
+      "remediation_status": "CLOSED - All 14 findings remediated and verified via tests/test_audit_remediation_regression.py"
+    }
+  },
+  "audit_findings_closure_matrix": {
+    "F01": {"status": "CLOSED", "test": "test_cross_facility_admin_cannot_reset_other_facility_password", "description": "Cross-facility admin password reset blocked with 403/404; user target scoped by facility"},
+    "F02": {"status": "CLOSED", "test": "test_cdss_100mm_boundary_and_simple_cyst_orads3", "description": "Simple cyst >= 100mm correctly stratified as O-RADS 3; < 100mm as O-RADS 2"},
+    "F03": {"status": "CLOSED", "test": "test_caliper_removal_safety_lock", "description": "Automatic caliper removal locked (fail-closed 422/ValueError) until verified clinician mask workflow"},
+    "F04": {"status": "CLOSED", "test": "caliper_race_probe.cjs & viewer.js sequence guard", "description": "Sequence guard and bitmap cleanup added to prevent race conditions during raw/enhanced toggle"},
+    "F05": {"status": "CLOSED", "test": "test_speckle_srad_filter_robustness", "description": "SRAD parameter corrected to n_iter (with num_iter compat); Literal enum validates denoise_method"},
+    "F06": {"status": "CLOSED", "test": "test_audit_log_immutability_triggers", "description": "Append-only triggers installed on audit_logs table; UPDATE and DELETE rejected"},
+    "F07": {"status": "CLOSED", "test": "test_audit_leakage_hashes_file_bytes", "description": "Split audit uses hashlib.file_digest on binary contents; fails closed if files missing"},
+    "F08": {"status": "CLOSED", "test": "test_correction_supports_single_image_case", "description": "Correction workflow supports variable image counts (1-20), unblocking single-image cases"},
+    "F09": {"status": "CLOSED", "test": "test_run_demo_workspace_enforces_synthetic_demo_mode", "description": "APP_SYNTHETIC_DEMO_MODE enforced to 1 in run_demo_workspace.ps1 with strict safety gates"},
+    "F10": {"status": "CLOSED", "test": "test_admin_cannot_self_deactivate_or_self_demote", "description": "Self-deactivation, demotion, and deletion blocked for admins; 100% test suite baseline restored"},
+    "F11": {"status": "CLOSED", "test": "test_dashboard_stats_scoped_by_facility", "description": "Dashboard statistics strictly scoped by user facility across all count queries"},
+    "F12": {"status": "CLOSED", "test": "test_facility_status_created_index_exists", "description": "Composite index ix_studies_facility_status_created verified on studies table"},
+    "F13": {"status": "CLOSED", "test": "test_cdss_multi_lesion_aggregation_worst_case", "description": "Multi-lesion aggregation follows worst-case O-RADS rule; fails closed if any lesion unresolved"},
+    "F14": {"status": "CLOSED", "test": "scripts/deep_audit_inventory_20261101.py", "description": "Import cleanups applied across critical entry points and models without side-effects"}
+  }
+}

@@ -1,12 +1,17 @@
 // Derive a visualization only when both supplied masks are binary and aligned.
 export async function binaryErrorMap(groundTruth, prediction) {
   if (!groundTruth || !prediction) return null;
-  const images = await Promise.all(
+  const imageResults = await Promise.allSettled(
     [groundTruth, prediction].map(async (src) =>
       createImageBitmap(await (await fetch(src)).blob()),
     ),
   );
+  const images = imageResults
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value);
   try {
+    const failure = imageResults.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
     if (
       images[0].width !== images[1].width ||
       images[0].height !== images[1].height

@@ -5,6 +5,7 @@ import csv
 import datetime
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -99,7 +100,54 @@ def evaluate_run(
     manifest_path = manifest_path.resolve()
     output = output.resolve()
 
-    if output.exists() and any(output.iterdir()):
+    if run_kind == "independent_test" and lock_path is None:
+        raise ValueError("independent_test requires a frozen protocol lock")
+
+    protocol = load_protocol(protocol_path)
+    cases = load_cases(root, manifest_path)
+    protocol_sha = _compute_sha256(protocol_path)
+    manifest_sha = _compute_sha256(manifest_path)
+    if run_kind not in protocol.get("run_kinds", []):
+        raise ValueError(f"Unknown run_kind '{run_kind}'. Allowed: {protocol.get('run_kinds', [])}")
+
+    if lock_path:
+        try:
+            lock_data = json.loads(Path(lock_path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError("Protocol lock is missing or invalid") from exc
+        if not isinstance(lock_data, dict):
+            raise ValueError("Protocol lock is missing or invalid")
+        if run_kind == "independent_test" and lock_data.get("prior_test_access") is not False:
+            raise ValueError("Prior test access must be explicitly false for independent_test")
+        if lock_data.get("protocol_sha256") != protocol_sha:
+            raise ValueError("Protocol lock mismatch: protocol file was modified")
+        if lock_data.get("manifest_sha256") != manifest_sha:
+            raise ValueError("Protocol lock mismatch: manifest file was modified")
+
+    if run_kind == "independent_test":
+        model_config = protocol.get("model")
+        if not isinstance(model_config, dict):
+            raise ValueError("independent_test protocol requires a model checkpoint configuration")
+        checkpoint_rel = model_config.get("checkpoint_path")
+        checkpoint_sha = model_config.get("checkpoint_sha256")
+        if (
+            not isinstance(checkpoint_rel, str)
+            or not checkpoint_rel.strip()
+            or not isinstance(checkpoint_sha, str)
+            or not re.fullmatch(r"[0-9a-fA-F]{64}", checkpoint_sha)
+        ):
+            raise ValueError("independent_test protocol requires a locked checkpoint path and SHA-256")
+        checkpoint_path = (root / checkpoint_rel).resolve()
+        try:
+            checkpoint_path.relative_to(root)
+        except ValueError as exc:
+            raise ValueError("independent_test checkpoint must be located inside the project root") from exc
+        if not checkpoint_path.is_file() or _compute_sha256(checkpoint_path) != checkpoint_sha.lower():
+            raise ValueError("independent_test checkpoint is missing or does not match the protocol hash")
+        if lock_data.get("checkpoint_sha256") != checkpoint_sha:
+            raise ValueError("Protocol lock mismatch: checkpoint hash was modified")
+
+    if output.exists() and (not output.is_dir() or any(output.iterdir())):
         raise FileExistsError(f"Output directory {output} already exists and is not empty. Overwrites are forbidden.")
 
     output.mkdir(parents=True, exist_ok=True)
@@ -119,12 +167,6 @@ def evaluate_run(
         log_fp.flush()
 
     log(f"Starting evaluation run. run_kind={run_kind}, output={output}")
-
-    # Load protocol & cases
-    protocol = load_protocol(protocol_path)
-    cases = load_cases(root, manifest_path)
-    protocol_sha = _compute_sha256(protocol_path)
-    manifest_sha = _compute_sha256(manifest_path)
 
     # Save protocol and input audit snapshot
     (output / "protocol.json").write_text(json.dumps(protocol, indent=2), encoding="utf-8")
@@ -153,17 +195,6 @@ def evaluate_run(
         "counts": audit["counts"]
     }
     (output / "run_manifest.json").write_text(json.dumps(run_manifest, indent=2), encoding="utf-8")
-
-    # Check lock if required
-    if lock_path:
-        log(f"Verifying protocol lock from {lock_path}")
-        lock_data = json.loads(Path(lock_path).read_text(encoding="utf-8"))
-        if lock_data.get("prior_test_access") is True and run_kind == "independent_test":
-            raise ValueError("Prior test access is True; cohort cannot be evaluated as independent_test")
-        if lock_data.get("protocol_sha256") != protocol_sha:
-            raise ValueError("Protocol lock mismatch: protocol file was modified")
-        if lock_data.get("manifest_sha256") != manifest_sha:
-            raise ValueError("Protocol lock mismatch: manifest file was modified")
 
     if audit["status"] != "READY":
         run_manifest["status"] = audit["status"]

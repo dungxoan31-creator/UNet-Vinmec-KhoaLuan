@@ -28,7 +28,6 @@ def _pairs(image_dir: Path, mask_dir: Path) -> list[dict[str, str]]:
             "case_id": stem,
             "image_path": images[stem].as_posix(),
             "mask_path": masks[stem].as_posix(),
-            "patient_id": "",
             "image_sha256": hashlib.sha256(image.shape.__repr__().encode() + image.tobytes()).hexdigest(),
         })
     return rows
@@ -57,12 +56,9 @@ def prepare_splits(data_dir: Path, output_dir: Path, val_fraction: float = 0.15,
     summary = {
         "source": str(data_dir), "seed": seed, "val_fraction": val_fraction,
         "counts": {"train": len(train), "val": len(val), "test": len(test)},
-        "split_level": "image",
-        "patient_id_status": "Unavailable in local files; patient-level separation cannot be verified",
-        "patient_split_status": "unverified; source patient IDs unavailable",
-        "patient_id_format_required": "^[1-9][0-9]{8}$",
-        "records_with_patient_id": {"train": 0, "val": 0, "test": 0},
-        "unique_patients_per_split": {"train": None, "val": None, "test": None},
+        "split_level": "image-level",
+        "patient_identity_used_for_training": False,
+        "patient_level_independence_verified": False,
         "source_test_preserved": True,
         "exact_decoded_image_duplicates": 0,
     }

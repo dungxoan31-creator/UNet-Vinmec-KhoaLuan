@@ -1,6 +1,7 @@
 """
 Standard U-Net Baseline Training Pipeline with Combo Loss (BCE + Soft Dice).
-Patient-level training requires source-verified IDs; image-level runs need an explicit exploratory opt-in.
+Exploratory training requires valid, aligned, image-disjoint pairs. Patient-level
+identity is not required for training and is never implied by image-level separation.
 """
 
 import csv
@@ -8,10 +9,12 @@ import hashlib
 import json
 import os
 import random
+import re
 import sys
 import time
 from pathlib import Path
 
+import cv2
 import numpy as np
 import torch
 import torch.nn as nn
@@ -23,7 +26,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from ai_training.dataset_loader import get_dataloaders
+from ai_training.dataset_loader import OvarianUltrasoundDataset, cv2_imread_unicode, get_train_val_dataloaders
+from backend.core.dataset_paths import resolve_dataset_path
 from backend.models.unet import StandardUNet
 
 
@@ -79,6 +83,122 @@ def _file_sha256(path):
     return digest.hexdigest()
 
 
+def _resolve_training_file(splits_dir, recorded, field, csv_path, row_number):
+    value = str(recorded or "").strip()
+    if not value:
+        raise ValueError(f"Missing {field} at {csv_path}:{row_number}")
+    path = Path(value)
+    if path.is_absolute():
+        candidates = (path,)
+    else:
+        project_root = Path(__file__).resolve().parents[1]
+        candidates = (
+            resolve_dataset_path(project_root, value),
+            *(parent / path for parent in (Path(splits_dir), *Path(splits_dir).parents)),
+        )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    raise ValueError(f"{field} file does not exist at {csv_path}:{row_number}: {value}")
+
+
+def _resolve_source_artifact(splits_dir, recorded, field, manifest_path):
+    value = str(recorded or "").strip()
+    if not value:
+        raise ValueError(f"Missing {field} in source identity evidence: {manifest_path}")
+    path = Path(value)
+    if path.is_absolute():
+        candidates = (path,)
+    else:
+        split_dir = Path(splits_dir)
+        candidates = (
+            split_dir / path,
+            *(parent / path for parent in split_dir.parents),
+            Path(__file__).resolve().parents[1] / path,
+        )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    raise ValueError(f"{field} file does not exist: {value}")
+
+
+def _load_verified_source_metadata(splits_dir, manifest, manifest_path):
+    required_fields = (
+        "source_metadata_path",
+        "input_metadata_sha256",
+        "identity_manifest_path",
+        "identity_manifest_sha256",
+    )
+    if any(not str(manifest.get(field) or "").strip() for field in required_fields):
+        raise ValueError(f"Patient-level split source identity evidence is missing: {manifest_path}")
+
+    metadata_path = _resolve_source_artifact(
+        splits_dir, manifest["source_metadata_path"], "source_metadata_path", manifest_path
+    )
+    identity_path = _resolve_source_artifact(
+        splits_dir, manifest["identity_manifest_path"], "identity_manifest_path", manifest_path
+    )
+    metadata_hash = str(manifest["input_metadata_sha256"]).strip().lower()
+    identity_hash = str(manifest["identity_manifest_sha256"]).strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", metadata_hash) or _file_sha256(metadata_path) != metadata_hash:
+        raise ValueError(f"Source metadata SHA-256 does not match the split manifest: {metadata_path}")
+    if not re.fullmatch(r"[0-9a-f]{64}", identity_hash) or _file_sha256(identity_path) != identity_hash:
+        raise ValueError(f"Identity manifest SHA-256 does not match the split manifest: {identity_path}")
+
+    try:
+        identity_manifest = json.loads(identity_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Source identity evidence is unreadable: {identity_path}") from exc
+    if not isinstance(identity_manifest, dict):
+        raise ValueError(f"Source identity evidence must be an object: {identity_path}")
+    if (
+        identity_manifest.get("source_patient_identity_verified") is not True
+        or identity_manifest.get("patient_ids_verified") is not True
+        or identity_manifest.get("identity_level") != "patient_verified"
+        or identity_manifest.get("synthetic_patient_metadata") is True
+        or identity_manifest.get("clinical_metadata_is_synthetic") is True
+        or identity_manifest.get("metadata_sha256") != metadata_hash
+        or not str(identity_manifest.get("identity_source") or "").strip()
+        or not str(identity_manifest.get("identity_evidence_reference") or "").strip()
+    ):
+        raise ValueError(f"Identity manifest does not verify this source metadata: {identity_path}")
+
+    required_columns = {"case_id", "patient_id", "split", "image_path", "mask_path"}
+    with metadata_path.open(newline="", encoding="utf-8-sig") as stream:
+        reader = csv.DictReader(stream)
+        fields = set(reader.fieldnames or [])
+        if not required_columns.issubset(fields):
+            raise ValueError(
+                f"Source metadata is missing columns: {sorted(required_columns - fields)} at {metadata_path}"
+            )
+        source_rows = {}
+        patient_splits = {}
+        for row_number, row in enumerate(reader, start=2):
+            case_id = str(row.get("case_id") or "").strip()
+            patient_id = str(row.get("patient_id") or "").strip()
+            split = str(row.get("split") or "").strip().upper()
+            image_path = str(row.get("image_path") or "").strip().replace("\\", "/")
+            mask_path = str(row.get("mask_path") or "").strip().replace("\\", "/")
+            if not patient_id:
+                raise ValueError(f"Source metadata contains empty patient_id at {metadata_path}:{row_number}")
+            if not case_id or case_id in source_rows:
+                raise ValueError(f"Source metadata case_id is empty or duplicated at {metadata_path}:{row_number}")
+            if split not in {"TRAIN", "VAL", "TEST"} or not image_path or not mask_path:
+                raise ValueError(f"Source metadata row is incomplete at {metadata_path}:{row_number}")
+            prior_split = patient_splits.setdefault(patient_id, split)
+            if prior_split != split:
+                raise ValueError(f"Patient ID overlap in source metadata: {patient_id}")
+            source_rows[case_id] = {
+                "patient_id": patient_id,
+                "split": split,
+                "image_path": image_path,
+                "mask_path": mask_path,
+            }
+    if not source_rows or {row["split"] for row in source_rows.values()} != {"TRAIN", "VAL", "TEST"}:
+        raise ValueError(f"Source metadata must include non-empty TRAIN, VAL and TEST partitions: {metadata_path}")
+    return source_rows
+
+
 def load_initial_checkpoint(model, checkpoint_path, device):
     """Load a compatible model state for fine-tuning and return its SHA-256."""
     checkpoint_path = Path(checkpoint_path)
@@ -87,39 +207,282 @@ def load_initial_checkpoint(model, checkpoint_path, device):
     return _file_sha256(checkpoint_path)
 
 
-def validate_training_split_identity(splits_dir, allow_image_level=False):
-    """Require verified patient IDs for a patient-independent training claim."""
+def validate_checkpoint_provenance(checkpoint_path, expected_split_manifest_sha256=None):
+    """Accept only a hash-matched checkpoint produced by the verified full trainer."""
+    checkpoint_path = Path(checkpoint_path)
+    provenance_path = checkpoint_path.parent / "full_unet_run_config.json"
+    if not checkpoint_path.is_file() or not provenance_path.is_file():
+        raise ValueError("Checkpoint provenance is missing or unverifiable")
+    try:
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Checkpoint provenance is missing or unverifiable") from exc
+    if not isinstance(provenance, dict):
+        raise ValueError("Checkpoint provenance is missing or unverifiable")
+
+    recorded_path = provenance.get("checkpoint")
+    split_hash = provenance.get("split_manifest_sha256")
+    checkpoint_hash = _file_sha256(checkpoint_path)
+    if (
+        provenance.get("identity_status") not in {"patient_level_verified", "image_level_verified"}
+        or provenance.get("test_split_image_data_used") is not False
+        or provenance.get("checkpoint_sha256") != checkpoint_hash
+        or not isinstance(recorded_path, str)
+        or not Path(recorded_path).is_absolute()
+        or Path(recorded_path).resolve() != checkpoint_path.resolve()
+        or not isinstance(split_hash, str)
+        or not re.fullmatch(r"[0-9a-fA-F]{64}", split_hash)
+        or (
+            expected_split_manifest_sha256 is not None
+            and split_hash.lower() != expected_split_manifest_sha256.lower()
+        )
+    ):
+        raise ValueError("Checkpoint provenance does not verify a test-isolated model")
+    return checkpoint_hash
+
+
+def validate_training_split_identity(splits_dir):
+    """Require source-verified patient separation for patient-independent evaluation."""
     splits_dir = Path(splits_dir)
     manifest_path = splits_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
-    verified = manifest.get("patient_ids_verified") is True or manifest.get("identity_level") == "patient_verified"
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Split manifest must be a JSON object: {manifest_path}")
+    verified = manifest.get("source_patient_identity_verified") is True and (
+        manifest.get("patient_ids_verified") is True or manifest.get("identity_level") == "patient_verified"
+    )
 
     if not verified:
-        if allow_image_level:
-            return "image_level_only"
         raise ValueError(
             f"Patient-level independence is not verified for {splits_dir}. "
-            "Supply source-verified patient IDs or explicitly set allow_image_level=True for exploratory training."
+            "Patient-independent evaluation requires source-verified patient IDs and disjoint patient splits."
         )
 
     patient_sets = {}
+    seen_hashes = {}
+    expected_counts = manifest.get("split_counts", {})
+    if not isinstance(expected_counts, dict):
+        raise ValueError(f"split_counts must be an object: {manifest_path}")
+    if verified and any(split not in expected_counts for split in ("train", "val", "test")):
+        raise ValueError(f"Verified split manifest requires train/val/test split_counts: {manifest_path}")
+    source_rows = _load_verified_source_metadata(splits_dir, manifest, manifest_path)
+    seen_case_ids = set()
     for split in ("train", "val", "test"):
+        if split in expected_counts and (type(expected_counts[split]) is not int or expected_counts[split] < 1):
+            raise ValueError(f"Invalid {split} split_counts value: {manifest_path}")
         path = splits_dir / f"{split}.csv"
         with path.open(newline="", encoding="utf-8-sig") as stream:
             reader = csv.DictReader(stream)
-            if "patient_id" not in (reader.fieldnames or []):
+            fields = set(reader.fieldnames or [])
+            if "image_sha256" not in fields:
+                raise ValueError(f"Split is missing image_sha256 column: {path}")
+            if "mask_sha256" not in fields:
+                raise ValueError(f"Split is missing mask_sha256 column: {path}")
+            if "image_path" not in fields:
+                raise ValueError(f"Split is missing image_path column: {path}")
+            if "mask_path" not in fields:
+                raise ValueError(f"Split is missing mask_path column: {path}")
+            if verified and "case_id" not in fields:
+                raise ValueError(f"Verified patient split is missing case_id column: {path}")
+            if verified and "patient_id" not in fields:
                 raise ValueError(f"Verified patient split is missing patient_id column: {path}")
-            ids = {str(row.get("patient_id") or "").strip() for row in reader}
-            ids.discard("")
-            if not ids:
-                raise ValueError(f"Verified patient split contains no patient IDs: {path}")
-            patient_sets[split] = ids
+            rows = list(reader)
+
+        if not rows:
+            raise ValueError(f"Split contains no samples: {path}")
+        if split in expected_counts and len(rows) != expected_counts[split]:
+            raise ValueError(f"{split} sample count does not match split manifest: {path}")
+
+        ids = set()
+        for row_number, row in enumerate(rows, start=2):
+            patient_id = str(row.get("patient_id") or "").strip()
+            if verified and not patient_id:
+                raise ValueError(f"Verified patient split contains empty patient_id at {path}:{row_number}")
+            if patient_id:
+                ids.add(patient_id)
+
+            case_id = str(row.get("case_id") or "").strip()
+            if not case_id or case_id in seen_case_ids:
+                raise ValueError(f"Verified patient split contains an empty or duplicate case_id at {path}:{row_number}")
+            seen_case_ids.add(case_id)
+            source_row = source_rows.get(case_id)
+            if source_row is None:
+                raise ValueError(f"case_id does not exist in source metadata at {path}:{row_number}")
+            if (
+                patient_id != source_row["patient_id"]
+                or source_row["split"] != split.upper()
+            ):
+                raise ValueError(f"patient_id or split does not match source metadata at {path}:{row_number}")
+            if (
+                str(row.get("image_path") or "").strip().replace("\\", "/") != source_row["image_path"]
+                or str(row.get("mask_path") or "").strip().replace("\\", "/") != source_row["mask_path"]
+            ):
+                raise ValueError(f"Image/mask path does not match source metadata at {path}:{row_number}")
+
+            image_hash = str(row.get("image_sha256") or "").strip().lower()
+            if not re.fullmatch(r"[0-9a-f]{64}", image_hash):
+                raise ValueError(f"Invalid or missing image SHA-256 at {path}:{row_number}")
+            mask_hash = str(row.get("mask_sha256") or "").strip().lower()
+            if not re.fullmatch(r"[0-9a-f]{64}", mask_hash):
+                raise ValueError(f"Invalid or missing mask SHA-256 at {path}:{row_number}")
+            image_path = _resolve_training_file(splits_dir, row.get("image_path"), "image_path", path, row_number)
+            mask_path = _resolve_training_file(splits_dir, row.get("mask_path"), "mask_path", path, row_number)
+            actual_hash = _file_sha256(image_path)
+            if actual_hash != image_hash:
+                raise ValueError(f"Image SHA-256 does not match the source file at {path}:{row_number}")
+            actual_mask_hash = _file_sha256(mask_path)
+            if actual_mask_hash != mask_hash:
+                raise ValueError(f"Mask SHA-256 does not match the source file at {path}:{row_number}")
+            image = cv2_imread_unicode(str(image_path))
+            mask = cv2_imread_unicode(str(mask_path))
+            if image is None:
+                raise ValueError(f"Source image is unreadable at {path}:{row_number}: {image_path}")
+            if mask is None:
+                raise ValueError(f"Source mask is unreadable at {path}:{row_number}: {mask_path}")
+            if image.ndim != 2 or mask.ndim != 2 or image.shape != mask.shape:
+                raise ValueError(
+                    f"Image/mask dimensions differ for case {row.get('case_id') or row_number}: "
+                    f"image {image.shape}, mask {mask.shape} at {path}:{row_number}"
+                )
+            if not np.isin(np.unique(mask), (0, 1, 255)).all():
+                raise ValueError(f"Source mask contains non-binary pixel values at {path}:{row_number}")
+            prior_split = seen_hashes.get(image_hash)
+            if prior_split is not None:
+                raise ValueError(f"Image SHA-256 overlap between {prior_split} and {split}")
+            seen_hashes[image_hash] = split
+        patient_sets[split] = ids
+
+    if seen_case_ids != set(source_rows):
+        raise ValueError(f"Split case IDs do not exactly match source metadata: {manifest_path}")
+
+    if not verified:
+        return "image_level_only"
 
     for left, right in (("train", "val"), ("train", "test"), ("val", "test")):
         overlap = patient_sets[left] & patient_sets[right]
         if overlap:
             raise ValueError(f"Patient ID overlap between {left} and {right}: {len(overlap)} patient(s)")
     return "patient_level_verified"
+
+
+def validate_training_split_integrity(splits_dir):
+    """Validate all image-level partitions without requiring patient identifiers.
+
+    Train, validation, and test files are read to verify decodability, binary
+    masks, recorded source hashes, and cross-split image duplication. This
+    inspection does not train on or select a model using the test partition,
+    and it does not establish patient-independent evaluation or clinical validity.
+    """
+    splits_dir = Path(splits_dir)
+    manifest_path = splits_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise ValueError(f"Split manifest is missing: {manifest_path}")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Split manifest is unreadable: {manifest_path}") from exc
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Split manifest must be a JSON object: {manifest_path}")
+
+    expected_counts = manifest.get("split_counts", manifest.get("counts", {}))
+    if expected_counts is None:
+        expected_counts = {}
+    if not isinstance(expected_counts, dict):
+        raise ValueError(f"Split counts must be an object: {manifest_path}")
+
+    seen_image_hashes: dict[str, tuple[str, str]] = {}
+    seen_case_ids: set[str] = set()
+    split_counts: dict[str, int] = {}
+    for split in ("train", "val", "test"):
+        csv_path = splits_dir / f"{split}.csv"
+        if not csv_path.is_file():
+            raise ValueError(f"Required {split} split is missing: {csv_path}")
+        with csv_path.open(newline="", encoding="utf-8-sig") as stream:
+            reader = csv.DictReader(stream)
+            fields = set(reader.fieldnames or [])
+            required = {"image_path", "mask_path"}
+            if not required.issubset(fields):
+                raise ValueError(f"Split is missing required columns {sorted(required - fields)}: {csv_path}")
+            rows = list(reader)
+        if not rows:
+            raise ValueError(f"Split contains no samples: {csv_path}")
+        expected = expected_counts.get(split)
+        if expected is None and split in expected_counts:
+            expected = expected_counts[split]
+        if expected is not None and (type(expected) is not int or expected < 1 or len(rows) != expected):
+            raise ValueError(f"{split} sample count does not match the split manifest: {csv_path}")
+
+        for row_number, row in enumerate(rows, start=2):
+            case_id = str(row.get("case_id") or "").strip()
+            if case_id:
+                if case_id in seen_case_ids:
+                    raise ValueError(f"Duplicate case_id across image-level splits at {csv_path}:{row_number}")
+                seen_case_ids.add(case_id)
+
+            image_path = _resolve_training_file(
+                splits_dir, row.get("image_path"), "image_path", csv_path, row_number
+            )
+            mask_path = _resolve_training_file(
+                splits_dir, row.get("mask_path"), "mask_path", csv_path, row_number
+            )
+            image_hash = _file_sha256(image_path)
+            mask_hash = _file_sha256(mask_path)
+            recorded_image_hash = str(row.get("image_sha256") or "").strip().lower()
+            recorded_mask_hash = str(row.get("mask_sha256") or "").strip().lower()
+            if recorded_image_hash and recorded_image_hash != image_hash:
+                raise ValueError(f"Image SHA-256 does not match source file at {csv_path}:{row_number}")
+            if recorded_mask_hash and recorded_mask_hash != mask_hash:
+                raise ValueError(f"Mask SHA-256 does not match source file at {csv_path}:{row_number}")
+            prior = seen_image_hashes.get(image_hash)
+            if prior is not None:
+                prior_split, prior_case_id = prior
+                raise ValueError(
+                    f"Duplicate image content between {prior_split} and {split} splits "
+                    f"({prior_case_id or 'unknown'} and {case_id or 'unknown'})"
+                )
+            seen_image_hashes[image_hash] = (split, case_id)
+
+            image = cv2_imread_unicode(str(image_path), cv2.IMREAD_GRAYSCALE)
+            mask = cv2_imread_unicode(str(mask_path), cv2.IMREAD_GRAYSCALE)
+            if image is None or mask is None:
+                raise ValueError(f"Unreadable image/mask pair at {csv_path}:{row_number}")
+            if image.ndim != 2 or mask.ndim != 2 or image.shape != mask.shape:
+                raise ValueError(
+                    f"Image/mask dimensions differ at {csv_path}:{row_number}: "
+                    f"image {image.shape}, mask {mask.shape}"
+                )
+            if not np.isin(np.unique(mask), (0, 1, 255)).all():
+                raise ValueError(f"Source mask contains non-binary pixel values at {csv_path}:{row_number}")
+        split_counts[split] = len(rows)
+
+    return {
+        "status": "image_level_verified",
+        "split_level": "image-level",
+        "integrity_checked_splits": list(split_counts),
+        "test_split_integrity_inspected": "test" in split_counts,
+        "patient_identity_claimed_by_manifest": bool(
+            manifest.get("source_patient_identity_verified") is True
+            and manifest.get("patient_ids_verified") is True
+        ),
+        "patient_level_independence_verified": False,
+        "split_counts": split_counts,
+        "unique_image_hashes": len(seen_image_hashes),
+    }
+
+
+def load_train_val_datasets(splits_dir, seed=42):
+    """Load Train and Validation after validating all image-level partitions."""
+    validate_training_split_integrity(splits_dir)
+    splits_dir = Path(splits_dir)
+    manifest = json.loads((splits_dir / "manifest.json").read_text(encoding="utf-8"))
+    train_dataset = OvarianUltrasoundDataset(str(splits_dir / "train.csv"), is_train=True, seed=seed)
+    val_dataset = OvarianUltrasoundDataset(str(splits_dir / "val.csv"), is_train=False)
+    return train_dataset, val_dataset, manifest
+
+
+def load_verified_train_val_datasets(splits_dir, seed=42):
+    """Backward-compatible alias; validation is image-level and does not require patient IDs."""
+    return load_train_val_datasets(splits_dir, seed=seed)
 
 
 def train_baseline(
@@ -131,8 +494,17 @@ def train_baseline(
     seed=42,
     patience=8,
     initial_checkpoint_path=None,
-    allow_image_level=False,
 ):
+    split_identity_status = validate_training_split_integrity(splits_dir)["status"]
+    verified_initial_checkpoint_sha256 = (
+        validate_checkpoint_provenance(
+            initial_checkpoint_path,
+            expected_split_manifest_sha256=_file_sha256(Path(splits_dir) / "manifest.json"),
+        )
+        if initial_checkpoint_path is not None
+        else None
+    )
+
     print("=" * 70, flush=True)
     print("   BƯỚC 5: HUẤN LUYỆN MÔ HÌNH STANDARD U-NET BASELINE", flush=True)
     print("=" * 70, flush=True)
@@ -140,7 +512,6 @@ def train_baseline(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[THIẾT BỊ] Huấn luyện trên: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})", flush=True)
 
-    os.makedirs(checkpoint_dir, exist_ok=True)
     best_checkpoint_path = os.path.join(checkpoint_dir, "baseline_unet_best.pth")
     last_checkpoint_path = os.path.join(checkpoint_dir, "baseline_unet_last.pth")
     random.seed(seed)
@@ -149,11 +520,13 @@ def train_baseline(
     if device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
 
-    split_identity_status = validate_training_split_identity(splits_dir, allow_image_level=allow_image_level)
-    print(f"[SPLIT] Identity status: {split_identity_status}", flush=True)
+    print(f"[SPLIT] Image-level integrity status: {split_identity_status}", flush=True)
 
     # 1. Dataloaders
-    train_loader, val_loader, test_loader = get_dataloaders(splits_dir=splits_dir, batch_size=batch_size, num_workers=0, seed=seed)
+    train_loader, val_loader = get_train_val_dataloaders(
+        splits_dir=splits_dir, batch_size=batch_size, num_workers=0, seed=seed
+    )
+    os.makedirs(checkpoint_dir, exist_ok=True)
     print(f"[DỮ LIỆU] Số batch Train: {len(train_loader)} | Số batch Val: {len(val_loader)} (Batch size: {batch_size})", flush=True)
 
     # 2. Model & Loss & Optimizer
@@ -161,6 +534,8 @@ def train_baseline(
     initial_checkpoint_sha256 = None
     if initial_checkpoint_path is not None:
         initial_checkpoint_sha256 = load_initial_checkpoint(model, initial_checkpoint_path, device)
+        if initial_checkpoint_sha256 != verified_initial_checkpoint_sha256:
+            raise ValueError("Initial checkpoint changed after provenance verification")
     criterion = ComboLoss(bce_weight=0.5, dice_weight=0.5)
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
@@ -181,6 +556,7 @@ def train_baseline(
         train_dice = 0.0
         train_count = 0
         amp_skipped_steps = 0
+        optimizer_steps = 0
         for batch in train_loader:
             images = batch["image"].to(device, non_blocking=True)
             masks = batch["mask"].to(device, non_blocking=True)
@@ -196,6 +572,8 @@ def train_baseline(
             scaler.update()
             if scaler.get_scale() < previous_scale:
                 amp_skipped_steps += 1
+            else:
+                optimizer_steps += 1
 
             sample_count = images.shape[0]
             train_loss += loss.item() * sample_count
@@ -233,7 +611,8 @@ def train_baseline(
         val_dice /= val_count
         val_iou /= val_count
         val_recall /= val_count
-        scheduler.step()
+        if optimizer_steps:
+            scheduler.step()
 
         # Lưu checkpoint tốt nhất
         is_best = val_dice > best_val_dice
@@ -286,14 +665,20 @@ def train_baseline(
             "optimizer": "AdamW(weight_decay=1e-4)",
             "scheduler": "CosineAnnealingLR(eta_min=1e-6)",
             "architecture": "StandardUNet(base_filters=32)",
-            "augmentation": "HorizontalFlip, RandomBrightnessContrast, ShiftScaleRotate; train only",
+            "augmentation": "HorizontalFlip, RandomBrightnessContrast, Affine; train only",
             "split_identity_status": split_identity_status,
+            "split_level": "image-level",
+            "patient_level_independence_verified": False,
+            "split_manifest_sha256": _file_sha256(Path(splits_dir) / "manifest.json"),
+            "test_split_image_data_used": False,
             "validation_metric": "mean per-image Dice at 512x512, threshold 0.5",
             "device": str(device),
             "gpu_name": torch.cuda.get_device_name(0) if device.type == "cuda" else None,
             "train_samples": len(train_loader.dataset),
             "validation_samples": len(val_loader.dataset),
-            "test_samples_held_out": len(test_loader.dataset),
+            "test_samples_held_out": json.loads(
+                (Path(splits_dir) / "manifest.json").read_text(encoding="utf-8")
+            ).get("split_counts", {}).get("test"),
             "best_epoch": next((row["epoch"] for row in reversed(history) if row["is_best"]), None),
             "best_validation_dice": best_val_dice,
             "duration_seconds": round(total_duration, 3),
@@ -317,6 +702,5 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train the U-Net baseline on a declared split manifest.")
     parser.add_argument("--splits-dir", default="ai_training/splits/unified_vinmec_clean_2026-10-06")
-    parser.add_argument("--allow-image-level-split", action="store_true", help="Allow exploratory training without verified source patient IDs.")
     args = parser.parse_args()
-    train_baseline(epochs=12, batch_size=4, lr=1e-3, splits_dir=args.splits_dir, allow_image_level=args.allow_image_level_split)
+    train_baseline(epochs=12, batch_size=4, lr=1e-3, splits_dir=args.splits_dir)

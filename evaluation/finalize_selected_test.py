@@ -1,4 +1,4 @@
-"""Bind a completed source-test evaluation to the validation-selected checkpoint."""
+"""Report a retrospective source-test replay without promoting it to independent evidence."""
 
 import csv
 import hashlib
@@ -54,6 +54,7 @@ def main() -> None:
     clinical = summary["clinical_summary"]
     report = {
         "evidence_status": "PARTIALLY VERIFIED: image-level source Test; patient identity unavailable",
+        "evaluation_scope": "retrospective_test_replay",
         "checkpoint_sha256": checksum,
         "selection_split": selection["selection_split"],
         "threshold": selection["threshold"],
@@ -61,6 +62,8 @@ def main() -> None:
         "source_test_preserved_from_training": manifest["source_test_preserved"],
         "patient_split_status": manifest["patient_id_status"],
         "patient_level_independence_verified": False,
+        "source_patient_identity_verified": False,
+        "label_provenance_verified": False,
         "test_previously_accessed_for_earlier_checkpoint": True,
         "normal_control_count": clinical["normal_cases_count"],
         "mean_per_image": {
@@ -78,14 +81,6 @@ def main() -> None:
     }
     report_path = RESULT_DIR / "test_summary.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    selection["test_evaluation"] = {
-        "summary": report_path.relative_to(ROOT).as_posix(),
-        "checkpoint_sha256": checksum,
-        "threshold": selection["threshold"],
-        "count": summary["count"],
-        "patient_level_independence_verified": False,
-    }
-    SELECTION_PATH.write_text(json.dumps(selection, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 

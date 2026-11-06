@@ -1,8 +1,8 @@
 # Báo cáo Đánh giá Định lượng và Thực nghiệm Mô hình Phân đoạn Buồng trứng
 
 > **Dự án**: Khóa luận Tốt nghiệp & Hệ thống Hỗ trợ Chẩn đoán Siêu âm Buồng trứng Human-in-the-Loop
-> **Thời điểm tạo**: 2026-10-17T05:47:36.407783+00:00
-> **Trạng thái nguyên mẫu (Prototype Ready)**: PASS
+> **Thời điểm tạo**: 2026-10-19T12:44:33.183037+00:00
+> **Trạng thái nguyên mẫu (Prototype Ready)**: NOT READY
 > **Trạng thái đánh giá khoa học (Evaluation Complete)**: PARTIAL / BLOCKED
 
 ---
@@ -10,7 +10,7 @@
 ## 1. Thông tin Mô hình và Cấu hình Suy luận
 
 - **Kiến trúc mạng**: Standard U-Net (Baseline v1)
-- **Checkpoint SHA-256**: `417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d`
+- **Checkpoint SHA-256**: `None`
 - **Kích thước đầu vào**: 512×512 (Letterbox bảo toàn tỷ lệ khung hình gốc)
 - **Ngưỡng nhị phân hóa**: $\ge 0.5$ (không áp dụng hình thái học morphology post-processing)
 - **Không gian dự đoán**: Native Resolution (hồi phục kích thước ảnh gốc qua inverse letterbox)
@@ -19,24 +19,17 @@
 
 ## 2. Kết quả Đánh giá Phân đoạn Định lượng
 
-| Tập dữ liệu / Vai trò | Số mẫu | Dice Mean (Median) | IoU Mean (Median) | Độ nhạy Recall | Độ chính xác Precision | Độ đặc hiệu Specificity | HD95 (px) |
-|---|---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Retrospective Test Replay (Historical Data)** | 402 | 0.7289 (0.8045) | 0.6176 (0.6729) | 0.7304 | 0.8140 | 0.9771 | 90.19 |
-| **Validation Cohort** | 541 | 0.6717 (0.7588) | 0.5542 (0.6113) | 0.6979 | 0.7527 | 0.9726 | 102.43 |
-
-> [!NOTE]
-> Các metric rỗng/null do không có foreground hoặc chưa chạy độc lập được bảo toàn nguyên trạng, không bao giờ gán cưỡng bức bằng 0.0.
+*Chưa có lượt chạy đánh giá nào được nạp.*
 
 ---
 
 ## 3. Phân tích Lỗi Định tính (Error Analysis)
 
-Phân tích lỗi được thực hiện theo 8 nhóm hình thái và trường hợp biên (Milestone 3 Protocol):
-- **Best / Median / Worst cases**: Xếp hạng theo chỉ số Dice đối chiếu trực quan 5 cột (Original, GT, Prediction, Overlay, Difference).
-- **Bỏ sót tổn thương (False Negative Dominant)**: Mô hình bỏ sót các tổn thương nhỏ phân tán hoặc u có bờ ranh giới cản âm mờ nhạt.
-- **Lan vùng giả dương (False Positive Dominant)**: Nhầm lẫn vùng bóng cản âm của ruột, bàng quang hoặc nang noãn buồng trứng sinh lý thành u nang.
-- **Lỗi ranh giới (Boundary Ambiguity)**: Lớp mask nhị phân có độ biến động cao ở vùng ranh giới tiếp giáp nhu mô lành.
-- **Truy vết minh chứng**: Toàn bộ panel đối chiếu được lưu trữ tại `evaluation/milestone_3_final/legacy_test_v1/error_analysis/`.
+> **Trạng thái minh chứng ngày 2026-10-22:** Thư mục `legacy_test_v1` không tồn tại, gồm cả summary và các panel được dẫn bên dưới. Checksum manifest ghi summary là `NOT_FOUND`. Các mô tả về nhóm lỗi và panel chưa được xác minh độc lập; cần khôi phục artifact gốc trước khi trích dẫn như kết quả đã kiểm chứng.
+
+Tài liệu milestone trước đây mô tả phân tích theo 8 nhóm hình thái và trường hợp biên, gồm xếp hạng Best / Median / Worst, nhóm False Negative, False Positive và Boundary Ambiguity. Tuy nhiên, thư mục run cùng các panel, CSV và HTML được dẫn hiện không tồn tại. Vì vậy các mô tả đó là ghi chú lịch sử chưa được xác minh độc lập, không phải phát hiện lâm sàng đã kiểm chứng.
+
+Chỉ khôi phục các kết luận này sau khi có thể đối chiếu artifact gốc theo từng ảnh và checksum. Không dùng các mô tả cũ để suy ra mức độ ác tính hoặc hiệu năng lâm sàng.
 
 ---
 

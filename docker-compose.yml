@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build:
@@ -16,6 +14,9 @@ services:
       - APP_DB_PATH=/app/data/ovarian_ai.db
       - APP_DATA_DIR=/app/data
       - APP_JWT_SECRET=${APP_JWT_SECRET:?APP_JWT_SECRET must be set in environment}
+      - APP_PATIENT_PID_HMAC_SECRET=${APP_PATIENT_PID_HMAC_SECRET:?APP_PATIENT_PID_HMAC_SECRET must be set in environment}
+      # Nginx enforces client-IP throttling before proxying to FastAPI.
+      - APP_AUTH_IP_RATE_LIMIT_ENABLED=false
       - APP_ADMIN_PASSWORD=${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD must be set in environment}
       - APP_DOCTOR_PASSWORD=${APP_DOCTOR_PASSWORD:?APP_DOCTOR_PASSWORD must be set in environment}
       - SMTP_HOST=${SMTP_HOST:-}

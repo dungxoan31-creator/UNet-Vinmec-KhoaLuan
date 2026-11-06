@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 
 from ai_training.dataset_loader import OvarianUltrasoundDataset
 from ai_training.metrics_clinical import compute_dataset_clinical_summary, compute_sample_clinical_metrics
-from ai_training.train_baseline_unet import ComboLoss
+from ai_training.train_baseline_unet import ComboLoss, validate_training_split_identity
 from backend.models.unet import StandardUNet
 
 
@@ -33,6 +33,49 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _prediction_filename(sample_number: int, case_id: str) -> str:
+    case_digest = hashlib.sha256(case_id.encode("utf-8")).hexdigest()[:16]
+    return f"{sample_number:04d}_{case_digest}.png"
+
+
+def _verified_run_config(root: Path, split_dir: Path, test_csv: Path, checkpoint: Path) -> dict:
+    identity_status = validate_training_split_identity(split_dir)
+    if identity_status != "patient_level_verified":
+        raise ValueError("Patient-level independence is not verified for this Test evaluation")
+
+    manifest_path = split_dir / "manifest.json"
+    config_path = checkpoint.parent / "run_config.json"
+    if not manifest_path.is_file() or not config_path.is_file() or not checkpoint.is_file():
+        raise ValueError("Checkpoint provenance is missing or unverifiable")
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Checkpoint provenance is missing or unverifiable") from exc
+    if not isinstance(config, dict):
+        raise ValueError("Checkpoint provenance is missing or unverifiable")
+
+    recorded_checkpoint = config.get("checkpoint_best")
+    if not isinstance(recorded_checkpoint, str) or not recorded_checkpoint.strip():
+        raise ValueError("Checkpoint provenance does not verify a patient-level, test-isolated model")
+    recorded_checkpoint_path = Path(recorded_checkpoint)
+    if not recorded_checkpoint_path.is_absolute():
+        recorded_checkpoint_path = root / recorded_checkpoint_path
+
+    split_hashes = config.get("split_sha256")
+    if (
+        config.get("split_identity_status") != identity_status
+        or config.get("split_manifest_sha256") != _sha256(manifest_path)
+        or config.get("test_split_image_data_used") is not False
+        or not isinstance(split_hashes, dict)
+        or split_hashes.get("test") != _sha256(test_csv)
+        or recorded_checkpoint_path.resolve() != checkpoint.resolve()
+        or config.get("checkpoint_best_sha256") != _sha256(checkpoint)
+    ):
+        raise ValueError("Checkpoint provenance does not verify a patient-level, test-isolated model")
+
+    return config
 
 
 def _write_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
@@ -93,6 +136,15 @@ def evaluate(
     batch_size: int = 2,
     threshold: float = 0.5,
 ) -> dict:
+    if type(batch_size) is not int or batch_size < 1:
+        raise ValueError("batch_size must be a positive integer")
+    try:
+        threshold = float(threshold)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("threshold must be a finite number between 0 and 1") from exc
+    if not np.isfinite(threshold) or not 0.0 < threshold < 1.0:
+        raise ValueError("threshold must be a finite number between 0 and 1")
+
     root, split_dir, checkpoint, output_dir = (p.resolve() for p in (root, split_dir, checkpoint, output_dir))
     try:
         output_rel = output_dir.relative_to(root)
@@ -101,10 +153,17 @@ def evaluate(
     if output_dir.exists() and any(output_dir.iterdir()):
         raise FileExistsError(f"Refusing to overwrite existing evaluation artifacts: {output_dir}")
     test_csv = split_dir / "test.csv"
+    try:
+        checkpoint.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("checkpoint must be located inside root to keep artifacts traceable") from exc
+    config = _verified_run_config(root, split_dir, test_csv, checkpoint)
     with (split_dir / "all_samples.csv").open(newline="", encoding="utf-8-sig") as stream:
         index_rows = list(csv.DictReader(stream))
     index_by_case = {row["case_id"]: row for row in index_rows}
     dataset = OvarianUltrasoundDataset(test_csv, is_train=False)
+    if len(dataset) == 0:
+        raise ValueError("Test split must not be empty")
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -131,9 +190,11 @@ def evaluate(
                 predicted = (probabilities[offset, 0] > threshold).astype(np.uint8)
                 truth = (ground_truth[offset, 0] > 0.5).astype(np.uint8)
                 metrics = compute_sample_clinical_metrics(predicted, truth)
-                prediction_rel = (output_rel / "predictions" / f"{case_id}.png").as_posix()
+                filename = _prediction_filename(count + 1, str(case_id))
+                prediction_rel = (output_rel / "predictions" / filename).as_posix()
                 prediction_path = root / prediction_rel
-                cv2.imwrite(str(prediction_path), predicted * 255)
+                if not cv2.imwrite(str(prediction_path), predicted * 255):
+                    raise OSError(f"Could not write prediction mask: {prediction_path}")
                 per_image.append({
                     "sample_id": case_id,
                     "case_id": case_id,
@@ -157,10 +218,6 @@ def evaluate(
 
     ranked = sorted(per_image, key=lambda row: row["dice"], reverse=True)
     worst = sorted(per_image, key=lambda row: row["fp"] + row["fn"], reverse=True)
-    config_path = checkpoint.parent / "run_config.json"
-    if not config_path.is_file():
-        raise FileNotFoundError(f"Run configuration not found beside checkpoint: {config_path}")
-    config = json.loads(config_path.read_text(encoding="utf-8"))
     best_cases = ranked[:5]
     error_cases = worst[:5]
     summary = {
@@ -176,7 +233,14 @@ def evaluate(
         "segmentation_metrics_only": metrics,
         "metrics_by_source_membership": by_source,
         "source_membership_note": "Source groups overlap because folders contain duplicate image content; per-source subsets are not independent.",
-        "identity_level": "image-level; source Patient/Case IDs unavailable",
+        "identity_level": "patient-level",
+        "patient_level_independence_verified": True,
+        "source_patient_identity_verified": True,
+        "test_inference_performed": True,
+        "test_split_image_data_used": False,
+        "test_csv_sha256": _sha256(test_csv),
+        "split_manifest_sha256": _sha256(split_dir / "manifest.json"),
+        "run_config_sha256": _sha256(checkpoint.parent / "run_config.json"),
         "test_policy": "Checkpoint and threshold were locked using Validation; Test metrics were not used for training, threshold selection, or model selection.",
         "test_history_note": "The previous baseline checkpoint was evaluated on this same Test split before refinement. This result is retained separately; it was not used to select the current checkpoint.",
         "preprocessing": "Grayscale, Letterbox 512x512, CLAHE; same loader as training.",

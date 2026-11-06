@@ -1,0 +1,88 @@
+[
+  {
+    "name": "scoped admin global counts",
+    "method": "GET",
+    "path": "/api/admin/metadata",
+    "status": 200,
+    "body": {
+      "hospital_name": "Chưa cấu hình",
+      "system_version": "2.0.0",
+      "total_cases": 1,
+      "total_images": 1,
+      "total_reviews": 1,
+      "total_users": 6
+    }
+  },
+  {
+    "name": "scoped admin changes global report header",
+    "method": "PUT",
+    "path": "/api/admin/settings",
+    "status": 200,
+    "body": {
+      "status": "SUCCESS",
+      "message": "Đã lưu cấu hình.",
+      "settings": {
+        "hospital_name": "Chưa cấu hình",
+        "report_header": "AUDIT FACILITY A GLOBAL HEADER",
+        "unit": "auto"
+      }
+    }
+  },
+  {
+    "name": "global admin observes facility write",
+    "method": "GET",
+    "path": "/api/admin/settings",
+    "status": 200,
+    "body": {
+      "hospital_name": "Chưa cấu hình",
+      "report_header": "AUDIT FACILITY A GLOBAL HEADER",
+      "unit": "auto"
+    }
+  },
+  {
+    "name": "scoped admin departments",
+    "method": "GET",
+    "path": "/api/admin/departments",
+    "status": 200,
+    "body": [
+      {
+        "id": "dep-cdha",
+        "name": "Trung tâm Chẩn đoán hình ảnh",
+        "code": "CDHA",
+        "members": 0
+      },
+      {
+        "id": "dep-ps",
+        "name": "Khoa Phụ sản",
+        "code": "PS",
+        "members": 0
+      }
+    ]
+  },
+  {
+    "name": "other facility cannot read case",
+    "method": "GET",
+    "path": "/api/cases/315036cb-9514-4f6e-9d1a-61f2d8bf1325",
+    "status": 403,
+    "body": {
+      "detail": "Không có quyền truy cập dữ liệu của cơ sở khác."
+    }
+  },
+  {
+    "name": "same source PID at unrelated facility",
+    "method": "POST",
+    "path": "/api/cases",
+    "status": 200,
+    "body": {
+      "study_id": "f5785c05-3da0-4f76-a91f-a6e1252ac620",
+      "study_code": "STD-261104-0C13",
+      "visit_no": "000002",
+      "patient_id": "SYN-75A6A9D7F7E34ADD8F2671D32064EC6D",
+      "study_date": "2026-11-04",
+      "status": "PENDING",
+      "ovary_side": "LEFT",
+      "contralateral_status": "NOT_VISUALIZED",
+      "message": "Khởi tạo ca khám mới thành công."
+    }
+  }
+]

@@ -4,7 +4,7 @@ SPA thuần HTML/CSS/ES modules. FastAPI phục vụ `index.html` và `/static`;
 
 ## Mở ứng dụng
 
-Từ thư mục repository, cấu hình `APP_JWT_SECRET`, `APP_ADMIN_PASSWORD`, `APP_DOCTOR_PASSWORD` trong môi trường. Sau đó khởi chạy qua launcher chuẩn hóa:
+Từ thư mục repository, cấu hình `APP_JWT_SECRET`, `APP_PATIENT_PID_HMAC_SECRET`, `APP_ADMIN_PASSWORD` và `APP_DOCTOR_PASSWORD` trong môi trường. Giữ khóa HMAC riêng và ổn định trong suốt vòng đời cơ sở dữ liệu; xem [sổ tay vận hành](../docs/evaluation/release_runbook.md). Sau đó khởi chạy qua launcher chuẩn hóa:
 
 ```powershell
 # Kiểm tra điều kiện tiên quyết (CheckOnly)
@@ -32,12 +32,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_workspace_v2.
 .venv\Scripts\python.exe -m pytest -q --tb=short
 ```
 
-Có thể dùng `-SkipBrowser` để chỉ kiểm tra syntax và logic thuần. Log kết quả nằm trong `artifacts/workspace-v2/`.
+`-SkipBrowser` chỉ kiểm tra syntax và logic thuần; dùng chuyển hướng stdout/stderr để lưu log của lần chạy.
+
+Lệnh `npm run syntax-check` chỉ kiểm tra cú pháp JavaScript, không phân tích static type; tên `type-check` cũ là alias tương thích. Verifier chạy các Node test đang tồn tại và ba browser suite tự quản runtime cô lập: viewer, safety và roundtrip API/DB/model với ảnh tổng hợp. Xem [phạm vi và mapping coverage](../docs/frontend-verification.md); screenshot/evidence safety được ghi trong `artifacts/qa-clinical-fixed/`. Không coi `-SkipBrowser` là xác minh browser đầy đủ.
 
 ## Giới hạn tích hợp
 
 Hệ thống sử dụng tài khoản xác thực, ca khảo sát và ảnh được tải lên máy chủ. Khi chưa có dữ liệu, giao diện hiển thị trạng thái trống; khi API lỗi, giao diện hiển thị lỗi và cho phép thử lại. Không có chế độ đăng nhập bỏ qua xác thực hoặc nguồn ảnh minh họa tự tạo.
 
-Luồng hiện tại gồm đăng nhập, tạo ca hai bên, tải ảnh, IQA, phân đoạn, đo, hiệu chuẩn và lưu rà soát. Workflow hai cấp, OTP, CRUD quản trị và khóa đa thiết bị phụ thuộc khả năng API; máy chủ hiện tại chưa cung cấp đầy đủ các chức năng này.
+Luồng hiện tại gồm đăng nhập, tạo ca hai bên, tải ảnh, IQA, phân đoạn, đo, hiệu chuẩn và lưu rà soát. Capability hiện có `case_leases=true` và `remote_lease=true`: quyền ghi cần lease máy chủ, bổ sung guard nhiều tab phía trình duyệt. `case_workflow`, `manual_review` và `research_export` vẫn false. OTP/email và các thao tác quản trị cần được nghiệm thu theo API/cấu hình tương ứng, không suy từ sự hiện diện của UI.
 
 Logo, font Inter và bảng màu được đối chiếu với website Vinmec và lưu cục bộ tại [assets/brand](assets/brand/README.md).

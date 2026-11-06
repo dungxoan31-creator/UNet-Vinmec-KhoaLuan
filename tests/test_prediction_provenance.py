@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 os.environ.setdefault("APP_JWT_SECRET", "test-secret-at-least-32-characters-long-2026")
 
 
-def test_migration_is_idempotent(tmp_path):
+def test_migration_is_idempotent(tmp_path, monkeypatch):
     """Test that init_db safely adds review_revision and provenance_json to existing DBs."""
     legacy_db_path = tmp_path / "legacy_test.db"
     conn = sqlite3.connect(legacy_db_path)
@@ -56,13 +56,20 @@ def test_migration_is_idempotent(tmp_path):
     conn.commit()
     conn.close()
 
-    # Import database module with custom DB_PATH
-    from backend.db import database
-    original_db_path = database.DB_PATH
-    try:
-        database.DB_PATH = str(legacy_db_path)
-        database.DATABASE_URL = f"sqlite:///{legacy_db_path}"
+    # Bind the schema initializer and its sessions to the same legacy DB.
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
 
+    from backend.db import database
+    legacy_engine = create_engine(
+        f"sqlite:///{legacy_db_path}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+    monkeypatch.setattr(database, "DB_PATH", str(legacy_db_path))
+    monkeypatch.setattr(database, "DATABASE_URL", f"sqlite:///{legacy_db_path}")
+    monkeypatch.setattr(database, "engine", legacy_engine)
+    monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=legacy_engine))
+    try:
         # First migration pass
         database.init_db()
 
@@ -76,13 +83,18 @@ def test_migration_is_idempotent(tmp_path):
         cursor.execute("PRAGMA table_info(predictions);")
         pred_cols = [row[1] for row in cursor.fetchall()]
         assert "provenance_json" in pred_cols, "predictions missing provenance_json"
+        cursor.execute("PRAGMA foreign_key_list(predictions);")
+        prediction_fks = cursor.fetchall()
+        assert any(
+            row[2] == "images" and row[3] == "image_id" and row[4] == "id"
+            for row in prediction_fks
+        ), "legacy predictions table missing image foreign key"
         conn.close()
 
         # Second migration pass (idempotent)
         database.init_db()
     finally:
-        database.DB_PATH = original_db_path
-        database.DATABASE_URL = f"sqlite:///{original_db_path}"
+        legacy_engine.dispose()
 
 
 def test_old_prediction_provenance_remains_unknown(tmp_path):

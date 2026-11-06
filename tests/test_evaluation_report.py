@@ -9,6 +9,7 @@ Verifies:
 6. Missing independent test blocks evaluation_complete while allowing prototype_ready.
 """
 
+import csv
 import json
 from pathlib import Path
 
@@ -219,7 +220,7 @@ def test_missing_independent_test_blocks_complete(tmp_path):
         hitl_dir=None,
         user_dir=None,
         independent_gate_path=gate_file,
-        prototype_checks_passed=True,
+        checks={"overall_exit_code": 0, "live_browser_verified": True},
         output=out_dir,
     )
 
@@ -292,6 +293,167 @@ def test_fallback_is_not_a_clinician_blocker(tmp_path):
     assert any("independent" in b.lower() for b in status_blocked.get("blockers", []))
 
 
+@pytest.mark.parametrize(
+    "user_study",
+    [
+        {
+            "study_status": "SIMULATED_DATA_GENERATED",
+            "clinician_count": 5,
+            "has_clinician_validation": True,
+        },
+        {"study_status": "NOT_CONDUCTED", "clinician_count": 5, "has_clinician_validation": True},
+        {"study_status": "UNKNOWN", "clinician_count": 5, "has_clinician_validation": True},
+        {"study_status": "CONDUCTED", "clinician_count": 0, "has_clinician_validation": True},
+        {"study_status": "CONDUCTED", "clinician_count": True, "has_clinician_validation": True},
+    ],
+)
+def test_clinician_release_gate_fails_closed_on_unverified_study_status(user_study):
+    from scripts.build_evaluation_report import derive_release_status
+
+    status = derive_release_status(user_study=user_study)
+
+    assert status["clinician_validation"] is False
+
+
+def test_clinician_release_gate_accepts_explicit_conducted_record():
+    from scripts.build_evaluation_report import derive_release_status
+
+    status = derive_release_status(
+        user_study={
+            "study_status": "CONDUCTED",
+            "clinician_count": 1,
+            "has_clinician_validation": True,
+            "clinician_provenance_verified": True,
+        }
+    )
+
+    assert status["clinician_validation"] is True
+
+
+def test_technical_participant_count_alone_does_not_pass_fallback():
+    from scripts.build_evaluation_report import derive_release_status
+
+    status = derive_release_status(
+        checks={
+            "overall_exit_code": 0,
+            "live_browser_verified": True,
+            "skip_browser": False,
+        },
+        independent_gate={"status": "PASS"},
+        user_study={
+            "study_status": "NOT_CONDUCTED",
+            "clinician_count": 0,
+            "technical_count": 1,
+            "has_clinician_validation": False,
+        },
+        runs=[{"run_kind": "independent_test", "status": "COMPLETE"}],
+    )
+
+    assert status["evaluation_complete"] is False
+    assert status["clinician_validation"] is False
+
+
+@pytest.mark.parametrize(
+    "user_study",
+    [
+        {"study_status": "NOT_CONDUCTED", "technical_acceptance": "PASS"},
+        {"study_status": "NOT_CONDUCTED", "technical_fallback_verified": True},
+    ],
+)
+def test_technical_fallback_requires_both_status_and_verification(user_study):
+    from scripts.build_evaluation_report import derive_release_status
+
+    status = derive_release_status(
+        checks={"overall_exit_code": 0, "live_browser_verified": True},
+        independent_gate={"status": "PASS"},
+        user_study=user_study,
+        runs=[{"run_kind": "independent_test", "status": "COMPLETE"}],
+    )
+
+    assert status["evaluation_complete"] is False
+
+
+def test_report_does_not_claim_technical_acceptance_without_evidence(tmp_path):
+    user_study_dir = tmp_path / "user_study"
+    user_study_dir.mkdir()
+    (user_study_dir / "study_status.json").write_text(
+        json.dumps({
+            "study_status": "NOT_CONDUCTED",
+            "clinician_count": 0,
+            "technical_count": 1,
+            "total_participants": 1,
+            "has_clinician_validation": False,
+        }),
+        encoding="utf-8",
+    )
+    output = tmp_path / "report"
+    build_report(
+        root=tmp_path,
+        run_dirs=[],
+        hitl_dir=None,
+        user_dir=user_study_dir,
+        independent_gate_path=None,
+        output=output,
+        checks={"overall_exit_code": 0, "live_browser_verified": True},
+    )
+
+    results_md = (output / "results.md").read_text(encoding="utf-8")
+    limitations_md = (output / "limitations.md").read_text(encoding="utf-8")
+    with (output / "evidence_matrix.csv").open(encoding="utf-8", newline="") as stream:
+        evidence_matrix = {row["requirement_id"]: row for row in csv.DictReader(stream)}
+    release_status = json.loads((output / "release_status.json").read_text(encoding="utf-8"))
+    open_issues = (output / "open_issues.csv").read_text(encoding="utf-8")
+    assert "(Technical Acceptance)**: NOT VERIFIED" in results_md
+    assert "(Technical Acceptance)**: PASS" not in results_md
+    assert "Manual Technical Acceptance" not in limitations_md
+    assert evidence_matrix["R4"]["status"] == "NOT_CONDUCTED / NOT VERIFIED"
+    assert "Standard U-Net (Baseline v1)" not in results_md
+    assert "threshold: $\\ge 0.5$" not in results_md
+    assert "False Negative Dominant" not in results_md
+    assert "59 cặp" not in open_issues
+    assert evidence_matrix["R2"]["status"] == "NOT VERIFIED"
+    assert evidence_matrix["APP-P0"]["status"] == "NOT VERIFIED"
+    assert evidence_matrix["APP-E2E"]["status"] == "VERIFIED"
+    assert any("technical acceptance fallback not verified" in item for item in release_status["blockers"])
+
+
+def test_report_uses_model_metadata_when_provided(tmp_path):
+    selection_path = tmp_path / "evaluation" / "selected_model.json"
+    selection_path.parent.mkdir(parents=True)
+    selection_path.write_text(
+        json.dumps({
+            "model": "U-Net++ with ResNet34 ImageNet encoder",
+            "architecture": "unetplusplus_resnet34",
+            "threshold": 0.4,
+            "checkpoint_sha256": "abc123",
+            "candidate_only": True,
+            "inference_protocol": {
+                "letterbox_size": [512, 512],
+                "postprocessing": "averaged flip TTA",
+                "metric_mask_resolution": "512x512",
+            },
+        }),
+        encoding="utf-8",
+    )
+    output = tmp_path / "report"
+    build_report(
+        root=tmp_path,
+        run_dirs=[],
+        hitl_dir=None,
+        user_dir=None,
+        independent_gate_path=None,
+        output=output,
+        prototype_checks_passed=False,
+    )
+
+    results_md = (output / "results.md").read_text(encoding="utf-8")
+    assert "U-Net++ with ResNet34 ImageNet encoder" in results_md
+    assert "unetplusplus_resnet34" in results_md
+    assert "$\\ge 0.4$" in results_md
+    assert "abc123" in results_md
+    assert "candidate only" in results_md.lower()
+
+
 def test_unknown_evidence_has_no_defaults(tmp_path):
     """Missing runs/evidence must not populate hardcoded checkpoint hashes or default participant counts."""
     out_dir = tmp_path / "unknown_report"
@@ -337,6 +499,45 @@ def test_browser_skip_prevents_readiness(tmp_path):
     assert status["prototype_ready"] is False
     assert status["evaluation_complete"] is False
     assert any("browser" in b.lower() for b in status.get("blockers", []))
+
+
+def test_boolean_prototype_flag_cannot_create_browser_evidence(tmp_path):
+    output = tmp_path / "report"
+    report = build_report(
+        root=tmp_path,
+        run_dirs=[],
+        hitl_dir=None,
+        user_dir=None,
+        independent_gate_path=None,
+        output=output,
+        prototype_checks_passed=True,
+    )
+
+    final_checks = json.loads((output / "final_checks.json").read_text(encoding="utf-8"))
+    assert report["prototype_ready"] is False
+    assert final_checks["prototype_ready"] is False
+    assert final_checks["live_browser_verified"] is False
+
+
+def test_report_does_not_persist_raw_check_command_output(tmp_path):
+    output = tmp_path / "report"
+    build_report(
+        root=tmp_path,
+        run_dirs=[],
+        hitl_dir=None,
+        user_dir=None,
+        independent_gate_path=None,
+        output=output,
+        checks={
+            "overall_exit_code": 0,
+            "live_browser_verified": True,
+            "commands": [{"name": "private test command", "exit_code": 0, "stdout": "sensitive-output"}],
+        },
+    )
+
+    release_status = (output / "release_status.json").read_text(encoding="utf-8")
+    assert "sensitive-output" not in release_status
+    assert "private test command" not in release_status
 
 
 def test_status_build_paths_agree(tmp_path):

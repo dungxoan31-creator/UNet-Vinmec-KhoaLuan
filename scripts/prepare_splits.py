@@ -1,160 +1,208 @@
-"""
-Script chuẩn hóa và trích xuất tập dữ liệu Train / Validation / Test theo Patient ID.
-Nguồn dữ liệu: dataset/vinmec_ovarian/metadata/kltn_ground_truth_307.csv
-Đầu ra: ai_training/splits/train.csv, val.csv, test.csv, de_cuong_split_manifest.json
-Cam kết: Triệt tiêu 100% rò rỉ dữ liệu giữa các tập (Zero Data Leakage).
+"""Create reproducible image-level Train/Validation/Test splits for mask training.
+
+Patient IDs are neither required nor used. The resulting partitions prove only
+image-content separation; they cannot establish patient-independent performance.
 """
 
+import argparse
+import hashlib
 import json
-import os
 import sys
+from pathlib import Path
 
+import cv2
+import numpy as np
 import pandas as pd
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-def main():
-    print("=" * 70)
-    print("   BƯỚC 1 & 2: THIẾT LẬP PHÂN CHIA TẬP DỮ LIỆU THEO PATIENT ID")
-    print("=" * 70)
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SOURCE = ROOT / "metadata/kltn_ground_truth_307.csv"
+SPLIT_NAMES = ("TRAIN", "VAL", "TEST")
 
-    candidate_meta_files = [
-        "dataset/vinmec_ovarian/metadata/kltn_ground_truth_307.csv",
-        "metadata/kltn_ground_truth_307.csv",
-        "ai_training/splits/kltn_ground_truth_307.csv",
-    ]
-    meta_file = None
-    for cand in candidate_meta_files:
-        if os.path.exists(cand):
-            meta_file = cand
-            break
 
-    if not meta_file:
-        print(f"[ERROR] Không tìm thấy metadata trong các đường dẫn: {candidate_meta_files}")
-        sys.exit(1)
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
-    df = pd.read_csv(meta_file)
-    print(f"[1] Tổng số bản ghi Ground Truth nạp được: {len(df)}")
-    print(f"[2] Số bệnh nhân duy nhất: {df['patient_id'].nunique()}")
-    print(f"[3] Số ca Empty Mask (u nang/buồng trứng bình thường): {df['is_empty_mask'].eq(True).sum()}")
 
-    # Kiểm tra đường dẫn file thực tế
-    missing_imgs = 0
-    missing_masks = 0
-    for _, row in df.iterrows():
-        img_p = row['image_path'].replace('\\', '/')
-        mask_p = row['mask_path'].replace('\\', '/')
-        if not os.path.exists(img_p):
-            missing_imgs += 1
-        if not os.path.exists(mask_p):
-            missing_masks += 1
+def _resolve_source_path(value: str, root: Path) -> Path:
+    path = Path(str(value).replace("\\", "/"))
+    return path.resolve() if path.is_absolute() else (root / path).resolve()
 
-    print(f"[4] Kiểm tra tính nguyên vẹn: Thiếu ảnh={missing_imgs}, Thiếu mask={missing_masks}")
-    assert missing_imgs == 0 and missing_masks == 0, "Dữ liệu bị thiếu file trên đĩa!"
 
-    # Tách train, val, test
-    train_df = df[df['split'] == 'TRAIN'].copy()
-    val_df = df[df['split'] == 'VAL'].copy()
-    test_df = df[df['split'] == 'TEST'].copy()
+def validate_image_split_metadata(df: pd.DataFrame, root: Path = ROOT) -> tuple[pd.DataFrame, dict]:
+    """Check image/mask pairs and discard any synthetic patient grouping."""
+    required = {"case_id", "image_path", "mask_path"}
+    if not required.issubset(df.columns):
+        raise ValueError(f"Metadata is missing required columns: {sorted(required - set(df.columns))}")
+    if "is_empty_mask" not in df.columns and "status" not in df.columns:
+        raise ValueError("Metadata must describe whether each annotation mask is empty")
+    if df.empty:
+        raise ValueError("Metadata must contain at least one sample")
 
-    # Kiểm tra Zero Leakage
-    train_patients = set(train_df['patient_id'].unique())
-    val_patients = set(val_df['patient_id'].unique())
-    test_patients = set(test_df['patient_id'].unique())
+    normalized = df.copy()
+    normalized["case_id"] = normalized["case_id"].astype("string").str.strip()
+    if normalized["case_id"].isna().any() or normalized["case_id"].eq("").any():
+        raise ValueError("case_id values must be present")
+    if normalized["case_id"].duplicated().any():
+        raise ValueError("case_id values must be unique")
+    for field in ("image_path", "mask_path"):
+        normalized[field] = normalized[field].astype("string").str.strip()
+        if normalized[field].isna().any() or normalized[field].eq("").any():
+            raise ValueError(f"Metadata contains an empty {field}")
 
-    leak_train_val = train_patients.intersection(val_patients)
-    leak_train_test = train_patients.intersection(test_patients)
-    leak_val_test = val_patients.intersection(test_patients)
+    if "is_empty_mask" in normalized.columns:
+        raw_empty = normalized["is_empty_mask"].astype("string").str.strip().str.lower()
+        truthy = {"true", "1", "yes"}
+        falsy = {"false", "0", "no"}
+        unknown = set(raw_empty.dropna()) - truthy - falsy
+        if raw_empty.isna().any() or unknown:
+            raise ValueError("is_empty_mask must contain explicit true/false values")
+        normalized["is_empty_mask"] = raw_empty.isin(truthy)
+    else:
+        normalized["is_empty_mask"] = normalized["status"].astype("string").eq("EMPTY_MASK_CONTROL")
 
-    print("\n--- KIỂM ĐỊNH RÒ RỈ DỮ LIỆU (PATIENT LEAKAGE AUDIT) ---")
-    print(f"Trùng Train <-> Val: {len(leak_train_val)} bệnh nhân")
-    print(f"Trùng Train <-> Test: {len(leak_train_test)} bệnh nhân")
-    print(f"Trùng Val <-> Test: {len(leak_val_test)} bệnh nhân")
+    image_hashes: set[str] = set()
+    image_hash_column: list[str] = []
+    mask_hash_column: list[str] = []
+    positive_pixel_column: list[int] = []
+    for row_number, row in enumerate(normalized.to_dict("records"), start=2):
+        image_path = _resolve_source_path(row["image_path"], Path(root))
+        mask_path = _resolve_source_path(row["mask_path"], Path(root))
+        if not image_path.is_file():
+            raise FileNotFoundError(f"Missing source image at metadata row {row_number}: {image_path}")
+        if not mask_path.is_file():
+            raise FileNotFoundError(f"Missing source mask at metadata row {row_number}: {mask_path}")
+        image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        if image is None or mask is None:
+            raise ValueError(f"Unreadable image/mask pair at metadata row {row_number}")
+        if image.ndim != 2 or mask.ndim != 2 or image.shape != mask.shape:
+            raise ValueError(
+                f"Image/mask dimensions differ at metadata row {row_number}: "
+                f"image {image.shape}, mask {mask.shape}"
+            )
+        if not np.isin(np.unique(mask), (0, 1, 255)).all():
+            raise ValueError(f"Mask must be binary at metadata row {row_number}")
+        image_hash = _sha256_file(image_path)
+        if image_hash in image_hashes:
+            raise ValueError(f"Duplicate image content at metadata row {row_number}")
+        image_hashes.add(image_hash)
+        positive_pixels = int(np.count_nonzero(mask))
+        if bool(row["is_empty_mask"]) != (positive_pixels == 0):
+            raise ValueError(f"is_empty_mask contradicts mask pixels at metadata row {row_number}")
+        image_hash_column.append(image_hash)
+        mask_hash_column.append(_sha256_file(mask_path))
+        positive_pixel_column.append(positive_pixels)
 
-    assert len(leak_train_val) == 0, "Phát hiện rò rỉ giữa Train và Val!"
-    assert len(leak_train_test) == 0, "Phát hiện rò rỉ giữa Train và Test!"
-    assert len(leak_val_test) == 0, "Phát hiện rò rỉ giữa Val và Test!"
-    print("[XÁC NHẬN] ZERO DATA LEAKAGE: 100% bệnh nhân độc lập giữa 3 tập!")
-
-    # Lưu các file CSV
-    out_dir = "ai_training/splits"
-    os.makedirs(out_dir, exist_ok=True)
-
-    train_path = os.path.join(out_dir, "train.csv")
-    val_path = os.path.join(out_dir, "val.csv")
-    test_path = os.path.join(out_dir, "test.csv")
-    gt_all_path = os.path.join(out_dir, "kltn_ground_truth_307.csv")
-
-    train_df.to_csv(train_path, index=False)
-    val_df.to_csv(val_path, index=False)
-    test_df.to_csv(test_path, index=False)
-    df.to_csv(gt_all_path, index=False)
-
-    print(f"\n[XUẤT BẢN] Đã lưu {train_path}: {len(train_df)} ảnh ({len(train_patients)} bệnh nhân, {train_df['is_empty_mask'].eq(True).sum()} empty)")
-    print(f"[XUẤT BẢN] Đã lưu {val_path}: {len(val_df)} ảnh ({len(val_patients)} bệnh nhân, {val_df['is_empty_mask'].eq(True).sum()} empty)")
-    print(f"[XUẤT BẢN] Đã lưu {test_path}: {len(test_df)} ảnh ({len(test_patients)} bệnh nhân, {test_df['is_empty_mask'].eq(True).sum()} empty)")
-
-    # Lưu manifest
-    manifest_data = {
-        "title": "KLTN Ovarian Ultrasound Dataset Splits (De Cuong So Bo)",
-        "clinical_site": "Vinmec Times City International Hospital",
-        "author": "Nguyen Huu Dung (MIS 65A - NEU)",
-        "supervisor": "ThS. Tran Thanh Hai",
-        "random_seed": 42,
-        "table_1_metrics": {
-            "total_images_collected": 1387,
-            "images_with_initial_masks": 417,
-            "ground_truth_images_verified": 307,
-            "unique_patients_ground_truth": 185,
-            "empty_masks_in_ground_truth": 35
-        },
-        "ground_truth_patient_split": {
-            "train": {
-                "patients": len(train_patients),
-                "images": len(train_df),
-                "empty_masks": int(train_df['is_empty_mask'].eq(True).sum()),
-                "percentage_images": round(len(train_df) / len(df) * 100, 2),
-                "file": "ai_training/splits/train.csv"
-            },
-            "validation": {
-                "patients": len(val_patients),
-                "images": len(val_df),
-                "empty_masks": int(val_df['is_empty_mask'].eq(True).sum()),
-                "percentage_images": round(len(val_df) / len(df) * 100, 2),
-                "file": "ai_training/splits/val.csv"
-            },
-            "test": {
-                "patients": len(test_patients),
-                "images": len(test_df),
-                "empty_masks": int(test_df['is_empty_mask'].eq(True).sum()),
-                "percentage_images": round(len(test_df) / len(df) * 100, 2),
-                "file": "ai_training/splits/test.csv"
-            }
-        },
-        "zero_leakage_verified": True
+    normalized["image_sha256"] = image_hash_column
+    normalized["mask_sha256"] = mask_hash_column
+    normalized["verified_positive_pixels"] = positive_pixel_column
+    # Synthetic or unverifiable patient IDs are removed from the generated split files.
+    normalized = normalized.drop(columns=["patient_id"], errors="ignore")
+    evidence = {
+        "unique_images": len(normalized),
+        "duplicate_image_hashes": 0,
+        "image_mask_pairs_aligned": True,
+        "patient_identity_used": False,
+        "patient_level_independence_verified": False,
     }
+    return normalized, evidence
 
-    manifest_file = os.path.join(out_dir, "de_cuong_split_manifest.json")
-    with open(manifest_file, "w", encoding="utf-8") as f:
-        json.dump(manifest_data, f, indent=2, ensure_ascii=False)
 
-    # Đồng bộ sang các vị trí báo cáo (Report paths compatibility)
-    vinmec_ovarian_manifest = "dataset/vinmec_ovarian/vinmec_dataset_manifest.json"
-    os.makedirs(os.path.dirname(vinmec_ovarian_manifest), exist_ok=True)
-    with open(vinmec_ovarian_manifest, "w", encoding="utf-8") as f:
-        json.dump(manifest_data, f, indent=2, ensure_ascii=False)
+def create_image_level_splits(
+    df: pd.DataFrame,
+    val_fraction: float = 0.15,
+    test_fraction: float = 0.15,
+    seed: int = 42,
+) -> tuple[pd.DataFrame, dict]:
+    df = df.reset_index(drop=True)
+    if val_fraction <= 0 or test_fraction <= 0 or val_fraction + test_fraction >= 1:
+        raise ValueError("val_fraction and test_fraction must be positive and sum to less than 1")
+    rng = np.random.default_rng(seed)
+    split_by_index: dict[int, str] = {}
 
-    metadata_gt = "metadata/kltn_ground_truth_307.csv"
-    os.makedirs(os.path.dirname(metadata_gt), exist_ok=True)
-    df.to_csv(metadata_gt, index=False)
+    for _, stratum in df.groupby("is_empty_mask", sort=True, dropna=False):
+        indices = stratum.index.to_numpy().copy()
+        rng.shuffle(indices)
+        count = len(indices)
+        if count < 3:
+            raise ValueError("Each mask-presence stratum needs at least three images for 3-way splitting")
+        test_count = max(1, int(round(count * test_fraction)))
+        val_count = max(1, int(round(count * val_fraction)))
+        if test_count + val_count >= count:
+            raise ValueError("Not enough samples in a mask-presence stratum for train/validation/test")
+        for index in indices[:test_count]:
+            split_by_index[int(index)] = "TEST"
+        for index in indices[test_count : test_count + val_count]:
+            split_by_index[int(index)] = "VAL"
+        for index in indices[test_count + val_count :]:
+            split_by_index[int(index)] = "TRAIN"
 
-    print(f"[XUẤT BẢN] Đã lưu manifest phân chia: {manifest_file}")
-    print(f"[XUẤT BẢN] Đã đồng bộ manifest báo cáo: {vinmec_ovarian_manifest}")
-    print(f"[XUẤT BẢN] Đã đồng bộ metadata báo cáo: {metadata_gt}")
-    print("=" * 70)
-    print("   HOÀN THÀNH XUẤT SẮC BƯỚC 1 & 2: DỮ LIỆU ĐƯỢC NIÊM PHONG & CHIA SẠCH")
-    print("=" * 70)
+    result = df.copy()
+    result["split"] = [split_by_index[int(index)] for index in result.index]
+    counts = {split.lower(): int((result["split"] == split).sum()) for split in SPLIT_NAMES}
+    if any(count == 0 for count in counts.values()):
+        raise ValueError("Generated image-level split contains an empty partition")
+    class_counts = {
+        split.lower(): {
+            "empty_mask": int(((result["split"] == split) & result["is_empty_mask"]).sum()),
+            "lesion_mask": int(((result["split"] == split) & ~result["is_empty_mask"]).sum()),
+        }
+        for split in SPLIT_NAMES
+    }
+    return result, {"split_counts": counts, "mask_presence_counts": class_counts, "seed": seed}
+
+
+def main(
+    source_csv: Path = DEFAULT_SOURCE,
+    output_dir: Path = ROOT / "ai_training/splits/vinmec_307_image_level",
+    val_fraction: float = 0.15,
+    test_fraction: float = 0.15,
+    seed: int = 42,
+):
+    source_csv = Path(source_csv)
+    if not source_csv.is_file():
+        raise FileNotFoundError(f"Ground truth metadata not found: {source_csv}")
+    data = pd.read_csv(source_csv)
+    data, evidence = validate_image_split_metadata(data, root=ROOT)
+    data, split_evidence = create_image_level_splits(data, val_fraction, test_fraction, seed)
+
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for split in SPLIT_NAMES:
+        data.loc[data["split"] == split].to_csv(out_dir / f"{split.lower()}.csv", index=False)
+    data.to_csv(out_dir / "all_samples_image_split.csv", index=False)
+    manifest = {
+        "title": "Vinmec 307-case image-level mask development split",
+        "split_level": "image-level",
+        "source_metadata_path": str(source_csv.resolve()),
+        "source_metadata_sha256": _sha256_file(source_csv),
+        "source_patient_identity_verified": False,
+        "patient_ids_verified": False,
+        "patient_level_independence_verified": False,
+        "identity_limit": "Patient identity is not used; image-level partitions do not establish patient independence.",
+        "deduplication": "SHA-256 of image bytes; duplicate image content is rejected before splitting.",
+        **evidence,
+        **split_evidence,
+        "test_partition_used_for_training_or_selection": False,
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(manifest, indent=2, ensure_ascii=False))
+    return manifest
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-csv", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "ai_training/splits/vinmec_307_image_level")
+    parser.add_argument("--val-fraction", type=float, default=0.15)
+    parser.add_argument("--test-fraction", type=float, default=0.15)
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+    main(args.source_csv, args.output_dir, args.val_fraction, args.test_fraction, args.seed)

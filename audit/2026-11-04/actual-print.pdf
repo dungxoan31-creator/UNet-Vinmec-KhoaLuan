@@ -1,0 +1,77 @@
+KẾT QUẢ KHẢO SÁT
+
+THÔNG TIN NGHIÊN CỨU RUO
+Phạm vi: nghiên cứu kỹ thuật · Rà soát nội dung: bác sĩ phụ trách · Xác thực chữ ký số: ngoài phạm vi tài liệu này
+
+PID: SYN-                                       Visit: 000001     Ngày khảo sát: 04/11/2026
+75A6A9D7F7E34ADD8F2671D32064EC6
+D
+
+THÔNG TIN CA                                       Trạng thái lưu rà soát
+
+Mã ca                                              Đã lưu rà soát cho các ảnh trong hồ sơ
+
+STD-261104-E71B                                    Trạng thái lưu phản ánh dữ liệu rà soát; mô tả, O-RADS và kết luận
+                                                   được quản lý riêng.
+
+KẾT QUẢ GHI NHẬN
+
+  BÊN TRÁI                                           BÊN PHẢI
+
+1 ảnh tĩnh đã được gắn với bên này. Số đo và nhận  Chưa có ảnh khảo sát bên này.
+định được liệt kê riêng theo từng ảnh ở các trang
+hình ảnh.
+
+THÔNG TIN HỖ TRỢ
+
+Model                                              Reviewer ID
+
+U-Net++ (ResNet34 ImageNet + scSE Attention)       doctor
+
+Checkpoint · SHA-256
+67624bbb0e50e236df7b5c82736eaadab1ff1fff5547c5e813bca545c2dd2045
+
+THÔNG TIN BẢN GHI
+
+Số đo hỗ trợ được tính từ lớp phủ và ghi rõ nguồn ngay dưới số đo; ảnh gốc cùng lớp phủ được trình bày ở phần
+hình ảnh. Mô tả và O-RADS hiển thị từ bản ghi rà soát. Hệ thống hỗ trợ phân đoạn và tổng hợp thông tin; bác sĩ
+phụ trách hoàn thiện phần kết luận và kế hoạch chuyên môn.
+
+Study ID: 315036cb-9514-4f6e-9d1a-61f2d8bf1325                                                                      Revision: 2 Trang 1/2
+HÌNH ẢNH KHẢO SÁT ·                                   PID: SYN-                                                     Visit: 000001
+ẢNH 1                                                 75A6A9D7F7E34ADD8F2671D32064EC6D
+
+                                                      Buồng trứng trái
+
+THÔNG TIN NGHIÊN CỨU RUO
+Phạm vi: nghiên cứu kỹ thuật · Rà soát nội dung: bác sĩ phụ trách · Xác thực chữ ký số: ngoài phạm vi tài liệu này
+
+  BÊN TRÁI
+
+Ảnh 1
+Mask đã được bác sĩ rà soát
+
+ẢNH GỐC                                               LỚP PHỦ
+Mô tả: đã ghi nhận · O-RADS: đã ghi nhận
+
+Chưa có vùng phân đoạn trong mask để hiển thị số đo.
+O-RADS do bác sĩ ghi nhận
+
+O-RADS 2
+
+Mô tả
+
+Synthetic morphology audit
+
+Ghi chú
+
+Synthetic independent physician note
+
+THÔNG TIN RÀ SOÁT
+
+    Lớp phủ hỗ trợ định vị vùng và hiển thị cùng ảnh gốc để bác sĩ đối chiếu.
+    Trạng thái lưu mask và nội dung mô tả, phân tầng được quản lý riêng.
+    Tài liệu; chữ ký số và chỉ định điều trị theo quy trình chuyên môn của cơ sở.
+
+Study ID: 315036cb-9514-4f6e-9d1a-61f2d8bf1325                                                                      Revision: 2 Trang 2/2
+

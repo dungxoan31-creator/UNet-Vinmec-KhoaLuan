@@ -64,7 +64,7 @@ export async function inspectDicom(file, side) {
   }
   if (result.anonymization?.status !== "VERIFIED")
     toast(
-      "DICOM chưa được máy chủ xác minh ẩn danh. Không dùng dữ liệu định danh thật.",
+      "DICOM: rà soát trạng thái ẩn danh và metadata trên máy chủ trước khi xử lý.",
       true,
     );
   return {

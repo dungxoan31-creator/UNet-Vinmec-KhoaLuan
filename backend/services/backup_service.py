@@ -5,7 +5,6 @@ Author: Nguyen Huu Dung (MIS 65A - NEU)
 
 import os
 import shutil
-import sqlite3
 import tarfile
 import uuid
 from datetime import datetime
@@ -17,7 +16,7 @@ class BackupService:
         self,
         db_path: str | None = None,
         data_dir: str | None = None,
-        backup_dir: str = "backups",
+        backup_dir: str | None = None,
     ):
         from backend.db.database import DB_PATH
 
@@ -39,7 +38,15 @@ class BackupService:
         else:
             self.data_dir = os.path.abspath(os.path.join(project_root, "data"))
 
-        self.backup_dir = os.path.abspath(backup_dir) if os.path.isabs(backup_dir) else os.path.abspath(os.path.join(project_root, backup_dir))
+        configured_backup_dir = backup_dir or os.environ.get("APP_BACKUP_DIR")
+        if configured_backup_dir:
+            self.backup_dir = (
+                os.path.abspath(configured_backup_dir)
+                if os.path.isabs(configured_backup_dir)
+                else os.path.abspath(os.path.join(project_root, configured_backup_dir))
+            )
+        else:
+            self.backup_dir = os.path.join(self.data_dir, "backups")
         os.makedirs(self.backup_dir, exist_ok=True)
 
     def create_backup(self, include_images: bool = True) -> dict[str, Any]:
@@ -71,8 +78,10 @@ class BackupService:
             # 1. Hot SQLite Backup using online backup API (BUG-29)
             dest_db_name = os.path.basename(self.db_path)
             dest_db_path = os.path.join(temp_backup_dir, dest_db_name)
-            src_conn = sqlite3.connect(self.db_path)
-            dest_conn = sqlite3.connect(dest_db_path)
+            from backend.db.database import connect_sqlite
+
+            src_conn = connect_sqlite(self.db_path)
+            dest_conn = connect_sqlite(dest_db_path)
             with dest_conn:
                 src_conn.backup(dest_conn, pages=100)
             dest_conn.close()

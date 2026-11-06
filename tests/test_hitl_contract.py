@@ -18,6 +18,21 @@ def test_review_rejects_incomplete_mask():
         )
 
 
+@pytest.mark.parametrize("encoding", ["coco_rle", None, 1])
+def test_review_rejects_unsupported_rle_encoding(encoding):
+    with pytest.raises(ValidationError):
+        DoctorReviewRequest(
+            image_id="image-1",
+            prediction_id="prediction-1",
+            verified_mask_rle={
+                "shape": [512, 512],
+                "first_val": 0,
+                "counts": [512 * 512],
+                "encoding": encoding,
+            },
+        )
+
+
 def test_unvalidated_clinical_pdf_export_is_unavailable():
     from fastapi.testclient import TestClient
 
@@ -25,6 +40,17 @@ def test_unvalidated_clinical_pdf_export_is_unavailable():
 
     with TestClient(app) as client:
         response = client.post("/api/generate-report", json={})
+    assert response.status_code == 501
+
+
+def test_unavailable_report_endpoint_does_not_validate_unused_payload_shape():
+    from fastapi.testclient import TestClient
+
+    from backend.app.main import app
+
+    with TestClient(app) as client:
+        response = client.post("/api/generate-report", json=["unused"])
+
     assert response.status_code == 501
 
 
@@ -66,7 +92,6 @@ def test_admin_overview_has_no_fabricated_benchmark():
     registry = ModelRegistry.__new__(ModelRegistry)
     registry.adapters = {}
     registry.primary_model_key = "attention_unet"
-    registry.fallback_model_key = "attention_unet"
     registry.ensemble_enabled = False
     overview = registry.get_admin_overview()
     assert overview["active_primary_model"] is None
@@ -76,10 +101,11 @@ def test_admin_overview_has_no_fabricated_benchmark():
     assert overview["mean_inference_latency_ms"] is None
 
 
-def test_admin_overview_reports_loaded_architecture_not_internal_key():
+def test_admin_overview_reports_loaded_architecture_not_internal_key(monkeypatch):
     from backend.app.config import model_registry
 
     adapter = model_registry.get_primary_adapter()
+    monkeypatch.setattr(adapter, "is_loaded", True)
     assert adapter.is_loaded
     overview = model_registry.get_admin_overview()
     actual_architecture = adapter.engine.architecture_name
@@ -89,7 +115,7 @@ def test_admin_overview_reports_loaded_architecture_not_internal_key():
     assert overview["registered_models"][0]["architecture"] == actual_architecture
 
 
-def test_deployed_baseline_uses_one_forward_pass_and_no_roi_filter():
+def test_deployed_baseline_uses_one_forward_pass_without_prediction_overrides():
     import numpy as np
     import torch
 
@@ -117,9 +143,7 @@ def test_deployed_baseline_uses_one_forward_pass_and_no_roi_filter():
     engine.extract_calipers_and_measurements = lambda *_args, **_kwargs: {}
     engine.generate_overlay_base64 = lambda *_args: ""
 
-    result = engine.run_inference(
-        torch.zeros((1, 1, 8, 8)), np.zeros((8, 8), dtype=np.uint8), roi_mask=np.zeros((8, 8), dtype=np.uint8)
-    )
+    result = engine.run_inference(torch.zeros((1, 1, 8, 8)), np.zeros((8, 8), dtype=np.uint8))
     assert engine.model.calls == 1
     assert result["binary_mask_np"].sum() == 64
 
@@ -183,15 +207,33 @@ def test_inference_uses_training_clahe_pipeline():
 
 
 def test_predict_rejects_missing_checkpoint(monkeypatch):
+    from types import SimpleNamespace
+
     from fastapi import HTTPException
 
     from backend.app.config import model_registry
-    from backend.app.routers.inference import run_ai_prediction
+    from backend.app.routers import inference
 
     adapter = model_registry.get_primary_adapter()
     monkeypatch.setattr(adapter, "is_loaded", False)
+    monkeypatch.setattr(inference, "require_active_case_lease", lambda *_args, **_kwargs: None)
+
+    class Query:
+        def filter(self, *_args, **_kwargs):
+            return self
+
+        def first(self):
+            return SimpleNamespace(raw_path="unused", filename="image.png", study_id="study-1", facility_id="FAC-DEFAULT-TEST")
+
+        def scalar(self):
+            return "PENDING"
+
+    class Database:
+        def query(self, *_args, **_kwargs):
+            return Query()
+
     with pytest.raises(HTTPException) as error:
-        run_ai_prediction("image-1", db=None)
+        inference.run_ai_prediction("image-1", db=Database())
     assert error.value.status_code == 503
 
 
@@ -201,6 +243,7 @@ def test_review_stores_final_mask_and_prediction_link():
 
     from backend.app.routers.reviews import submit_doctor_review
     from backend.db.database import Base, ImageModel, PatientModel, PredictionModel, ReviewModel, StudyModel, UserModel
+    from backend.services.case_lease_service import acquire_case_lease
 
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -211,14 +254,26 @@ def test_review_stores_final_mask_and_prediction_link():
         db.add(StudyModel(id="study-1", patient_id="patient-1", study_date="2026-09-29"))
         db.add(ImageModel(id="image-1", study_id="study-1", filename="test.png", raw_path="test.png"))
         db.add(PredictionModel(id="prediction-1", image_id="image-1", raw_mask_rle=mask, measurements={}))
+        db.add(reviewer)
         db.commit()
 
+        page_instance_id = "test-page-hitl-0123456789abcdef"
+        lease = acquire_case_lease(
+            db,
+            "study-1",
+            reviewer,
+            "test-tab-hitl-0123456789abcdef",
+            page_instance_id,
+            None,
+        )
         request = DoctorReviewRequest(
             image_id="image-1",
             prediction_id="prediction-1",
             verified_mask_rle=mask,
             expected_revision=0,
             request_id=str(uuid.uuid4()),
+            lease_token=lease["lease_token"],
+            page_instance_id=page_instance_id,
         )
         result = submit_doctor_review(request, db, reviewer)
         saved = db.query(ReviewModel).filter(ReviewModel.id == result["review_id"]).one()

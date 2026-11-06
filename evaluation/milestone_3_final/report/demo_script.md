@@ -9,6 +9,7 @@ Tài liệu này dùng để điều hành buổi thử nghiệm/bảo vệ nguy
 2. Thiết lập biến môi trường bảo mật:
    ```powershell
    $env:APP_JWT_SECRET = "super-secret-jwt-key-minimum-32-chars-long"
+   $env:APP_PATIENT_PID_HMAC_SECRET = "replace-with-a-separate-random-key-at-least-32-bytes"
    $env:APP_DOCTOR_PASSWORD = "DoctorSecurePassword2026!"
    $env:APP_ADMIN_PASSWORD = "AdminSecurePassword2026!"
    ```
@@ -63,7 +64,6 @@ Tài liệu này dùng để điều hành buổi thử nghiệm/bảo vệ nguy
 
 ### Phút 06:00 - 07:00: Đối chiếu Kết quả Đánh giá và Đóng ca
 1. Nhấn chuyển sang mục **"Đánh giá mô hình"** (`#evaluation`):
-   - Quan sát bảng kết quả của lượt chạy chuẩn hóa `legacy_test_v1` (Dice Mean: 0.7289, HD95: 90.19 px).
-   - Quan sát cảnh báo minh bạch: Cổng kiểm thử độc lập ở trạng thái `BLOCKED` do chưa có định danh bệnh nhân nguồn.
-   - Mở panel phân tích lỗi đối chiếu 5 cột (Original, GT, Prediction, Overlay, Difference).
+   - Giao diện hiện báo summary của `legacy_test_v1` bị thiếu và không hiển thị metrics của run đó. Không trình bày Dice 0.7289, HD95 90.19 px hoặc panel lỗi cho đến khi artifact gốc được khôi phục và kiểm tra checksum.
+   - Quan sát cảnh báo minh bạch: Cổng kiểm thử độc lập ở trạng thái `BLOCKED` do chưa xác minh định danh bệnh nhân nguồn.
 2. Kết thúc buổi demo: Tắt máy chủ bằng `Ctrl+C`. Khởi động lại máy chủ và mở lại `CASE-DEMO-01` để chứng minh toàn bộ dữ liệu đã lưu trữ bền vững.

@@ -25,6 +25,30 @@ def test_baseline_paths_exclude_production_db():
         assert runtime_db != prod_db, f"Runtime DB must not equal production DB candidate {prod_db}"
 
 
+def test_release_verifier_does_not_repoint_current_run():
+    """A verification run must not mutate evaluation/current_run.json."""
+    verifier_script = ROOT / "scripts" / "verify_evaluation_release.ps1"
+    assert verifier_script.exists()
+    script_text = verifier_script.read_text(encoding="utf-8")
+    assert '"--set-current"' not in script_text
+
+
+def test_release_summary_does_not_label_ruo_checks_as_pilot_readiness():
+    verifier_script = ROOT / "scripts" / "verify_evaluation_release.ps1"
+    script_text = verifier_script.read_text(encoding="utf-8")
+    assert "Prototype Ready (Supervised Pilot)" not in script_text
+    assert "Technical Prototype Checks (RUO only)" in script_text
+    assert "Clinical / Supervised Pilot Approval: NOT GRANTED BY THIS VERIFIER" in script_text
+    assert 'Write-Host " Independent Holdout Gate:             $($finalChecks.independent_gate_status)"' in script_text
+
+
+def test_prototype_only_requires_live_browser_evidence_for_zero_exit():
+    verifier_script = ROOT / "scripts" / "verify_evaluation_release.ps1"
+    script_text = verifier_script.read_text(encoding="utf-8")
+    assert "$PrototypeOnly -and -not $browserPassed -and $Results.overall_exit_code -eq 0" in script_text
+    assert "PrototypeOnly mode requires live browser E2E" in script_text
+
+
 
 def test_verifier_preserves_exit_status(tmp_path):
     if os.environ.get("VERIFIER_TEST_RUNNING"):
@@ -79,7 +103,12 @@ def test_missing_independent_test_blocks_complete(tmp_path):
         hitl_dir=None,
         user_dir=None,
         independent_gate_path=gate_file,
-        prototype_checks_passed=True,
+        checks={
+            "overall_exit_code": 0,
+            "live_browser_verified": True,
+            "skip_browser": False,
+            "commands": [{"name": "release_e2e", "exit_code": 0}],
+        },
         output=out_dir,
     )
     assert report["prototype_ready"] is True
@@ -124,6 +153,17 @@ def test_prototype_only_does_not_mark_evaluation_complete():
     assert data["prototype_ready"] is True
     assert data["evaluation_complete"] is False
     assert len(data["blockers"]) > 0
+
+
+def test_handoff_does_not_claim_current_supervised_pilot_or_zip_export_readiness():
+    manual = (ROOT / "docs" / "evaluation" / "manual_acceptance.md").read_text(encoding="utf-8")
+    handoff = (ROOT / "docs" / "evaluation" / "thesis_handoff.md").read_text(encoding="utf-8")
+
+    assert "không phải nghiệm thu cho codebase hiện tại" in manual
+    assert "tuyên bố lịch sử, chưa xác minh ở codebase hiện tại" in manual
+    assert "prototype_ready_for_supervised_pilot" not in manual
+    assert "không đủ để khẳng định hệ thống sẵn sàng cho Supervised Pilot" in handoff
+    assert "Cổng đánh giá độc lập vẫn `BLOCKED`" in handoff
 
 
 def test_skipped_browser_is_not_live_verified(tmp_path):

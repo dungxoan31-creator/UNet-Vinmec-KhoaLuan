@@ -134,7 +134,10 @@ def build(root: Path, split_dir: Path, index_path: Path) -> dict:
 
     counts = {split: sum(row["split"] == split for row in records) for split in ("train", "val", "test")}
     summary = {
-        "status": "ready_for_image_level_training",
+        "status": "blocked_unverified_patient_identity",
+        "source_patient_identity_verified": False,
+        "patient_ids_verified": False,
+        "patient_level_independence_verified": False,
         "deduplication": "SHA-256 of raw image bytes; one canonical record per unique image",
         "input_unique_images": len(grouped),
         "fallback_associated_images_excluded": len(fallback_hashes),
@@ -148,7 +151,7 @@ def build(root: Path, split_dir: Path, index_path: Path) -> dict:
         "split_seed": None,
         "canonical_index": index_path.relative_to(root).as_posix(),
         "split_manifest_directory": split_dir.relative_to(root).as_posix(),
-        "training_test_policy": "Test CSV is held out; the baseline trainer uses only Train and Validation for optimization and checkpoint selection.",
+        "training_test_policy": "Training and independent evaluation are blocked until source-verified patient IDs and disjoint patient splits are available.",
     }
     (split_dir / "manifest.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     return summary

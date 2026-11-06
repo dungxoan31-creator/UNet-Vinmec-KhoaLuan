@@ -1,5 +1,8 @@
 {
-  "status": "ready_for_image_level_training",
+  "status": "blocked_unverified_patient_identity",
+  "source_patient_identity_verified": false,
+  "patient_ids_verified": false,
+  "patient_level_independence_verified": false,
   "deduplication": "SHA-256 of raw image bytes; one canonical record per unique image",
   "input_unique_images": 1639,
   "fallback_associated_images_excluded": 35,
@@ -15,7 +18,7 @@
   "target_disagreements": 0,
   "canonical_index": "dataset/index.csv",
   "split_manifest_directory": "ai_training/splits/unified_vinmec_clean_2026-10-06",
-  "training_test_policy": "Test CSV is held out; the baseline trainer uses only Train and Validation for optimization and checkpoint selection.",
+  "training_test_policy": "Training and independent evaluation are blocked until source-verified patient IDs and disjoint patient splits are available.",
   "training_seed": 42,
   "split_seed": null
 }

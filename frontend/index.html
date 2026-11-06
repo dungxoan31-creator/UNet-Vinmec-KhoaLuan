@@ -4,25 +4,35 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <title>Vinmec — Hỗ trợ phân đoạn siêu âm buồng trứng</title>
-    <link
-      rel="icon"
-      type="image/png"
-      href="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo"
-    />
-    <link rel="stylesheet" href="/static/css/workspace.css" />
+    <title>Hệ thống hỗ trợ phân tích siêu âm buồng trứng</title>
+    <link rel="icon" type="image/png" href="" />
+    <link rel="stylesheet" href="/static/css/workspace.css?v=20261102-v10-clean" />
+    <link rel="stylesheet" href="/static/css/workstation-premium.css?v=20261105-ruo-safety" />
+    <link rel="stylesheet" href="/static/css/report-preview.css?v=20261102-v10-clean" />
   </head>
   <body>
     <a class="skip-link" href="#main">Bỏ qua điều hướng</a>
+    <div id="environmentUnknownBanner" class="environment-unknown-banner" role="alert">
+      <strong>Đang xác nhận môi trường</strong>
+      <span>Kết nối dữ liệu đang được kiểm tra; các thao tác sẽ mở khi sẵn sàng.</span>
+    </div>
+    <div id="syntheticDemoBanner" class="synthetic-demo-banner" role="note" hidden>
+      <strong>Dữ liệu tổng hợp</strong>
+      <span>Phiên này sử dụng hình minh họa đã cấu hình.</span>
+    </div>
+    <div class="ruo-safety-banner" role="note" aria-label="BẢN NGHIÊN CỨU (RUO) — Chưa được phê duyệt lâm sàng — Không dùng cho quyết định điều trị">
+      <strong>BẢN NGHIÊN CỨU (RUO)</strong>
+      <span>— Chưa được phê duyệt lâm sàng — Không dùng cho quyết định điều trị</span>
+    </div>
     <div id="app"></div>
     <footer class="statusbar">
-      <span>Hỗ trợ phân đoạn siêu âm · Bác sĩ xác nhận kết quả</span
+      <span class="ruo-status" aria-label="RUO — Không dùng cho quyết định điều trị">RUO · Không dùng cho quyết định điều trị</span
       ><span class="connection"
         ><i class="dot"></i><span id="connectionText">Đã kết nối</span></span
-      ><span class="model-status">Giao diện 2.0 · Mô hình theo bản ghi ca</span>
+      >
     </footer>
     <dialog id="modal" aria-label="Hộp thoại thao tác"></dialog>
     <div id="toasts" aria-live="polite"></div>
-    <script type="module" src="/static/app/main.js?v=hide-evaluation-for-doctor-1"></script>
+    <script type="module" src="/static/app/main.js?v=20261103-add-visit"></script>
   </body>
 </html>

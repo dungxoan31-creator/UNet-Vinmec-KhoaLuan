@@ -1,271 +1,116 @@
+/* Browser smoke for the current modular workstation; never creates a case. */
 const assert = require('node:assert/strict');
-const crypto = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_CORE_PATH || 'playwright-core');
+const { ensureSyntheticFixtures } = require('./helpers/synthetic_fixtures.cjs');
 
-const root = path.resolve(__dirname, '..');
-const baseUrl = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-const validationCsv = process.env.SMOKE_VALIDATION_CSV || 'ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv';
-const selectionManifest = process.env.MODEL_SELECTION_MANIFEST || 'evaluation/selected_model.json';
-const validationRows = fs.readFileSync(path.resolve(root, validationCsv), 'utf8').trim().split(/\r?\n/);
-const columns = validationRows[0].split(',');
-const imageColumn = columns.indexOf('image_path');
-const hashColumn = columns.indexOf('image_sha256');
-assert.ok(imageColumn >= 0, 'Validation CSV includes image_path');
-function resolveImage(recorded) {
-    const original = path.resolve(root, recorded);
-    if (fs.existsSync(original)) return original;
-    const normalized = recorded.replaceAll('\\', '/');
-    for (const [source, target] of [
-        ['dataset/Vinmec/Vinmec_2d/images/', 'dataset/2d/images/'],
-        ['dataset/Vinmec/Vinmec_3d/images/', 'dataset/3d/images/'],
-    ]) {
-        if (normalized.startsWith(source)) return path.resolve(root, target, normalized.slice(source.length));
-    }
-    return original;
-}
-const availableRows = validationRows.slice(1).map(row => row.split(',')).filter(row =>
-    row[imageColumn] && fs.existsSync(resolveImage(row[imageColumn]))
-);
-const selectedRow = availableRows.find(row => row[imageColumn].includes('Vinmec_2d/images/')) || availableRows[0];
-assert.ok(selectedRow, 'Validation contains at least one readable image');
-const imagePath = resolveImage(selectedRow[imageColumn]);
-if (hashColumn >= 0) {
-    assert.equal(crypto.createHash('sha256').update(fs.readFileSync(imagePath)).digest('hex'),
-        selectedRow[hashColumn], 'Resolved image matches the frozen Validation record');
-}
-
-async function maskAlpha(page, point) {
-    return page.evaluate(({ x, y }) => maskCtx.getImageData(x, y, 1, 1).data[3], point);
-}
-
-function rlePixel(rle, point) {
-    const position = point.y * 512 + point.x;
-    let offset = 0;
-    let value = rle.first_val;
-    for (const count of rle.counts) {
-        if (position < offset + count) return value;
-        offset += count;
-        value = 1 - value;
-    }
-    throw new Error('RLE does not cover selected pixel');
-}
+const baseUrl = process.env.E2E_BASE_URL || 'http://127.0.0.1:8027';
+const chromePath = process.env.CHROME_PATH ||
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
 async function main() {
-    const browser = await chromium.launch({
-        headless: true,
-        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    assert.ok(process.env.APP_DOCTOR_PASSWORD, 'Set APP_DOCTOR_PASSWORD for the browser smoke test');
+    const fixtures = ensureSyntheticFixtures();
+    const leftImage = fixtures.left;
+    const rightImage = fixtures.right;
+    const browser = await chromium.launch({ headless: true, executablePath: chromePath });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const pageErrors = [];
+    const consoleErrors = [];
+    const blockedApiWrites = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('console', message => {
+        if (message.type() === 'error') consoleErrors.push(message.text());
     });
-    let page;
-    let createdStudyId;
+    await page.route('**/api/**', async route => {
+        const request = route.request();
+        const method = request.method();
+        const pathname = new URL(request.url()).pathname;
+        const allowedPosts = new Set([
+            '/api/auth/login',
+            '/api/auth/logout',
+            '/api/cases/search', // Read-only search uses POST for its filter payload.
+            '/api/intake/extract-metadata', // Read-only metadata inspection uses POST for multipart file payload.
+        ]);
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && !allowedPosts.has(pathname)) {
+            blockedApiWrites.push(`${method} ${pathname}`);
+            await route.abort('blockedbyclient');
+            return;
+        }
+        await route.continue();
+    });
+
     try {
-        page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-        const pageErrors = [];
-        const consoleErrors = [];
-        let reviewPayload;
-        let failFirstPrediction = true;
-        let failFirstReview = true;
-        page.on('pageerror', error => pageErrors.push(error.message));
-        page.on('console', message => {
-            if (message.type() === 'error') consoleErrors.push(message.text());
-        });
-        page.on('request', request => {
-            if (request.url() === `${baseUrl}/api/review`) reviewPayload = request.postDataJSON();
-        });
-        page.on('response', async response => {
-            if (response.url() === `${baseUrl}/api/upload` && response.ok()) {
-                createdStudyId = (await response.json()).study_id;
-            }
-        });
-        await page.route('**/api/upload', async route => {
-            await page.waitForTimeout(120);
-            await route.continue();
-        });
-        await page.route('**/api/predict/**', async route => {
-            if (failFirstPrediction) {
-                failFirstPrediction = false;
-                await page.waitForTimeout(120);
-                await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Temporary inference failure' }) });
-                return;
-            }
-            await route.continue();
-        });
-        await page.route('**/api/review', async route => {
-            if (failFirstReview) {
-                failFirstReview = false;
-                await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Temporary review failure' }) });
-                return;
-            }
-            await route.continue();
-        });
-        await page.goto(`${baseUrl}/`, { waitUntil: 'networkidle' });
-        assert.ok(process.env.APP_DOCTOR_PASSWORD, 'Set APP_DOCTOR_PASSWORD for the browser smoke test');
-        await page.locator('#loginUsername').fill('doctor');
-        await page.locator('#loginPassword').fill(process.env.APP_DOCTOR_PASSWORD);
-        await page.locator('#loginModal button[type="submit"]').click();
-        await page.waitForFunction(() => !document.getElementById('loginModal').classList.contains('active'));
-        await page.waitForFunction(() => ['screenDashboard', 'screenDualUpload'].some(id =>
-            document.getElementById(id)?.classList.contains('active')));
-        await page.evaluate(() => navigateTo('upload'));
-        await page.waitForSelector('#screenUpload.active');
-        const expectedPatientId = await page.evaluate(() => currentCase.patient_id);
-        assert.ok(await page.locator('#uploadDropzone').isVisible(), 'The empty upload state is visible');
-        assert.equal(await page.locator('#btnGoToIQA').isDisabled(), true, 'Upload progression starts disabled');
-        await page.locator('#fileUploadInput').setInputFiles(path.join(root, 'frontend/vinmec_logo.svg'));
-        await page.waitForFunction(() => document.getElementById('toastNotification').style.display === 'flex');
-        assert.match(await page.locator('#toastMsg').textContent(), /PNG, JPG, JPEG/i,
-            'Unsupported files show the accepted formats in a toast');
-        await page.locator('#fileUploadInput').setInputFiles(imagePath);
-        await page.waitForSelector('#screenAIProgress.active');
-        await page.waitForFunction(() => document.getElementById('inferenceErrorBox').style.display === 'block');
-        assert.match(await page.locator('#inferenceErrorBox').textContent(), /Temporary inference failure/);
-        await page.unroute('**/api/predict/**');
-        await page.locator('#inferenceErrorBox button[onclick="executeInference()"]:visible').click();
-        await page.waitForFunction(() => currentPrediction && document.getElementById('screenResults').classList.contains('active'));
-        await page.waitForFunction(() => undoStack.length > 0);
+        await page.goto(`${baseUrl}/#login`, { waitUntil: 'networkidle' });
+        await page.locator('#authForm').waitFor();
 
-        const layerButton = name => page.locator(`#btnLayer${name}`);
-        await layerButton('AI').click();
-        await layerButton('Doc').click();
-        assert.deepEqual(await page.evaluate(() => window.activeLayers),
-            { original: true, gt: false, ai: false, doc: false }, 'Original-only view is available');
-        await layerButton('Original').click();
-        await layerButton('AI').click();
-        assert.deepEqual(await page.evaluate(() => window.activeLayers),
-            { original: false, gt: false, ai: true, doc: false }, 'Mask-only view is available');
-        await layerButton('Original').click();
-        await layerButton('Doc').click();
-        assert.deepEqual(await page.evaluate(() => window.activeLayers),
-            { original: true, gt: false, ai: true, doc: true }, 'Original and mask overlay view is available');
+        const healthResponse = await page.request.get(`${baseUrl}/api/health`);
+        assert.equal(healthResponse.status(), 200);
+        const health = await healthResponse.json();
+        assert.equal(health.clinical_status, 'RESEARCH_USE_ONLY');
+        assert.equal(health.capabilities.manual_review, false);
 
-        const identifiers = await page.evaluate(() => ({
-            studyId: currentPrediction.study_id,
-            imageId: currentCase.image_id,
-            predictionId: currentPrediction.prediction_id,
+        await page.locator('#authForm [name=username]').fill('doctor');
+        await page.locator('#authForm [name=password]').fill(process.env.APP_DOCTOR_PASSWORD);
+        await page.locator('#authForm button[type=submit]').click();
+        await page.waitForFunction(() => location.hash === '#dashboard');
+        await page.locator('#accountMenu').waitFor({ state: 'visible' });
+        await page.locator('#page h1').getByText('Tổng quan').waitFor();
+
+        await page.locator('a[href="#intake"]').first().click();
+        await page.locator('#page [data-select="0"]').click();
+        const startButton = page.locator('#startSegmentationBtn');
+        await startButton.waitFor();
+        assert.equal(await startButton.isDisabled(), true, 'Segmentation starts disabled before images and date');
+
+        await page.locator('[data-file="L"]').setInputFiles(leftImage);
+        await page.locator('#stage-L').getByText('Ảnh sẵn sàng').waitFor();
+        assert.equal(await startButton.isDisabled(), true, 'One image is not enough to start');
+
+        await page.locator('[data-file="R"]').setInputFiles(rightImage);
+        await page.locator('#stage-R').getByText('Ảnh sẵn sàng').waitFor();
+        await page.locator('[name="study-date"]').fill('');
+        await page.locator('[name="study-date"]').dispatchEvent('input');
+        assert.equal(await startButton.isDisabled(), true, 'A study date is still required');
+
+        await page.locator('[name="study-date"]').fill('2026-10-01T08:30');
+        await page.locator('[name="study-date"]').dispatchEvent('input');
+        const confirmations = page.locator('[data-confirm-file]');
+        assert.equal(await confirmations.count(), 2);
+        for (const checkbox of await confirmations.all()) {
+            await checkbox.uncheck();
+        }
+        assert.equal(await startButton.isDisabled(), true, 'Unconfirmed image sides must keep segmentation disabled');
+        for (const checkbox of await confirmations.all()) {
+            await checkbox.check();
+        }
+        await page.waitForFunction(() => !document.querySelector('#startSegmentationBtn').disabled);
+        assert.deepEqual(blockedApiWrites, [], 'Selecting local files does not issue any clinical API write');
+
+        await page.locator('#accountMenu').click();
+        await page.locator('[data-action="logout"]').click();
+        await page.locator('#authForm').waitFor();
+        assert.equal(await page.evaluate(() => sessionStorage.getItem('ova.token')), null,
+            'Logout clears the browser session token');
+        assert.deepEqual(pageErrors, [], pageErrors.join('\n'));
+        assert.deepEqual(consoleErrors, [], consoleErrors.join('\n'));
+
+        console.log(JSON.stringify({
+            status: 'PASS',
+            flow: 'current modular workstation authentication and intake preflight',
+            imageSource: 'artifacts/synthetic_fixtures/',
+            researchUseOnly: true,
+            bothImagesAndStudyDateRequired: true,
+            blockedApiWrites: blockedApiWrites.length,
+            logoutClearsSession: true,
+            pageErrors: pageErrors.length,
+            consoleErrors: consoleErrors.length,
         }));
-        createdStudyId = identifiers.studyId;
-        const modelName = await page.evaluate(() => currentPrediction.provenance.model_name);
-        const selectedModel = JSON.parse(fs.readFileSync(path.resolve(root, selectionManifest), 'utf8'));
-        const modelChecksum = await page.evaluate(() => currentPrediction.provenance.model_checksum);
-        assert.equal(modelChecksum, selectedModel.checkpoint_sha256, 'Server uses the selected checkpoint');
-        const displayedModelName = await page.locator('#workstationModelName').textContent();
-        assert.equal(displayedModelName, modelName, 'Workstation shows the model actually used for inference');
-        const point = await page.evaluate(() => {
-            for (let y = 100; y < 412; y += 25) {
-                for (let x = 100; x < 412; x += 25) {
-                    if (maskCtx.getImageData(x, y, 1, 1).data[3] === 0) return { x, y };
-                }
-            }
-            throw new Error('No empty canvas pixel found');
-        });
-        const editor = page.locator('#editorCanvas');
-        const box = await editor.boundingBox();
-        assert.ok(box, 'Editor canvas is visible');
-        assert.ok(Math.abs(box.width - box.height) / box.width < 0.03,
-            `The ultrasound canvas keeps a square image ratio (${box.width}x${box.height})`);
-        const clickPoint = {
-            x: box.x + point.x * box.width / 512,
-            y: box.y + point.y * box.height / 512,
-        };
-
-        await page.locator('#btnToolBrush').click();
-        await page.mouse.click(clickPoint.x, clickPoint.y);
-        assert.ok((await maskAlpha(page, point)) > 0, 'Brush adds a mask pixel');
-        await page.locator('#btnToolEraser').click();
-        await page.mouse.click(clickPoint.x, clickPoint.y);
-        assert.equal(await maskAlpha(page, point), 0, 'Eraser clears the mask pixel');
-        await page.locator('#btnToolBrush').click();
-        await page.mouse.click(clickPoint.x, clickPoint.y);
-        assert.ok((await maskAlpha(page, point)) > 0, 'Brush restores an edited pixel');
-
-        await page.evaluate(() => zoomInCanvas());
-        const panStart = await page.evaluate(() => ({ x: panOffsetX, y: panOffsetY }));
-        const maskBeforePan = await maskAlpha(page, point);
-        const zoomedBox = await editor.boundingBox();
-        await page.keyboard.down('Shift');
-        await page.mouse.move(zoomedBox.x + zoomedBox.width / 2, zoomedBox.y + zoomedBox.height / 2);
-        await page.mouse.down();
-        await page.mouse.move(zoomedBox.x + zoomedBox.width / 2 + 40, zoomedBox.y + zoomedBox.height / 2 + 25);
-        await page.mouse.up();
-        await page.keyboard.up('Shift');
-        const panEnd = await page.evaluate(() => ({ x: panOffsetX, y: panOffsetY }));
-        assert.ok(panEnd.x > panStart.x && panEnd.y > panStart.y, 'Shift-drag pans the zoomed image');
-        assert.equal(await maskAlpha(page, point), maskBeforePan, 'Panning does not edit the mask');
-        await page.evaluate(() => resetZoomCanvas());
-        assert.deepEqual(await page.evaluate(() => ({ zoom: currentZoom, x: panOffsetX, y: panOffsetY })),
-            { zoom: 1, x: 0, y: 0 }, '1:1 resets zoom and pan');
-
-        for (const width of [1280, 1024, 768, 390]) {
-            await page.setViewportSize({ width, height: width < 500 ? 844 : 900 });
-            assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), width,
-                `The review workspace fits a ${width}px viewport`);
-        }
-        await page.setViewportSize({ width: 1440, height: 1000 });
-
-        await page.evaluate(() => onOpacityChange(65));
-        assert.equal(await page.locator('#valOpacity').textContent(), '65%');
-        assert.equal(await maskAlpha(page, point), maskBeforePan, 'Opacity changes only the overlay');
-        const historyBeforeReset = await page.evaluate(() => undoStack.length);
-        await page.evaluate(() => resetMaskToAI());
-        await page.waitForTimeout(150);
-        assert.equal(await page.evaluate(() => undoStack.length), historyBeforeReset + 1,
-            'Reset adds one AI-mask snapshot to undo history');
-        assert.equal(await maskAlpha(page, point), 0, 'Reset restores the original AI mask');
-        const historyAtPoint = await page.evaluate(({ x, y }) => undoStack.map(entry => entry.data[(y * 512 + x) * 4 + 3]), point);
-        await page.evaluate(() => undoCanvas());
-        assert.ok((await maskAlpha(page, point)) > 0, `Undo restores the reviewed edit; history=${historyAtPoint}`);
-        assert.equal(await page.evaluate(() => currentCase.doctor_action), 'MODIFIED',
-            'Undo keeps the review action consistent with the restored edit');
-
-        await page.locator('button[onclick="openConfirmationModal()"]:visible').first().click();
-        await page.locator('#confirmSignoffModal button[onclick="executeDoctorSignOff()"]:visible').click();
-        await page.waitForFunction(() => document.getElementById('toastMsg').textContent.includes('Temporary review failure'));
-        assert.equal(await page.locator('#confirmSignoffModal').isVisible(), false,
-            'A failed save closes the confirmation dialog and reports the error in a toast');
-        await page.locator('button[onclick="openConfirmationModal()"]:visible').first().click();
-        await page.locator('#confirmSignoffModal button[onclick="executeDoctorSignOff()"]:visible').click();
-        await page.waitForFunction(() => document.getElementById('hudStatus').textContent.includes('Đã xác nhận'));
-
-        const caseResponse = await page.request.get(`${baseUrl}/api/cases/${identifiers.studyId}`);
-        assert.equal(caseResponse.status(), 200);
-        const savedCase = await caseResponse.json();
-        const savedImage = savedCase.images.find(image => image.image_id === identifiers.imageId);
-        assert.equal(savedCase.patient_id, expectedPatientId,
-            `Direct upload preserves the supplied anonymous patient identifier (${expectedPatientId} => ${savedCase.patient_id})`);
-        assert.ok(savedImage, 'Uploaded image is returned on reopening the case');
-        assert.equal(savedImage.prediction.prediction_id, identifiers.predictionId);
-        assert.ok(savedImage.review, 'Final mask is returned on reopening the case');
-        assert.equal(savedImage.review.doctor_action, 'MODIFIED');
-        assert.equal(savedImage.review.doctor_id, 'UNVERIFIED_REVIEWER');
-        assert.ok(reviewPayload.time_spent_seconds >= 1, 'Review duration is measured from result display');
-        assert.equal(savedImage.review.time_spent_seconds, reviewPayload.time_spent_seconds);
-        assert.equal(rlePixel(savedImage.prediction.rle_mask, point), 0);
-        assert.equal(rlePixel(savedImage.review.verified_mask_rle, point), 1);
-        assert.equal(savedCase.status, 'REVIEWED');
-
-        await page.reload();
-        await page.waitForFunction(() => ['screenDashboard', 'screenDualUpload'].some(id =>
-            document.getElementById(id)?.classList.contains('active')));
-        await page.evaluate(() => navigateTo('history'));
-        await page.waitForFunction(studyId => document.querySelector(`#historyTableBody button[onclick="openCaseDetailModal('${studyId}')"]`), identifiers.studyId);
-        await page.locator(`#historyTableBody button[onclick="openCaseDetailModal('${identifiers.studyId}')"]`).click();
-        await page.waitForFunction(() => document.getElementById('caseDetailModal').classList.contains('active'));
-        assert.equal(await page.locator('#btnDownloadReportModal').isDisabled(), true);
-        assert.equal(pageErrors.length, 0, pageErrors.join('\n'));
-        const unexpectedConsoleErrors = consoleErrors.filter(message =>
-            !message.includes('503 (Service Unavailable)') && !message.includes('Temporary inference failure'));
-        assert.equal(unexpectedConsoleErrors.length, 0, unexpectedConsoleErrors.join('\n'));
-        const deleted = await page.request.delete(`${baseUrl}/api/cases/${identifiers.studyId}`);
-        assert.equal(deleted.status(), 200, 'Smoke-test case is removed after verification');
-        createdStudyId = null;
-        console.log(JSON.stringify({ status: 'PASS', split: 'val', sourceSplitCsv: validationCsv, selectionManifest, caseId: path.basename(imagePath), checkpointSha256: modelChecksum, emptyUpload: true, uploadError: true, loading: true, inferenceRetry: true, views: true, responsive: true, brush: true, eraser: true, pan: true, opacity: true, resetUndo: true, reviewErrorRetry: true, savedMask: true, reopenedCase: true, unexpectedConsoleErrors: unexpectedConsoleErrors.length }));
     } finally {
-        if (page && createdStudyId) {
-            await page.request.delete(`${baseUrl}/api/cases/${createdStudyId}`);
-        }
         await browser.close();
     }
 }
 
-main().catch(error => { console.error(error); process.exitCode = 1; });
+main().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});

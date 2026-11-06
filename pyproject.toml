@@ -33,11 +33,21 @@ ignore = [
 "tests/conftest.py" = ["E402"]
 "tests/serve_isolated_app.py" = ["E402"]
 "scripts/export_hitl_sessions.py" = ["E402"]
+"ai_training/train_unetplusplus_resnet34.py" = ["E402"]
+# These executable research scripts add the repository root before importing project modules.
+"ai_training/search_classifier_8class.py" = ["E402"]
+"ai_training/train_boosted_unetplusplus.py" = ["E402"]
+"ai_training/train_classifier_8class.py" = ["E402"]
+"ai_training/train_multi_source_boosted.py" = ["E402"]
+"scripts/prepare_mmotu_segmentation_splits.py" = ["E402"]
+"tests/seed_synthetic_signed_prelim_queue.py" = ["E402"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [".venv", "artifacts", "node_modules", ".git", ".ruff_cache", ".pytest_cache", "data", "dataset"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 filterwarnings = [
@@ -56,4 +66,3 @@ exclude = [
     "evaluation",
     "dataset",
 ]
-

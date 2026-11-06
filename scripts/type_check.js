@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Static syntax and module validation for frontend and test scripts (QA-02).
+ * JavaScript syntax validation. This legacy filename is retained for compatibility;
+ * node --check does not perform type analysis or validate runtime imports.
  */
 const fs = require('fs');
 const path = require('path');
@@ -23,11 +24,11 @@ for (const dir of targetDirs) {
       execFileSync(process.execPath, ['--check', fullPath], { stdio: 'pipe' });
       checked++;
     } catch (err) {
-      console.error(`Syntax/type check failed for: ${fullPath}`);
+      console.error(`JavaScript syntax check failed for: ${fullPath}`);
       console.error(err.stderr ? err.stderr.toString() : err.message);
       process.exit(1);
     }
   }
 }
 
-console.log(`PASS: Static type-check verified ${checked} JavaScript modules clean.`);
+console.log(`PASS: JavaScript syntax checked ${checked} modules with node --check (no static type analysis).`);

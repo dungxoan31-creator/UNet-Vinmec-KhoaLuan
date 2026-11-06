@@ -12,12 +12,23 @@ let tabId = (() => {
     return crypto.randomUUID();
   }
 })();
+const pageInstanceId = (() => {
+  const key = "ova.page_instance_id";
+  const navigation = performance.getEntriesByType?.("navigation")?.[0]?.type;
+  try {
+    const prior = sessionStorage.getItem(key);
+    if (prior && navigation === "reload") return prior;
+    const id = crypto.randomUUID();
+    sessionStorage.setItem(key, id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+})();
+const reloadGraceMs = 10000;
 
-// Tab identity relies solely on sessionStorage, which is scoped per tab and
-// survives reload but is NOT shared between tabs. No BroadcastChannel
-// collision-detection is needed: a genuine duplicate tab always gets a fresh
-// sessionStorage (and thus a new UUID), while a reloaded tab keeps the same
-// UUID — exactly the behaviour we want for lease continuity on reload.
+// sessionStorage survives reloads and may also be cloned when a tab is duplicated.
+// The page instance id and local lease record distinguish those live documents.
 
 const read = (key) => {
   try {
@@ -26,11 +37,17 @@ const read = (key) => {
     return null;
   }
 };
+const heldByAnotherPage = (record) =>
+  Boolean(
+    record &&
+      record.expires_at > Date.now() + reloadGraceMs &&
+      (record.tab_id !== tabId || record.instance_id !== pageInstanceId),
+  );
 // A cross-tab guard supplements a server lease; it cannot protect other devices.
 export async function acquireLease(caseId, onLost) {
   const key = "ova.lease." + "live." + caseId,
     existing = read(key);
-  if (existing && existing.expires_at > Date.now() && existing.tab_id !== tabId)
+  if (heldByAnotherPage(existing))
     return {
       editable: false,
       label: "Ca đang được chỉnh ở tab khác. Phiên này chỉ xem.",
@@ -43,14 +60,45 @@ export async function acquireLease(caseId, onLost) {
     remote = state.capabilities.case_leases === true;
   let serverLease = null,
     stopped = false,
-    timer;
+    timer,
+    renewing = false;
   const current = () =>
     session.user === state.user?.id && session.token === state.token;
   if (remote) {
-    const response = await request(
-      "/api/workspace/cases/" + encodeURIComponent(caseId) + "/lease",
-      { method: "POST", body: { tab_id: tabId } },
-    );
+    let priorToken = null;
+    try {
+      priorToken = sessionStorage.getItem("ova.server-lease." + caseId);
+    } catch {}
+    let response;
+    try {
+      response = await request(
+        "/api/workspace/cases/" + encodeURIComponent(caseId) + "/lease",
+        {
+          method: "POST",
+          body: {
+            tab_id: tabId,
+            page_instance_id: pageInstanceId,
+            ...(priorToken ? { lease_token: priorToken } : {}),
+          },
+        },
+      );
+      // A stored token can have expired while the page was closed. A fresh
+      // acquire is separate from renewal and remains subject to server exclusivity.
+      if (!response.granted && priorToken && current()) {
+        try { sessionStorage.removeItem("ova.server-lease." + caseId); } catch {}
+        response = await request(
+          "/api/workspace/cases/" + encodeURIComponent(caseId) + "/lease",
+          { method: "POST", body: { tab_id: tabId, page_instance_id: pageInstanceId } },
+        );
+      }
+    } catch {
+      onLost("Máy chủ chưa xác nhận quyền chỉnh sửa; phiên này chỉ xem.");
+      return {
+        editable: false,
+        label: "Không thể xác nhận quyền chỉnh sửa với máy chủ.",
+        release: () => {},
+      };
+    }
     if (!response.granted)
       return {
         editable: false,
@@ -58,6 +106,9 @@ export async function acquireLease(caseId, onLost) {
         release: () => {},
       };
     serverLease = response;
+    try {
+      sessionStorage.setItem("ova.server-lease." + caseId, response.lease_token);
+    } catch {}
   }
   function lose() {
     if (stopped) return;
@@ -69,7 +120,7 @@ export async function acquireLease(caseId, onLost) {
   }
   function write() {
     const other = read(key);
-    if (other && other.expires_at > Date.now() && other.tab_id !== tabId) {
+    if (heldByAnotherPage(other)) {
       lose();
       return;
     }
@@ -78,6 +129,7 @@ export async function acquireLease(caseId, onLost) {
         key,
         JSON.stringify({
           tab_id: tabId,
+          instance_id: pageInstanceId,
           owner: session.user,
           expires_at: Date.now() + 45000,
         }),
@@ -89,54 +141,78 @@ export async function acquireLease(caseId, onLost) {
   const storage = (e) => {
     if (e.key === key) {
       const other = read(key);
-      if (other && other.expires_at > Date.now() && other.tab_id !== tabId)
-        lose();
+      if (heldByAnotherPage(other)) lose();
     }
   };
   const onPageHide = () => {
     try {
       const cur = read(key);
-      if (cur && cur.tab_id === tabId) {
+      if (cur && cur.tab_id === tabId && cur.instance_id === pageInstanceId) {
         cur.expires_at = Date.now() + 5000;
         localStorage.setItem(key, JSON.stringify(cur));
       }
     } catch {}
   };
+  const onPageShow = () => {
+    const other = read(key);
+    if (heldByAnotherPage(other)) lose();
+  };
   window.addEventListener("pagehide", onPageHide);
+  window.addEventListener("pageshow", onPageShow);
 
   write();
   window.addEventListener("storage", storage);
   timer = setInterval(async () => {
+    if (stopped || renewing) return;
     if (!current()) {
       lose();
       return;
     }
+    renewing = true;
+    try {
     if (remote)
       try {
         const next = await request(
           "/api/workspace/cases/" + encodeURIComponent(caseId) + "/lease",
           {
             method: "POST",
-            body: { lease_token: serverLease.lease_token, tab_id: tabId },
+            body: {
+              lease_token: serverLease.lease_token,
+              tab_id: tabId,
+              page_instance_id: pageInstanceId,
+            },
           },
         );
+        if (stopped || !current()) return;
         if (!next.granted) {
           lose();
           return;
         }
         serverLease = next;
+        try {
+          sessionStorage.setItem("ova.server-lease." + caseId, next.lease_token);
+        } catch {}
       } catch {
         lose();
         return;
       }
-    write();
+    if (!stopped && current()) write();
+    } finally {
+      renewing = false;
+    }
   }, 15000);
   function release() {
     stopped = true;
     clearInterval(timer);
     window.removeEventListener("storage", storage);
     window.removeEventListener("pagehide", onPageHide);
-    if (read(key)?.tab_id === tabId) localStorage.removeItem(key);
+    window.removeEventListener("pageshow", onPageShow);
+    const currentLease = read(key);
+    if (
+      currentLease?.tab_id === tabId &&
+      currentLease?.instance_id === pageInstanceId
+    )
+      localStorage.removeItem(key);
     if (remote && serverLease)
       fetch("/api/workspace/cases/" + encodeURIComponent(caseId) + "/lease", {
         method: "DELETE",
@@ -144,15 +220,32 @@ export async function acquireLease(caseId, onLost) {
           Authorization: "Bearer " + session.token,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ lease_token: serverLease.lease_token }),
+        body: JSON.stringify({
+          lease_token: serverLease.lease_token,
+          page_instance_id: pageInstanceId,
+        }),
         keepalive: true,
       }).catch(() => {});
+    if (remote && serverLease)
+      try {
+        const key = "ova.server-lease." + caseId;
+        if (sessionStorage.getItem(key) === serverLease.lease_token)
+          sessionStorage.removeItem(key);
+      } catch {}
+  }
+  function handoff() {
+    stopped = true;
+    clearInterval(timer);
+    window.removeEventListener("storage", storage);
+    window.removeEventListener("pagehide", onPageHide);
+    window.removeEventListener("pageshow", onPageShow);
   }
   return {
     editable: !stopped,
-    label: remote
-      ? "Phiên chỉnh sửa được máy chủ giữ."
-      : "Chỉ bảo vệ giữa các tab trên thiết bị; máy chủ chưa cung cấp khóa đa người dùng.",
+    leaseToken: () => serverLease?.lease_token ?? null,
+    pageInstanceId,
+    label: "",
+    handoff,
     release,
   };
 }

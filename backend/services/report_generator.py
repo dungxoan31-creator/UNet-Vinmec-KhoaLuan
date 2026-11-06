@@ -1,17 +1,13 @@
-"""
-Medical Ultrasound Report Generator Service (Vinmec Standard 1-Page A4 PDF):
-- Primary: Headless Browser Rendering (Edge / Chrome) of Official Vinmec HTML Template (Single Page A4, Full Unicode UTF-8)
-- Fallback: ReportLab PDF Generator with Registered TrueType Unicode Fonts (Arial / Segoe UI)
-"""
+"""Render a research-use-only ultrasound report draft as an A4 PDF."""
 
-import json
+import math
 import os
-import shutil
-import subprocess
-import tempfile
-from datetime import datetime
+import re
+from collections import Counter
+from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from typing import Any
+from xml.sax.saxutils import escape
 
 # ReportLab imports for fallback
 from reportlab.lib import colors
@@ -22,23 +18,11 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from backend.core.image_utils import MAX_DECODED_IMAGE_PIXELS
+
 
 class MedicalReportGenerator:
     def __init__(self):
-        self.template_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "templates",
-            "medical_report",
-            "vinmec_diagnosis_template.html",
-        )
-        self.edge_paths = [
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            shutil.which("msedge"),
-            shutil.which("chrome"),
-        ]
         self._init_unicode_fonts()
 
     def _init_unicode_fonts(self):
@@ -50,6 +34,12 @@ class MedicalReportGenerator:
             ("Arial", r"C:\Windows\Fonts\arial.ttf", "Arial-Bold", r"C:\Windows\Fonts\arialbd.ttf"),
             ("SegoeUI", r"C:\Windows\Fonts\segoeui.ttf", "SegoeUI-Bold", r"C:\Windows\Fonts\segoeuib.ttf"),
             ("Times", r"C:\Windows\Fonts\times.ttf", "Times-Bold", r"C:\Windows\Fonts\timesbd.ttf"),
+            (
+                "DejaVuSans",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "DejaVuSans-Bold",
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            ),
         ]
 
         for reg_name, reg_path, bld_name, bld_path in font_candidates:
@@ -105,71 +95,90 @@ class MedicalReportGenerator:
             parent=self.body_style,
             fontName=self.font_bold,
         )
-
-    def _find_browser_binary(self) -> str | None:
-        for p in self.edge_paths:
-            if p and os.path.exists(p):
-                return p
-        return None
+        self.draft_notice_style = ParagraphStyle(
+            "DraftNotice",
+            parent=self.bold_body_style,
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor("#9F1239"),
+            alignment=1,
+        )
 
     def _normalize_report_data(self, raw_data: dict[str, Any]) -> dict[str, Any]:
-        """Maps incoming API payload to full Vinmec Diagnosis Report format."""
+        """Normalize supplied case data without inventing clinical fields."""
+        if not isinstance(raw_data, dict):
+            raise ValueError("Report data must be an object.")
         raw_pid = raw_data.get("patientId") or raw_data.get("anonymized_pid") or raw_data.get("pid")
         if not raw_pid or not str(raw_pid).strip():
             raise ValueError("Thiếu mã định danh bệnh nhân (patientId/anonymized_pid) bắt buộc để khởi tạo phiếu kết quả.")
         pid = str(raw_pid).strip()
 
         pname = raw_data.get("patientName") or raw_data.get("full_name") or "Chưa ghi nhận"
-        pgender = raw_data.get("patientGender") or "N/A"
-        pdob = raw_data.get("patientDob") or "N/A"
-        order_date = raw_data.get("orderDate") or raw_data.get("study_date") or datetime.now().strftime("%d-%b-%Y %I:%M %p")
-        completed_date = raw_data.get("completedDate") or order_date
+        pgender = raw_data.get("patientGender") or "Chưa ghi nhận"
+        pdob = raw_data.get("patientDob") or "Chưa ghi nhận"
+        order_date = raw_data.get("orderDate") or raw_data.get("study_date") or "Chưa ghi nhận"
+        completed_date = raw_data.get("completedDate") or "Chưa ghi nhận"
         vis_type = raw_data.get("visitType") or "Chưa ghi nhận"
         ref_doc = raw_data.get("referringDoctor") or "Chưa ghi nhận"
-        service = raw_data.get("serviceName") or "Khám chuyên khoa Phụ khoa — Siêu âm Đầu dò"
-        order_name = raw_data.get("orderName") or "Siêu âm buồng trứng qua ngả âm đạo"
-        rpid = raw_data.get("rpid") or f"HAN{datetime.now().strftime('%y%m%d%H%M')}"
-        clin_diag = raw_data.get("clinicalDiagnosis") or raw_data.get("clinical_notes") or "Chưa ghi nhận"
-        technique = raw_data.get("technique") or "Siêu âm 2D Doppler màu ngả âm đạo kết hợp mô hình AI hỗ trợ đo đạc kích thước."
+        service = raw_data.get("serviceName") or "Chưa ghi nhận"
+        order_name = raw_data.get("orderName") or "Chưa ghi nhận"
+        rpid = raw_data.get("rpid") or "Chưa ghi nhận"
+        technique = raw_data.get("technique") or "Chưa ghi nhận"
 
-        meas = raw_data.get("measurements") or {}
+        raw_measurements = raw_data.get("measurements")
+        meas = raw_measurements if isinstance(raw_measurements, dict) else {}
         d1 = meas.get("max_diameter_mm")
         d2 = meas.get("ortho_diameter_mm")
         area = meas.get("total_area_cm2")
-        d1_str = f"{d1} mm" if d1 is not None else "Chưa ghi nhận"
-        d2_str = f"{d2} mm" if d2 is not None else "Chưa ghi nhận"
-        area_str = f"{area} cm²" if area is not None else "Chưa ghi nhận"
+        has_usable_calibration_metadata = (
+            meas.get("calibrated") is True
+            and meas.get("calibration_source") in {"DICOM", "MANUAL"}
+            and _has_valid_pixel_spacing(meas.get("pixel_spacing_mm"))
+        )
+        d1_text = _report_measurement_text(d1, "mm") if has_usable_calibration_metadata else None
+        d2_text = _report_measurement_text(d2, "mm") if has_usable_calibration_metadata else None
+        area_text = _report_measurement_text(area, "cm²") if has_usable_calibration_metadata else None
+        d1_str = d1_text or "Chưa ghi nhận"
+        d2_str = d2_text or "Chưa ghi nhận"
+        area_str = area_text or "Chưa ghi nhận"
 
-        lesion = raw_data.get("lesion_type") or "Tổn thương dạng nang"
+        has_measurements = any(value is not None for value in (d1_text, d2_text, area_text))
+        measurement_text = (
+            f"- Số đo AI đề xuất: D1 = {d1_str}, "
+            f"D2 = {d2_str}, diện tích = {area_str}."
+            if has_measurements
+            else "- Số đo: chờ ghi nhận."
+        )
+        ruo_clinical_notice = "Mục mô tả được bác sĩ phụ trách hoàn thiện theo hồ sơ rà soát."
+        clin_diag = "Phần ghi nhận chuyên môn do bác sĩ phụ trách hoàn thiện."
+        ovary_r1 = ruo_clinical_notice
+        ovary_r2 = ruo_clinical_notice
+        ovary_r3 = measurement_text
+        ovary_r4 = ruo_clinical_notice
+        ovary_l1 = ruo_clinical_notice
+        douglas = ruo_clinical_notice
 
-        ovary_r1 = raw_data.get("ovary_r1") or "Khảo sát buồng trứng phải: Xem chi tiết hình ảnh đính kèm."
-        ovary_r2 = raw_data.get("ovary_r2") or f"- Hình thái: Ghi nhận {lesion}."
-        ovary_r3 = raw_data.get("ovary_r3") or f"- Đo đạc tự động: D1 = {d1_str}, D2 = {d2_str}, Diện tích = {area_str}."
-        ovary_r4 = raw_data.get("ovary_r4") or "- Doppler màu: Chưa ghi nhận."
-        ovary_l1 = raw_data.get("ovary_l1") or "Khảo sát buồng trứng trái: Xem chi tiết hình ảnh đính kèm."
-        douglas = raw_data.get("douglas") or "Cùng đồ sau: Chưa phát hiện bất thường rõ rệt."
+        conc1 = "Mục kết luận do bác sĩ phụ trách hoàn thiện."
+        conc2 = "Nội dung đề nghị theo quy trình chuyên môn của cơ sở."
+        doc_title = raw_data.get("doctorTitle") or "Chưa ghi nhận"
+        doc_name = raw_data.get("doctorName") or raw_data.get("doctor_name") or "Chưa ghi nhận"
 
-        conc1 = raw_data.get("conclusion_l1") or "1. ĐỀ NGHỊ BÁC SĨ LÂM SÀNG ĐỐI CHIẾU TRIỆU CHỨNG VÀ HÌNH ẢNH SIÊU ÂM."
-        conc2 = raw_data.get("conclusion_l2") or ""
-        doc_title = raw_data.get("doctorTitle") or "Bác sĩ chuyên khoa Chẩn đoán hình ảnh"
-        doc_name = raw_data.get("doctorName") or raw_data.get("doctor_name") or "Bác sĩ thực hiện"
-
-        fac_key = raw_data.get("facilityKey") or "times_city"
-        hosp_name = raw_data.get("hospitalName") or "HỆ THỐNG Y TẾ VINMEC"
-        dept_name = raw_data.get("departmentName") or "KHOA CHẨN ĐOÁN HÌNH ẢNH"
-        hosp_addr = raw_data.get("hospitalAddress") or "Hà Nội, Việt Nam"
-        hosp_contact = raw_data.get("hospitalContact") or "Tổng đài: 1900 232 389"
+        fac_key = raw_data.get("facilityKey") or ""
+        hosp_name = raw_data.get("hospitalName") or "Chưa ghi nhận"
+        dept_name = raw_data.get("departmentName") or "Chưa ghi nhận"
+        hosp_addr = raw_data.get("hospitalAddress") or "Chưa ghi nhận"
+        hosp_contact = raw_data.get("hospitalContact") or "Chưa ghi nhận"
 
         img_before = raw_data.get("imageBefore") or raw_data.get("image_base64")
-        img_after = raw_data.get("imageAfter") or raw_data.get("overlay_base64") or img_before
+        img_after = raw_data.get("imageAfter") or raw_data.get("overlay_base64")
 
-        return {
+        normalized = {
             "facilityKey": fac_key,
             "hospitalName": hosp_name,
             "departmentName": dept_name,
             "hospitalAddress": hosp_addr,
             "hospitalContact": hosp_contact,
-            "reportTitle": "PHIẾU KẾT QUẢ SIÊU ÂM BUỒNG TRỨNG & TIỂU KHUNG",
+            "reportTitle": "BÁO CÁO NGHIÊN CỨU RUO — HỖ TRỢ RÀ SOÁT HÌNH ẢNH",
             "patientId": str(pid),
             "patientName": pname,
             "patientGender": pgender,
@@ -193,79 +202,35 @@ class MedicalReportGenerator:
             "conclusion_l2": conc2,
             "doctorTitle": doc_title,
             "doctorName": doc_name,
-            "footerApprovedBy": f"Kết quả đã được duyệt bởi: {doc_name} — Hệ thống AI Decision Support v1.2",
+            "signingContext": ", ".join(
+                str(value).strip()
+                for value in (raw_data.get("signingLocation"), raw_data.get("signedDate"))
+                if value and str(value).strip()
+            ),
+            # Approval must come from a persisted server-side workflow, never
+            # from a caller-supplied report dictionary.
+            "footerApprovedBy": "Bản nháp nghiên cứu · bác sĩ phụ trách hoàn thiện.",
+            "cdss_explanation": (
+                raw_data.get("cdss_explanation")
+                or "Độ tin cậy U-Net đo chất lượng đường viền phân đoạn pixel; không phải xác suất ác tính (malignancy probability)."
+            ),
             "imageBefore": img_before,
             "imageAfter": img_after,
-            "imageBeforeCaption": raw_data.get("imageBeforeCaption") or "Mặt cắt dọc đầu dò âm đạo (TVUS 7.5MHz)",
-            "imageCaliperTag": raw_data.get("imageCaliperTag") or f"D1: {d1} mm • D2: {d2} mm • DT: {area} cm²",
+            "imageBeforeCaption": raw_data.get("imageBeforeCaption") or "Ảnh siêu âm đầu vào",
+            "imageCaliperTag": raw_data.get("imageCaliperTag")
+            or (f"D1: {d1_str} • D2: {d2_str} • Diện tích: {area_str}" if has_measurements else "Chờ ghi nhận số đo"),
         }
+        for key, value in normalized.items():
+            if key not in {"imageBefore", "imageAfter"}:
+                normalized[key] = escape(value) if isinstance(value, str) else "Chưa ghi nhận"
+        return normalized
 
     def generate_pdf_report(self, report_data: dict[str, Any], output_path: str | None = None) -> bytes:
         """
-        Generates official Vinmec single-page A4 PDF report with full Unicode Vietnamese support.
-        Tries Headless Browser (Edge/Chrome) first, then falls back to Unicode ReportLab.
+        Generate an RUO report draft with supplied data and Unicode-capable fonts.
         """
         normalized_data = self._normalize_report_data(report_data)
-        browser_bin = self._find_browser_binary()
-
-        if browser_bin and os.path.exists(self.template_path):
-            try:
-                pdf_bytes = self._generate_via_browser(browser_bin, normalized_data)
-                if output_path:
-                    with open(output_path, "wb") as f:
-                        f.write(pdf_bytes)
-                return pdf_bytes
-            except Exception as e:
-                print(f"Browser PDF generation fallback notice: {e}")
-
-        # Fallback to Unicode ReportLab
         return self._generate_via_reportlab(normalized_data, output_path)
-
-    def _generate_via_browser(self, browser_bin: str, data: dict[str, Any]) -> bytes:
-        with open(self.template_path, encoding="utf-8") as f:
-            template_html = f.read()
-
-        # Inject JSON into template
-        data_json = json.dumps(data, ensure_ascii=False)
-        injected_html = template_html.replace(
-            "const DEFAULT_DATA = {",
-            f"const DEFAULT_DATA = {data_json}; const OLD_DATA = {{",
-            1
-        )
-
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w", encoding="utf-8") as temp_html:
-            temp_html_path = temp_html.name
-            temp_html.write(injected_html)
-
-        temp_pdf_path = temp_html_path.replace(".html", ".pdf")
-
-        try:
-            cmd = [
-                browser_bin,
-                "--headless",
-                "--disable-gpu",
-                "--run-all-compositor-stages-before-draw",
-                "--no-pdf-header-footer",
-                f"--print-to-pdf={temp_pdf_path}",
-                temp_html_path,
-            ]
-            subprocess.run(cmd, check=True, capture_output=True, timeout=20)
-
-            with open(temp_pdf_path, "rb") as f:
-                pdf_bytes = f.read()
-            return pdf_bytes
-        finally:
-            if os.path.exists(temp_html_path):
-                try:
-                    os.remove(temp_html_path)
-                except Exception:
-                    pass
-            if os.path.exists(temp_pdf_path):
-                try:
-                    os.remove(temp_pdf_path)
-                except Exception:
-                    pass
-
 
     def _generate_via_reportlab(self, data: dict[str, Any], output_path: str | None = None) -> bytes:
         """ReportLab single-page A4 generator using registered TrueType Unicode fonts."""
@@ -284,6 +249,7 @@ class MedicalReportGenerator:
         # 1. Header
         story.append(Paragraph(data["hospitalName"], self.title_style))
         story.append(Paragraph(data["departmentName"], self.subtitle_style))
+        story.append(Paragraph(escape(REPORT_RUO_DISCLAIMER), self.draft_notice_style))
         story.append(Spacer(1, 2 * mm))
 
         # 2. Main Title
@@ -295,6 +261,7 @@ class MedicalReportGenerator:
             textColor=colors.HexColor("#004D80"),
         )
         story.append(Paragraph(data["reportTitle"], main_title_style))
+        story.append(Paragraph(data["footerApprovedBy"], self.draft_notice_style))
         story.append(Spacer(1, 2 * mm))
 
         # 3. Patient Info Table
@@ -318,7 +285,7 @@ class MedicalReportGenerator:
                 Paragraph(data["patientDob"], self.body_style),
             ],
             [
-                Paragraph("<b>Chẩn đoán:</b>", self.body_style),
+                Paragraph("<b>Phạm vi chẩn đoán:</b>", self.body_style),
                 Paragraph(data["clinicalDiagnosis"], self.body_style),
                 Paragraph("<b>Mã RPID:</b>", self.body_style),
                 Paragraph(data["rpid"], self.body_style),
@@ -352,32 +319,194 @@ class MedicalReportGenerator:
         story.append(Spacer(1, 3 * mm))
 
         # 5. Conclusion
-        story.append(Paragraph("KẾT LUẬN & ĐỀ NGHỊ:", self.section_heading))
+        story.append(Paragraph("GHI NHẬN CHUYÊN MÔN · BÁC SĨ PHỤ TRÁCH HOÀN THIỆN", self.section_heading))
         story.append(Paragraph(f"<b>{data['conclusion_l1']}</b>", self.bold_body_style))
         story.append(Paragraph(data["conclusion_l2"], self.body_style))
+        if data.get("cdss_explanation"):
+            story.append(Paragraph(data["cdss_explanation"], self.draft_notice_style))
         story.append(Spacer(1, 4 * mm))
-
-        # 6. Doctor Signature Block
-        sig_data = [
-            [
-                "",
-                Paragraph(
-                    f"Hà Nội, {datetime.now().strftime('ngày %d tháng %m năm %Y')}<br/><b>{data['doctorTitle']}</b><br/><br/><br/><b>{data['doctorName']}</b>",
-                    ParagraphStyle(
-                        "Sig",
-                        parent=self.body_style,
-                        alignment=1,
-                        fontName=self.font_regular,
-                    ),
-                ),
-            ]
-        ]
-        t_sig = Table(sig_data, colWidths=[10 * cm, 8 * cm])
-        t_sig.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
-        story.append(t_sig)
 
         doc.build(story)
         if output_path:
             with open(output_path, "rb") as f:
                 return f.read()
         return buffer.getvalue()
+
+
+
+REPORT_RUO_DISCLAIMER = (
+    "TÀI LIỆU NGHIÊN CỨU RUO · Phạm vi: đánh giá kỹ thuật · Bác sĩ phụ trách rà soát nội dung · "
+    "Xác thực chữ ký số: ngoài phạm vi phiên bản RUO."
+)
+
+_NUMBER_WITH_UNIT = re.compile(
+    r"(?P<number>\d+(?:[.,]\d+)?)(?:\s*(?P<unit>mm(?:²|2|³|3)?|cm(?:²|2|³|3)?|ml|px|%)(?![A-Za-z0-9_]))?",
+    re.IGNORECASE,
+)
+
+
+def _number_unit_tokens(text: str) -> Counter:
+    tokens = Counter()
+    for match in _NUMBER_WITH_UNIT.finditer(text):
+        raw_number = match.group("number").replace(",", ".")
+        try:
+            number = Decimal(raw_number).normalize()
+        except InvalidOperation:
+            continue
+        unit = (match.group("unit") or "").lower().replace("²", "2").replace("³", "3")
+        tokens[(number, unit)] += 1
+    return tokens
+
+
+def numbers_match(llm_text: str, source_text: str) -> bool:
+    """Require every summarized numeric value and its unit to exist in the source."""
+    if not isinstance(llm_text, str) or not isinstance(source_text, str):
+        return False
+    return _number_unit_tokens(llm_text) <= _number_unit_tokens(source_text)
+
+
+def _probability_percent(value: Any) -> int | None:
+    number = _finite_number(value)
+    if number is None or not 0.0 <= number <= 1.0:
+        return None
+    return int(round(number * 100))
+
+
+def _finite_number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        normalized = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    return normalized if math.isfinite(normalized) else None
+
+
+def _report_measurement_text(value: Any, unit: str) -> str | None:
+    normalized = _finite_number(value)
+    if normalized is None or normalized <= 0.0:
+        return None
+    try:
+        raw_text = str(value)
+    except (OverflowError, ValueError):
+        return None
+    return f"{raw_text} {unit}"
+
+
+def _fmt(val, unit="", nd=1):
+    normalized = _finite_number(val)
+    if normalized is None or normalized < 0:
+        return "không xác định"
+    return f"{normalized:.{nd}f} {unit}".strip()
+
+
+def _has_valid_pixel_spacing(value: Any) -> bool:
+    normalized = _finite_number(value)
+    return normalized is not None and normalized > 0.0
+
+
+def build_structured_findings_report(f: dict) -> str:
+    """Báo cáo theo khuôn mẫu. Mọi con số lấy từ JSON findings, không sinh bằng LLM."""
+    findings = f if isinstance(f, dict) else {}
+    side_raw = findings.get("side")
+    side_vi = {"left": "trái", "right": "phải"}.get(side_raw) if isinstance(side_raw, str) else None
+    side_title = side_vi.upper() if side_vi else "CHƯA XÁC ĐỊNH"
+    side_label = side_vi or "chưa xác định"
+
+    lines = [f"TÀI LIỆU NGHIÊN CỨU RUO · SIÊU ÂM BUỒNG TRỨNG {side_title}"]
+    pixel_spacing_valid = _has_valid_pixel_spacing(findings.get("pixel_spacing_mm"))
+
+    ov = findings.get("ovary")
+    if isinstance(ov, dict) and ov.get("present") is True:
+        if pixel_spacing_valid:
+            d_ov = _fmt(ov.get("longest_diameter_mm"), "mm")
+            area_ov = _fmt(ov.get("area_mm2"), "mm²")
+            lines.append(f"- Buồng trứng {side_label}: đường kính lớn nhất {d_ov}, diện tích {area_ov}.")
+        else:
+            lines.append(f"- Buồng trứng {side_label}: kích thước vật lý không khả dụng.")
+
+    fo = findings.get("follicles")
+    if not isinstance(fo, dict):
+        measurements = findings.get("measurements")
+        fo = measurements.get("follicles") if isinstance(measurements, dict) else None
+    if not isinstance(fo, dict):
+        fo = {}
+    if fo.get("analysis_status") == "FAILED":
+        lines.append("- Không thể phân tích các vùng trên mask; cần bác sĩ kiểm tra.")
+    elif type(fo.get("count")) is int and fo["count"] == 0:
+        pass
+    elif type(fo.get("count")) is int and 0 < fo["count"] <= MAX_DECODED_IMAGE_PIXELS:
+        count = fo["count"]
+        in_range = fo.get("count_in_range")
+        if (
+            not pixel_spacing_valid
+            or type(in_range) is not int
+            or not 0 <= in_range <= count
+        ):
+            in_range = None
+        lines.append(
+            f"- Số vùng ứng viên trên mask (chưa xác nhận là nang): {count} "
+            f"(trong khoảng kích thước cấu hình: {in_range if in_range is not None else 'không xác định'})."
+        )
+    elif fo.get("count") is not None:
+        lines.append("- Số vùng ứng viên trên mask: không xác định do dữ liệu đếm không hợp lệ.")
+
+    le = findings.get("lesion")
+    if isinstance(le, dict) and le.get("present") is True:
+        if pixel_spacing_valid:
+            d1 = _fmt(le.get("longest_diameter_mm"), "mm")
+            d2 = _fmt(le.get("perpendicular_diameter_mm"), "mm")
+            area_le = _fmt(le.get("area_mm2"), "mm²")
+            lines.append(f"- Tổn thương: kích thước {d1} × {d2}, diện tích {area_le}.")
+        else:
+            lines.append("- Tổn thương: kích thước vật lý không khả dụng.")
+    elif isinstance(le, dict) and le.get("present") is False:
+        lines.append("- Không có tổn thương được ghi nhận trên mask hiện tại.")
+    else:
+        lines.append("- Chưa có dữ liệu mask tổn thương để báo cáo.")
+
+    if not pixel_spacing_valid:
+        lines.append("- Pixel spacing: cần giá trị hợp lệ; kích thước hiện hiển thị theo pixel.")
+
+    lines.append("")
+    lines.append("THÔNG TIN NGHIÊN CỨU (RUO):")
+    lines.append(
+        "- Phạm vi nghiên cứu RUO; phần kết luận, phân loại và định hướng chuyên môn do bác sĩ phụ trách hoàn thiện."
+    )
+    lines.append(
+        "- Độ tin cậy U-Net đo chất lượng đường viền phân đoạn pixel; không phải xác suất ác tính (malignancy probability)."
+    )
+
+    lines.append("")
+    lines.append(REPORT_RUO_DISCLAIMER)
+    return "\n".join(lines)
+
+
+def build_patient_friendly_summary(_findings: dict) -> dict:
+    """Return a neutral RUO notice; patient-facing clinical summaries are disabled."""
+    return {
+        "summary_title": "THÔNG TIN NGHIÊN CỨU RUO",
+        "side": "chưa xác định",
+        "status_color": "GRAY",
+        "status_label": "Nội dung trao đổi cùng bác sĩ",
+        "explanation": (
+            "Bác sĩ phụ trách giải thích thông tin hình ảnh trong buổi trao đổi kết quả."
+        ),
+        "size_description": "Thông tin kích thước được bác sĩ trình bày theo phép đo và thông số hiệu chuẩn của ảnh.",
+        "follicles_note": "Số nang được bác sĩ đánh giá theo toàn bộ hình ảnh và bối cảnh chuyên môn.",
+        "lifestyle_advice": [],
+        "disclaimer": (
+            "Tài liệu nghiên cứu RUO · Thông tin chuyên môn do bác sĩ phụ trách đánh giá và xác nhận."
+        ),
+    }
+
+
+def build_patient_friendly_report_text(f: dict) -> str:
+    """Return a fail-safe RUO notice without patient-directed advice or case-derived claims."""
+    s = build_patient_friendly_summary(f)
+    lines = [
+        f"=== {s['summary_title']} ===",
+        s["explanation"],
+        s["disclaimer"],
+    ]
+    return "\n".join(lines)

@@ -1,0 +1,43 @@
+﻿feature,status,evidence,reason
+Doctor/admin login,TESTED,browser-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Create patient local persistence boundary,TESTED,browser-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Fresh-context patient visibility,TESTED,browser-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Patient-store stale update reproduction,TESTED,store-probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Patient-store empty reopening reproduction,TESTED,store-probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Scoped-admin global settings boundary,TESTED,tenant-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Cross-facility identical PID identity mapping,TESTED,tenant-results.json; probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Cross-facility case read denial,TESTED,tenant-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Single-side case creation,TESTED,probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Synthetic source-image upload,TESTED,probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Whole-image classifier abstention,TESTED,probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Single image review save/reopen,TESTED,deep-browser-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Network failure save feedback/draft,TESTED,deep-browser-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Clinical PDF explicit 501 boundary,TESTED,probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+CDSS missing descriptor fail-closed,TESTED,probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Unauthenticated case denial,TESTED,probe-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Browser RUO print handler,TESTED,final-browser-results.json; actual-print.pdf,Tested only the named bounded scenario; not full feature/regression coverage
+Profile password-change session continuity,TESTED,deep-browser-results.json,Tested only the named bounded scenario; not full feature/regression coverage
+Segmentation inference/geometry,PARTIALLY TESTED,probe-results.json,Selected source/runtime/layout observations; remaining branches explicitly untested
+Manual scale calibration persistence,PARTIALLY TESTED,probe-results.json,Selected source/runtime/layout observations; remaining branches explicitly untested
+Desktop/tablet/mobile layout,PARTIALLY TESTED,browser-results.json; deep-browser-results.json,Selected source/runtime/layout observations; remaining branches explicitly untested
+Patient demographic validation fields,PARTIALLY TESTED,field-inventory.json,Selected source/runtime/layout observations; remaining branches explicitly untested
+Account bootstrap password durability,PARTIALLY TESTED,source-evidence.md,Selected source/runtime/layout observations; remaining branches explicitly untested
+Report saved data and laterality,PARTIALLY TESTED,actual-print-text.json,Selected source/runtime/layout observations; remaining branches explicitly untested
+Administration analytics/metrics,PARTIALLY TESTED,admin-reports.png,Selected source/runtime/layout observations; remaining branches explicitly untested
+Administrative users/departments/model registry,PARTIALLY TESTED,browser-results.json,Selected source/runtime/layout observations; remaining branches explicitly untested
+Audit events list,PARTIALLY TESTED,admin-audit.png,Selected source/runtime/layout observations; remaining branches explicitly untested
+Notifications/empty state,PARTIALLY TESTED,doctor-notifications.png,Selected source/runtime/layout observations; remaining branches explicitly untested
+Keyboard/a11y controls,PARTIALLY TESTED,field-inventory.json; source-evidence.md,Selected source/runtime/layout observations; remaining branches explicitly untested
+Voice local-only guard,PARTIALLY TESTED,node-tests.log,Selected source/runtime/layout observations; remaining branches explicitly untested
+Model/data provenance and loss protocol,PARTIALLY TESTED,source-evidence.md,Selected source/runtime/layout observations; remaining branches explicitly untested
+CUA visible browser observation,PARTIALLY TESTED,cua-state.json,Selected source/runtime/layout observations; remaining branches explicitly untested
+SMTP registration/OTP/reset,BLOCKED,REPORT.md §8,No verified isolated SMTP target
+PostgreSQL/Docker runtime,BLOCKED,REPORT.md §8,No verified isolated service
+Backup archive/restore,BLOCKED,REPORT.md §8,Backup default path outside audit
+Clinical validation/signature workflow,BLOCKED,REPORT.md §8,RUO capabilities disabled; no clinical validation package
+Full bilateral consecutive-patient UI workflow,NOT TESTED,REPORT.md §8,No execution in this audit; no pass claimed
+UI Create Visit reservation/lost response replay,NOT TESTED,REPORT.md §8,No execution in this audit; no pass claimed
+Nonempty-mask drawing/eraser/undo gesture matrix,NOT TESTED,REPORT.md §8,No execution in this audit; no pass claimed
+Native microphone/touch/actual browser zoom,NOT TESTED,REPORT.md §8,No execution in this audit; no pass claimed
+Reviewer approval/correction workflow,NOT TESTED,REPORT.md §8,No execution in this audit; no pass claimed
+Evaluation/clinical external dataset review,NOT TESTED,REPORT.md §8,No execution in this audit; no pass claimed

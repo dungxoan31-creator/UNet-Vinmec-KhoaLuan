@@ -46,10 +46,11 @@ def derive_release_status(
        - No browser skip (browser_skipped / skip_browser must be False).
        - Zero overall exit code from execution checks.
        - Verified live browser test (live_browser_verified is True or passed release_e2e command).
-       - If checks dictionary is not provided, falls back to prototype_checks_passed flag.
+       - If checks dictionary is not provided, readiness stays false; an aggregate boolean is insufficient.
     2. clinician_validation requires:
-       - Verified clinical participants (has_clinician_validation is True and study_status != 'NOT_CONDUCTED').
-       - Never coerced to True merely because technical fallback succeeded.
+       - Explicit CONDUCTED status, a positive integer clinician count,
+         has_clinician_validation is True, and verified participant provenance.
+       - Never coerced to True merely because a count is present or technical fallback succeeded.
     3. evaluation_complete requires:
        - prototype_ready is True.
        - Independent holdout gate is PASS (patient-level mapping verified, not BLOCKED).
@@ -76,31 +77,31 @@ def derive_release_status(
             blockers.append("Live browser E2E verification was skipped; prototype readiness requires verified browser execution")
         elif overall_exit != 0:
             blockers.append(f"Execution checks failed with non-zero exit code ({overall_exit})")
+        elif any(command.get("exit_code") != 0 for command in commands):
+            blockers.append("One or more recorded commands did not pass")
         elif commands and not live_browser_verified:
             blockers.append("Live browser E2E test not verified")
-        else:
-            # If explicit live_browser_verified is present or prototype_ready is asserted in checks without failure
-            if live_browser_verified or (not commands and checks.get("prototype_ready", True) and not skip_browser):
-                prototype_ready = True
-            elif not commands and overall_exit == 0 and not skip_browser:
-                prototype_ready = True
-            else:
-                blockers.append("Prototype readiness requires verified live browser test")
-    else:
-        if prototype_checks_passed:
+        elif live_browser_verified:
             prototype_ready = True
         else:
-            blockers.append("Prototype checks not verified or failed")
+            blockers.append("Prototype readiness requires verified live browser test")
+    else:
+        blockers.append("Prototype readiness requires explicit check evidence with live browser verification")
 
     # 2. Clinician Validation
     clinician_validation = False
     if user_study is not None:
         has_clin = user_study.get("has_clinician_validation")
+        provenance_verified = user_study.get("clinician_provenance_verified")
         status_str = user_study.get("study_status", "UNKNOWN")
         clin_count = user_study.get("clinician_count", 0)
-        if has_clin is True and status_str not in ("NOT_CONDUCTED", "UNKNOWN"):
-            clinician_validation = True
-        elif has_clin is True and clin_count > 0:
+        if (
+            has_clin is True
+            and provenance_verified is True
+            and status_str == "CONDUCTED"
+            and type(clin_count) is int
+            and clin_count > 0
+        ):
             clinician_validation = True
 
     # 3. Independent Gate
@@ -124,17 +125,12 @@ def derive_release_status(
             study_status = user_study.get("study_status", "UNKNOWN")
             tech_acc = user_study.get("technical_acceptance")
             tech_fallback = user_study.get("technical_fallback_verified")
-            tech_count = user_study.get("technical_count")
 
-            if tech_fallback is True or tech_acc == "PASS" or (tech_count is not None and tech_count > 0):
+            if tech_fallback is True and tech_acc == "PASS":
                 user_study_ok = True
                 limitations.append("Clinician user study not conducted (study_status: NOT_CONDUCTED); technical acceptance protocol used as fallback")
             elif study_status == "NOT_CONDUCTED":
-                if prototype_ready:
-                    user_study_ok = True
-                    limitations.append("Clinician user study not conducted (study_status: NOT_CONDUCTED); prototype technical acceptance verified")
-                else:
-                    blockers.append("Clinician user study not conducted and prototype technical acceptance not verified")
+                blockers.append("Clinician user study not conducted and technical acceptance fallback not verified")
             else:
                 blockers.append(f"User study unverified (status: {study_status})")
     else:
@@ -275,11 +271,47 @@ def _fmt_metric(val: Any, decimals: int = 4) -> str:
     return str(val)
 
 
+def _load_model_configuration(root: Path) -> dict[str, Any]:
+    """Load model details only from the repository's explicit selection artifact."""
+    selection_path = root / "evaluation" / "selected_model.json"
+    if not selection_path.is_file():
+        return {}
+    with selection_path.open(encoding="utf-8") as stream:
+        selection = json.load(stream)
+    if not isinstance(selection, dict):
+        raise ValueError(f"Model selection must be a JSON object: {selection_path}")
+    protocol = selection.get("inference_protocol")
+    return {
+        "source": selection_path.relative_to(root).as_posix(),
+        "model": selection.get("model"),
+        "architecture": selection.get("architecture"),
+        "checkpoint_sha256": selection.get("checkpoint_sha256"),
+        "candidate_only": selection.get("candidate_only"),
+        "threshold": selection.get("threshold"),
+        "letterbox_size": protocol.get("letterbox_size") if isinstance(protocol, dict) else None,
+        "postprocessing": protocol.get("postprocessing") if isinstance(protocol, dict) else None,
+        "metric_mask_resolution": protocol.get("metric_mask_resolution") if isinstance(protocol, dict) else None,
+    }
+
+
 def generate_markdown_report(report_data: dict[str, Any]) -> str:
     """
     Renders structured Markdown report (results.md) synthesizing quantitative evaluation,
     error analysis, HITL telemetry, user study findings, and system limitations.
     """
+    model_config = report_data.get("model_configuration", {})
+    input_size = model_config.get("letterbox_size")
+    if isinstance(input_size, list) and len(input_size) == 2:
+        input_size_text = f"{input_size[0]}×{input_size[1]}"
+    else:
+        input_size_text = "Chưa được nêu trong metadata"
+    threshold = model_config.get("threshold")
+    threshold_text = f"$\\ge {threshold}$" if isinstance(threshold, (int, float)) else "Chưa được nêu trong metadata"
+    candidate_status = (
+        "Candidate only" if model_config.get("candidate_only") is True
+        else "Not stated in metadata" if model_config.get("candidate_only") is None
+        else "Selection metadata"
+    )
     lines = [
         "# Báo cáo Đánh giá Định lượng và Thực nghiệm Mô hình Phân đoạn Buồng trứng",
         "",
@@ -292,11 +324,13 @@ def generate_markdown_report(report_data: dict[str, Any]) -> str:
         "",
         "## 1. Thông tin Mô hình và Cấu hình Suy luận",
         "",
-        "- **Kiến trúc mạng**: Standard U-Net (Baseline v1)",
-        f"- **Checkpoint SHA-256**: `{report_data.get('checkpoint_sha256', 'N/A')}`",
-        "- **Kích thước đầu vào**: 512×512 (Letterbox bảo toàn tỷ lệ khung hình gốc)",
-        "- **Ngưỡng nhị phân hóa**: $\\ge 0.5$ (không áp dụng hình thái học morphology post-processing)",
-        "- **Không gian dự đoán**: Native Resolution (hồi phục kích thước ảnh gốc qua inverse letterbox)",
+        f"- **Mô hình**: {model_config.get('model') or 'Chưa được nêu trong metadata'}",
+        f"- **Kiến trúc**: `{model_config.get('architecture') or 'Chưa được nêu trong metadata'}` ({candidate_status})",
+        f"- **Checkpoint SHA-256**: `{report_data.get('checkpoint_sha256') or model_config.get('checkpoint_sha256') or 'Chưa có'}`",
+        f"- **Kích thước đầu vào**: {input_size_text}",
+        f"- **Ngưỡng nhị phân hóa**: {threshold_text}",
+        f"- **Postprocessing**: {model_config.get('postprocessing') or 'Chưa được nêu trong metadata'}",
+        f"- **Độ phân giải metric mask**: {model_config.get('metric_mask_resolution') or 'Chưa được nêu trong metadata'}",
         "",
         "---",
         "",
@@ -342,12 +376,8 @@ def generate_markdown_report(report_data: dict[str, Any]) -> str:
         "",
         "## 3. Phân tích Lỗi Định tính (Error Analysis)",
         "",
-        "Phân tích lỗi được thực hiện theo 8 nhóm hình thái và trường hợp biên (Milestone 3 Protocol):",
-        "- **Best / Median / Worst cases**: Xếp hạng theo chỉ số Dice đối chiếu trực quan 5 cột (Original, GT, Prediction, Overlay, Difference).",
-        "- **Bỏ sót tổn thương (False Negative Dominant)**: Mô hình bỏ sót các tổn thương nhỏ phân tán hoặc u có bờ ranh giới cản âm mờ nhạt.",
-        "- **Lan vùng giả dương (False Positive Dominant)**: Nhầm lẫn vùng bóng cản âm của ruột, bàng quang hoặc nang noãn buồng trứng sinh lý thành u nang.",
-        "- **Lỗi ranh giới (Boundary Ambiguity)**: Lớp mask nhị phân có độ biến động cao ở vùng ranh giới tiếp giáp nhu mô lành.",
-        "- **Truy vết minh chứng**: Toàn bộ panel đối chiếu được lưu trữ tại `evaluation/milestone_3_final/legacy_test_v1/error_analysis/`.",
+        "Bộ tạo báo cáo này chưa nhận artifact phân tích lỗi định tính.",
+        "Không suy luận hình thái tổn thương hoặc nguyên nhân lỗi lâm sàng từ metric phân đoạn tổng hợp.",
         "",
         "---",
         "",
@@ -383,16 +413,26 @@ def generate_markdown_report(report_data: dict[str, Any]) -> str:
     study_status = user_study.get("study_status", "NOT_CONDUCTED")
     clinician_count = user_study.get("clinician_count", 0)
     tech_count = user_study.get("technical_count", 0)
+    technical_acceptance_verified = (
+        user_study.get("technical_acceptance") == "PASS"
+        and user_study.get("technical_fallback_verified") is True
+    )
+    technical_acceptance_status = "PASS" if technical_acceptance_verified else "NOT VERIFIED"
+    user_study_warning = (
+        "Không có kết quả khảo sát bác sĩ. Khả dụng kỹ thuật chỉ được ghi nhận khi có hồ sơ nghiệm thu được xác minh."
+        if not technical_acceptance_verified
+        else "Không có kết quả khảo sát bác sĩ; nghiệm thu kỹ thuật không thay thế đánh giá lâm sàng."
+    )
 
     lines.extend([
         f"- **Trạng thái nghiên cứu người dùng**: `{study_status}`",
         f"- **Số lượng bác sĩ tham gia (Clinicians)**: {clinician_count} bác sĩ",
         f"- **Số lượng kỹ thuật viên / kiểm thử viên**: {tech_count} người",
-        f"- **Có đánh giá lâm sàng độc lập**: {'CÓ' if user_study.get('has_clinician_validation') else 'CHƯA (NOT_CONDUCTED)'}",
-        "- **Biên bản nghiệm thu kỹ thuật (Technical Acceptance)**: PASS (Quy trình nạp, sửa, hoàn tác, lưu atomic và xuất ZIP hoạt động ổn định).",
+        f"- **Có đánh giá lâm sàng độc lập**: {'CÓ' if report_data.get('clinician_validation') else 'CHƯA (NOT_CONDUCTED)'}",
+        f"- **Biên bản nghiệm thu kỹ thuật (Technical Acceptance)**: {technical_acceptance_status}.",
         "",
         "> [!WARNING]",
-        "> Nghiên cứu không ngụy tạo kết quả khảo sát Likert của bác sĩ. Mọi đánh giá tính khả dụng hiện tại dựa trên quy trình nghiệm thu kỹ thuật nội bộ (Technical Acceptance Protocol) và ghi nhận trạng thái trung thực `NOT_CONDUCTED` cho khảo sát lâm sàng.",
+        f"> {user_study_warning}",
         "",
         "---",
         "",
@@ -400,14 +440,14 @@ def generate_markdown_report(report_data: dict[str, Any]) -> str:
         "",
         "1. **Bất thường $\\neq$ Ác tính (Abnormal $\\neq$ Malignant)**: Vùng phân đoạn chỉ mang tính chất định vị tổn thương hình thái, không phải chẩn đoán bản chất mô bệnh học u lành/u ác.",
         "2. **Pixel Recall $\\neq$ Độ nhạy chẩn đoán lâm sàng**: Chỉ số Recall trên pixel phản ánh độ bao phủ không gian của mask, không đo lường độ nhạy phát hiện bệnh nhân ung thư.",
-        "3. **Tập kiểm thử độc lập bị chặn (Independent Test Gate: BLOCKED)**: Do chưa có hồ sơ bệnh nhân gốc và chứng từ khử định danh độc lập, tập 402 ảnh chỉ được coi là Retrospective Test Replay.",
+        "3. **Tập kiểm thử độc lập bị chặn (Independent Test Gate: BLOCKED)**: Do chưa có hồ sơ bệnh nhân gốc và chứng từ khử định danh độc lập, kết quả replay hiện có không được coi là đánh giá độc lập.",
         "4. **Nguyên mẫu nghiên cứu hỗ trợ quan sát (Observation-Only Prototype)**: Hệ thống chưa được phê duyệt cho chẩn đoán y tế hoặc chỉ định phẫu thuật/điều trị thực tế.",
         "",
         "---",
         "",
         "## 7. Kết luận và Đề xuất Hướng Phát triển",
         "",
-        "- **Hoàn thành nguyên mẫu nghiên cứu (Prototype Readiness: PASS)**: Hệ thống đáp ứng toàn bộ các yêu cầu tương tác Human-in-the-Loop, lưu trữ atomic, export ZIP có mã băm toàn vẹn SHA-256, chạy bền vững qua restart.",
+        f"- **Trạng thái nguyên mẫu nghiên cứu (Prototype Readiness: {'PASS' if report_data.get('prototype_ready') else 'NOT READY'})**: Kết quả này phản ánh riêng các kiểm tra kỹ thuật được nạp vào báo cáo; không xác nhận mức độ sẵn sàng sử dụng lâm sàng.",
         "- **Khuyến nghị tiếp theo**: Thu thập tập dữ liệu kiểm thử độc lập có đầy đủ Patient ID và đồng thuận chuyên gia đa trung tâm để mở khóa cổng đánh giá khoa học toàn diện (`evaluation_complete`).",
         "",
     ])
@@ -435,18 +475,18 @@ Tài liệu này xác định các giới hạn kỹ thuật và lâm sàng củ
 - Không được đồng nhất Pixel Recall cao với độ nhạy phát hiện ca bệnh (Patient-level Sensitivity). Một tổn thương lớn có thể có Pixel Recall cao nhưng vẫn có thể bị phân loại sai tính chất u.
 
 ## 3. Trạng thái Tập Kiểm thử Độc lập (Independent Test Gate)
-- Tập kiểm thử 402 ảnh hiện có là **Retrospective Test Replay**, tức là tập dữ liệu đã từng được sử dụng để khảo sát và đánh giá trong quá trình phát triển trước đó.
+- Cohort replay hiện có là **Retrospective Test Replay**, tức là tập dữ liệu đã từng được sử dụng trong quá trình phát triển trước đó.
 - Cổng kiểm thử độc lập (`independent_gate`) hiện ở trạng thái **BLOCKED** do thiếu ánh xạ định danh bệnh nhân gốc (`patient_id`) và biên bản kiểm định nguồn độc lập.
 - Hệ thống không tuyên bố hoàn thành đánh giá độc lập (`evaluation_complete = False`) khi chưa thỏa mãn các yêu cầu kiểm soát rò rỉ dữ liệu (Data Leakage Guard).
 
 ## 4. Khảo sát Người dùng Lâm sàng Chưa Tiến hành (NOT_CONDUCTED)
 - Khảo sát tương tác với bác sĩ lâm sàng thực tế được ghi nhận trạng thái trung thực là **NOT_CONDUCTED**.
-- Dự án tuyệt đối không đưa vào các đánh giá giả định hoặc điểm Likert tự tạo.
-- Tính khả dụng của hệ thống hiện được bảo chứng thông qua Quy trình Nghiệm thu Kỹ thuật (Manual Technical Acceptance) và kiểm thử tự động Live E2E.
+- Không sử dụng phản hồi giả hoặc điểm Likert tự tạo làm bằng chứng đánh giá.
+- Kiểm thử tự động Live E2E chỉ phản ánh kiểm tra kỹ thuật; không thay thế nghiệm thu người dùng hoặc xác nhận lâm sàng.
 
 ## 5. Hiện tượng Ảnh gần trùng xuyên Split (Cross-Split Near Duplicates)
-- Các đợt kiểm toán dữ liệu ghi nhận 59 cặp ảnh có độ tương đồng cao giữa tập Train và tập Test/Val do dữ liệu nguồn lịch sử chưa phân tách triệt để cấp bệnh nhân.
-- Đây là giới hạn mang tính lịch sử của bộ dữ liệu nguồn và cần được xử lý triệt để trong các đợt thu thập dữ liệu lâm sàng tiếp theo.
+- Các manifest lịch sử chưa chứng minh được phân tách bệnh nhân do thiếu Patient ID nguồn đã xác minh.
+- Không suy ra số lượng ca gần trùng hoặc độc lập lâm sàng khi chưa có audit tương ứng với manifest đang dùng.
 
 ## 6. Giới hạn Đo đạc Kích thước và Thể tích 2D
 - Tính năng đo kích thước chiều dài, chiều rộng và thể tích u chỉ có giá trị khi ảnh đầu vào là định dạng DICOM chuẩn có trường thông tin `PixelSpacing` đã được máy siêu âm hiệu chuẩn.
@@ -486,6 +526,10 @@ def build_report(
             audited_runs.append(run_data)
             if not checkpoint_sha and run_data.get("checkpoint_sha256"):
                 checkpoint_sha = run_data.get("checkpoint_sha256")
+
+    model_configuration = _load_model_configuration(root)
+    if not checkpoint_sha:
+        checkpoint_sha = model_configuration.get("checkpoint_sha256")
 
     # 2. Audit HITL Telemetry
     hitl_data = {}
@@ -533,6 +577,15 @@ def build_report(
     clinician_validation = status_result["clinician_validation"]
     blockers = status_result["blockers"]
     limitations = status_result["limitations"]
+    check_evidence = {
+        "overall_exit_code": (
+            checks.get("overall_exit_code")
+            if isinstance(checks, dict) and type(checks.get("overall_exit_code")) is int
+            else None
+        ),
+        "runtime_workflow_verified": checks.get("runtime_workflow_verified") is True if isinstance(checks, dict) else False,
+        "packaging_verified": checks.get("packaging_verified") is True if isinstance(checks, dict) else False,
+    }
 
     report_payload = {
         "schema_version": 1,
@@ -544,6 +597,8 @@ def build_report(
         "blockers": blockers,
         "limitations": limitations,
         "runs": audited_runs,
+        "model_configuration": model_configuration,
+        "checks": check_evidence,
         "hitl": hitl_data,
         "user_study": user_study_data,
         "independent_gate_status": independent_gate_status,
@@ -609,10 +664,10 @@ def build_report(
     # 13. Write final_checks.json
     checks_input = checks or {
         "skip_browser": False,
-        "overall_exit_code": 0 if prototype_ready else 1,
-        "live_browser_verified": prototype_ready,
-        "commands": [{"name": "build_report", "exit_code": 0 if prototype_ready else 1}],
-        "prototype_ready": prototype_ready,
+        "overall_exit_code": 0,
+        "live_browser_verified": False,
+        "commands": [],
+        "prototype_ready": False,
     }
     generate_final_checks(
         results=checks_input,
@@ -631,6 +686,51 @@ def build_report(
 
 
 def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) -> None:
+    runs = report_payload.get("runs", [])
+    legacy_run = next((run for run in runs if run.get("is_historical_replay") is True), None)
+    legacy_status = "VERIFIED (RETROSPECTIVE REPLAY)" if legacy_run else "NOT PROVIDED"
+    if legacy_run:
+        legacy_dice = legacy_run.get("primary", {}).get("dice", {}).get("mean")
+        legacy_note = f"Retrospective replay only; Dice mean {_fmt_metric(legacy_dice)}. Not an independent test."
+    else:
+        legacy_note = "No legacy replay summary was supplied to this report."
+
+    hitl = report_payload.get("hitl", {})
+    hitl_sessions = hitl.get("total_sessions") if isinstance(hitl, dict) else None
+    hitl_status = "VERIFIED (TECHNICAL TELEMETRY)" if type(hitl_sessions) is int and hitl_sessions > 0 else "NOT PROVIDED"
+    hitl_note = (
+        f"{hitl_sessions} telemetry sessions supplied; this does not establish clinician validation."
+        if type(hitl_sessions) is int and hitl_sessions > 0
+        else "No HITL telemetry summary was supplied to this report."
+    )
+
+    checks = report_payload.get("checks", {})
+    checks_pass = isinstance(checks, dict) and checks.get("overall_exit_code") == 0
+    browser_verified = report_payload.get("prototype_ready") is True
+    runtime_verified = checks_pass and checks.get("runtime_workflow_verified") is True
+    packaging_verified = checks_pass and checks.get("packaging_verified") is True
+    independent_gate_note = (
+        "Provided independent patient-level gate passed."
+        if report_payload.get("independent_gate_status") == "PASS"
+        else "Independent patient-level mapping is unverified; holdout remains blocked."
+    )
+
+    user_study = report_payload.get("user_study", {})
+    technical_fallback_verified = (
+        user_study.get("technical_acceptance") == "PASS"
+        and user_study.get("technical_fallback_verified") is True
+    )
+    clinician_validation = report_payload.get("clinician_validation") is True
+    user_study_evidence_status = (
+        "VERIFIED" if clinician_validation or technical_fallback_verified else "NOT_CONDUCTED / NOT VERIFIED"
+    )
+    if clinician_validation:
+        user_study_evidence_notes = "Verified clinician evidence recorded."
+    elif technical_fallback_verified:
+        user_study_evidence_notes = "Clinician study not conducted; verified technical acceptance is recorded as a technical fallback."
+    else:
+        user_study_evidence_notes = "No verified clinician study or technical acceptance fallback is recorded."
+
     rows = [
         [
             "R1",
@@ -639,7 +739,7 @@ def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) ->
             "Lead Researcher",
             "evaluation/milestone_3_final/data_audit/independent_gate/audit.json",
             "BLOCKED" if not report_data_gate_passed(report_payload) else "VERIFIED",
-            "Independent patient-level mapping not confirmed; holdout remains guarded",
+            independent_gate_note,
         ],
         [
             "R1-Legacy",
@@ -647,8 +747,8 @@ def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) ->
             "Retrospective test replay on previously used test set",
             "ML Engineer",
             "evaluation/milestone_3_final/legacy_test_v1/summary.json",
-            "VERIFIED",
-            "Replay completed with frozen protocol; Dice mean 0.7289",
+            legacy_status,
+            legacy_note,
         ],
         [
             "R2",
@@ -656,8 +756,8 @@ def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) ->
             "Error analysis and multi-group ranking",
             "ML Engineer",
             "evaluation/milestone_3_final/legacy_test_v1/error_analysis/analysis.json",
-            "VERIFIED",
-            "8 rank groups, 5-column panels, HTML report generated",
+            "NOT VERIFIED",
+            "No error-analysis artifact was supplied to this report.",
         ],
         [
             "R3",
@@ -665,8 +765,8 @@ def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) ->
             "Human-in-the-loop workflow persistence, timing, and deltas",
             "Fullstack Engineer",
             "evaluation/milestone_3_final/hitl/analysis/summary.json",
-            "VERIFIED",
-            "Monotonic timing, batch transactions, export ZIP, 32 sessions logged",
+            hitl_status,
+            hitl_note,
         ],
         [
             "R4",
@@ -674,8 +774,8 @@ def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) ->
             "Clinician evaluation or technical usability fallback",
             "Clinical Lead",
             "evaluation/milestone_3_final/user_study/study_status.json",
-            "NOT_CONDUCTED (Technical Acceptance PASS)",
-            "Clinicians unavailable; technical acceptance PASS, honest fallback recorded",
+            user_study_evidence_status,
+            user_study_evidence_notes,
         ],
         [
             "R5",
@@ -692,17 +792,17 @@ def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) ->
             "Live runnable prototype login, cases, upload, edit, save, export",
             "Fullstack Engineer",
             "artifacts/review-e2e-runtime/technical_test.sqlite3",
-            "VERIFIED",
-            "Tested against live FastAPI and SQLite database",
+            "VERIFIED" if runtime_verified else "NOT VERIFIED",
+            "Runtime workflow check explicitly recorded." if runtime_verified else "No runtime workflow check was supplied.",
         ],
         [
             "APP-E2E",
             "T16-T17",
-            "Live E2E restart persistence and negative boundary tests",
+            "Browser synthetic safety regression and real-API synthetic-image save/reopen; no process restart claim",
             "QA / Test Engineer",
-            "tests/workspace_v2_release_e2e.js",
-            "VERIFIED",
-            "Live browser E2E test passes with bitwise mask verification",
+            "tests/workstation_viewer_e2e.js; tests/clinical_safety_e2e.js; tests/clinical_roundtrip_e2e.js",
+            "VERIFIED" if browser_verified else "NOT VERIFIED",
+            "Live browser check explicitly recorded." if browser_verified else "No passing live browser check was supplied.",
         ],
         [
             "APP-PKG",
@@ -710,8 +810,8 @@ def _write_evidence_matrix(target_path: Path, report_payload: dict[str, Any]) ->
             "Windows packaging clean launcher and runbook",
             "DevOps / Engineer",
             "scripts/run_prototype.ps1",
-            "VERIFIED",
-            "Launcher preflight checks, secrets validation, and operator runbook",
+            "VERIFIED" if packaging_verified else "NOT VERIFIED",
+            "Packaging checks explicitly recorded." if packaging_verified else "No packaging check was supplied.",
         ],
     ]
 
@@ -749,15 +849,15 @@ def generate_open_issues_csv(output_path: Path) -> None:
             "Khảo sát người dùng lâm sàng chưa tiến hành (study_status = NOT_CONDUCTED)",
             "OPEN",
             "Chưa có đánh giá định tính từ bác sĩ thực tế",
-            "Ghi nhận trạng thái trung thực NOT_CONDUCTED; dựa trên nghiệm thu kỹ thuật nội bộ",
+            "Ghi NOT_CONDUCTED; chỉ ghi technical fallback khi có đủ biên bản nghiệm thu đã xác minh",
         ],
         [
             "ISS-03",
             "MEDIUM",
-            "59 cặp ảnh có tương quan cao xuyên split (Cross-Split Near Duplicates)",
+            "Thiếu Patient ID nguồn đã xác minh cho split Train/Val/Test",
             "OPEN",
-            "Rò rỉ tiềm ẩn cấp bệnh nhân trong dữ liệu nguồn lịch sử",
-            "Công khai trong MODEL_CARD và limitations.md; cần tái phân tách khi có Patient ID",
+            "Không thể loại trừ rò rỉ cấp bệnh nhân hoặc chứng minh độc lập của split",
+            "Giữ cổng đánh giá độc lập đóng đến khi có mapping Patient ID nguồn đã xác minh",
         ],
         [
             "ISS-04",
@@ -827,6 +927,7 @@ Tài liệu này dùng để điều hành buổi thử nghiệm/bảo vệ nguy
 2. Thiết lập biến môi trường bảo mật:
    ```powershell
    $env:APP_JWT_SECRET = "super-secret-jwt-key-minimum-32-chars-long"
+   $env:APP_PATIENT_PID_HMAC_SECRET = "replace-with-a-separate-random-key-at-least-32-bytes"
    $env:APP_DOCTOR_PASSWORD = "DoctorSecurePassword2026!"
    $env:APP_ADMIN_PASSWORD = "AdminSecurePassword2026!"
    ```
@@ -1032,6 +1133,15 @@ def main():
         with open(summary_path, encoding="utf-8") as f:
             sum_data = json.load(f)
 
+        sample_count = sum_data.get("counts", {}).get("total_samples")
+        run_label = (
+            f"Retrospective Test Replay ({sample_count} samples)"
+            if sum_data.get("run_kind") == "retrospective_test_replay" and type(sample_count) is int
+            else "Retrospective Test Replay"
+            if sum_data.get("run_kind") == "retrospective_test_replay"
+            else "Validation Cohort"
+        )
+
         pointer_data = {
             "summary_path": str(summary_path.relative_to(root)).replace("\\", "/"),
             "run_id": sum_data.get("run_id"),
@@ -1040,7 +1150,7 @@ def main():
             "manifest_sha256": sum_data.get("manifest_sha256"),
             "checkpoint_sha256": sum_data.get("checkpoint_sha256"),
             "status": sum_data.get("status"),
-            "label": "Retrospective Test Replay (402 samples)" if sum_data.get("run_kind") == "retrospective_test_replay" else "Validation Cohort",
+            "label": run_label,
         }
 
         pointer_path = root / "evaluation" / "current_run.json"

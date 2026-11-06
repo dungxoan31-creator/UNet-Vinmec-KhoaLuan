@@ -2,11 +2,8 @@
 Unit and integration tests for research ZIP export bundle (Task 11).
 """
 
-import io
-import json
 import os
 import uuid
-import zipfile
 
 import cv2
 import numpy as np
@@ -153,51 +150,36 @@ def case_with_multiple_predictions(tmp_path):
         db.close()
 
 
-def test_export_pins_review_prediction(auth_tokens, case_with_multiple_predictions):
+def test_research_export_is_disabled_even_for_self_attested_request(auth_tokens, case_with_multiple_predictions):
     from backend.app.main import app
     client = TestClient(app)
     c = case_with_multiple_predictions
     payload = {
         "review_ids": [c["review_id"]],
         "expected_revision": 1,
+        "ethics_approval_code": "UNVERIFIED-USER-INPUT",
+        "patient_consent_confirmed": True,
     }
     resp = client.post(f"/api/cases/{c['study_id']}/research-export", json=payload, headers=auth_tokens["doctor"])
-    assert resp.status_code == 200
-    assert resp.headers["content-type"] == "application/zip"
-
-    # Inspect zip contents
-    with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-        namelist = zf.namelist()
-        assert "metadata.json" in namelist
-        ai_mask_path = f"{c['image_id']}/ai_mask.png"
-        rev_mask_path = f"{c['image_id']}/reviewed_mask.png"
-        overlay_path = f"{c['image_id']}/overlay.png"
-        assert ai_mask_path in namelist
-        assert rev_mask_path in namelist
-        assert overlay_path in namelist
-
-        # Decode ai_mask.png from zip: it MUST match P1, NOT P2!
-        ai_mask_bytes = zf.read(ai_mask_path)
-        ai_mask_np = cv2.imdecode(np.frombuffer(ai_mask_bytes, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
-
-        # Compare with P1 and P2 source
-        assert ai_mask_np.shape == (300, 400)
-        assert ai_mask_np[90, 90] == 255 and ai_mask_np[185, 185] == 0, "Exported AI mask must strictly match reviewed prediction P1"
+    assert resp.status_code == 501
+    assert "disabled" in resp.json()["detail"]
 
 
-def test_bundle_requires_persisted_review(auth_tokens, case_with_multiple_predictions):
+def test_disabled_export_does_not_query_review_ids(auth_tokens, case_with_multiple_predictions):
     from backend.app.main import app
     client = TestClient(app)
     c = case_with_multiple_predictions
     payload = {
         "review_ids": [str(uuid.uuid4())],  # non-existent review
         "expected_revision": 1,
+        "ethics_approval_code": "UNVERIFIED-USER-INPUT",
+        "patient_consent_confirmed": True,
     }
     resp = client.post(f"/api/cases/{c['study_id']}/research-export", json=payload, headers=auth_tokens["doctor"])
-    assert resp.status_code in (404, 422)
+    assert resp.status_code == 501
 
 
-def test_export_rejects_cross_case_ids(auth_tokens, case_with_multiple_predictions):
+def test_disabled_export_ignores_caller_supplied_case_ids(auth_tokens, case_with_multiple_predictions):
     from backend.app.main import app
     from backend.db import database
     client = TestClient(app)
@@ -217,81 +199,65 @@ def test_export_rejects_cross_case_ids(auth_tokens, case_with_multiple_predictio
     finally:
         db.close()
 
-    # Pass review_id of study 1 to other_study -> 422
+    # Export remains unavailable regardless of caller-supplied study and review identifiers.
     payload = {
         "review_ids": [c["review_id"]],
         "expected_revision": 1,
+        "ethics_approval_code": "UNVERIFIED-USER-INPUT",
+        "patient_consent_confirmed": True,
     }
     resp = client.post(f"/api/cases/{other_study_id}/research-export", json=payload, headers=auth_tokens["doctor"])
-    assert resp.status_code in (404, 422)
+    assert resp.status_code == 501
 
 
-def test_export_auth_and_no_phi(auth_tokens, case_with_multiple_predictions):
+def test_export_requires_authentication_and_remains_disabled(auth_tokens, case_with_multiple_predictions):
     from backend.app.main import app
     client = TestClient(app)
     c = case_with_multiple_predictions
     payload = {
         "review_ids": [c["review_id"]],
         "expected_revision": 1,
+        "ethics_approval_code": "UNVERIFIED-USER-INPUT",
+        "patient_consent_confirmed": True,
     }
     # Unauthenticated -> 401
     resp_unauth = client.post(f"/api/cases/{c['study_id']}/research-export", json=payload)
     assert resp_unauth.status_code == 401
 
-    # Authenticated doctor -> 200
+    # An authenticated doctor still cannot export without trusted authorization records.
     resp = client.post(f"/api/cases/{c['study_id']}/research-export", json=payload, headers=auth_tokens["doctor"])
-    assert resp.status_code == 200
-
-    with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-        metadata = json.loads(zf.read("metadata.json").decode("utf-8"))
-        raw_text = json.dumps(metadata)
-
-        # PHI & Secret checks:
-        assert "TEST_PATIENT_SECRET_PHI" not in raw_text, "Patient identity or confidential info must not be in export"
-        assert "Bearer" not in raw_text
-        assert "password" not in raw_text.lower()
-        assert "Users" not in raw_text and "AppData" not in raw_text, "Server local filesystem paths must not leak"
-        assert metadata["disclaimer"]
+    assert resp.status_code == 501
+    assert resp.headers["content-type"].startswith("application/json")
 
 
-def test_native_shapes_and_mask_hashes(auth_tokens, case_with_multiple_predictions):
-    import hashlib
-
+def test_disabled_export_returns_no_bundle(auth_tokens, case_with_multiple_predictions):
     from backend.app.main import app
     client = TestClient(app)
     c = case_with_multiple_predictions
     payload = {
         "review_ids": [c["review_id"]],
         "expected_revision": 1,
+        "ethics_approval_code": "UNVERIFIED-USER-INPUT",
+        "patient_consent_confirmed": True,
     }
     resp = client.post(f"/api/cases/{c['study_id']}/research-export", json=payload, headers=auth_tokens["doctor"])
-    assert resp.status_code == 200
-
-    with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
-        metadata = json.loads(zf.read("metadata.json").decode("utf-8"))
-        img_meta = metadata["images"][0]
-        assert img_meta["geometry"]["native_shape"] == [300, 400]
-        assert img_meta["physical_units"] is None
-
-        for key, file_info in img_meta["files"].items():
-            path_in_zip = file_info["path"]
-            assert path_in_zip in zf.namelist()
-            content = zf.read(path_in_zip)
-            actual_sha = hashlib.sha256(content).hexdigest()
-            assert actual_sha == file_info["sha256"], f"Hash mismatch for {key}: expected {file_info['sha256']}, got {actual_sha}"
+    assert resp.status_code == 501
+    assert not resp.content.startswith(b"PK")
 
 
-def test_stale_export_revision(auth_tokens, case_with_multiple_predictions):
+def test_disabled_export_does_not_disclose_revision_state(auth_tokens, case_with_multiple_predictions):
     from backend.app.main import app
     client = TestClient(app)
     c = case_with_multiple_predictions
-    # Stale revision (expected 5, study is 1) -> 409
+    # The disabled service responds before looking up study or review state.
     payload = {
         "review_ids": [c["review_id"]],
         "expected_revision": 5,
+        "ethics_approval_code": "UNVERIFIED-USER-INPUT",
+        "patient_consent_confirmed": True,
     }
     resp = client.post(f"/api/cases/{c['study_id']}/research-export", json=payload, headers=auth_tokens["doctor"])
-    assert resp.status_code == 409
+    assert resp.status_code == 501
 
 
 def test_export_mask_explicit_pinned_ids(auth_tokens, case_with_multiple_predictions):

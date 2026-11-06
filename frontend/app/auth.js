@@ -1,65 +1,98 @@
-import { state, roles } from "./state.js";
+import { state, roles, setBusy } from "./state.js";
+import { BRAND_CLASS, BRAND_LOGO_SRC, BRAND_ALT } from "./branding.js";
 import { request } from "./api.js";
+import { clearUIEvents } from "./hitl-tracker.js";
+import { updateEnvironmentNotices } from "./environment-notices.js";
 
 import { $, field, icon, toast } from "./ui.js";
 
 let expiresAt = 0,
   lockTimer = null;
 function clearActive() {
+  clearUIEvents();
   state.controller?.abort();
   state.cleanup?.();
   state.case = null;
   state.editing = null;
   state.draftConflict = null;
   state.dirty = false;
+  state.unattributedMaskDraft = false;
   state.operation = null;
-  state.busy = false;
+  setBusy(false);
   state.queue = [];
   state.pendingReview = null;
 }
-function acceptSession(result) {
+export function clearLegacyLocalPatientData(userId) {
+  if (!userId) return;
+  try {
+    localStorage.removeItem(`ova.demo-patients.v1.${encodeURIComponent(userId)}`);
+  } catch {}
+}
+export function applySessionResponse(result) {
   if (!result.access_token || !roles[result.user?.role])
     throw Error("Phản hồi đăng nhập không hợp lệ.");
-  clearActive();
   state.token = result.access_token;
   state.user = result.user;
 
   expiresAt = Date.now() + (result.expires_in || 86400) * 1000;
-  state.mustChangePassword = result.password_change_required === true;
+  state.mustChangePassword = result.must_change_password === true;
   sessionStorage.setItem("ova.token", state.token);
   sessionStorage.setItem("ova.expiry", expiresAt);
   sessionStorage.setItem("ova.lastUsername", state.user.username);
+}
+function acceptSession(result) {
+  clearActive();
+  if (state.user?.id && state.user.id !== result.user?.id)
+    clearLegacyLocalPatientData(state.user.id);
+  applySessionResponse(result);
   request("/api/capabilities", { signal: null })
     .then((c) => {
       Object.assign(state.capabilities, c);
+      updateEnvironmentNotices();
     })
     .catch(() => {});
   location.hash = state.mustChangePassword ? "#first" : "#dashboard";
 }
-export function logout() {
+export async function logout() {
   clearActive();
-  state.user = null;
-  state.token = null;
-
-  state.mustChangePassword = false;
-  sessionStorage.removeItem("ova.token");
-  sessionStorage.removeItem("ova.expiry");
-  location.hash = "#login";
+  const userId = state.user?.id;
+  clearLegacyLocalPatientData(userId);
+  try {
+    if (state.token)
+      await request("/api/auth/logout", { method: "POST", signal: null, timeoutMs: 5000 });
+  } catch {
+    toast("Trình duyệt đã xóa phiên, nhưng máy chủ chưa xác nhận thu hồi token.", true);
+  } finally {
+    state.user = null;
+    state.token = null;
+    state.mustChangePassword = false;
+    sessionStorage.removeItem("ova.token");
+    sessionStorage.removeItem("ova.expiry");
+    location.hash = "#login";
+  }
 }
 export async function restoreSession() {
   if (!state.token) return;
   try {
     state.user = await request("/api/auth/current-user");
     if (!roles[state.user.role]) throw Error("Vai trò chưa hỗ trợ.");
+    state.mustChangePassword = state.user.must_change_password === true;
     expiresAt = Number(sessionStorage.getItem("ova.expiry"));
     try {
       state.capabilities = await request("/api/capabilities");
     } catch {
       state.capabilities = {};
     }
+    updateEnvironmentNotices();
   } catch {
     state.token = null;
     state.user = null;
+    state.mustChangePassword = false;
+    updateEnvironmentNotices();
+    try {
+      sessionStorage.removeItem("ova.token");
+      sessionStorage.removeItem("ova.expiry");
+    } catch {}
   }
 }
 export function renderAuth(mode = "login") {
@@ -67,34 +100,38 @@ export function renderAuth(mode = "login") {
   const titles = {
     login: "Đăng nhập hệ thống",
     register: "Đăng ký tài khoản bác sĩ",
+    "verify-email": "Xác minh email",
     forgot: "Khôi phục mật khẩu",
     reset: "Đặt lại mật khẩu",
     first: "Đổi mật khẩu lần đầu",
-    otp: "Xác thực hai bước",
     expired: "Phiên làm việc đã hết hạn",
   };
   const login = ["login", "expired"].includes(mode),
     register = mode === "register",
+    verifyEmail = mode === "verify-email",
     change = ["reset", "first"].includes(mode);
   const resetToken = new URLSearchParams(location.hash.split("?")[1]).get(
     "token",
   );
   const user =
     mode === "expired" ? sessionStorage.getItem("ova.lastUsername") || "" : "";
-  return `<div class="auth-layout"><aside class="auth-aside"><div class="brand-mark"><div class="vinmec-logo-card"><img class="vinmec-logo" src="/static/assets/brand/vinmec-logo.png?v=20261018-transparent-logo" alt="Vinmec" width="118" height="72"></div><div class="brand-subtext"><span class="brand-name">VINMEC</span><span class="brand-dept">Chẩn đoán Hình ảnh & Sản Phụ khoa</span></div></div><div class="auth-aside-content"><div class="eyebrow-badge"><span class="pulse-dot"></span><span>HUMAN-IN-THE-LOOP CDSS</span></div><h1>Mỗi đường biên.<br>Một quyết định<br>của người rà soát.</h1><p>Không gian phân đoạn siêu âm hai bên, hiệu chỉnh mask tương tác và lưu vết kiểm toán lâm sàng.</p></div><div class="auth-aside-footer"><div class="auth-badge"><span class="badge-dot"></span><span>Hỗ trợ phân đoạn siêu âm buồng trứng · Vinmec Times City</span></div></div></aside><section class="auth-card"><p class="eyebrow">TRUY CẬP AN TOÀN</p><h2>${titles[mode] || titles.login}</h2><p class="muted">${mode === "expired" ? "Bản nháp được giữ trên thiết bị. Đăng nhập cùng tài khoản để tiếp tục." : mode === "otp" ? "Nhập mã xác thực từ phương thức do đơn vị quản trị cấp." : register ? "Tạo tài khoản bác sĩ mới để tham gia rà soát hình ảnh lâm sàng." : "Sử dụng tài khoản được đơn vị quản trị cấp."}</p><form id="authForm">
+  return `<div class="auth-layout"><aside class="auth-aside"><div class="brand-mark"><span class="${BRAND_CLASS}-card"><img class="${BRAND_CLASS}" src="${BRAND_LOGO_SRC}" alt="${BRAND_ALT}" width="1616" height="973" decoding="async"></span><div class="brand-subtext"><span class="brand-name">SIÊU ÂM BUỒNG TRỨNG</span><span class="brand-dept">Hỗ trợ phân tích hình ảnh</span></div></div><div class="auth-aside-content"><div class="eyebrow-badge"><span class="pulse-dot"></span><span>HUMAN-IN-THE-LOOP CDSS · RUO</span></div><h1>Mỗi đường biên.<br>Một quyết định<br>của người rà soát.</h1><p>Môi trường nghiên cứu hỗ trợ xem phân đoạn, hiệu chỉnh mask và lưu vết thao tác HITL. Bác sĩ rà soát và xác nhận trước khi lưu.</p></div><div class="auth-aside-footer"><div class="auth-badge"><span class="badge-dot"></span><span>Bác sĩ rà soát và xác nhận kết quả</span></div></div></aside><section class="auth-card"><h2>${titles[mode] || titles.login}</h2><p class="muted">${mode === "expired" ? "Bản nháp được giữ trên thiết bị. Đăng nhập cùng tài khoản để tiếp tục." : verifyEmail ? "Nhập email và mã xác minh được gửi khi đăng ký. Tài khoản vẫn cần quản trị viên duyệt trước khi đăng nhập." : register ? "Tạo tài khoản bác sĩ mới. Email cần được xác minh và tài khoản cần quản trị viên duyệt." : "Sử dụng tài khoản được đơn vị quản trị cấp."}</p><form id="authForm">
         ${login || mode === "forgot" || register ? field("Tên đăng nhập", "username", "text", user, 'required autocomplete="username"') : ""}
         ${register ? field("Họ và tên bác sĩ / chuyên môn", "full_name", "text", "", 'required autocomplete="name"') : ""}
+        ${register ? field("Email công tác", "email", "email", "", 'required autocomplete="email"') : ""}
         ${register ? field("Khoa / Phòng ban", "department", "text", "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa", 'required') : ""}
-        ${mode === "otp" ? field("Mã xác thực 6 chữ số", "code", "text", "", 'required inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code"') : ""}
+        ${verifyEmail ? field("Email công tác", "email", "email", state.pendingVerificationEmail || "", 'required autocomplete="email"') : ""}
+        ${verifyEmail ? field("Mã xác thực 6 chữ số", "code", "text", "", 'required inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code"') : ""}
         ${mode === "first" ? field("Mật khẩu hiện tại", "current_password", "password", "", 'required autocomplete="current-password"') : ""}
         ${login || change || register ? `<div class="password-field">${field(change ? "Mật khẩu mới" : "Mật khẩu", "password", "password", "", "required " + (change || register ? 'minlength="6" ' : "") + 'autocomplete="' + (login ? "current-password" : "new-password") + '"')}<button type="button" class="icon-btn" id="showPassword" aria-label="Hiện mật khẩu">${icon("eye")}</button></div>` : ""}
         ${change || register ? field("Nhập lại mật khẩu", "confirm", "password", "", 'required minlength="6" autocomplete="new-password"') : ""}
         ${mode === "reset" && !resetToken ? field("Mã khôi phục được cấp", "token", "text", "", 'required autocomplete="off"') : ""}
-        <p id="authError" class="form-error" role="alert"></p><p id="authLock" class="small muted" role="status"></p><button class="btn primary wide" type="submit">${login ? "Đăng nhập" : register ? "Hoàn tất đăng ký" : mode === "otp" ? "Xác thực" : "Tiếp tục"}${icon("arrow")}</button></form>
+        <p id="authError" class="form-error" role="alert"></p><p id="authLock" class="small muted" role="status"></p><button class="btn primary wide" type="submit">${login ? "Đăng nhập" : register ? "Gửi mã xác minh" : verifyEmail ? "Xác thực" : "Tiếp tục"}${icon("arrow")}</button></form>
+        ${verifyEmail ? '<button type="button" class="text-link" id="resendVerification" style="display:block;margin-top:12px">Gửi lại mã xác minh</button>' : ""}
         ${login ? '<a href="#register" class="text-link" style="display:block;margin-top:12px">Chưa có tài khoản? Đăng ký ngay</a>' : ""}
         ${login ? '<a href="#forgot" class="text-link" style="display:block;margin-top:6px">Quên mật khẩu?</a>' : ""}
         ${!login ? '<a href="#login" class="text-link" style="display:block;margin-top:12px">Quay lại đăng nhập</a>' : ""}
-        ${login ? '<div class="auth-quick-login"><p>Đăng nhập nhanh 1-click:</p><div class="auth-quick-btns"><button type="button" class="btn small quiet" data-action="quick-bs">🩺 Bác sĩ</button><button type="button" class="btn small quiet" data-action="quick-admin">🛡️ Quản trị</button></div></div>' : ""}</section></div>`;
+        ${login ? '<p class="small muted" style="margin-top:16px">Đăng nhập bằng tài khoản do đơn vị quản trị cấp.</p>' : ""}</section></div>`;
 }
 export function bindAuth(mode) {
   $("#showPassword")?.addEventListener("click", (e) => {
@@ -105,23 +142,22 @@ export function bindAuth(mode) {
       p.type === "password" ? "Hiện mật khẩu" : "Ẩn mật khẩu",
     );
   });
-  $("[data-action=quick-bs]")?.addEventListener("click", () => {
-    const u = $("[name=username]"),
-      p = $("[name=password]");
-    if (u) u.value = "doctor";
-    if (p) p.value = "doctor-local-test-2026";
-    const submitBtn = $("#authForm button[type=submit]");
-    if (submitBtn) submitBtn.click();
-    else $("#authForm")?.requestSubmit();
-  });
-  $("[data-action=quick-admin]")?.addEventListener("click", () => {
-    const u = $("[name=username]"),
-      p = $("[name=password]");
-    if (u) u.value = "admin";
-    if (p) p.value = "admin-local-test-2026";
-    const submitBtn = $("#authForm button[type=submit]");
-    if (submitBtn) submitBtn.click();
-    else $("#authForm")?.requestSubmit();
+  $("#resendVerification")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    $("#authError").textContent = "";
+    try {
+      const email = $("[name=email]").value.trim();
+      await request("/api/auth/resend-verification", {
+        method: "POST",
+        body: { email },
+      });
+      toast("Nếu email đang chờ xác minh, mã mới sẽ được gửi sau khi hết thời gian giới hạn.");
+    } catch (error) {
+      $("#authError").textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
   });
   $("#authForm").onsubmit = async (e) => {
     e.preventDefault();
@@ -146,14 +182,31 @@ export function bindAuth(mode) {
             username: data.username.trim(),
             password: data.password,
             full_name: data.full_name?.trim() || data.username.trim(),
+            email: data.email?.trim(),
             department:
               data.department?.trim() ||
               "Khoa Chẩn đoán Hình ảnh & Sản Phụ khoa",
             role: "DOCTOR",
           },
         });
-        toast("Đăng ký tài khoản thành công!");
-        acceptSession(result);
+        state.pendingVerificationEmail = result.email;
+        toast("Mã xác minh đã được gửi đến email công tác.");
+        location.hash = "#verify-email";
+        return;
+      }
+      if (mode === "verify-email") {
+        const email = data.email.trim().toLowerCase();
+        const result = await request("/api/auth/verify-email", {
+          method: "POST",
+          body: { email, code: data.code },
+        });
+        state.pendingVerificationEmail = email;
+        toast(
+          result.activation_pending
+            ? "Email đã xác minh. Quản trị viên cần duyệt tài khoản trước khi đăng nhập."
+            : "Email đã xác minh.",
+        );
+        location.hash = "#login";
         return;
       }
       if (["login", "expired"].includes(mode)) {
@@ -161,21 +214,7 @@ export function bindAuth(mode) {
           method: "POST",
           body: data,
         });
-        if (result.otp_required) {
-          state.authChallenge = result.challenge_id;
-          location.hash = "#otp";
-          return;
-        }
         acceptSession(result);
-      } else if (mode === "otp") {
-        if (!state.authChallenge)
-          throw Error("Chưa có phiên xác thực OTP. Hãy bắt đầu từ đăng nhập.");
-        const result = await request("/api/auth/verify-otp", {
-          method: "POST",
-          body: { challenge_id: state.authChallenge, code: data.code },
-        });
-        acceptSession(result);
-        state.authChallenge = null;
       } else {
         const endpoint = {
           forgot: "forgot-password",
@@ -185,21 +224,31 @@ export function bindAuth(mode) {
         const body =
           mode === "forgot"
             ? data
-            : {
-                ...data,
-                new_password: data.password,
-                token:
-                  data.token ||
-                  new URLSearchParams(location.hash.split("?")[1]).get("token"),
-              };
-        await request("/api/auth/" + endpoint, { method: "POST", body });
-        if (mode === "first") state.mustChangePassword = false;
+            : mode === "first"
+              ? {
+                  current_password: data.current_password,
+                  new_password: data.password,
+                  confirmation: data.confirm,
+                }
+              : {
+                  username: data.username,
+                  new_password: data.password,
+                  token:
+                    data.token ||
+                    new URLSearchParams(location.hash.split("?")[1]).get("token"),
+                };
+        const result = await request("/api/auth/" + endpoint, { method: "POST", body });
+        if (mode === "first") {
+          acceptSession(result);
+          toast("Đổi mật khẩu thành công.");
+          return;
+        }
         toast(
           mode === "forgot"
             ? "Nếu tài khoản hợp lệ, máy chủ sẽ gửi hướng dẫn khôi phục."
             : "Yêu cầu đã được máy chủ tiếp nhận.",
         );
-        location.hash = mode === "first" ? "#dashboard" : "#login";
+        location.hash = "#login";
       }
 
     } catch (err) {

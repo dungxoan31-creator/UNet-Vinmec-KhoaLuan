@@ -246,3 +246,20 @@ def test_prior_test_access_prevents_independent_label(tmp_path):
             lock_path=lock_file
         )
 
+
+def test_independent_test_requires_protocol_lock_before_creating_output(tmp_path):
+    root_dir, protocol_json, manifest_csv = _setup_three_case_fixture(tmp_path)
+    output_dir = tmp_path / "output_unlocked_independent"
+
+    with pytest.raises(ValueError, match="(?i)protocol lock"):
+        evaluate_run(
+            root=root_dir,
+            protocol_path=protocol_json,
+            manifest_path=manifest_csv,
+            output=output_dir,
+            run_kind="independent_test",
+            engine=FakeParityEngine(mode="match"),
+        )
+
+    assert not output_dir.exists()
+

@@ -41,6 +41,12 @@ if (-not $jwtSecret -or $jwtSecret.Length -lt 32) {
     exit 2
 }
 
+$patientPidHmacSecret = $env:APP_PATIENT_PID_HMAC_SECRET
+if (-not $patientPidHmacSecret -or $patientPidHmacSecret.Length -lt 32) {
+    [Console]::Error.WriteLine("[Launcher] Security configuration error: APP_PATIENT_PID_HMAC_SECRET must be set and contain at least 32 characters.")
+    exit 2
+}
+
 $docPass = $env:APP_DOCTOR_PASSWORD
 if (-not $docPass -or $docPass.Trim() -eq "") {
     [Console]::Error.WriteLine("[Launcher] Security configuration error: APP_DOCTOR_PASSWORD must be configured in environment.")
@@ -53,19 +59,70 @@ if (-not $adminPass -or $adminPass.Trim() -eq "") {
     exit 2
 }
 
-# 3. Validate Checkpoint File & Hash
-$checkpointPath = $env:CHECKPOINT_PATH
-if (-not $checkpointPath) {
-    $checkpointPath = Join-Path $RepoRoot "checkpoints\unified_vinmec_refine_2026-10-06\lr_3e-04\baseline_unet_best.pth"
+# 3. Validate the same checkpoint selected by the application model registry
+$manifestPath = $env:MODEL_SELECTION_MANIFEST
+if (-not $manifestPath) {
+    $manifestPath = Join-Path $RepoRoot "evaluation\selected_model.json"
+} elseif (-not [System.IO.Path]::IsPathRooted($manifestPath)) {
+    $manifestPath = Join-Path $RepoRoot $manifestPath
 }
 
-if (-not (Test-Path $checkpointPath)) {
+if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+    [Console]::Error.WriteLine("[Launcher] Model selection manifest not found: $manifestPath")
+    exit 2
+}
+
+try {
+    $selection = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json -ErrorAction Stop
+    $declaredCheckpoint = [string]$selection.checkpoint
+    $expectedHash = ([string]$selection.checkpoint_sha256).ToLower()
+    if (-not $declaredCheckpoint -or $expectedHash -notmatch '^[0-9a-f]{64}$') {
+        throw "Manifest must declare checkpoint and a 64-character SHA-256."
+    }
+} catch {
+    [Console]::Error.WriteLine("[Launcher] Invalid model selection manifest: $($_.Exception.Message)")
+    exit 2
+}
+
+$manifestDirectory = Split-Path -Parent $manifestPath
+$declaredPath = if ([System.IO.Path]::IsPathRooted($declaredCheckpoint)) {
+    $declaredCheckpoint
+} else {
+    Join-Path $RepoRoot $declaredCheckpoint
+}
+if (-not (Test-Path -LiteralPath $declaredPath -PathType Leaf) -and -not [System.IO.Path]::IsPathRooted($declaredCheckpoint)) {
+    $manifestRelativePath = Join-Path $manifestDirectory $declaredCheckpoint
+    if (Test-Path -LiteralPath $manifestRelativePath -PathType Leaf) {
+        $declaredPath = $manifestRelativePath
+    }
+}
+
+$checkpointPath = $env:CHECKPOINT_PATH
+if (-not $checkpointPath) {
+    $checkpointPath = $declaredPath
+}
+if (-not (Test-Path -LiteralPath $checkpointPath -PathType Leaf)) {
     [Console]::Error.WriteLine("[Launcher] Checkpoint file not found: $checkpointPath")
     exit 2
 }
 
-$expectedHash = "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d"
-$actualHash = (Get-FileHash -Path $checkpointPath -Algorithm SHA256).Hash.ToLower()
+try {
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $checkpointStream = [System.IO.File]::OpenRead($checkpointPath)
+        try {
+            $hashBytes = $sha256.ComputeHash($checkpointStream)
+        } finally {
+            $checkpointStream.Dispose()
+        }
+    } finally {
+        $sha256.Dispose()
+    }
+    $actualHash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").ToLowerInvariant()
+} catch {
+    [Console]::Error.WriteLine("[Launcher] Unable to verify checkpoint SHA-256: $($_.Exception.Message)")
+    exit 2
+}
 
 if ($actualHash -ne $expectedHash) {
     [Console]::Error.WriteLine("[Launcher] Checkpoint SHA-256 hash mismatch! Expected $expectedHash, got $actualHash")
@@ -86,14 +143,22 @@ $env:APP_DATA_DIR = $resolvedRuntime
 $env:APP_DB_PATH = Join-Path $resolvedRuntime "ovarian_ai.db"
 $env:PYTHONPATH = $RepoRoot
 
+$syntheticDemoRequested = $env:APP_SYNTHETIC_DEMO_MODE -match '^(1|true|yes|on)$'
+if ($syntheticDemoRequested) {
+    Write-Warning "[Launcher] Synthetic-only demo mode was requested; backend startup must still validate fixtures, runtime isolation, SQLite, host, and CORS before serving."
+} else {
+    Write-Warning "[Launcher] Synthetic-only upload restriction is OFF. Arbitrary uploads may be accepted; do not use patient data."
+}
+Write-Warning "[Launcher] RUO research prototype only. This pre-flight does not establish clinical readiness or authorization for diagnosis, treatment, monitoring, or patient care."
+
 # 5. CheckOnly Mode Handling
 if ($CheckOnly) {
-    Write-Host "[Launcher] Pre-flight readiness check PASSED:"
+    Write-Host "[Launcher] Technical pre-flight checks PASSED (not a clinical readiness check):"
     Write-Host "  - Python: $pyPath"
     Write-Host "  - Runtime Directory: $resolvedRuntime"
+    Write-Host "  - Model manifest: $manifestPath"
     Write-Host "  - Checkpoint verified: (SHA256: $actualHash)"
-    Write-Host "  - Security credentials: APP_JWT_SECRET, APP_DOCTOR_PASSWORD, APP_ADMIN_PASSWORD validated"
-    Write-Host "[Launcher] Ready for supervised launch."
+    Write-Host "  - Security credentials: APP_JWT_SECRET, APP_PATIENT_PID_HMAC_SECRET, APP_DOCTOR_PASSWORD, APP_ADMIN_PASSWORD validated"
     exit 0
 }
 
@@ -101,5 +166,5 @@ if ($CheckOnly) {
 Write-Host "[Launcher] Starting Ovarian Ultrasound Prototype on http://127.0.0.1:$Port..."
 Write-Host "  - Runtime: $resolvedRuntime"
 Write-Host "  - DB: $env:APP_DB_PATH"
-& $pyPath -m uvicorn backend.app.main:app --host 127.0.0.1 --port $Port
+& $pyPath -m uvicorn backend.app.main:app --host 127.0.0.1 --port $Port --no-access-log
 exit $LASTEXITCODE

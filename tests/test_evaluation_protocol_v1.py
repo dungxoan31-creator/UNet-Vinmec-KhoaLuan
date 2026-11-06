@@ -73,7 +73,10 @@ def test_patient_overlap_across_development_history(tmp_path):
 
     # Create evidence file showing patient P_OVERLAP was in train set
     dev_history_file = tmp_path / "dev_history.json"
-    dev_history_file.write_text(json.dumps({"train_patients": ["P_OVERLAP"]}), encoding="utf-8")
+    dev_history_file.write_text(json.dumps({
+        "train_patients": ["P_OVERLAP"],
+        "val_patients": ["P_VAL"],
+    }), encoding="utf-8")
 
     manifest_csv = tmp_path / "manifest.csv"
     manifest_content = (
@@ -89,6 +92,89 @@ def test_patient_overlap_across_development_history(tmp_path):
 
     assert audit["status"] == "BLOCKED"
     assert any("overlap" in err.lower() for err in audit["errors"])
+
+
+def test_independent_gate_does_not_accept_file_presence_without_verified_label_provenance(tmp_path):
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
+
+    protocol = load_protocol(ROOT / "evaluation" / "protocols" / "milestone3_v1.json")
+    img_rel, mask_rel, img_sha, mask_sha = _create_synthetic_pair(tmp_path)
+    (tmp_path / "identity.txt").write_text("identity evidence placeholder", encoding="utf-8")
+    (tmp_path / "label.txt").write_text("label evidence placeholder", encoding="utf-8")
+    (tmp_path / "dev_history.json").write_text(json.dumps({
+        "train_patients": ["P_TRAIN"],
+        "val_patients": ["P_VAL"],
+    }), encoding="utf-8")
+    manifest_csv = tmp_path / "manifest.csv"
+    manifest_csv.write_text(
+        "sample_id,source_case_id,patient_id,split,modality,image_path,mask_path,image_sha256,mask_sha256,"
+        "identity_evidence,label_evidence,development_history_evidence\n"
+        f"s1,c1,P_TEST,test,2d,{img_rel},{mask_rel},{img_sha},{mask_sha},"
+        "identity.txt,label.txt,dev_history.json\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_inputs(tmp_path, load_cases(tmp_path, manifest_csv), protocol, "independent_test")
+
+    assert audit["status"] == "BLOCKED"
+    assert audit["patient_independence"]["verified"] is False
+    assert audit["label_provenance"]["verified"] is False
+    assert any("label provenance" in error.lower() for error in audit["errors"])
+
+
+def test_independent_gate_rejects_empty_development_history(tmp_path):
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
+
+    protocol = load_protocol(ROOT / "evaluation" / "protocols" / "milestone3_v1.json")
+    img_rel, mask_rel, img_sha, mask_sha = _create_synthetic_pair(tmp_path)
+    (tmp_path / "identity.txt").write_text("identity evidence placeholder", encoding="utf-8")
+    (tmp_path / "label.txt").write_text("label evidence placeholder", encoding="utf-8")
+    (tmp_path / "dev_history.json").write_text("{}", encoding="utf-8")
+    manifest_csv = tmp_path / "manifest.csv"
+    manifest_csv.write_text(
+        "sample_id,source_case_id,patient_id,split,modality,image_path,mask_path,image_sha256,mask_sha256,"
+        "identity_evidence,label_evidence,development_history_evidence\n"
+        f"s1,c1,P_TEST,test,2d,{img_rel},{mask_rel},{img_sha},{mask_sha},"
+        "identity.txt,label.txt,dev_history.json\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_inputs(tmp_path, load_cases(tmp_path, manifest_csv), protocol, "independent_test")
+
+    assert audit["status"] == "BLOCKED"
+    assert audit["patient_independence"]["verified"] is False
+    assert any("development history" in error.lower() for error in audit["errors"])
+
+
+def test_input_audit_rejects_empty_manifest(tmp_path):
+    from evaluation.protocol import audit_inputs, load_protocol
+
+    protocol = load_protocol(ROOT / "evaluation" / "protocols" / "milestone3_v1.json")
+
+    audit = audit_inputs(tmp_path, [], protocol, "validation_dry_run")
+
+    assert audit["status"] == "FAILED"
+    assert any("no samples" in error.lower() for error in audit["errors"])
+
+
+def test_input_audit_rejects_image_and_mask_paths_outside_root(tmp_path):
+    from evaluation.protocol import audit_inputs, load_cases, load_protocol
+
+    protocol = load_protocol(ROOT / "evaluation" / "protocols" / "milestone3_v1.json")
+    img_rel, mask_rel, img_sha, mask_sha = _create_synthetic_pair(tmp_path)
+    root = tmp_path / "project"
+    root.mkdir()
+    manifest_csv = root / "manifest.csv"
+    manifest_csv.write_text(
+        "sample_id,source_case_id,patient_id,split,modality,image_path,mask_path,image_sha256,mask_sha256\n"
+        f"s1,c1,P1,val,2d,../{img_rel},../{mask_rel},{img_sha},{mask_sha}\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_inputs(root, load_cases(root, manifest_csv), protocol, "validation_dry_run")
+
+    assert audit["status"] == "FAILED"
+    assert any("escapes root" in error.lower() for error in audit["errors"])
 
 
 def test_corrupt_pair_fails_preflight(tmp_path):

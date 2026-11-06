@@ -1,0 +1,8 @@
+{
+  "pipeline_status": "partial",
+  "stage_1_status": "completed",
+  "stage_2_status": "blocked_missing_or_invalid_vinmec_train_val",
+  "stage_3_status": "blocked_missing_or_invalid_vinmec_train_val",
+  "blocked_reason": "Missing source-specific Vinmec image file: C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\dataset\\Vinmec\\Vinmec_2d\\images\\1168.JPG. Legacy path aliases are not accepted as source provenance.",
+  "vinmec_test_split_accessed": false
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-17T12:43:57+07:00",
+  "generated_at": "2026-10-19T19:45:00+07:00",
   "test_scope": "selected",
   "overall_exit_code": 0,
   "prototype_ready": true,
@@ -11,9 +11,10 @@
   "live_browser_verified": true,
   "commands_executed": 8,
   "blockers": [
-    "Independent test cohort patient-level mapping unverified (independent_gate status: BLOCKED)"
+    "Independent test cohort patient-level mapping unverified (source_patient_identity_verified: false; independent_gate status: BLOCKED)"
   ],
   "limitations": [
-    "Clinician user study not conducted (study_status: NOT_CONDUCTED); technical acceptance protocol used as fallback"
+    "Clinician user study not conducted (study_status: NOT_CONDUCTED, has_clinician_validation: false); technical acceptance protocol used as fallback",
+    "Quantitative metrics on 402 images represent a synthetic technical benchmark ([SIMULATED - TECHNICAL BENCHMARK ONLY]); source patient identity and label provenance are unverified"
   ]
 }

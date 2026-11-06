@@ -1,10 +1,13 @@
+import { applyBrandIdentity } from "./branding.js";
+applyBrandIdentity();
 import { restoreSession, sessionMonitor } from "./auth.js";
-import { bindGlobal, navigate } from "./navigation.js?v=hide-evaluation-for-doctor-1";
+import { bindGlobal, navigate } from "./navigation.js?v=20261103-add-visit";
 import { nextCase } from "./workflow.js";
 window.addEventListener("ova:next-case", (e) => nextCase(e.detail));
 import { state } from "./state.js";
 import { saveResearchReview } from "./review.js";
 import { request } from "./api.js";
+import { updateEnvironmentNotices } from "./environment-notices.js";
 document.querySelector(".skip-link").addEventListener("click", (e) => {
   e.preventDefault();
   document.querySelector("#main")?.focus();
@@ -22,9 +25,11 @@ try {
   if (health?.capabilities) {
     state.capabilities = { ...state.capabilities, ...health.capabilities };
   }
+  updateEnvironmentNotices();
 } catch {
   // offline or unauthenticated fallback
 }
 await restoreSession();
+updateEnvironmentNotices();
 await navigate();
 sessionMonitor();

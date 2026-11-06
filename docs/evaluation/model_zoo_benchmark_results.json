@@ -1,0 +1,93 @@
+{
+  "audit_status": "UNVERIFIED_HISTORICAL_LITERAL_METRICS_DO_NOT_USE",
+  "audit_note": "2026-11-02 source inspection found hard-coded accuracy values and random toy networks in the generating script. These records are not measured dataset results, model comparisons or evidence of native model integration. Retained for traceability only.",
+  "timestamp": "2026-11-01 16:54:26",
+  "device": "cuda",
+  "dataset": "MMOTU 2D Official Split (1000 train / 469 val)",
+  "records": [
+    {
+      "model_key": "baseline_unet",
+      "name": "Standard U-Net (ResNet34)",
+      "category": "Baseline",
+      "params_m": 0.08,
+      "dice_dsc": 0.812,
+      "iou_jaccard": 0.684,
+      "hd95_mm": 6.82,
+      "latency_gpu_ms": 16.7,
+      "latency_cpu_ms": 135.5,
+      "notes": "Classic U-Net benchmark reference without attention gates"
+    },
+    {
+      "model_key": "boosted_unetplusplus_scse",
+      "name": "Boosted U-Net++ scSE",
+      "category": "Production Champion",
+      "params_m": 26.08,
+      "dice_dsc": 0.874,
+      "iou_jaccard": 0.776,
+      "hd95_mm": 4.15,
+      "latency_gpu_ms": 194.1,
+      "latency_cpu_ms": 1158.4,
+      "notes": "Deep supervision with spatial & channel squeeze-and-excitation"
+    },
+    {
+      "model_key": "tinyusfm_hybrid",
+      "name": "TinyUSFM Hybrid U-Net",
+      "category": "Foundation Model",
+      "params_m": 6.34,
+      "dice_dsc": 0.861,
+      "iou_jaccard": 0.757,
+      "hd95_mm": 4.58,
+      "latency_gpu_ms": 258.9,
+      "latency_cpu_ms": 487.3,
+      "notes": "5.5M ViT pretrained on 2M+ ultrasound images (-75.7% params vs U-Net++)"
+    },
+    {
+      "model_key": "csa_segnet_sppf",
+      "name": "CSA-SegNet Attention + SPPF",
+      "category": "Specialized Ovarian",
+      "params_m": 24.05,
+      "dice_dsc": 0.868,
+      "iou_jaccard": 0.767,
+      "hd95_mm": 4.29,
+      "latency_gpu_ms": 93.2,
+      "latency_cpu_ms": 951.9,
+      "notes": "Spatial Pyramid Pooling Fast enhances acoustic shadow & faint cyst wall boundary"
+    },
+    {
+      "model_key": "mednext_2d",
+      "name": "MedNeXt ConvNeXt 2D",
+      "category": "Medical ConvNeXt",
+      "params_m": 2.16,
+      "dice_dsc": 0.876,
+      "iou_jaccard": 0.779,
+      "hd95_mm": 4.05,
+      "latency_gpu_ms": 522.0,
+      "latency_cpu_ms": 1214.7,
+      "notes": "7x7 Depthwise Convolutions + Inverted Bottleneck expand receptive field for diffuse lesions"
+    },
+    {
+      "model_key": "medsam_promptable",
+      "name": "MedSAM Promptable (HITL)",
+      "category": "Interactive HITL",
+      "params_m": 0.52,
+      "dice_dsc": 0.892,
+      "iou_jaccard": 0.805,
+      "hd95_mm": 3.42,
+      "latency_gpu_ms": 13.0,
+      "latency_cpu_ms": 76.1,
+      "notes": "Doctor prompt guidance (box + click) reaches highest precision ceiling"
+    },
+    {
+      "model_key": "nnunet_v2_2d",
+      "name": "nnU-Net v2 (2D PlainConvUNet)",
+      "category": "Ceiling Benchmark",
+      "params_m": 41.2,
+      "dice_dsc": 0.885,
+      "iou_jaccard": 0.794,
+      "hd95_mm": 3.78,
+      "latency_gpu_ms": 115.4,
+      "latency_cpu_ms": 1420.0,
+      "notes": "Gold standard self-configuring baseline (Fold 0 benchmark ceiling)"
+    }
+  ]
+}

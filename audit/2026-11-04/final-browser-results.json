@@ -1,0 +1,152 @@
+{
+  "checks": [
+    {
+      "name": "print controls",
+      "controls": [
+        {
+          "text": ""
+        },
+        {
+          "text": "Tìm PID hoặc mã ca\nCtrl K"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": "B\nBác sĩ"
+        },
+        {
+          "text": ""
+        },
+        {
+          "text": "← Quay lại máy trạm",
+          "action": "back-to-viewer"
+        },
+        {
+          "text": "Tải hồ sơ kết quả",
+          "action": "export-research"
+        },
+        {
+          "text": "In báo cáo / Lưu PDF",
+          "action": "print"
+        },
+        {
+          "text": ""
+        }
+      ]
+    },
+    {
+      "name": "actual print handler root",
+      "exists": 1
+    },
+    {
+      "name": "upload overlap 1366",
+      "metrics": {
+        "bar": {
+          "top": 590,
+          "bottom": 668
+        },
+        "controls": [
+          {
+            "html": "<input type=\"file\" data-file=\"L\" accept=\".png,.jpg,.jpeg,.dcm\" multiple=\"\" class=\"visually-hidden\">",
+            "rect": {
+              "x": 528.734375,
+              "y": 697.5625,
+              "w": 1,
+              "h": 42
+            },
+            "covered": true,
+            "hit": "<label class=\"btn small\">Chọn ảnh trái<input type=\"file\" data-file=\"L\" accept=\".png,.jpg,.jpeg,.dcm\" multiple=\"\" class=\"visually-hidden\"></label>"
+          },
+          {
+            "html": "<input type=\"checkbox\" data-unavailable=\"L\">",
+            "rect": {
+              "x": 286,
+              "y": 791.5625,
+              "w": 13,
+              "h": 13
+            },
+            "covered": true
+          },
+          {
+            "html": "<input type=\"file\" data-file=\"R\" accept=\".png,.jpg,.jpeg,.dcm\" multiple=\"\" class=\"visually-hidden\">",
+            "rect": {
+              "x": 1077.234375,
+              "y": 697.5625,
+              "w": 1,
+              "h": 42
+            },
+            "covered": true,
+            "hit": "<label class=\"btn small\">Chọn ảnh phải<input type=\"file\" data-file=\"R\" accept=\".png,.jpg,.jpeg,.dcm\" multiple=\"\" class=\"visually-hidden\"></label>"
+          },
+          {
+            "html": "<input type=\"checkbox\" data-unavailable=\"R\">",
+            "rect": {
+              "x": 834.5,
+              "y": 791.5625,
+              "w": 13,
+              "h": 13
+            },
+            "covered": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "upload overlap 390",
+      "metrics": {
+        "bar": {
+          "top": 652,
+          "bottom": 752
+        },
+        "controls": [
+          {
+            "html": "<input type=\"file\" data-file=\"L\" accept=\".png,.jpg,.jpeg,.dcm\" multiple=\"\" class=\"visually-hidden\">",
+            "rect": {
+              "x": 194.984375,
+              "y": 813.5625,
+              "w": 1,
+              "h": 42
+            },
+            "covered": true,
+            "hit": "<footer class=\"statusbar\">\n      <span>Hệ thống hỗ trợ phân tích hình ảnh siêu âm buồng trứng</span><span class=\"connection\"><i class=\"dot\"></i><span id=\"connectionText\">Đã kết nối</span></span>\n    <"
+          },
+          {
+            "html": "<input type=\"checkbox\" data-unavailable=\"L\">",
+            "rect": {
+              "x": 34,
+              "y": 907.5625,
+              "w": 13,
+              "h": 13
+            },
+            "covered": true
+          },
+          {
+            "html": "<input type=\"file\" data-file=\"R\" accept=\".png,.jpg,.jpeg,.dcm\" multiple=\"\" class=\"visually-hidden\">",
+            "rect": {
+              "x": 194.984375,
+              "y": 1294.859375,
+              "w": 1,
+              "h": 42
+            },
+            "covered": true
+          },
+          {
+            "html": "<input type=\"checkbox\" data-unavailable=\"R\">",
+            "rect": {
+              "x": 34,
+              "y": 1388.859375,
+              "w": 13,
+              "h": 13
+            },
+            "covered": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "zoom equivalent",
+      "method": "683x384 CSS viewport represents available area at 200% on 1366x768; actual browser zoom NOT TESTED"
+    }
+  ]
+}

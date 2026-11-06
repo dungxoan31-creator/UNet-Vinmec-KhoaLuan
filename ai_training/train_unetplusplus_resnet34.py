@@ -6,8 +6,13 @@ import importlib.metadata
 import json
 import random
 import statistics
+import sys
 import time
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import segmentation_models_pytorch as smp
@@ -15,7 +20,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from ai_training.dataset_loader import OvarianUltrasoundDataset
-from ai_training.train_baseline_unet import ComboLoss
+from ai_training.train_baseline_unet import ComboLoss, validate_training_split_integrity
 
 GRAY_MEAN = 0.449
 GRAY_STD = 0.226
@@ -59,7 +64,7 @@ def batch_metrics(logits: torch.Tensor, targets: torch.Tensor) -> dict[str, torc
         "dice": torch.where(dice_denominator == 0, 1.0, 2 * tp / dice_denominator.clamp_min(1)),
         "iou": torch.where(union == 0, 1.0, tp / union.clamp_min(1)),
         "recall": torch.where(tp + fn == 0, 1.0, tp / (tp + fn).clamp_min(1)),
-        "precision": torch.where(tp + fp == 0, 1.0, tp / (tp + fp).clamp_min(1)),
+        "precision": torch.where(tp + fp == 0, (tp + fn == 0).float(), tp / (tp + fp).clamp_min(1)),
         "specificity": torch.where(tn + fp == 0, 1.0, tn / (tn + fp).clamp_min(1)),
     }
 
@@ -83,6 +88,7 @@ def run_epoch(model, loader, criterion, device, optimizer=None, scaler=None) -> 
     model.train(training)
     total_loss = 0.0
     metrics = {key: [] for key in ("dice", "iou", "recall", "precision", "specificity")}
+    optimizer_steps = 0
     amp_enabled = device.type == "cuda"
 
     context = torch.enable_grad if training else torch.no_grad
@@ -99,15 +105,21 @@ def run_epoch(model, loader, criterion, device, optimizer=None, scaler=None) -> 
 
             if training:
                 scaler.scale(loss).backward()
+                previous_scale = scaler.get_scale()
                 scaler.step(optimizer)
                 scaler.update()
+                optimizer_steps += scaler.get_scale() >= previous_scale
 
             count = images.shape[0]
             total_loss += loss.detach().item() * count
             for name, value in batch_metrics(logits.detach(), masks).items():
                 metrics[name].extend(value.float().cpu().tolist())
 
-    return {"loss": total_loss / len(loader.dataset), **{key: statistics.mean(values) for key, values in metrics.items()}}
+    return {
+        "loss": total_loss / len(loader.dataset),
+        "optimizer_steps": optimizer_steps,
+        **{key: statistics.mean(values) for key, values in metrics.items()},
+    }
 
 
 def train(
@@ -127,10 +139,13 @@ def train(
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
+    split_integrity = validate_training_split_integrity(split_dir)
+
     manifest_path = split_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     train_csv = split_dir / "train.csv"
     val_csv = split_dir / "val.csv"
+    test_csv = split_dir / "test.csv"
     train_dataset = OvarianUltrasoundDataset(str(train_csv), is_train=True, seed=seed)
     val_dataset = OvarianUltrasoundDataset(str(val_csv), is_train=False)
     validate_splits(train_dataset, val_dataset, manifest)
@@ -171,7 +186,8 @@ def train(
     for epoch in range(1, epochs + 1):
         train_stats = run_epoch(model, train_loader, criterion, device, optimizer, scaler)
         val_stats = run_epoch(model, val_loader, criterion, device)
-        scheduler.step()
+        if train_stats["optimizer_steps"]:
+            scheduler.step()
         improved = val_stats["dice"] > best_dice
         if improved:
             best_dice = val_stats["dice"]
@@ -221,14 +237,20 @@ def train(
         "threshold": 0.5,
         "selection_metric": "mean per-image Validation Dice",
         "split_dir": str(split_dir),
+        "split_integrity": split_integrity,
+        "split_level": "image-level",
+        "patient_level_independence_verified": False,
         "train_count": len(train_dataset),
         "validation_count": len(val_dataset),
-        "test_split_accessed": False,
+        "test_split_integrity_inspected": split_integrity["test_split_integrity_inspected"],
+        "test_split_used_for_training_or_selection": False,
         "train_csv_sha256": sha256_file(train_csv),
         "validation_csv_sha256": sha256_file(val_csv),
+        "test_csv_sha256": sha256_file(test_csv),
         "manifest_sha256": sha256_file(manifest_path),
         "baseline_standard_unet_validation_dice": BASELINE_VALIDATION_DICE,
         "best_epoch": best_epoch,
+        "split_validation_note": "image-level source image/mask integrity checked; patient identity unavailable",
         "train_metrics_at_best_epoch": history[best_epoch - 1]["train"],
         "best_validation": history[best_epoch - 1]["validation"],
         "duration_seconds": round(duration, 2),

@@ -1,10 +1,14 @@
 """
-Model Abstraction Layer & Registry for Ovarian Ultrasound AI Segmentation.
-Supports Attention U-Net (Primary Production Model), S4M, UltraSAM, DS2Net, and SovaSeg.
+Model abstraction and registry for the RUO ovarian ultrasound segmentation prototype.
+The primary checkpoint and architecture are selected by the hash-verified model manifest.
 """
 import json
+import math
 import os
+import tempfile
+import threading
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -12,6 +16,51 @@ import numpy as np
 import torch
 
 from backend.services.inference_engine import InferenceEngine
+
+
+class InferenceBusyError(RuntimeError):
+    """The bounded inference queue is full or its wait deadline elapsed."""
+
+
+class InferenceAdmission:
+    """Bound active and waiting inference requests within one server process."""
+
+    def __init__(self, max_running=1, max_waiting=2, timeout_seconds=10.0):
+        if (type(max_running) is not int or not 1 <= max_running <= 64
+                or type(max_waiting) is not int or not 0 <= max_waiting <= 256
+                or isinstance(timeout_seconds, bool)
+                or not isinstance(timeout_seconds, (int, float))
+                or not math.isfinite(timeout_seconds) or not 0 < timeout_seconds <= 120):
+            raise ValueError("Invalid inference admission limits")
+        self._capacity = threading.BoundedSemaphore(max_running + max_waiting)
+        self._running = threading.BoundedSemaphore(max_running)
+        self.timeout_seconds = float(timeout_seconds)
+
+    @contextmanager
+    def slot(self):
+        if not self._capacity.acquire(blocking=False):
+            raise InferenceBusyError("Inference queue is full")
+        acquired = False
+        try:
+            acquired = self._running.acquire(timeout=self.timeout_seconds)
+            if not acquired:
+                raise InferenceBusyError("Inference queue wait timed out")
+            yield
+        finally:
+            if acquired:
+                self._running.release()
+            self._capacity.release()
+
+
+def _inference_admission_from_environment():
+    try:
+        return InferenceAdmission(
+            max_running=int(os.getenv("APP_INFERENCE_MAX_RUNNING", "1")),
+            max_waiting=int(os.getenv("APP_INFERENCE_MAX_WAITING", "2")),
+            timeout_seconds=float(os.getenv("APP_INFERENCE_WAIT_SECONDS", "10")),
+        )
+    except (ValueError, TypeError, OverflowError) as exc:
+        raise ValueError("Invalid inference admission configuration") from exc
 
 
 class BaseModelAdapter(ABC):
@@ -33,27 +82,45 @@ class BaseModelAdapter(ABC):
         tensor_512: torch.Tensor,
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
-        roi_mask: np.ndarray | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         pass
 
     def get_info(self) -> dict[str, Any]:
-        engine = getattr(self, "engine", None) if self.is_loaded else None
+        engine = getattr(self, "engine", None) if getattr(self, "engine", None) else getattr(self, "fallback_engine", None)
+        checksum = getattr(self, "checksum", None)
+        if checksum is None and self.is_loaded and engine is not None:
+            checksum = getattr(engine, "model_checksum", None)
         return {
             "name": self.name,
             "version": self.version,
             "architecture": self.architecture,
             "is_loaded": self.is_loaded,
-            "checksum": getattr(engine, "model_checksum", None),
-            "threshold": getattr(engine, "threshold", None),
+            "checkpoint": getattr(self, "checkpoint", None),
+            "checksum": checksum if self.is_loaded else None,
+            "threshold": getattr(engine, "threshold", None) if self.is_loaded else None,
         }
+
+    def _record_primary_fallback(self, result: dict[str, Any]) -> dict[str, Any]:
+        provenance = result.get("provenance")
+        if not isinstance(provenance, dict):
+            raise RuntimeError("Primary fallback did not return model provenance.")
+        provenance["requested_model_name"] = self.name
+        provenance["adapter_mode"] = self.ADAPTER_MODE
+        return result
+
+    def _fallback_status(self) -> str:
+        engine = getattr(self, "fallback_engine", None)
+        architecture = getattr(engine, "architecture_name", None)
+        if architecture:
+            return f"NOT_LOADED — using manifest-selected primary model: {architecture}"
+        return "NOT_LOADED — no manifest-selected primary model is available"
 
 
 class AttentionUNetAdapter(BaseModelAdapter):
     """
-    Primary Production Model Adapter: Attention U-Net with Attention Gates.
-    Trained specifically on clinical ovarian ultrasound lesions.
+    Compatibility adapter for the manifest-selected segmentation checkpoint.
     """
 
     def __init__(
@@ -63,6 +130,9 @@ class AttentionUNetAdapter(BaseModelAdapter):
         architecture: str = "auto",
         input_normalization: dict | None = None,
         threshold: float | None = None,
+        horizontal_flip_tta: bool = False,
+        expected_checkpoint_sha256: str | None = None,
+        model_version: str | None = None,
     ):
         super().__init__(
             name="Attention U-Net Ovarian Engine",
@@ -74,16 +144,22 @@ class AttentionUNetAdapter(BaseModelAdapter):
         self.model_architecture = architecture
         self.input_normalization = input_normalization
         self.threshold = threshold
+        self.horizontal_flip_tta = bool(horizontal_flip_tta)
+        self.expected_checkpoint_sha256 = expected_checkpoint_sha256
+        self.model_version = model_version
         engine_kwargs = dict(
             model_weights_path=weights_path,
             device=self.device,
-            default_pixel_spacing_mm=0.1,
             architecture=architecture,
             input_normalization=input_normalization,
+            horizontal_flip_tta=self.horizontal_flip_tta,
+            expected_checkpoint_sha256=expected_checkpoint_sha256,
+            model_version=model_version,
         )
         if threshold is not None:
             engine_kwargs["threshold"] = threshold
         self.engine = InferenceEngine(**engine_kwargs)
+        self.device = self.engine.device
         self.name = self.engine.model_name
         self.architecture = self.engine.architecture_name
         self.is_loaded = self.engine.is_model_ready
@@ -96,12 +172,16 @@ class AttentionUNetAdapter(BaseModelAdapter):
             device=device,
             architecture=self.model_architecture,
             input_normalization=self.input_normalization,
+            horizontal_flip_tta=self.horizontal_flip_tta,
+            expected_checkpoint_sha256=self.expected_checkpoint_sha256,
+            model_version=self.model_version,
         )
         if getattr(self, "threshold", None) is not None:
             engine_kwargs["threshold"] = self.threshold
         elif hasattr(self, "engine") and getattr(self.engine, "threshold", None) is not None:
             engine_kwargs["threshold"] = self.engine.threshold
         self.engine = InferenceEngine(**engine_kwargs)
+        self.device = self.engine.device
         self.name = self.engine.model_name
         self.architecture = self.engine.architecture_name
         self.is_loaded = self.engine.is_model_ready
@@ -112,22 +192,24 @@ class AttentionUNetAdapter(BaseModelAdapter):
         tensor_512: torch.Tensor,
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
-        roi_mask: np.ndarray | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
-        return self.engine.run_inference(
-            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
+        result = self.engine.run_inference(
+            tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
         )
+        self.device = self.engine.device
+        return result
 
 
 class S4MAdapter(BaseModelAdapter):
     """
     Adapter for S4M / MMOTU multi-organ ultrasound segmentation framework.
-    STATUS: FALLBACK_TO_ATTN_UNET — Native S4M checkpoint not loaded.
-    Runs via Attention U-Net fallback engine until native weights are provided.
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native S4M loading and inference are not implemented.
+    Uses the manifest-selected primary engine when called directly.
     """
 
-    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
@@ -140,16 +222,14 @@ class S4MAdapter(BaseModelAdapter):
         self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        """Load native S4M checkpoint. Until real weights are provided, this returns False."""
-        if weights_path and os.path.exists(weights_path):
-            self.is_loaded = True
-            return True
+        """S4M loading is unsupported; an existing path is not evidence of loaded weights."""
+        self.is_loaded = False
         return False
 
     def get_info(self) -> dict[str, Any]:
         info = super().get_info()
         info["adapter_mode"] = self.ADAPTER_MODE
-        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        info["checkpoint_status"] = self._fallback_status()
         return info
 
     def predict(
@@ -157,32 +237,28 @@ class S4MAdapter(BaseModelAdapter):
         tensor_512: torch.Tensor,
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
-        roi_mask: np.ndarray | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
-            res["provenance"]["model_name"] = self.name
-            res["provenance"]["model_version"] = self.version
-            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
-            return res
+            return self._record_primary_fallback(res)
         raise RuntimeError(
-            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
-            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
-            "with a valid checkpoint path."
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native S4M inference is not implemented."
         )
 
 
 class UltraSAMAdapter(BaseModelAdapter):
     """
     Adapter for UltraSAM / UltraSAM3 zero-shot promptable segmentation.
-    STATUS: FALLBACK_TO_ATTN_UNET — Native UltraSAM ViT checkpoint not loaded.
-    Runs via Attention U-Net fallback engine until native weights are provided.
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native UltraSAM loading and inference are not implemented.
+    Uses the manifest-selected primary engine when called directly.
     """
 
-    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
@@ -192,16 +268,14 @@ class UltraSAMAdapter(BaseModelAdapter):
         self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        """Load native UltraSAM ViT checkpoint. Returns False until real weights are provided."""
-        if weights_path and os.path.exists(weights_path):
-            self.is_loaded = True
-            return True
+        """UltraSAM loading is unsupported; an existing path is not evidence of loaded weights."""
+        self.is_loaded = False
         return False
 
     def get_info(self) -> dict[str, Any]:
         info = super().get_info()
         info["adapter_mode"] = self.ADAPTER_MODE
-        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        info["checkpoint_status"] = self._fallback_status()
         return info
 
     def predict(
@@ -209,33 +283,29 @@ class UltraSAMAdapter(BaseModelAdapter):
         tensor_512: torch.Tensor,
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
-        roi_mask: np.ndarray | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
-            res["provenance"]["model_name"] = self.name
-            res["provenance"]["model_version"] = self.version
-            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
-            return res
+            return self._record_primary_fallback(res)
         raise RuntimeError(
-            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
-            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
-            "with a valid UltraSAM ViT checkpoint path."
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native UltraSAM inference is not implemented."
         )
 
 
 class DS2NetAdapter(BaseModelAdapter):
     """
     Adapter for DS²Net dual-stream ultrasound network.
-    STATUS: FALLBACK_TO_ATTN_UNET — Native DS²Net checkpoint not loaded.
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native DS²Net loading and inference are not implemented.
     Reference: cv516Buaa/MMOTU_DS2Net (Apache-2.0). Dual-stream for OTU-2D + OTU-CEUS.
-    Runs via Attention U-Net fallback engine until native weights are provided.
+    Uses the manifest-selected primary engine when called directly.
     """
 
-    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
@@ -247,16 +317,14 @@ class DS2NetAdapter(BaseModelAdapter):
         self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        """Load native DS²Net checkpoint. Returns False until real weights are provided."""
-        if weights_path and os.path.exists(weights_path):
-            self.is_loaded = True
-            return True
+        """DS2Net loading is unsupported; an existing path is not evidence of loaded weights."""
+        self.is_loaded = False
         return False
 
     def get_info(self) -> dict[str, Any]:
         info = super().get_info()
         info["adapter_mode"] = self.ADAPTER_MODE
-        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        info["checkpoint_status"] = self._fallback_status()
         return info
 
     def predict(
@@ -264,32 +332,28 @@ class DS2NetAdapter(BaseModelAdapter):
         tensor_512: torch.Tensor,
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
-        roi_mask: np.ndarray | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
-            res["provenance"]["model_name"] = self.name
-            res["provenance"]["model_version"] = self.version
-            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
-            return res
+            return self._record_primary_fallback(res)
         raise RuntimeError(
-            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
-            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
-            "with a valid DS²Net checkpoint path (see: cv516Buaa/MMOTU_DS2Net)."
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native DS2Net inference is not implemented."
         )
 
 
 class SovaSegAdapter(BaseModelAdapter):
     """
     Adapter for SovaSeg specialized ovarian follicle and cyst segmentation.
-    STATUS: FALLBACK_TO_ATTN_UNET — Native SovaSeg checkpoint not loaded.
-    Runs via Attention U-Net fallback engine until native weights are provided.
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native SovaSeg loading and inference are not implemented.
+    Uses the manifest-selected primary engine when called directly.
     """
 
-    ADAPTER_MODE = "FALLBACK_TO_ATTN_UNET"  # Change to "NATIVE" when real checkpoint is loaded
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
 
     def __init__(self, fallback_engine: InferenceEngine | None = None):
         super().__init__(
@@ -301,16 +365,14 @@ class SovaSegAdapter(BaseModelAdapter):
         self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        """Load native SovaSeg checkpoint. Returns False until real weights are provided."""
-        if weights_path and os.path.exists(weights_path):
-            self.is_loaded = True
-            return True
+        """SovaSeg loading is unsupported; an existing path is not evidence of loaded weights."""
+        self.is_loaded = False
         return False
 
     def get_info(self) -> dict[str, Any]:
         info = super().get_info()
         info["adapter_mode"] = self.ADAPTER_MODE
-        info["checkpoint_status"] = "NOT_LOADED — using Attention U-Net fallback"
+        info["checkpoint_status"] = self._fallback_status()
         return info
 
     def predict(
@@ -318,27 +380,214 @@ class SovaSegAdapter(BaseModelAdapter):
         tensor_512: torch.Tensor,
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
-        roi_mask: np.ndarray | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
         if self.fallback_engine:
             res = self.fallback_engine.run_inference(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
-            res["provenance"]["model_name"] = self.name
-            res["provenance"]["model_version"] = self.version
-            res["provenance"]["adapter_mode"] = self.ADAPTER_MODE
-            return res
+            return self._record_primary_fallback(res)
         raise RuntimeError(
-            f"{self.name}: No fallback engine available and no native checkpoint loaded. "
-            "Cannot run inference. Ensure fallback_engine is provided or call load_weights() "
-            "with a valid SovaSeg checkpoint path."
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native SovaSeg inference is not implemented."
+        )
+
+
+class TinyUSFMAdapter(BaseModelAdapter):
+    """
+    Adapter for TinyUSFM compact ultrasound foundation model (5.5M params).
+    Reference: MacDunno/TinyUSFM (Apache-2.0).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native TinyUSFM loading uses the manifest-selected primary engine
+    when called directly, with native prototype available in scripts/prototype_tinyusfm_adapter.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="TinyUSFM Compact Foundation Model",
+            version="1.0.0",
+            architecture="TinyUSFM ViT-Tiny (5.5M Params + FPN Head)",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        """Native TinyUSFM weights loader."""
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native TinyUSFM inference is not implemented."
+        )
+
+
+class CSASegNetAdapter(BaseModelAdapter):
+    """
+    Adapter for CSA-SegNet Channel and Spatial Attention Network.
+    Reference: phamthiloanhd/CSA-SegNet (Academic RUO).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native prototype available in scripts/prototype_csa_attention.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="CSA-SegNet Attention Network",
+            version="1.0.0",
+            architecture="CSA-SegNet Dual Attention + SPPF Bottleneck",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native CSA-SegNet inference is not implemented."
+        )
+
+
+class MedSAMAdapter(BaseModelAdapter):
+    """
+    Adapter for MedSAM Medical Interactive Foundation Model.
+    Reference: bowang-lab/MedSAM (Apache-2.0).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native prototype available in scripts/prototype_medsam_adapter.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="MedSAM Interactive Foundation Model",
+            version="1.0.0",
+            architecture="MedSAM ViT-B Promptable Segmentation",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native MedSAM inference is not implemented."
+        )
+
+
+class MedNeXtAdapter(BaseModelAdapter):
+    """
+    Adapter for MedNeXt Medical ConvNeXt architecture.
+    Reference: MIC-DKFZ/MedNeXt (Apache-2.0).
+    Features 7x7 Depthwise Conv, Inverted Bottleneck, and Global Response Normalization (GRN).
+    STATUS: FALLBACK_TO_PRIMARY_MODEL — native prototype available in scripts/prototype_mednext_block.py.
+    """
+
+    ADAPTER_MODE = "FALLBACK_TO_PRIMARY_MODEL"
+
+    def __init__(self, fallback_engine: InferenceEngine | None = None):
+        super().__init__(
+            name="MedNeXt Medical ConvNeXt",
+            version="1.0.0",
+            architecture="MedNeXt 7x7 Depthwise Inverted Bottleneck",
+        )
+        self.fallback_engine = fallback_engine
+        self.is_loaded = False
+
+    def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
+        self.is_loaded = False
+        return False
+
+    def get_info(self) -> dict[str, Any]:
+        info = super().get_info()
+        info["adapter_mode"] = self.ADAPTER_MODE
+        info["checkpoint_status"] = self._fallback_status()
+        return info
+
+    def predict(
+        self,
+        tensor_512: torch.Tensor,
+        padded_gray: np.ndarray,
+        pixel_spacing_mm: float = 0.1,
+        scale: float = 1.0,
+        generate_overlay: bool = False,
+    ) -> dict[str, Any]:
+        if self.fallback_engine:
+            res = self.fallback_engine.run_inference(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
+            )
+            return self._record_primary_fallback(res)
+        raise RuntimeError(
+            f"{self.name}: The manifest-selected primary engine is unavailable; "
+            "native MedNeXt inference is not implemented."
         )
 
 
 class CandidateModelAdapter(BaseModelAdapter):
     """
-    Adapter representing candidate or external model checkpoints registered for clinical validation.
+    Metadata-only entry for candidate or external checkpoints; no inference loader is implemented.
     """
 
     def __init__(
@@ -353,9 +602,7 @@ class CandidateModelAdapter(BaseModelAdapter):
         self.is_loaded = False
 
     def load_weights(self, weights_path: str | None = None, device: str = "cpu") -> bool:
-        if weights_path and os.path.exists(weights_path):
-            self.is_loaded = True
-            return True
+        self.is_loaded = False
         return False
 
     def predict(self, *args, **kwargs):
@@ -372,15 +619,17 @@ def _get_candidate_models_file() -> str:
     return os.path.join(data_dir, "candidate_models.json")
 
 
+
+
 class ModelRegistry:
     """
-    Central Registry managing hot-swappable AI segmentation model adapters.
+    Central registry for the manifest-selected serving model and metadata-only candidates.
     """
 
     def __init__(self, checkpoint_path: str | None = None, model_selection: dict | None = None):
+        self._admission = _inference_admission_from_environment()
         self.adapters: dict[str, BaseModelAdapter] = {}
         self.primary_model_key = "attention_unet"
-        self.fallback_model_key = "attention_unet"
         self.ensemble_enabled = False
 
         # Register all supported model architectures
@@ -391,6 +640,9 @@ class ModelRegistry:
             architecture=model_selection.get("architecture", "auto"),
             input_normalization=model_selection.get("input_normalization"),
             threshold=model_selection.get("threshold"),
+            horizontal_flip_tta=model_selection.get("horizontal_flip_tta", False),
+            expected_checkpoint_sha256=model_selection.get("checkpoint_sha256"),
+            model_version=model_selection.get("model_version"),
         )
         primary_engine = primary_adapter.engine
 
@@ -399,6 +651,14 @@ class ModelRegistry:
         self.register_adapter("ultrasam", UltraSAMAdapter(fallback_engine=primary_engine))
         self.register_adapter("ds2net", DS2NetAdapter(fallback_engine=primary_engine))
         self.register_adapter("sovaseg", SovaSegAdapter(fallback_engine=primary_engine))
+        self.register_adapter("tinyusfm", TinyUSFMAdapter(fallback_engine=primary_engine))
+        self.register_adapter("csasegnet", CSASegNetAdapter(fallback_engine=primary_engine))
+        self.register_adapter("medsam", MedSAMAdapter(fallback_engine=primary_engine))
+        self.register_adapter("mednext", MedNeXtAdapter(fallback_engine=primary_engine))
+
+        # File presence and a claimed hash do not mean native weights were loaded.
+        # Only each adapter's loader may establish its readiness and provenance.
+
         self.load_persisted_candidates()
 
     def load_persisted_candidates(self) -> None:
@@ -432,12 +692,25 @@ class ModelRegistry:
                     "architecture": v.architecture,
                     "checkpoint": getattr(v, "checkpoint", None),
                 })
+        directory = os.path.dirname(filepath)
+        os.makedirs(directory, exist_ok=True)
+        temporary_path = None
         try:
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(candidates, f, ensure_ascii=False, indent=2)
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=directory, prefix=".candidate-models-", suffix=".tmp", delete=False
+            ) as stream:
+                temporary_path = stream.name
+                json.dump(candidates, stream, ensure_ascii=False, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary_path, filepath)
         except Exception:
-            pass
+            if temporary_path:
+                try:
+                    os.remove(temporary_path)
+                except OSError:
+                    pass
+            raise
 
     def register_adapter(self, key: str, adapter: BaseModelAdapter, allow_overwrite: bool = False):
         if not allow_overwrite and key in self.adapters:
@@ -459,31 +732,40 @@ class ModelRegistry:
         padded_gray: np.ndarray,
         pixel_spacing_mm: float = 0.1,
         model_key: str | None = None,
-        roi_mask: np.ndarray | None = None,
         scale: float = 1.0,
+        generate_overlay: bool = False,
     ) -> dict[str, Any]:
-        target_key = model_key or self.primary_model_key
-        adapter = self.adapters.get(target_key)
-
-        if adapter is None or not adapter.is_loaded:
+        if model_key is None:
             adapter = self.get_primary_adapter()
+        else:
+            adapter = self.adapters.get(model_key)
+            if adapter is None:
+                raise ValueError(f"Unknown model key '{model_key}'.")
+            if getattr(adapter, "ADAPTER_MODE", None) == "FALLBACK_TO_PRIMARY_MODEL":
+                raise ValueError(f"Model '{model_key}' has no native loaded implementation; use the selected primary model.")
 
-        result = adapter.predict(tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale)
-        if not result and target_key != "attention_unet":
-            # Fallback to primary Attention U-Net
-            fallback = self.get_primary_adapter()
-            result = fallback.predict(
-                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, roi_mask=roi_mask, scale=scale
+        with self._admission.slot():
+            return adapter.predict(
+                tensor_512, padded_gray, pixel_spacing_mm=pixel_spacing_mm, scale=scale, generate_overlay=generate_overlay
             )
-
-        return result
 
     def get_admin_overview(self) -> dict[str, Any]:
         """Provides operational metrics for Admin / Engineering view."""
         self.load_persisted_candidates()
-        device_name = "CUDA (NVIDIA GPU)" if torch.cuda.is_available() else "CPU Execution Provider"
-        models_info = [adapter.get_info() for adapter in self.adapters.values()]
         primary = self.adapters.get(self.primary_model_key)
+        engine = getattr(primary, "engine", None)
+        selected_device = getattr(engine, "device", None)
+        if selected_device is None:
+            uses_cuda = torch.cuda.is_available()
+        else:
+            uses_cuda = str(selected_device).startswith("cuda")
+        device_name = "CUDA (NVIDIA GPU)" if uses_cuda else "CPU Execution Provider"
+        models_info = []
+        for model_id, adapter in self.adapters.items():
+            model_info = adapter.get_info()
+            model_info["model_id"] = model_id
+            model_info["is_candidate"] = isinstance(adapter, CandidateModelAdapter)
+            models_info.append(model_info)
         architecture = primary.engine.architecture_name if primary and primary.is_loaded else None
         if architecture and models_info:
             models_info[0]["name"] = architecture

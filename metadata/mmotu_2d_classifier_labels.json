@@ -1,0 +1,67 @@
+{
+  "dataset": "MMOTU OTU_2d",
+  "label_type": "image-level global category annotation",
+  "label_source_status": "VERIFIED",
+  "class_id_mapping_status": "PARTIALLY VERIFIED",
+  "patient_identity_available": false,
+  "patient_level_independence_verified": false,
+  "split_level": "image-level",
+  "train": {
+    "file": "metadata/mmotu_2d_train_cls.txt",
+    "source_file": "train_cls.txt",
+    "source_file_id": "1Em2TK2iXpmZ8ypWTAR2G5hH5cc1e4bMo",
+    "sample_count": 1000,
+    "sha256": "f9a79dcf933bf99fb5b905dbf09fe24b19b7dca639034dab6368548c2e7acb47"
+  },
+  "validation": {
+    "file": "metadata/mmotu_2d_val_cls.txt",
+    "source_file": "val_cls.txt",
+    "source_file_id": "1BLt9XiVmqVMf4HJVEC4z8hJrMr6uUeC3",
+    "sample_count": 469,
+    "sha256": "24bdd8185a88e8965353c231190d59860613327658e7edb796e01b973bdedfc6"
+  },
+  "class_id_to_name": {
+    "0": "chocolate_cyst",
+    "1": "serous_cystadenoma",
+    "2": "teratoma",
+    "3": "theca_cell_tumor",
+    "4": "simple_cyst",
+    "5": "normal_ovary",
+    "6": "mucinous_cystadenoma",
+    "7": "high_grade_serous_cystadenocarcinoma"
+  },
+  "class_counts": {
+    "train": {
+      "chocolate_cyst": 226,
+      "serous_cystadenoma": 153,
+      "teratoma": 228,
+      "theca_cell_tumor": 57,
+      "simple_cyst": 47,
+      "normal_ovary": 180,
+      "mucinous_cystadenoma": 71,
+      "high_grade_serous_cystadenocarcinoma": 38
+    },
+    "validation": {
+      "chocolate_cyst": 110,
+      "serous_cystadenoma": 66,
+      "teratoma": 108,
+      "theca_cell_tumor": 31,
+      "simple_cyst": 19,
+      "normal_ovary": 87,
+      "mucinous_cystadenoma": 33,
+      "high_grade_serous_cystadenocarcinoma": 15
+    }
+  },
+  "source_urls": {
+    "official_repository": "https://github.com/cv516Buaa/MMOTU_DS2Net",
+    "official_download_folder": "https://drive.google.com/drive/folders/1c5n0fVKrM9-SZE1kacTXPt1pt844iAs1",
+    "original_dataset_paper": "https://arxiv.org/abs/2207.06799",
+    "class_id_mapping_reference": "https://www.mdpi.com/2079-9292/15/16/3662"
+  },
+  "limitations": [
+    "The source label files contain numeric class IDs but no class names; the numeric mapping is cross-checked against published MMOTU class definitions.",
+    "Global category labels are not independently verified against patient-level histopathology in this project.",
+    "Patient identities are unavailable. Validation metrics are image-level model-selection results and are not patient-independent clinical test results.",
+    "The upstream repository README does not establish a separate dataset license; code licensing is not treated as data licensing. Do not redistribute the images, labels, or trained weights until dataset terms are confirmed."
+  ]
+}

@@ -3,17 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {chromium} = require('playwright-core');
+const {ensureSyntheticFixtures} = require('./helpers/synthetic_fixtures.cjs');
 const root = path.resolve(__dirname, '..');
 const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8027';
 const output = path.resolve(root,'artifacts/frontend-redesign');
-const sample = fs.readFileSync(path.join(root,'ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv'),'utf8').trim().split(/\r?\n/);
-const index = sample[0].split(',').indexOf('image_path');
-const images = sample.slice(1).map(row=>row.split(',')[index]).filter(Boolean).map(file=>{
-  const normalized=file.replaceAll('\\','/').replace('dataset/Vinmec/Vinmec_2d/images/','dataset/2d/images/').replace('dataset/Vinmec/Vinmec_3d/images/','dataset/3d/images/');
-  return path.resolve(root,normalized);
-});
-const image = images.find(file=>fs.existsSync(file));
-assert.ok(image,'A real validation image is required');
+const image = ensureSyntheticFixtures().left;
 fs.mkdirSync(output,{recursive:true});
 const checks=[];
 function passed(name){checks.push(name);console.log('PASS '+name);}

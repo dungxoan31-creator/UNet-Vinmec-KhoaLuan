@@ -1,0 +1,113 @@
+﻿## temp/ui-e2e-remediation-20261029
+ D ai_training/splits/kltn_ground_truth_307.csv
+ M backend/app/main.py
+ M backend/db/database.py
+ M backend/schemas/schemas.py
+ M backend/services/cdss_engine.py
+ M backend/services/report_generator.py
+ M docs/evaluation/assumptions-register.md
+ M docs/evaluation/blocker-remediation-status-2026-10-29.md
+ M docs/evaluation/clinical-validation-preparation.md
+ M docs/evaluation/system-survey-2026-10-29.md
+ M frontend/app/adnex.js
+ M frontend/app/auth.js
+ M frontend/app/cases.js
+ M frontend/app/cdss-panel.js
+ M frontend/app/dicom-inspect.js
+ M frontend/app/intake.js
+ M frontend/app/main.js
+ M frontend/app/navigation.js
+ M frontend/app/report-preview.js
+ M frontend/app/research-report-draft.js
+ M frontend/app/upload.js
+ M frontend/app/viewer.js
+ M frontend/app/voice-dictation.js
+ D frontend/css/vinmec-premium.css
+ M frontend/css/workspace-tokens.css
+ M frontend/css/workspace.css
+ M frontend/index.html
+ M tests/clinical_roundtrip_e2e.js
+ M tests/clinical_safety_e2e.js
+ M tests/doctor_workflow_e2e.js
+ M tests/prototype_modules_e2e.js
+ M tests/test_fe_02_report_preview.mjs
+ M tests/test_frontend_clinical_copy.py
+ M tests/test_live_ui_features.js
+ M tests/test_patient_friendly_report.py
+ M tests/test_report_generator_security.py
+ M tests/test_research_report_draft.mjs
+ M tests/test_v21_report_generator.py
+ M tests/workstation_viewer_e2e.js
+?? .impeccable/
+?? .taste-skill/
+?? ai_training/splits/mmotu_2d_official_2026-10-27/
+?? backend/app/routers/visits.py
+?? checkpoints/boosted_unetplusplus_multi_source_2026-10-27/
+?? checkpoints/boosted_unetplusplus_scse_2026-10-27/
+?? checkpoints/mmotu_8class_accuracy_search_2026-10-27/
+?? checkpoints/mmotu_8class_classifier_2026-10-27/
+?? checkpoints/mmotu_8class_classifier_2026-10-27_balanced/
+?? docker-compose.postgres.yml
+?? docs/api/
+?? docs/architecture/
+?? docs/evaluation/baseline_worktree_status_20261031.txt
+?? docs/evaluation/caliper_phantom_validation_report.md
+?? docs/evaluation/caliper_validation_results.json
+?? docs/evaluation/cdss_ruleset_validation_report.md
+?? docs/evaluation/custodian_cohort_schema.json
+?? docs/evaluation/model_provenance_report.md
+?? docs/superpowers/plans/2026-10-31-pre-golive-clinical-remediation.md
+?? docs/ui/
+?? frontend/app/branding.js
+?? frontend/css/workstation-premium.css
+?? metadata/mmotu_2d_classifier_labels.json
+?? metadata/mmotu_2d_train_cls.txt
+?? metadata/mmotu_2d_val_cls.txt
+?? reports/
+?? scripts/audit_patient_independence_leakage.py
+?? scripts/migrate_sqlite_to_postgres.py
+?? scripts/validate_caliper_phantoms.py
+?? tests/test_caliper_phantom_validation.py
+?? tests/test_cdss_synthetic_case_matrix.py
+?? tests/test_sqlite_to_postgres_migration.py
+?? tests/test_visits_and_multifacility.py
+ ai_training/splits/kltn_ground_truth_307.csv       |  308 ----
+ backend/app/main.py                                |    2 +
+ backend/db/database.py                             |   78 +
+ backend/schemas/schemas.py                         |   61 +
+ backend/services/cdss_engine.py                    |    1 +
+ backend/services/report_generator.py               |   45 +-
+ docs/evaluation/assumptions-register.md            |   35 +-
+ .../blocker-remediation-status-2026-10-29.md       |   48 +-
+ docs/evaluation/clinical-validation-preparation.md |  345 ++--
+ docs/evaluation/system-survey-2026-10-29.md        |   90 +-
+ frontend/app/adnex.js                              |    2 +-
+ frontend/app/auth.js                               |    3 +-
+ frontend/app/cases.js                              |    2 +-
+ frontend/app/cdss-panel.js                         |    2 +-
+ frontend/app/dicom-inspect.js                      |    2 +-
+ frontend/app/intake.js                             |    2 +-
+ frontend/app/main.js                               |    2 +
+ frontend/app/navigation.js                         |    5 +-
+ frontend/app/report-preview.js                     |   25 +-
+ frontend/app/research-report-draft.js              |   10 +-
+ frontend/app/upload.js                             |    2 +-
+ frontend/app/viewer.js                             |   16 +-
+ frontend/app/voice-dictation.js                    |   10 +-
+ frontend/css/vinmec-premium.css                    | 1649 --------------------
+ frontend/css/workspace-tokens.css                  |    6 +-
+ frontend/css/workspace.css                         |   19 +-
+ frontend/index.html                                |   20 +-
+ tests/clinical_roundtrip_e2e.js                    |   12 +-
+ tests/clinical_safety_e2e.js                       |    8 +-
+ tests/doctor_workflow_e2e.js                       |   29 +-
+ tests/prototype_modules_e2e.js                     |    4 +-
+ tests/test_fe_02_report_preview.mjs                |   23 +-
+ tests/test_frontend_clinical_copy.py               |   15 +-
+ tests/test_live_ui_features.js                     |    9 +-
+ tests/test_patient_friendly_report.py              |    7 +-
+ tests/test_report_generator_security.py            |   26 +-
+ tests/test_research_report_draft.mjs               |   13 +-
+ tests/test_v21_report_generator.py                 |   20 +-
+ tests/workstation_viewer_e2e.js                    |   17 +-
+ 39 files changed, 578 insertions(+), 2395 deletions(-)

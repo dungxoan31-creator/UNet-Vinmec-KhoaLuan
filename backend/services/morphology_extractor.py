@@ -1,61 +1,168 @@
-"""
-Automated Ultrasound Morphological & Acoustic Biomarker Extraction Engine:
-- Extracts deterministic geometric calipers (D1, D2, D3, Area, Perimeter, Circularity)
-- Analyzes internal echogenicity (Mean, Std, Median intensity)
-- Quantifies posterior acoustic enhancement / shadowing index
-- Classifies acoustic pattern (Anechoic, Ground-glass, Mixed/Dermoid, Multilocular, Solid)
-- Computes ACR O-RADS v2022 stratification and evidence-based differential diagnosis
+"""Extract geometric and pixel-level features from an ultrasound mask.
+
+These features do not establish lesion morphology, diagnosis, or risk category.
 """
 
 import cv2
 import numpy as np
+from scipy import ndimage as ndi
+from skimage.feature import peak_local_max
+from skimage.segmentation import watershed
+
+from backend.core.calibration import normalize_pixel_spacing
+
+
+def separate_and_count_follicles(
+    follicle_mask: np.ndarray,
+    ovary_mask: np.ndarray | None = None,
+    pixel_spacing_mm: float | None = None,
+    min_distance_px: int = 5,
+    min_area_px: int = 12,
+    pcos_range_mm: tuple[float, float] = (2.0, 9.0),
+) -> dict:
+    """Tách nang dính nhau bằng Watershed và đếm nang theo tiêu chuẩn kích thước."""
+    fm = (follicle_mask > 0).astype(np.uint8)
+    if ovary_mask is not None:
+        fm = fm & (ovary_mask > 0).astype(np.uint8)
+
+    if fm.sum() == 0:
+        return {
+            "count": 0,
+            "count_in_range": 0 if normalize_pixel_spacing(pixel_spacing_mm) is not None else None,
+            "diameters_px": [],
+            "diameters_mm": None,
+            "analysis_status": "SUCCEEDED",
+            "region_semantics": "UNCONFIRMED",
+            "diameter_method": "equivalent_area_diameter",
+        }
+
+    # Distance Transform
+    distance = ndi.distance_transform_edt(fm)
+    coords = peak_local_max(
+        distance,
+        min_distance=min_distance_px,
+        labels=fm,
+        exclude_border=False,
+    )
+
+    component_count, component_labels, component_stats, _ = cv2.connectedComponentsWithStats(fm, 8)
+    eligible_components = {
+        label
+        for label in range(1, component_count)
+        if int(component_stats[label, cv2.CC_STAT_AREA]) >= min_area_px
+    }
+
+    if len(coords) == 0:
+        diameters_px = []
+        for k in sorted(eligible_components):
+            area = int(component_stats[k, cv2.CC_STAT_AREA])
+            diameters_px.append(float(np.sqrt(4.0 * area / np.pi)))
+    else:
+        # A component can have no retained peak when min_distance removes a
+        # narrow or small component. Add its distance maximum explicitly.
+        peak_components = {int(component_labels[tuple(coord)]) for coord in coords}
+        fallback_coords = []
+        for label in sorted(eligible_components - peak_components):
+            component = component_labels == label
+            y, x = np.unravel_index(int(np.argmax(np.where(component, distance, -1))), distance.shape)
+            fallback_coords.append((y, x))
+        if fallback_coords:
+            coords = np.concatenate((coords, np.asarray(fallback_coords, dtype=int)), axis=0)
+
+        mask_peaks = np.zeros(distance.shape, dtype=bool)
+        mask_peaks[tuple(coords.T)] = True
+        markers, _ = ndi.label(mask_peaks)
+
+        # Watershed segmentation
+        labels = watershed(-distance, markers, mask=fm)
+
+        # One pass over the label image rather than a full image scan per region.
+        areas = np.bincount(labels.ravel())
+        diameters_px = [
+            float(np.sqrt(4.0 * int(area) / np.pi))
+            for area in areas[1:]
+            if area >= min_area_px
+        ]
+
+    out = {
+        "count": len(diameters_px),
+        "diameters_px": diameters_px,
+        "analysis_status": "SUCCEEDED",
+        "region_semantics": "UNCONFIRMED",
+        "diameter_method": "equivalent_area_diameter",
+    }
+
+    spacing = normalize_pixel_spacing(pixel_spacing_mm)
+    if spacing is not None and spacing > 0:
+        d_mm = [float(d * spacing) for d in diameters_px]
+        out["diameters_mm"] = d_mm
+        out["count_in_range"] = sum(pcos_range_mm[0] <= d <= pcos_range_mm[1] for d in d_mm)
+    else:
+        out["diameters_mm"] = None
+        out["count_in_range"] = None
+
+    return out
 
 
 class MorphologicalFeatureExtractor:
-    def __init__(self, default_pixel_spacing_mm=0.1):
-        self.pixel_spacing = default_pixel_spacing_mm
+    @staticmethod
+    def _normalize_spacing(value):
+        return normalize_pixel_spacing(value)
 
     def extract_features(self, img_gray: np.ndarray, binary_mask: np.ndarray, pixel_spacing_mm: float = None) -> dict:
         """
         Extracts comprehensive geometric, textural, and acoustic biomarkers from ultrasound image and lesion mask.
         """
-        spacing = float(pixel_spacing_mm) if pixel_spacing_mm else self.pixel_spacing
+        if not isinstance(img_gray, np.ndarray) or not isinstance(binary_mask, np.ndarray):
+            raise ValueError("image and mask must be NumPy arrays.")
+        if img_gray.ndim != 2 or binary_mask.ndim != 2:
+            raise ValueError("image and mask must be two-dimensional grayscale arrays.")
+        if img_gray.size == 0 or binary_mask.size == 0:
+            raise ValueError("image and mask must not be empty.")
+        if img_gray.shape != binary_mask.shape:
+            raise ValueError("image and mask dimensions must match.")
+        for name, array in (("image", img_gray), ("mask", binary_mask)):
+            numeric = (
+                np.issubdtype(array.dtype, np.integer)
+                or np.issubdtype(array.dtype, np.floating)
+                or np.issubdtype(array.dtype, np.bool_)
+            )
+            if not numeric or not np.isfinite(array).all():
+                raise ValueError(f"{name} must contain finite numeric values.")
+
+        spacing = self._normalize_spacing(pixel_spacing_mm)
         mask = (binary_mask > 0).astype(np.uint8)
 
-        # Case: No lesion detected (Normal physiological ovary)
+        # An empty mask means only that no region was segmented; it does not
+        # establish that the ovary is normal.
         if mask.sum() == 0:
             return {
                 "has_lesion": False,
                 "lesion_count": 0,
                 "measurements": {
-                    "max_diameter_mm": 0.0,
-                    "ortho_diameter_mm": 0.0,
-                    "depth_d3_mm": 0.0,
-                    "total_area_cm2": 0.0,
-                    "perimeter_mm": 0.0,
-                    "volume_cm3": 0.0,
-                    "circularity": 1.0,
-                    "solidity": 1.0
+                    "max_diameter_mm": None,
+                    "ortho_diameter_mm": None,
+                    "max_diameter_px": 0.0,
+                    "ortho_diameter_px": 0.0,
+                    "depth_d3_mm": None,
+                    "total_area_cm2": None,
+                    "area_px": 0.0,
+                    "perimeter_mm": None,
+                    "perimeter_px": 0.0,
+                    "volume_cm3": None,
+                    "circularity": None,
+                    "solidity": None,
+                    "calibrated": spacing is not None,
                 },
                 "acoustic_profile": {
                     "internal_mean_intensity": 0.0,
                     "internal_std_intensity": 0.0,
-                    "echogenicity_class": "AN_ECHOIC_NORMAL",
-                    "echogenicity_label": "Nhu mô buồng trứng bình thường",
-                    "posterior_shadow_index": 0.0,
-                    "acoustic_pattern": "Sinh lý bình thường"
+                    "echogenicity_class": None,
+                    "echogenicity_label": None,
+                    "posterior_shadow_index": None,
+                    "acoustic_pattern": None,
                 },
-                "cdss_classification": {
-                    "primary_suspicion": "Buồng trứng bình thường (Normal Physiological Ovary)",
-                    "differential_diagnoses": ["Nang noãn sinh lý (< 30 mm)", "Buồng trứng bình thường"],
-                    "orads_category": "O-RADS 1",
-                    "orads_label": "Sinh lý bình thường (Normal)",
-                    "malignancy_risk": "< 1%",
-                    "iota_rule": "B-Rule: Normal ovarian parenchyma",
-                    "confidence_score": 0.98,
-                    "clinical_alert": None,
-                    "management": "Không cần can thiệp. Khám phụ khoa định kỳ."
-                }
+                "cdss_classification": self._not_evaluated_cdss(),
             }
 
         # Find contours
@@ -74,16 +181,11 @@ class MorphologicalFeatureExtractor:
         (center_x, center_y), (dim_w, dim_h), angle = rect
         d1_px = max(dim_w, dim_h)
         d2_px = min(dim_w, dim_h)
-        d3_px = (d1_px + d2_px) / 2.0  # Estimated depth
-
-        d1_mm = round(d1_px * spacing, 1)
-        d2_mm = round(d2_px * spacing, 1)
-        d3_mm = round(d3_px * spacing, 1)
-
-        area_cm2 = round(area_px * (spacing ** 2) / 100.0, 2)
+        d1_mm = round(d1_px * spacing, 1) if spacing is not None else None
+        d2_mm = round(d2_px * spacing, 1) if spacing is not None else None
+        area_cm2 = round(area_px * (spacing ** 2) / 100.0, 2) if spacing is not None else None
         perimeter_px = cv2.arcLength(main_cnt, True)
-        perimeter_mm = round(perimeter_px * spacing, 1)
-        volume_cm3 = round((4.0 / 3.0) * np.pi * (d1_mm / 20.0) * (d2_mm / 20.0) * (d3_mm / 20.0), 2)
+        perimeter_mm = round(perimeter_px * spacing, 1) if spacing is not None else None
 
         circularity = round((4 * np.pi * area_px) / (perimeter_px ** 2), 3) if perimeter_px > 0 else 0.0
         hull = cv2.convexHull(main_cnt)
@@ -105,7 +207,7 @@ class MorphologicalFeatureExtractor:
         below_x_start = max(0, x)
         below_x_end = min(w, x + bw)
 
-        shadow_index = 1.0
+        shadow_index = None
         if below_y_end > below_y_start and below_x_end > below_x_start:
             below_region = img_gray[below_y_start:below_y_end, below_x_start:below_x_end]
             lateral_left = img_gray[below_y_start:below_y_end, max(0, x - 30):x] if x > 30 else np.array([])
@@ -120,16 +222,7 @@ class MorphologicalFeatureExtractor:
             if lat_pixels and np.mean(lat_pixels) > 0:
                 shadow_index = round(float(np.mean(below_region)) / float(np.mean(lat_pixels)), 2)
 
-        # Morphological Classification & O-RADS / IOTA Reasoning
-        cdss = self._infer_cdss_diagnosis(
-            d1_mm=d1_mm,
-            area_cm2=area_cm2,
-            mean_val=mean_val,
-            std_val=std_val,
-            circularity=circularity,
-            solidity=solidity,
-            shadow_index=shadow_index
-        )
+        cdss = self._not_evaluated_cdss()
 
         return {
             "has_lesion": True,
@@ -137,140 +230,73 @@ class MorphologicalFeatureExtractor:
             "measurements": {
                 "max_diameter_mm": d1_mm,
                 "ortho_diameter_mm": d2_mm,
-                "depth_d3_mm": d3_mm,
+                "max_diameter_px": round(float(d1_px), 2),
+                "ortho_diameter_px": round(float(d2_px), 2),
+                "depth_d3_mm": None,
                 "total_area_cm2": area_cm2,
+                "area_px": round(area_px, 2),
                 "perimeter_mm": perimeter_mm,
-                "volume_cm3": volume_cm3,
+                "perimeter_px": round(float(perimeter_px), 2),
+                "volume_cm3": None,
                 "circularity": circularity,
-                "solidity": solidity
+                "solidity": solidity,
+                "calibrated": spacing is not None,
             },
             "acoustic_profile": {
                 "internal_mean_intensity": round(mean_val, 1),
                 "internal_std_intensity": round(std_val, 1),
                 "internal_median_intensity": round(median_val, 1),
                 "posterior_shadow_index": shadow_index,
-                "echogenicity_class": cdss["echogenicity_class"],
-                "echogenicity_label": cdss["echogenicity_label"],
-                "acoustic_pattern": cdss["acoustic_pattern"]
+                "echogenicity_class": None,
+                "echogenicity_label": None,
+                "acoustic_pattern": None,
             },
-            "cdss_classification": cdss
+            "cdss_classification": cdss,
         }
 
-    def _infer_cdss_diagnosis(self, d1_mm, area_cm2, mean_val, std_val, circularity, solidity, shadow_index):
-        """
-        Applies ACR O-RADS v2022, IOTA Simple Rules, and Ultrasound Morphological Lexicon.
-        """
-        # 1. Simple Serous Cyst (Trống âm, thành mỏng đều, tăng âm sau)
-        if mean_val < 32 and std_val < 15 and circularity > 0.65:
-            return {
-                "primary_suspicion": "U nang thanh dịch buồng trứng (Simple Serous Cyst)",
-                "differential_diagnoses": ["U nang thanh dịch đơn thùy", "Nang hoàng thể thoái triển"],
-                "orads_category": "O-RADS 2",
-                "orads_label": "Gần như chắc chắn lành tính (< 1% ác tính)",
-                "malignancy_risk": "< 1%",
-                "iota_rule": "B-Rule (B1: Nang đơn thùy, B2: Thành mỏng, B3: Bóng cản/tăng âm)",
-                "confidence_score": 0.94,
-                "echogenicity_class": "ANECHOIC_HOMOGENEOUS",
-                "echogenicity_label": "Trống âm đồng nhất (Dịch trong)",
-                "acoustic_pattern": "Thành mỏng đều, tăng âm thành sau điển hình",
-                "management": "Theo dõi định kỳ bằng siêu âm sau 3-6 tháng. Không cần can thiệp phẫu thuật."
-            }
-
-        # 2. Endometrioma / Chocolate Cyst (Kính mờ, hạt mịn đồng nhất)
-        elif 32 <= mean_val <= 65 and std_val < 20 and circularity > 0.60:
-            return {
-                "primary_suspicion": "U lạc nội mạc tử cung buồng trứng (Endometrioma / Chocolate Cyst)",
-                "differential_diagnoses": ["Nang lạc nội mạc tử cung", "Nang xuất huyết buồng trứng"],
-                "orads_category": "O-RADS 2",
-                "orads_label": "Lành tính điển hình (< 1% ác tính)",
-                "malignancy_risk": "< 1%",
-                "iota_rule": "B-Rule (B1: Nang đơn thùy, B2: Dịch hạt mịn kính mờ)",
-                "confidence_score": 0.91,
-                "echogenicity_class": "GROUND_GLASS",
-                "echogenicity_label": "Hồi âm hạt mịn đồng nhất dạng kính mờ (Ground-glass)",
-                "acoustic_pattern": "Không có vách ngăn, không có chồi sùi mạch máu",
-                "management": "Theo dõi chuyên khoa Phụ khoa. Đánh giá đau vùng chậu và chỉ định phẫu thuật nếu kích thước > 40 mm hoặc đau kéo dài."
-            }
-
-        # 3. Mature Cystic Teratoma / Dermoid (Hỗn hợp + Nút Rokitansky / Vệt sáng)
-        elif std_val >= 20 and (mean_val > 50 or shadow_index < 0.85):
-            return {
-                "primary_suspicion": "U quái buồng trứng / U bì (Mature Cystic Teratoma / Dermoid)",
-                "differential_diagnoses": ["U nang bì buồng trứng (Dermoid)", "U nang xuất huyết giai đoạn muộn"],
-                "orads_category": "O-RADS 2",
-                "orads_label": "Lành tính điển hình (< 1% ác tính)",
-                "malignancy_risk": "< 1%",
-                "iota_rule": "B-Rule (B4: Thành phần tăng âm dạng u bì kèm bóng cản)",
-                "confidence_score": 0.89,
-                "echogenicity_class": "MIXED_HYPERECHOIC",
-                "echogenicity_label": "Hồi âm hỗn hợp kèm nốt tăng âm sáng và bóng cản",
-                "acoustic_pattern": "Nốt Rokitansky tăng âm điển hình kèm bóng cản âm lưng",
-                "management": "Khám chuyên khoa Phụ khoa. Cân nhắc phẫu thuật bóc u nội soi nếu kích thước > 50 mm để phòng xoắn buồng trứng."
-            }
-
-        # 4. Multilocular / Mucinous Cystadenoma (Đa thùy hoặc kích thước lớn)
-        elif d1_mm > 70 or (solidity < 0.80 and circularity < 0.60):
-            return {
-                "primary_suspicion": "U nang buồng trứng đa thùy / Theo dõi U nang nhầy (Mucinous / Multilocular Cyst)",
-                "differential_diagnoses": ["U nang nhầy buồng trứng (Mucinous Cystadenoma)", "Nang đa thùy phức tạp"],
-                "orads_category": "O-RADS 3",
-                "orads_label": "Nguy cơ ác tính thấp (1% - 10%)",
-                "malignancy_risk": "1% - 10%",
-                "iota_rule": "Inconclusive / Multilocular without solid component",
-                "confidence_score": 0.85,
-                "echogenicity_class": "MULTILOCULAR_COMPLEX",
-                "echogenicity_label": "Nang đa thùy / Vách ngăn mỏng",
-                "acoustic_pattern": "Kích thước lớn, chứa dịch nhầy hoặc vách mỏng < 3 mm",
-                "management": "Hội chẩn bác sĩ chuyên khoa Phụ sản & Siêu âm Doppler màu. Cân nhắc chụp MRI tiểu khung và xét nghiệm CA-125."
-            }
-
-        # 5. Generic Benign Ovarian Cyst
-        else:
-            return {
-                "primary_suspicion": "U nang buồng trứng (Ovarian Cyst - Unclassified)",
-                "differential_diagnoses": ["U nang thanh dịch", "U nang đơn thùy lành tính"],
-                "orads_category": "O-RADS 2",
-                "orads_label": "Nguy cơ ác tính rất thấp (< 1%)",
-                "malignancy_risk": "< 1%",
-                "iota_rule": "B-Rule",
-                "confidence_score": 0.88,
-                "echogenicity_class": "HYPOECHOIC",
-                "echogenicity_label": "Hồi âm kém / Thành mỏng đều",
-                "acoustic_pattern": "Không chồi nhú, không tăng sinh mạch máu",
-                "management": "Khám và siêu âm lại sau 3 tháng để theo dõi tiến triển."
-            }
+    @staticmethod
+    def _not_evaluated_cdss() -> dict:
+        """Mask and pixel statistics cannot supply clinician-entered descriptors."""
+        return {
+            "status": "NOT_EVALUATED",
+            "primary_suspicion": None,
+            "differential_diagnoses": [],
+            "orads_category": None,
+            "orads_label": None,
+            "malignancy_risk": None,
+            "iota_rule": "NOT_EVALUATED",
+            "confidence_score": None,
+            "clinical_alert": None,
+            "management": None,
+            "requires_clinician_confirmation": True,
+        }
 
     def _empty_response(self):
         return {
             "has_lesion": False,
             "lesion_count": 0,
             "measurements": {
-                "max_diameter_mm": 0.0,
-                "ortho_diameter_mm": 0.0,
-                "depth_d3_mm": 0.0,
-                "total_area_cm2": 0.0,
-                "perimeter_mm": 0.0,
-                "volume_cm3": 0.0,
-                "circularity": 1.0,
-                "solidity": 1.0
+                "max_diameter_mm": None,
+                "ortho_diameter_mm": None,
+                "max_diameter_px": 0.0,
+                "ortho_diameter_px": 0.0,
+                "depth_d3_mm": None,
+                "total_area_cm2": None,
+                "area_px": 0.0,
+                "perimeter_mm": None,
+                "perimeter_px": 0.0,
+                "volume_cm3": None,
+                "circularity": None,
+                "solidity": None,
+                "calibrated": False,
             },
             "acoustic_profile": {
                 "internal_mean_intensity": 0.0,
                 "internal_std_intensity": 0.0,
-                "echogenicity_class": "AN_ECHOIC_NORMAL",
-                "echogenicity_label": "Không phát hiện tổn thương",
-                "posterior_shadow_index": 0.0,
-                "acoustic_pattern": "Bình thường"
+                "echogenicity_class": None,
+                "echogenicity_label": None,
+                "posterior_shadow_index": None,
+                "acoustic_pattern": None,
             },
-            "cdss_classification": {
-                "primary_suspicion": "Buồng trứng bình thường",
-                "differential_diagnoses": ["Bình thường"],
-                "orads_category": "O-RADS 1",
-                "orads_label": "Sinh lý bình thường",
-                "malignancy_risk": "< 1%",
-                "iota_rule": "B-Rule",
-                "confidence_score": 0.98,
-                "clinical_alert": None,
-                "management": "Khám sức khỏe định kỳ."
-            }
+            "cdss_classification": self._not_evaluated_cdss(),
         }

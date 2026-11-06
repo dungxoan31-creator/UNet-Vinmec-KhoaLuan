@@ -45,6 +45,7 @@ def source_case(tmp_path, doctor_access):
     mask[220:280, 160:300] = 1
     rle = InferenceEngine.mask_to_rle(mask)
     with Session(engine) as db:
+        db.add(UserModel(id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"))
         db.add(PatientModel(id="patient", anonymized_pid="TEST-EXTENSIONS"))
         db.add(StudyModel(id="study", patient_id="patient", study_date="2026-10-08"))
         db.add(ImageModel(id="image", study_id="study", raw_path=str(path), filename="source.png", width=800, height=300))
@@ -96,26 +97,95 @@ def test_source_png_and_uncalibrated_calipers_use_decoded_dimensions(source_case
             assert viewer[1] == pytest.approx(original[1] * 192 / 300 + 160)
 
 
-def test_manual_spacing_scales_source_calipers_and_review(source_case):
+def test_source_png_preserves_color_doppler_pixels(source_case, tmp_path):
+    client, engine, _rle, _source = source_case
+    color_source = np.zeros((64, 96, 3), dtype=np.uint8)
+    color_source[:] = (18, 24, 30)
+    color_source[16:48, 24:72] = (20, 45, 235)
+    color_path = tmp_path / "synthetic-color-source.png"
+    assert cv2.imwrite(str(color_path), color_source)
+    with Session(engine) as db:
+        image = db.get(ImageModel, "image")
+        image.raw_path = str(color_path)
+        image.width = color_source.shape[1]
+        image.height = color_source.shape[0]
+        db.commit()
+
+    response = client.get("/api/images/image/source.png")
+    assert response.status_code == 200, response.text
+    decoded = cv2.imdecode(np.frombuffer(response.content, np.uint8), cv2.IMREAD_COLOR)
+    np.testing.assert_array_equal(decoded, color_source)
+    assert np.any(decoded[:, :, 2] > decoded[:, :, 0]), "The color channel must survive source-image delivery."
+
+
+def test_manual_spacing_scales_source_calipers_and_review(source_case, active_case_lease):
     client, engine, rle, _ = source_case
     with Session(engine) as db:
         db.get(ImageModel, "image").pixel_spacing_mm = .2
+        db.get(ImageModel, "image").calibration_source = "MANUAL"
         db.commit()
     data = client.post("/api/images/image/measurements", json={"rle_mask": rle}).json()
     assert data["calibrated"] is True and data["calibration_source"] == "MANUAL"
     assert data["max_diameter_mm"] == pytest.approx(data["max_diameter_px"] * .2, abs=.01)
     assert data["total_area_cm2"] == pytest.approx(data["total_area_px"] * .2**2 / 100, abs=.001)
-    saved = client.post("/api/review", json={
+    saved_payload = {
         "study_id": "study",
         "image_id": "image",
         "prediction_id": "prediction",
         "verified_mask_rle": rle,
         "expected_revision": 0,
-        "request_id": f"req-ext-{uuid.uuid4()}",
-    })
+        "request_id": str(uuid.uuid4()),
+        **active_case_lease(client, "study"),
+    }
+    saved = client.post("/api/review", json=saved_payload)
     assert saved.status_code == 200, saved.text
     with Session(engine) as db:
-        assert db.get(ReviewModel, saved.json()["review_id"]).max_diameter_mm == data["max_diameter_mm"]
+        review = db.get(ReviewModel, saved.json()["review_id"])
+        assert review.max_diameter_mm == data["max_diameter_mm"]
+        assert review.hitl_feedback["measurement_context"]["calibration_source"] == "MANUAL"
+
+
+def test_manual_calibration_matching_dicom_scale_stays_manual(source_case, active_case_lease, monkeypatch):
+    from backend.services import image_service
+    client, engine, rle, _ = source_case
+    monkeypatch.setattr(image_service, "extract_dicom_calibration_spacing", lambda _path: 0.2)
+    with Session(engine) as db:
+        db.get(PredictionModel, "prediction").provenance_json = {
+            "transform": {
+                "scale": 0.64, "orig_w": 800, "orig_h": 300,
+                "new_w": 512, "new_h": 192, "pad_w": 0, "pad_h": 160,
+            },
+        }
+        db.commit()
+    lease = active_case_lease(client, "study")
+    headers = {"X-Case-Lease-Token": lease["lease_token"], "X-Case-Page-Instance-Id": lease["page_instance_id"]}
+    response = client.post("/api/images/image/calibrate?pixel_spacing_mm=0.2", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["measurements"]["max_diameter_mm"] == pytest.approx(43.44)
+    result = client.post("/api/images/image/measurements", json={"rle_mask": rle})
+    assert result.status_code == 200
+    assert result.json()["calibration_source"] == "MANUAL"
+    with Session(engine) as db:
+        prediction = db.get(PredictionModel, "prediction")
+        assert prediction.provenance_json["calibration_source"] == "MANUAL"
+        assert prediction.provenance_json["pixel_spacing_mm"] == pytest.approx(0.2)
+
+
+def test_legacy_spacing_source_is_unknown(source_case, monkeypatch):
+    from backend.services import image_service
+    client, engine, rle, _ = source_case
+    monkeypatch.setattr(image_service, "extract_dicom_calibration_spacing", lambda _path: 0.2)
+    with Session(engine) as db:
+        db.get(ImageModel, "image").pixel_spacing_mm = 0.2
+        db.commit()
+    result = client.post("/api/images/image/measurements", json={"rle_mask": rle})
+    data = result.json()
+    assert data["calibration_source"] == "UNKNOWN"
+    assert data["calibrated"] is False
+    assert data["pixel_spacing_mm"] is None
+    assert data["max_diameter_mm"] is None
+    assert data["ortho_diameter_mm"] is None
+    assert data["total_area_cm2"] is None
 
 
 @pytest.mark.parametrize(("tags", "stored", "expected"), [
@@ -143,6 +213,7 @@ def test_dicom_calibration_badge_requires_actual_isotropic_tags(source_case, tmp
         image = db.get(ImageModel, "image")
         image.raw_path = str(path)
         image.pixel_spacing_mm = stored
+        image.calibration_source = expected if expected in {"DICOM", "MANUAL"} else None
         db.commit()
     result = client.post("/api/images/image/measurements", json={"rle_mask": rle})
     assert result.status_code == 200, result.text
@@ -192,7 +263,7 @@ def test_measurement_rejects_invalid_rle(source_case, mask):
     assert client.post("/api/images/image/measurements", json={"rle_mask": mask}).status_code == 422
 
 
-def test_source_missing_records_and_missing_files_fail_closed(source_case):
+def test_source_missing_records_and_missing_files_fail_closed(source_case, active_case_lease):
     client, engine, rle, _ = source_case
     assert client.get("/api/images/missing/source.png").status_code == 404
     with Session(engine) as db:
@@ -201,38 +272,46 @@ def test_source_missing_records_and_missing_files_fail_closed(source_case):
     assert client.get("/api/images/image/source.png").status_code == 404
     assert client.post("/api/images/image/measurements", json={"rle_mask": rle}).status_code == 404
     # Legacy records without an on-disk source still accept the old review payload.
-    saved = client.post("/api/review", json={
+    saved_payload = {
         "image_id": "image",
         "prediction_id": "prediction",
         "verified_mask_rle": rle,
         "expected_revision": 0,
-        "request_id": f"req-ext-{uuid.uuid4()}",
-    })
+        "request_id": str(uuid.uuid4()),
+        **active_case_lease(client, "study"),
+    }
+    saved = client.post("/api/review", json=saved_payload)
     assert saved.status_code == 200, saved.text
     with Session(engine) as db:
         review = db.get(ReviewModel, saved.json()["review_id"])
-        assert review.hitl_feedback is None and review.max_diameter_mm is None
+        assert review.hitl_feedback["measurement_context"]["status"] == "UNAVAILABLE"
+        assert review.max_diameter_mm is None
 
 
-def test_survey_persistence_actor_timestamp_and_reopen(source_case):
+def test_survey_persistence_actor_timestamp_and_reopen(source_case, active_case_lease):
     client, engine, rle, _ = source_case
     feedback = {"usability_rating": 4, "issues": ["BOUNDARY_MISMATCH", "FALSE_NEGATIVE"]}
-    result = client.post("/api/review", json={
+    review_payload = {
         "study_id": "study", "image_id": "image", "prediction_id": "prediction",
         "doctor_id": "spoofed", "verified_mask_rle": rle,
         "hitl_feedback": feedback, "time_spent_seconds": 32,
-        "expected_revision": 0, "request_id": f"req-ext-{uuid.uuid4()}",
-    })
+        "expected_revision": 0, "request_id": str(uuid.uuid4()),
+        **active_case_lease(client, "study"),
+    }
+    result = client.post("/api/review", json=review_payload)
     assert result.status_code == 200, result.text
     assert result.json()["reviewer_id"] == "doctor"
     assert result.json()["reviewed_at"]
     with Session(engine) as db:
         saved = db.get(ReviewModel, result.json()["review_id"])
-        assert saved.hitl_feedback == feedback and saved.time_spent_seconds == 32
+        assert all(saved.hitl_feedback[key] == value for key, value in feedback.items())
+        assert saved.hitl_feedback["measurement_context"]["status"] == "AVAILABLE"
+        assert saved.time_spent_seconds == 32
         audit = db.query(AuditLogModel).filter(AuditLogModel.entity_id == saved.id).one()
-        assert audit.details["hitl_feedback"] == feedback
+        assert audit.details["hitl_feedback"] == saved.hitl_feedback
     image = client.get("/api/cases/study").json()["images"][0]
-    assert image["review"]["hitl_feedback"] == feedback
+    assert all(image["review"]["hitl_feedback"][key] == value for key, value in feedback.items())
+    assert image["review"]["hitl_feedback"]["measurement_context"]["status"] == "AVAILABLE"
     assert image["review"]["reviewer_id"] == "doctor"
     assert image["review"]["reviewed_at"] == result.json()["reviewed_at"]
     assert image["prediction"]["provenance"]["model_version"] == "test-checkpoint"
@@ -248,7 +327,7 @@ def test_invalid_survey_is_rejected(source_case, feedback):
     client, _, rle, _ = source_case
     result = client.post("/api/review", json={
         "image_id": "image", "prediction_id": "prediction", "verified_mask_rle": rle,
-        "hitl_feedback": feedback, "expected_revision": 0, "request_id": f"req-ext-{uuid.uuid4()}",
+        "hitl_feedback": feedback, "expected_revision": 0, "request_id": str(uuid.uuid4()),
     })
     assert result.status_code == 422
 
@@ -270,10 +349,12 @@ def test_new_endpoints_require_authentication():
         assert client.post("/api/images/image/measurements", json={"rle_mask": {}}).status_code == 401
 
 
-def test_registry_exposes_only_loaded_engine_checksum_and_threshold():
+def test_registry_exposes_only_loaded_engine_checksum_and_threshold(monkeypatch):
     from backend.app.config import model_registry
 
     adapter = model_registry.get_primary_adapter()
+    monkeypatch.setattr(adapter, "is_loaded", True)
+    monkeypatch.setattr(adapter.engine, "model_checksum", "a" * 64)
     info = adapter.get_info()
     assert adapter.is_loaded
     assert info["checksum"] == adapter.engine.model_checksum and len(info["checksum"]) == 64
@@ -305,7 +386,10 @@ def test_admin_latency_uses_only_positive_database_observations(source_case, mon
     assert data["latency_scope"] == "all_recorded_predictions"
     assert data["latency_filter"] == "inference_time_ms > 0"
     assert data["latency_model_version"] is None
-    assert data["registered_models"][0]["checksum"]
+    from backend.app.config import model_registry
+    primary_info = model_registry.get_primary_adapter().get_info()
+    assert data["registered_models"][0]["is_loaded"] == primary_info["is_loaded"]
+    assert data["registered_models"][0]["checksum"] == primary_info["checksum"]
     with Session(engine) as db:
         db.query(PredictionModel).update({PredictionModel.inference_time_ms: 0})
         db.commit()
@@ -321,7 +405,17 @@ def test_feedback_migration_is_idempotent_and_preserves_old_rows(tmp_path, monke
     Base.metadata.create_all(engine)
     with sqlite3.connect(path) as db:
         db.execute("ALTER TABLE reviews DROP COLUMN hitl_feedback")
-        db.execute("INSERT INTO reviews(id, image_id, verified_mask_rle) VALUES ('legacy', 'image', '{}')")
+        db.execute("INSERT INTO patients(id, anonymized_pid) VALUES ('patient', 'PID-legacy')")
+        db.execute(
+            "INSERT INTO studies "
+            "(id, patient_id, study_date, status, ovary_side, contralateral_status, review_revision) "
+            "VALUES ('study', 'patient', '2026-10-21', 'PENDING', 'RIGHT', 'NOT_VISUALIZED', 0)"
+        )
+        db.execute(
+            "INSERT INTO images(id, study_id, filename, raw_path) "
+            "VALUES ('image', 'study', 'legacy.png', 'legacy.png')"
+        )
+        db.execute("INSERT INTO reviews(id, image_id, doctor_action, verified_mask_rle) VALUES ('legacy', 'image', 'ACCEPTED_RAW', '{}')")
     monkeypatch.setattr(database, "DB_PATH", str(path))
     monkeypatch.setattr(database, "engine", engine)
     monkeypatch.setattr(database, "SessionLocal", sessionmaker(bind=engine))
@@ -334,15 +428,17 @@ def test_feedback_migration_is_idempotent_and_preserves_old_rows(tmp_path, monke
     engine.dispose()
 
 
-def test_review_rejects_mismatched_study_even_for_single_image(source_case):
+def test_review_rejects_mismatched_study_even_for_single_image(source_case, active_case_lease):
     client, engine, rle, _ = source_case
     with Session(engine) as db:
         db.add(StudyModel(id="another-study", patient_id="patient", study_date="2026-10-08", review_revision=0))
         db.commit()
-    response = client.post("/api/review", json={
+    review_payload = {
         "study_id": "another-study", "image_id": "image", "prediction_id": "prediction",
-        "verified_mask_rle": rle, "expected_revision": 0, "request_id": f"req-ext-{uuid.uuid4()}",
-    })
+        "verified_mask_rle": rle, "expected_revision": 0, "request_id": str(uuid.uuid4()),
+        **active_case_lease(client, "another-study"),
+    }
+    response = client.post("/api/review", json=review_payload)
     assert response.status_code == 422
     assert response.json()["detail"] == "Ảnh không thuộc ca khảo sát."
     with Session(engine) as db:
@@ -358,11 +454,38 @@ def test_calibration_rejects_nonpositive_or_nonfinite_spacing(source_case, spaci
         assert db.get(ImageModel, "image").pixel_spacing_mm is None
 
 
+@pytest.mark.parametrize(
+    "transform",
+    [None, [], {"scale": None}, {"scale": 0}, {"scale": -0.64}, {"scale": float("nan")},
+     {"scale": float("inf")}, {"scale": True}, {"scale": 0.64, "orig_w": 799, "orig_h": 300},
+     {"scale": 0.7, "orig_w": 800, "orig_h": 300, "new_w": 512, "new_h": 192, "pad_w": 0, "pad_h": 160},
+     {"scale": 0.64, "orig_w": 800, "orig_h": 300, "new_w": 512, "new_h": 192, "pad_w": 0, "pad_h": 0}],
+)
+def test_manual_calibration_rejects_untrusted_prediction_transform(source_case, active_case_lease, transform):
+    client, engine, _, _ = source_case
+    with Session(engine) as db:
+        db.get(PredictionModel, "prediction").provenance_json = {"transform": transform}
+        db.commit()
+    lease = active_case_lease(client, "study")
+    response = client.post(
+        "/api/images/image/calibrate?pixel_spacing_mm=0.2",
+        headers={
+            "X-Case-Lease-Token": lease["lease_token"],
+            "X-Case-Page-Instance-Id": lease["page_instance_id"],
+        },
+    )
+    assert response.status_code == 409, response.text
+    with Session(engine) as db:
+        assert db.get(ImageModel, "image").pixel_spacing_mm is None
+        assert db.get(PredictionModel, "prediction").measurements == {}
+
+
 @pytest.mark.parametrize("spacing", ["0", "-0.2", "nan", "inf"])
 def test_prediction_rejects_invalid_spacing_before_inference(source_case, spacing, monkeypatch):
     from backend.app.routers import inference
 
     _, engine, _, _ = source_case
+    monkeypatch.setattr(inference, "require_active_case_lease", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(inference.preprocessor, "validate_ultrasound_suitability", lambda _image: {"is_suitable": True})
     def unexpected_preprocessing(_image):
         raise RuntimeError("preprocessing ran")
@@ -413,14 +536,19 @@ def test_v1_segmentation_rejects_invalid_manual_spacing(source_case, spacing, mo
 @pytest.mark.parametrize("stored", [0.0, -1.0, float("nan"), float("inf")])
 def test_prediction_treats_legacy_invalid_spacing_as_uncalibrated(source_case, stored, monkeypatch):
     from backend.app.routers import inference
+    from backend.app.config import model_registry
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
 
     _, engine, _, _ = source_case
+    monkeypatch.setattr(inference, "require_active_case_lease", lambda *_args, **_kwargs: None)
     with Session(engine) as db:
         db.get(ImageModel, "image").pixel_spacing_mm = stored
         db.commit()
     monkeypatch.setattr(inference.preprocessor, "validate_ultrasound_suitability", lambda _image: {"is_suitable": True})
     monkeypatch.setattr(inference.preprocessor, "preprocess_for_inference",
-                        lambda _image: (None, np.zeros((512, 512), np.uint8), {}, {"iqa_score": 0.9}))
+                        lambda _image, *args, **kwargs: (None, np.zeros((512, 512), np.uint8), {}, {"iqa_score": 0.9}))
     received = []
     def capture_spacing(*_args, **kwargs):
         received.append(kwargs["pixel_spacing_mm"])
@@ -430,3 +558,166 @@ def test_prediction_treats_legacy_invalid_spacing_as_uncalibrated(source_case, s
         with pytest.raises(RuntimeError, match="captured"):
             inference.run_ai_prediction("image", db=db)
     assert received == [None]
+
+
+@pytest.mark.parametrize(("source", "dicom_spacing"), [("MANUAL", None), ("DICOM", 0.2)])
+def test_prediction_uses_only_verified_calibration_metadata(source_case, source, dicom_spacing, monkeypatch):
+    from backend.app.routers import inference
+    from backend.app.config import model_registry
+    from backend.services import image_service
+    from tests.helpers.synthetic_inference import enable_synthetic_inference
+
+    enable_synthetic_inference(monkeypatch, model_registry)
+
+    _, engine, _, _ = source_case
+    monkeypatch.setattr(inference, "require_active_case_lease", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(image_service, "extract_dicom_calibration_spacing", lambda _path: dicom_spacing)
+    with Session(engine) as db:
+        image = db.get(ImageModel, "image")
+        image.pixel_spacing_mm = 0.2
+        image.calibration_source = source
+        db.commit()
+    monkeypatch.setattr(inference.preprocessor, "validate_ultrasound_suitability", lambda _image: {"is_suitable": True})
+    monkeypatch.setattr(
+        inference.preprocessor,
+        "preprocess_for_inference",
+        lambda _image, *args, **kwargs: (None, np.zeros((512, 512), np.uint8), {}, {"iqa_score": 0.9}),
+    )
+    received = []
+
+    def capture_spacing(*_args, **kwargs):
+        received.append(kwargs["pixel_spacing_mm"])
+        raise RuntimeError("captured")
+
+    monkeypatch.setattr(inference.model_registry, "predict", capture_spacing)
+    with Session(engine) as db:
+        with pytest.raises(RuntimeError, match="captured"):
+            inference.run_ai_prediction("image", db=db)
+    assert received == [0.2]
+
+
+@pytest.mark.parametrize(
+    ("source", "dicom_spacing", "stored_spacing", "expected_spacing", "expected_source"),
+    [
+        ("MANUAL", None, 0.2, 0.2, "MANUAL"),
+        ("DICOM", 0.2, 0.2, 0.2, "DICOM"),
+        (None, None, None, None, "NONE"),
+        (None, None, 0.2, None, "UNKNOWN"),
+    ],
+)
+def test_v1_segment_uses_only_verified_calibration_metadata(
+    source_case, source, dicom_spacing, stored_spacing, expected_spacing, expected_source, monkeypatch
+):
+    from types import SimpleNamespace
+
+    from backend.app.routers import v1_endpoints
+    from backend.services import image_service
+
+    _client, engine, _rle, _source = source_case
+    monkeypatch.setattr(image_service, "extract_dicom_calibration_spacing", lambda _path: dicom_spacing)
+    monkeypatch.setattr(v1_endpoints, "require_active_case_lease", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        v1_endpoints.model_registry,
+        "get_primary_adapter",
+        lambda: SimpleNamespace(is_loaded=True),
+    )
+    monkeypatch.setattr(
+        v1_endpoints.preprocessor,
+        "validate_ultrasound_suitability",
+        lambda _image: {"is_suitable": True},
+    )
+    monkeypatch.setattr(
+        v1_endpoints.preprocessor,
+        "preprocess_for_inference",
+        lambda _image, *args, **kwargs: (
+            None,
+            np.zeros((512, 512), dtype=np.uint8),
+            {"scale": 1.0},
+            {},
+        ),
+    )
+    received = []
+
+    def fake_predict(*_args, **kwargs):
+        received.append(kwargs["pixel_spacing_mm"])
+        return {
+            "binary_mask_np": np.zeros((512, 512), dtype=np.uint8),
+            "rle_mask": InferenceEngine.mask_to_rle(np.zeros((512, 512), dtype=np.uint8)),
+            "confidence_score": 0.9,
+            "measurements": {
+                "calibrated": kwargs["pixel_spacing_mm"] is not None,
+                "max_diameter_mm": None,
+            },
+            "quality_gate": {},
+            "uncertainty": {},
+            "provenance": {},
+        }
+
+    monkeypatch.setattr(v1_endpoints.model_registry, "predict", fake_predict)
+    with Session(engine) as db:
+        image = db.get(ImageModel, "image")
+        image.pixel_spacing_mm = stored_spacing
+        image.calibration_source = source
+        db.commit()
+    with Session(engine) as db:
+        result = asyncio.run(v1_endpoints.segment_image_v1(file=None, image_id="image", db=db))
+
+    assert received == [expected_spacing]
+    assert result["measurements"]["calibration_source"] == expected_source
+    assert result["provenance"]["pixel_spacing_mm"] == expected_spacing
+    assert result["provenance"]["calibration_source"] == expected_source
+
+
+def test_stored_prediction_replay_redacts_unverified_physical_measurements(source_case):
+    from backend.app.routers import inference
+
+    _client, engine, _rle, _source = source_case
+    with Session(engine) as db:
+        prediction = db.get(PredictionModel, "prediction")
+        prediction.measurements = {
+            "calibrated": True,
+            "calibration_source": "UNKNOWN",
+            "pixel_spacing_mm": 0.2,
+            "max_diameter_mm": 12.0,
+            "ortho_diameter_mm": 8.0,
+            "total_area_cm2": 0.5,
+            "lesions": [],
+        }
+        prediction.provenance_json = {
+            "pixel_spacing_mm": 0.2,
+            "calibration_source": "UNKNOWN",
+        }
+        db.commit()
+        result = inference._stored_prediction_replay_response(
+            prediction,
+            db.get(ImageModel, "image"),
+        )
+
+    assert result["measurements"]["max_diameter_mm"] is None
+    assert result["measurements"]["ortho_diameter_mm"] is None
+    assert result["measurements"]["total_area_cm2"] is None
+    assert result["measurements"]["pixel_spacing_mm"] is None
+    assert result["measurements"]["calibrated"] is False
+    assert result["measurements"]["calibration_source"] == "UNKNOWN"
+    assert result["provenance"]["pixel_spacing_mm"] is None
+
+
+def test_unintegrated_interactive_prompt_segmentation_fails_closed(source_case, active_case_lease):
+    client, engine, _, _ = source_case
+    lease = active_case_lease(client, "study")
+    response = client.post(
+        "/api/v1/inference/interactive-prompt",
+        headers={
+            "X-Case-Lease-Token": lease["lease_token"],
+            "X-Case-Page-Instance-Id": lease["page_instance_id"],
+        },
+        json={"image_id": "image", "box": [10, 10, 64, 64]},
+    )
+    assert response.status_code == 501
+    assert response.json()["detail"] == (
+        "Interactive prompt segmentation is disabled in this RUO build because no validated model implementation is available."
+    )
+    assert "/api/v1/inference/interactive-prompt" not in client.get("/openapi.json").json()["paths"]
+    with Session(engine) as db:
+        assert db.query(PredictionModel).count() == 1
+        assert db.query(AuditLogModel).filter(AuditLogModel.action_type == "INTERACTIVE_PROMPT_SEGMENTATION").count() == 0

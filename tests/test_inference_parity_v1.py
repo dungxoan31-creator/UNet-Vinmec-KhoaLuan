@@ -65,6 +65,17 @@ def test_unloaded_model_fails_closed():
         engine.predict_binary(dummy_tensor)
 
 
+@pytest.mark.parametrize("logits_value", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("horizontal_flip_tta", [False, True])
+def test_non_finite_model_logits_fail_closed(logits_value, horizontal_flip_tta):
+    engine = InferenceEngine(architecture="standard_unet", horizontal_flip_tta=horizontal_flip_tta)
+    engine.model = DummyModel(logits_value=logits_value)
+    engine.is_model_ready = True
+
+    with pytest.raises(RuntimeError, match="non-finite"):
+        engine.predict_binary(torch.zeros((1, 1, 512, 512), dtype=torch.float32))
+
+
 def test_native_mask_and_service_parity():
     # Nonsquare image 640x479
     raw_img = np.zeros((479, 640), dtype=np.uint8)

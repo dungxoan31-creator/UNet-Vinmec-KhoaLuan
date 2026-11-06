@@ -1,12 +1,36 @@
-import { state, role, clearDraft } from "./state.js";
+import { state, role, clearDraft, setBusy } from "./state.js";
 import { request } from "./api.js";
 
 import { encode } from "./coordinates.js";
 import { $, esc, modal, toast } from "./ui.js";
 import { tracker } from "./hitl-tracker.js";
+import { matchesSubmittedReview, isCompleteReviewAck, hasUnresolvedReviewWarning, clinicianDiagnosisOverrides } from "./review-content.js";
+import { formatLaterality } from "./laterality-hint.js";
+const blocked = (reason, message) => {
+  toast(message, true);
+  return { status: "blocked", reason };
+};
+const notifyReviewDraftStateChanged = () => {
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent("ova:review-draft-state-changed"));
+};
+
+export function savedReviewMessage(images) {
+  const entries = Array.isArray(images) ? images : [];
+  const sides = new Set(entries.map((image) => image?.laterality).filter((side) => side === "L" || side === "R"));
+  const knownSide = sides.size === 1 ? [...sides][0] : null;
+  const sideLabel = sides.size === 2
+    ? "ở cả hai bên"
+    : knownSide && entries.every((image) => image?.laterality === knownSide)
+      ? (knownSide === "L" ? "bên trái" : "bên phải")
+      : "";
+  return `Đã lưu rà soát cho ${entries.length} ảnh${sideLabel ? ` ${sideLabel}` : ""}.`;
+}
+
 export async function saveResearchReview() {
   const c = state.case,
     identity = state.user?.id,
+    token = state.token,
     username = state.user?.username;
   if (
     !c ||
@@ -16,25 +40,53 @@ export async function saveResearchReview() {
     !state.editing.allowed ||
     ["LOCKED", "APPROVED", "SIGNED_PRELIM"].includes(c.status)
   )
-    return;
-  if (c.images.length !== 2 || !c.images.every((i) => i.seen))
-    return toast("Xem đủ hai bên trước khi lưu rà soát.", true);
+    return { status: "blocked", reason: "not-editable" };
+  if (!c.images.length || c.images.some(image => !image.seen) ||
+      (c.ovary_side === "BOTH" && !["L", "R"].every(side => c.images.some(i => i.laterality === side))))
+    return blocked("unseen-image", "Xem toàn bộ ảnh và xác nhận bên khảo sát trước khi lưu rà soát.");
+  if (c.images.some(hasUnresolvedReviewWarning))
+    return blocked("content-warning", "Kiểm tra cảnh báo mô tả/O-RADS và hoàn tất các chỗ trống trước khi lưu.");
   const manual = c.images.some((i) => !i.prediction?.prediction_id);
   if (manual && !state.capabilities.manual_review)
-    return toast(
+    return blocked("manual-review-unavailable",
       "Mask vẽ tay được giữ thành bản nháp. API hiện tại yêu cầu prediction_id; cần API lưu rà soát thủ công để lưu lên máy chủ.",
-      true,
     );
   if (!navigator.onLine) {
     state.pendingReview = { caseId: c.study_id, userId: identity };
-    return toast(
+    toast(
       "Chưa đồng bộ. Bản rà soát sẽ gửi lại khi có mạng trong phiên này.",
     );
+    return { status: "offline", studyId: c.study_id };
   }
+  const pendingTelemetryAck = state.pendingReviewTelemetryAck;
+  if (pendingTelemetryAck?.studyId === c.study_id && !state.dirty) {
+    if (
+      tracker.getStudyId?.() !== c.study_id ||
+      tracker.getSessionId?.() !== pendingTelemetryAck.sessionId
+    ) {
+      return blocked("telemetry-session", "Rà soát đã lưu; phiên HITL cũ không còn hoạt động để đồng bộ nhật ký.");
+    }
+    const operation = Symbol("review-telemetry-retry");
+    state.operation = operation;
+    setBusy(true);
+    try {
+      await tracker.flush();
+      if (state.pendingReviewTelemetryAck === pendingTelemetryAck)
+        state.pendingReviewTelemetryAck = null;
+      toast("Đã đồng bộ nhật ký HITL cho rà soát đã lưu.");
+    } catch {
+      toast("Rà soát đã lưu; nhật ký HITL chưa đồng bộ. Hãy thử lại sau.", true);
+    } finally {
+      if (state.operation === operation) setBusy(false);
+    }
+    return { status: "saved", studyId: c.study_id, revision: c.review_revision, clean: !state.dirty };
+  }
+  const expectedRevision = c.review_revision ?? 0;
   const snapshots = c.images.map((i) => {
     const tm = tracker.getTaskMetrics(i.image_id);
     const timeSpent =
       tm && tm.task_total_ms > 0 ? Math.round(tm.task_total_ms / 1000) : null;
+    const clinicianOverrides = clinicianDiagnosisOverrides(i);
     return {
       image: i,
       body: {
@@ -48,19 +100,42 @@ export async function saveResearchReview() {
             ? "MODIFIED"
             : "REJECTED_ALL",
         verified_mask_rle: encode(i.mask),
+        manual_calipers: i.manualCalipers || [],
         clinical_notes: i.notes || "",
         lesion_type: i.morphology || "Chưa đánh giá",
         orads: i.orads || "",
         orads_score: i.orads || null,
         morphology_description: i.morphologyDesc || "",
+        ...(Object.keys(clinicianOverrides).length
+          ? { clinician_overrides: clinicianOverrides }
+          : {}),
         time_spent_seconds: timeSpent,
       },
     };
   });
-  const sameSession = () => state.user?.id === identity && state.case === c;
+  const sameSession = () => state.user?.id === identity && state.token === token && state.case === c;
   const operation = Symbol("review");
+  let requestId = null;
+  let hitlSessionId = null;
   state.operation = operation;
-  state.busy = true;
+  setBusy(true);
+  const flushReviewAcknowledgements = async () => {
+    const pendingAck = hitlSessionId
+      ? { studyId: c.study_id, sessionId: hitlSessionId, requestId }
+      : null;
+    if (pendingAck) state.pendingReviewTelemetryAck = pendingAck;
+    try {
+      for (const { image } of snapshots) {
+        tracker.confirmAck(image.image_id, requestId, { targetSessionId: hitlSessionId });
+      }
+      await tracker.flush();
+      if (state.pendingReviewTelemetryAck === pendingAck)
+        state.pendingReviewTelemetryAck = null;
+    } catch (telemetryErr) {
+      console.warn("Telemetry flush warning after successful review commit:", telemetryErr);
+      toast("Đã lưu rà soát. Nhật ký HITL chưa đồng bộ; phiên tham khảo chưa hoàn tất.", true);
+    }
+  };
   try {
     let manualReviews = null;
     if (manual) {
@@ -77,7 +152,6 @@ export async function saveResearchReview() {
         throw Error("Máy chủ chưa xác nhận rà soát thủ công.");
       manualReviews = result.reviews;
     }
-    const expectedRevision = c.review_revision ?? 0;
     const reviewBodies = snapshots.map((s) => s.body);
 
     // Fingerprint clinical content (excluding volatile elapsed time)
@@ -89,14 +163,16 @@ export async function saveResearchReview() {
         prediction_id: b.prediction_id,
         doctor_action: b.doctor_action,
         verified_mask_rle: b.verified_mask_rle,
+        manual_calipers: b.manual_calipers || [],
         clinical_notes: b.clinical_notes,
         lesion_type: b.lesion_type,
         orads: b.orads,
         morphology_description: b.morphology_description,
+        clinician_overrides: b.clinician_overrides || {},
       })),
     });
 
-    let requestId = state.currentReviewRequestId;
+    requestId = state.currentReviewRequestId;
     let savedTimeSpent = state.lastReviewTimeSpent;
     if (!requestId || state.lastClinicalSnapshot !== clinicalSnapshot) {
       requestId = crypto.randomUUID();
@@ -118,7 +194,7 @@ export async function saveResearchReview() {
     }
     await tracker.flush();
 
-    const hitlSessionId =
+    hitlSessionId =
       tracker.getStudyId && tracker.getStudyId() === c.study_id
         ? tracker.getSessionId()
         : null;
@@ -129,6 +205,12 @@ export async function saveResearchReview() {
       expected_revision: expectedRevision,
       request_id: requestId,
       reviews: reviewBodies,
+      ...(state.editing?.leaseToken
+        ? { lease_token: state.editing.leaseToken }
+        : {}),
+      ...(state.editing?.pageInstanceId
+        ? { page_instance_id: state.editing.pageInstanceId }
+        : {}),
       ...(hitlSessionId
         ? { hitl_session_id: hitlSessionId, telemetry_tasks: watermarks }
         : {}),
@@ -146,11 +228,7 @@ export async function saveResearchReview() {
           body: batchPayload,
         });
 
-    if (
-      result.status !== "SUCCESS" ||
-      !Array.isArray(result.reviews) ||
-      result.reviews.length !== c.images.length
-    )
+    if (!isCompleteReviewAck(result, c.study_id, expectedRevision, reviewBodies))
       throw Error("Máy chủ chưa xác nhận toàn bộ bản rà soát.");
 
     if (!sameSession())
@@ -169,21 +247,17 @@ export async function saveResearchReview() {
         orads: body.orads,
         orads_score: body.orads_score,
         morphology_description: body.morphology_description,
+        clinician_overrides: body.clinician_overrides || {},
       };
     }
+    window.dispatchEvent(new CustomEvent("ova:review-saved", {
+      detail: { studyId: c.study_id, imageIds: snapshots.map(({ image }) => image.image_id) },
+    }));
 
     if (sameSession()) {
       // FE-01: Compare current clinical fields against submitted snapshot before clearing draft
-      const hasPendingChangesAfterSnapshot = c.images.some((img, idx) => {
-        const snap = snapshots[idx]?.body;
-        if (!snap) return false;
-        return (
-          (img.orads || "") !== (snap.orads || "") ||
-          (img.morphology || "") !== (snap.lesion_type === "Chưa đánh giá" ? "" : (snap.lesion_type || "")) ||
-          (img.morphologyDesc || "") !== (snap.morphology_description || "") ||
-          (img.notes || "") !== (snap.clinical_notes || "")
-        );
-      });
+      const hasPendingChangesAfterSnapshot = c.images.length !== snapshots.length ||
+        snapshots.some(({ image, body }) => !c.images.includes(image) || !matchesSubmittedReview(image, body));
 
       if (!hasPendingChangesAfterSnapshot) {
         clearDraft();
@@ -194,62 +268,72 @@ export async function saveResearchReview() {
         state.lastClinicalSnapshot = null;
         state.lastReviewTimeSpent = null;
         c.status = "REVIEWED";
-        toast("Đã lưu rà soát của hai bên thành công.");
+        notifyReviewDraftStateChanged();
+        toast(savedReviewMessage(snapshots.map(({ image }) => image)));
       } else {
         // Retain unpersisted edits made after snapshot
         state.dirty = true;
         c.status = "REVIEWED";
+        notifyReviewDraftStateChanged();
         toast("Đã lưu bản rà soát trước đó. Có thay đổi mới chưa lưu.");
       }
     }
 
-    // Telemetry ACK is non-blocking and failure here will not invalidate saved review
-    try {
-      for (const { image } of snapshots) {
-        tracker.confirmAck(image.image_id, requestId);
-      }
-      await tracker.flush();
-    } catch (telemetryErr) {
-      console.warn("Telemetry flush warning after successful review commit:", telemetryErr);
-    }
+    // The committed review is the clinical write. Keep telemetry queued/retryable
+    // without holding the viewer's save lock on a separate network request.
+    void flushReviewAcknowledgements();
+    return { status: "saved", studyId: c.study_id, revision: c.review_revision, clean: !state.dirty };
   } catch (e) {
-    if (e.message && (e.message.includes("409") || e.message.includes("Xung đột phiên bản"))) {
+    if (e?.status === 409) {
       try {
         const fresh = await request("/api/cases/" + encodeURIComponent(c.study_id));
-        if (fresh && fresh.review_revision > expectedRevision) {
-          const ourReviews = fresh.images?.filter(
-            (img) => img.review?.doctor_id === username,
-          );
-          if (ourReviews && ourReviews.length === c.images.length) {
+        const persistedImages = new Map(
+          (Array.isArray(fresh?.images) ? fresh.images : []).map((img) => [img.image_id, img]),
+        );
+        if (
+          fresh?.latest_review_request_id === requestId &&
+          fresh.review_revision === expectedRevision + 1 &&
+          snapshots.every(({ image }) => persistedImages.get(image.image_id)?.review?.doctor_id === username)
+        ) {
             c.review_revision = fresh.review_revision;
             for (const { image } of snapshots) {
-              const r = ourReviews.find((revImg) => revImg.image_id === image.image_id)?.review;
-              if (r) image.review = r;
+              image.review = persistedImages.get(image.image_id).review;
             }
+            window.dispatchEvent(new CustomEvent("ova:review-saved", {
+              detail: { studyId: c.study_id, imageIds: snapshots.map(({ image }) => image.image_id) },
+            }));
             if (sameSession()) {
-              clearDraft();
+              const clean = c.images.length === snapshots.length && snapshots.every(({ image, body }) =>
+                c.images.includes(image) && matchesSubmittedReview(image, body));
+              if (clean) clearDraft();
+              else state.dirty = true;
               state.pendingReview = null;
               state.currentReviewRequestId = null;
               state.lastReviewPayloadSnapshot = null;
               state.lastClinicalSnapshot = null;
               state.lastReviewTimeSpent = null;
               c.status = "REVIEWED";
-              toast("Đã xác nhận rà soát trên máy chủ thành công.");
-              return;
+              notifyReviewDraftStateChanged();
+              toast(savedReviewMessage(snapshots.map(({ image }) => image)));
+              void flushReviewAcknowledgements();
+              return { status: "saved", studyId: c.study_id, revision: c.review_revision, clean };
             }
-          }
         }
       } catch {
         // Fall back to standard error reporting
       }
     }
     for (const { image } of snapshots || []) {
-      tracker.recordSaveFailure(image.image_id, { error: e.message });
+      tracker.recordSaveFailure(image.image_id, {
+        error_type: e.name,
+        http_status: e.status,
+      });
     }
     await tracker.flush().catch(() => {});
     toast(e.message, true);
+    return { status: e?.status === 409 ? "conflict" : "failed", studyId: c.study_id, message: e.message };
   } finally {
-    if (state.operation === operation) state.busy = false;
+    if (state.operation === operation) setBusy(false);
   }
 }
 export function openSignoff() {
@@ -261,18 +345,19 @@ export function openSignoff() {
   if (
     role() !== "BS" ||
     !c ||
-    c.images.length !== 2 ||
-    !["L", "R"].every((s) => c.images.some((i) => i.laterality === s && i.seen))
+    !c.images.length ||
+    !c.images.every((image) => image.seen) ||
+    (c.ovary_side === "BOTH" && !["L", "R"].every((side) => c.images.some((image) => image.laterality === side)))
   )
-    return toast("Cần xem đủ cả hai ảnh trước khi ký.", true);
+    return toast("Cần xem toàn bộ ảnh và xác nhận đủ bên của ca trước khi ký.", true);
   if (["SIGNED_PRELIM", "APPROVED", "LOCKED"].includes(c.status)) return;
   const d = modal(
-    "Ký sơ bộ khảo sát hai bên",
-    `<p>Kiểm tra mask và ghi chú của cả hai ảnh trước khi chuyển chuyên gia duyệt.</p><div class="grid-2">${c.images.map((i) => `<section class="panel"><div class="panel-body"><h3>Buồng trứng ${i.laterality === "L" ? "trái" : "phải"}</h3><p>${i.mask?.some((v, n) => v !== i.aiMask?.[n]) ? "Mask đã chỉnh sửa" : "Mask AI chưa chỉnh sửa"}</p><p>${esc(i.notes || "Không có ghi chú")}</p><span class="badge">${i.measurements?.calibrated ? "Đã hiệu chuẩn" : "Chưa hiệu chuẩn – chỉ có px"}</span></div></section>`).join("")}</div><details style="margin-top:20px"><summary>Đánh giá nhanh AI (tùy chọn)</summary><label class="field">Mức hữu dụng<select name="rating"><option value="">Bỏ qua</option><option value="5">Hữu ích</option><option value="2">Cần cải thiện</option></select></label><label class="field">Lỗi quan sát<select name="issue"><option value="">Chưa đánh giá</option><option value="FALSE_NEGATIVE">Bỏ sót vùng</option><option value="FALSE_POSITIVE">Lan sang mô lân cận</option><option value="BOUNDARY_MISMATCH">Đường biên chưa khít</option></select></label></details><p class="form-error" id="signError" role="alert"></p><div class="actions"><button class="btn" value="cancel">Tiếp tục rà soát</button><button class="btn primary" type="submit">Ký sơ bộ và chuyển duyệt</button></div>`,
+    "Ký sơ bộ khảo sát",
+    `<p>Kiểm tra mask và ghi chú của ${c.images.length} ảnh trước khi chuyển chuyên gia duyệt.</p><div class="grid-2">${c.images.map((i, index) => `<section class="panel"><div class="panel-body"><h3>Buồng trứng ${formatLaterality(i.laterality)} · ảnh ${index + 1}</h3><p>${i.mask?.some((v, n) => v !== i.aiMask?.[n]) ? "Mask đã chỉnh sửa" : "Mask AI chưa chỉnh sửa"}</p><p>${esc(i.notes || "Không có ghi chú")}</p>${i.measurements?.calibrated ? '<span class="badge">Đã hiệu chuẩn</span>' : ""}</div></section>`).join("")}</div><details style="margin-top:20px"><summary>Đánh giá nhanh AI (tùy chọn)</summary><label class="field">Mức hữu dụng<select name="rating"><option value="">Bỏ qua</option><option value="5">Hữu ích</option><option value="2">Cần cải thiện</option></select></label><label class="field">Lỗi quan sát<select name="issue"><option value="">Bỏ qua</option><option value="FALSE_NEGATIVE">Bỏ sót vùng</option><option value="FALSE_POSITIVE">Lan sang mô lân cận</option><option value="BOUNDARY_MISMATCH">Đường biên chưa khít</option></select></label></details><p class="form-error" id="signError" role="alert"></p><div class="actions"><button class="btn" value="cancel">Tiếp tục rà soát</button><button class="btn primary" type="submit">Ký sơ bộ và chuyển duyệt</button></div>`,
     async (e, dialog) => {
       const btn = e.submitter;
       btn.disabled = true;
-      state.busy = true;
+      setBusy(true);
       try {
         const form = Object.fromEntries(new FormData(e.target));
         {
@@ -309,7 +394,7 @@ export function openSignoff() {
         $("#signError").textContent = err.message;
       } finally {
         btn.disabled = false;
-        state.busy = false;
+        setBusy(false);
       }
     },
   );

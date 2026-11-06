@@ -16,7 +16,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from ai_training.dataset_loader import OvarianUltrasoundDataset
-from ai_training.train_baseline_unet import ComboLoss
+from ai_training.train_baseline_unet import ComboLoss, validate_training_split_integrity
 from backend.models.unet import StandardUNet
 
 GRAY_MEAN = 0.449
@@ -69,6 +69,7 @@ def run_epoch(model, loader, criterion, device, optimizer=None, scaler=None):
     model.train(training)
     total_loss = 0.0
     metrics = {key: [] for key in ("dice", "iou", "recall", "precision", "specificity")}
+    optimizer_steps = 0
     context = torch.enable_grad if training else torch.no_grad
     with context():
         for batch in loader:
@@ -82,13 +83,16 @@ def run_epoch(model, loader, criterion, device, optimizer=None, scaler=None):
                 loss = criterion(logits, masks)
             if training:
                 scaler.scale(loss).backward()
+                previous_scale = scaler.get_scale()
                 scaler.step(optimizer)
                 scaler.update()
+                optimizer_steps += scaler.get_scale() >= previous_scale
             total_loss += loss.detach().item() * images.shape[0]
             for name, values in batch_metrics(logits.detach(), masks).items():
                 metrics[name].extend(values.float().cpu().tolist())
     return {
         "loss": total_loss / len(loader.dataset),
+        "optimizer_steps": optimizer_steps,
         **{name: statistics.mean(values) for name, values in metrics.items()},
     }
 
@@ -102,9 +106,14 @@ def train(split_dir: Path, output_dir: Path, epochs=30, batch_size=2, learning_r
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
+    split_integrity = validate_training_split_integrity(split_dir)
     manifest_path = split_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    train_csv, val_csv = split_dir / "train.csv", split_dir / "val.csv"
+    train_csv, val_csv, test_csv = (
+        split_dir / "train.csv",
+        split_dir / "val.csv",
+        split_dir / "test.csv",
+    )
     train_ds = OvarianUltrasoundDataset(str(train_csv), is_train=True, seed=seed)
     val_ds = OvarianUltrasoundDataset(str(val_csv), is_train=False)
     validate_splits(train_ds, val_ds, manifest)
@@ -128,7 +137,8 @@ def train(split_dir: Path, output_dir: Path, epochs=30, batch_size=2, learning_r
     for epoch in range(1, epochs + 1):
         train_stats = run_epoch(model, train_loader, criterion, device, optimizer, scaler)
         val_stats = run_epoch(model, val_loader, criterion, device)
-        scheduler.step()
+        if train_stats["optimizer_steps"]:
+            scheduler.step()
         improved = val_stats["dice"] > best_dice
         if improved:
             best_dice, best_epoch, no_improvement = val_stats["dice"], epoch, 0
@@ -164,11 +174,16 @@ def train(split_dir: Path, output_dir: Path, epochs=30, batch_size=2, learning_r
         "threshold": 0.5,
         "selection_metric": "mean per-image Validation Dice",
         "split_dir": str(split_dir),
+        "split_integrity": split_integrity,
+        "split_level": "image-level",
+        "patient_level_independence_verified": False,
         "train_count": len(train_ds),
         "validation_count": len(val_ds),
-        "test_split_accessed": False,
+        "test_split_integrity_inspected": split_integrity["test_split_integrity_inspected"],
+        "test_split_used_for_training_or_selection": False,
         "train_csv_sha256": sha256_file(train_csv),
         "validation_csv_sha256": sha256_file(val_csv),
+        "test_csv_sha256": sha256_file(test_csv),
         "manifest_sha256": sha256_file(manifest_path),
         "best_epoch": best_epoch,
         "train_metrics_at_best_epoch": history[best_epoch - 1]["train"],

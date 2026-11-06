@@ -1,5 +1,7 @@
 """Authorization, atomic case creation, and bounded case-list queries."""
 
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -8,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app.main import app
 from backend.app.routers import cases
 from backend.db.database import (
+    AuditLogModel,
     Base,
     ImageModel,
     PatientModel,
@@ -53,6 +56,17 @@ def test_delete_case_requires_admin_even_with_doctor_token(tmp_path, monkeypatch
             assert admin.status_code == 200
             admin_headers = {"Authorization": f"Bearer {admin.json()['access_token']}"}
             assert client.delete("/api/cases/study", headers=admin_headers).status_code == 200
+            with Session(engine) as db:
+                deletion = (
+                    db.query(AuditLogModel)
+                    .filter(
+                        AuditLogModel.entity_name == "study",
+                        AuditLogModel.entity_id == "study",
+                        AuditLogModel.action_type == "CLINICAL_CASE_DELETE",
+                    )
+                    .one()
+                )
+                assert deletion.actor_id == "admin"
     finally:
         app.dependency_overrides.pop(get_db, None)
         engine.dispose()
@@ -69,9 +83,16 @@ def test_failed_study_insert_rolls_back_new_patient(tmp_path):
     try:
         with Session(engine) as db:
             with pytest.raises(RuntimeError, match="study insert failure"):
-                cases.create_new_case(CreateCaseRequest(patient_id="PID-ATOMIC"), db=db)
+                cases.create_new_case(
+                    CreateCaseRequest(patient_id="900000114", study_date="2026-10-21"),
+                    idempotency_key=uuid4(),
+                    current_user=UserModel(
+                        id="test-doctor", username="doctor", full_name="Test Doctor", role="DOCTOR"
+                    ),
+                    db=db,
+                )
             assert db.is_active, "The failed transaction must be rolled back explicitly"
-            assert db.query(PatientModel).filter_by(anonymized_pid="PID-ATOMIC").first() is None
+            assert db.query(PatientModel).filter_by(source_pid_hmac=cases.patient_id_digest("900000114")).first() is None
             assert db.query(StudyModel).count() == 0
     finally:
         event.remove(StudyModel, "before_insert", fail_study_insert)

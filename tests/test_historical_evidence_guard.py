@@ -1,6 +1,9 @@
 """Historical M1 claims must not be regenerated as current clinical evidence."""
 
+import importlib
+import importlib.util
 import json
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
@@ -8,21 +11,27 @@ from sqlalchemy.orm import Session
 
 from backend.db.database import Base
 
-try:
-    from scripts.export_milestone_1_report import build_full_report
-except ImportError:
-    build_full_report = None
 
-try:
-    from scripts.generate_humanized_docx_report import create_report
-except ImportError:
-    create_report = None
+@pytest.mark.parametrize(
+    ("module_name", "symbol_name"),
+    [
+        ("scripts.export_milestone_1_report", "build_full_report"),
+        ("scripts.generate_humanized_docx_report", "create_report"),
+    ],
+)
+def test_historical_m1_generators_are_absent_or_refuse_unverified_regeneration(
+    module_name, symbol_name, tmp_path, monkeypatch
+):
+    module_spec = importlib.util.find_spec(module_name)
+    if module_spec is None:
+        assert not (Path(__file__).resolve().parents[1] / Path(*module_name.split("."))).with_suffix(".py").exists()
+        return
 
-
-@pytest.mark.parametrize("generate", [build_full_report, create_report])
-def test_historical_m1_generators_refuse_unverified_regeneration(generate, tmp_path, monkeypatch):
+    module = importlib.import_module(module_name)
+    generate = getattr(module, symbol_name, None)
     if generate is None:
-        pytest.skip("Historical report generator has been removed from workspace.")
+        return
+
     monkeypatch.chdir(tmp_path)
     with pytest.raises(RuntimeError, match="unverified.*Patient|Patient.*unverified"):
         generate()

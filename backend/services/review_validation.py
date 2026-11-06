@@ -10,5 +10,7 @@ def validate_review_mask(action: str, final_mask: np.ndarray, predicted_mask: np
         raise HTTPException(status_code=422, detail="ACCEPTED_RAW requires the original prediction mask")
     if action == "MODIFIED" and unchanged:
         raise HTTPException(status_code=422, detail="MODIFIED requires an edited mask")
+    if action == "MODIFIED" and not np.any(final_mask):
+        raise HTTPException(status_code=422, detail="MODIFIED requires a nonempty mask; use REJECTED_ALL")
     if action == "REJECTED_ALL" and np.any(final_mask):
         raise HTTPException(status_code=422, detail="REJECTED_ALL requires an empty mask")

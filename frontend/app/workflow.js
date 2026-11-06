@@ -1,5 +1,5 @@
 import { state, role } from "./state.js";
-import { getCases } from "./cases.js";
+import { getCasesPage } from "./cases.js";
 import { toast } from "./ui.js";
 export async function nextCase(direction = 1) {
   if (state.busy) return toast("Đang lưu hoặc xử lý. Vui lòng chờ.");
@@ -7,14 +7,15 @@ export async function nextCase(direction = 1) {
   try {
     let ids = state.queue;
     if (!ids?.length) {
-      const rows = await getCases();
-      ids = rows
-        .filter((c) =>
-          role() === "TK"
-            ? c.status === "SIGNED_PRELIM"
-            : !["LOCKED", "APPROVED", "SIGNED_PRELIM"].includes(c.status),
-        )
-        .map((c) => c.study_id);
+      const statuses =
+        role() === "TK"
+          ? ["SIGNED_PRELIM"]
+          : ["PENDING", "ANALYZED", "PARTIALLY_REVIEWED", "REVIEWED"];
+      const { items } = await getCasesPage(
+        { statuses },
+        { limit: 50 },
+      );
+      ids = items.map((c) => c.study_id);
     }
     if (!ids.length) return toast("Không có ca tiếp theo trong hàng chờ.");
     const current = ids.indexOf(state.case?.study_id),
@@ -26,6 +27,7 @@ export async function nextCase(direction = 1) {
     location.hash =
       "#" + (role() === "TK" ? "approval" : "viewer") + "/" + ids[index];
   } catch (e) {
+    if (e?.name === "AbortError") return;
     toast(e.message, true);
   }
 }

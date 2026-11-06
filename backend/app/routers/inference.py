@@ -9,151 +9,332 @@ Image Upload, IQA Validation, and Medical AI Inference Endpoints:
 
 import base64
 import hashlib
+import logging
 import math
 import os
+import tempfile
 import time
 import uuid
 from datetime import datetime
 from io import BytesIO
-from typing import Literal
+from typing import Any, Literal
+from uuid import UUID
 
 import cv2
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from backend.services.image_classifier import image_classifier
+from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import Response
+from PIL import Image
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import ObjectDeletedError, StaleDataError
+from starlette.concurrency import run_in_threadpool
 
-from backend.app.config import UPLOAD_DIR, model_registry, preprocessor
-from backend.app.routers.auth import get_current_user, require_clinical
-from backend.core.image_utils import cv2_imread_unicode
+from backend.app.config import (
+    SYNTHETIC_DEMO_ALLOWED_UPLOAD_SHA256,
+    SYNTHETIC_DEMO_MODE,
+    UPLOAD_DIR,
+    model_registry,
+    preprocessor,
+)
+from backend.app.security import get_current_user, require_clinical
+from backend.core.image_utils import MAX_DECODED_IMAGE_PIXELS, MAX_UPLOAD_BYTES
+from backend.core.prediction_idempotency import prediction_idempotency_digests
+from backend.core.upload_idempotency import upload_idempotency_digests
 from backend.db.database import (
     AuditLogModel,
     ImageModel,
-    PatientModel,
     PredictionModel,
     ReviewModel,
     StudyModel,
     UserModel,
+    VisitNumberCapacityExceeded,
     get_db,
 )
-from backend.schemas.schemas import ImageValidationResult, MaskMeasurementsRequest, PredictionResponse
+from backend.schemas.schemas import (
+    ImageValidationResult,
+    InteractivePromptRequest,
+    MaskMeasurementsRequest,
+    PredictionResponse,
+)
+from backend.services.calibration_service import get_automatic_calibration
+from backend.services.facility_service import check_facility_access
+from backend.services.case_lease_service import (
+    _FINAL_STATUSES,
+    require_active_case_lease,
+    verify_active_case_lease_readonly,
+)
+from backend.services.dicom_privacy import minimize_dicom_patient_metadata
+from backend.services.file_deletion_service import enqueue_upload_deletions, retry_pending_file_deletions
+from backend.services.image_service import (
+    decode_ultrasound_image,
+    extract_dicom_calibration_spacing,
+    get_image_calibration,
+    is_single_frame_ultrasound_dicom,
+)
+from backend.services.image_service import (
+    validate_pixel_spacing as _validate_pixel_spacing,
+)
 from backend.services.inference_engine import InferenceEngine
-from backend.services.source_measurements import calibration_metadata, measure_source_mask
+from backend.services.measurement_safety import (
+    prediction_measurements_match_calibration,
+    strip_unverified_physical_measurements,
+)
+from backend.services.metadata_extractor import extract_file_metadata
+from backend.services.patient_identity import get_or_create_patient
+from backend.services.source_measurements import measure_source_mask
 
-router = APIRouter(tags=["Image & Inference"])
+router = APIRouter(tags=["Image & Inference"], dependencies=[Depends(require_clinical)])
+logger = logging.getLogger(__name__)
 
 
-def validate_pixel_spacing(spacing: float | None) -> float | None:
-    """Reject supplied physical scales that cannot represent millimeters per pixel."""
-    if spacing is not None and (not math.isfinite(spacing) or spacing <= 0):
-        raise HTTPException(status_code=422, detail="pixel_spacing_mm phải là số hữu hạn lớn hơn 0.")
-    return spacing
-
-
-def is_single_frame_ultrasound_dicom(dicom) -> bool:
-    """This 2D model accepts one ultrasound still image, not MR/CT or cine."""
+def _reject_oversized_decoded_dimensions(width, height) -> None:
     try:
-        return str(dicom.get("Modality", "")).upper() == "US" and int(dicom.get("NumberOfFrames", 1)) == 1
-    except (TypeError, ValueError):
-        return False
+        width, height = int(width), int(height)
+    except (TypeError, ValueError, OverflowError):
+        return
+    if width > 0 and height > 0 and width * height > MAX_DECODED_IMAGE_PIXELS:
+        raise HTTPException(
+            status_code=413,
+            detail="Kích thước ảnh giải mã vượt giới hạn (> 25 triệu pixels).",
+        )
 
 
-def decode_ultrasound_image(file_path: str, grayscale: bool = False):
-    """Decode raster or DICOM pixels for upload, IQA and inference."""
-    if not file_path.lower().endswith(".dcm"):
-        return cv2_imread_unicode(file_path, cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR)
+def _preflight_raster_dimensions(contents: bytes) -> None:
+    """Reject oversized raster headers before file writes or full pixel decode."""
     try:
-        import pydicom
+        with Image.open(BytesIO(contents)) as image_header:
+            width, height = image_header.size
+    except Image.DecompressionBombError as exc:
+        raise HTTPException(
+            status_code=413,
+            detail="Kích thước ảnh giải mã vượt giới hạn (> 25 triệu pixels).",
+        ) from exc
+    except Exception:
+        return
+    _reject_oversized_decoded_dimensions(width, height)
 
-        dicom = pydicom.dcmread(file_path)
-        if not is_single_frame_ultrasound_dicom(dicom):
-            return None
-        image = dicom.pixel_array
-        if image.ndim == 4 or (image.ndim == 3 and int(getattr(dicom, "SamplesPerPixel", 1)) == 1):
-            image = image[0]
-        if image.dtype != "uint8":
-            image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        photometric = str(getattr(dicom, "PhotometricInterpretation", "")).strip().upper()
-        if photometric == "MONOCHROME1":
-            image = cv2.bitwise_not(image)
-        if grayscale and image.ndim == 3:
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        return image
+
+def _preflight_dicom_dimensions(dicom_dataset) -> None:
+    _reject_oversized_decoded_dimensions(
+        dicom_dataset.get("Columns"), dicom_dataset.get("Rows")
+    )
+
+
+def _verify_upload_commit(bind, image_id: str, file_path: str, uploaded_hash: str) -> bool | None:
+    """Return True/False for a confirmed commit outcome, or None when it is uncertain."""
+    if bind is None:
+        return None
+    try:
+        with Session(bind=bind) as verify_db:
+            image_record = verify_db.get(ImageModel, image_id)
+            if image_record is None:
+                return False
+            if (
+                image_record.raw_path != file_path
+                or image_record.filename != os.path.basename(file_path)
+                or image_record.file_hash != uploaded_hash
+            ):
+                return None
+            audit_exists = (
+                verify_db.query(AuditLogModel.id)
+                .filter_by(entity_name="image", entity_id=image_id, action_type="UPLOAD_IMAGE")
+                .first()
+                is not None
+            )
+            if not audit_exists or not os.path.isfile(file_path):
+                return None
+            return True
     except Exception:
         return None
 
 
-def extract_dicom_calibration_spacing(file_path: str) -> float | None:
-    """
-    Extracts true physical millimeter spacing per pixel from DICOM tags:
-    1. Tag (0018, 6011) Sequence of Ultrasound Regions -> PhysicalDeltaX / PhysicalDeltaY
-    2. Tag (0028, 0030) Pixel Spacing -> [Row Spacing, Column Spacing]
-    Returns None when no physical calibration is available.
-    """
-    if not file_path.lower().endswith(".dcm"):
+def validate_pixel_spacing(spacing: float | None) -> float | None:
+    """Translate service validation errors into the API's 422 response contract."""
+    try:
+        return _validate_pixel_spacing(spacing)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _validated_prediction_letterbox_scale(transform, image_record) -> float | None:
+    """Return the saved 512x512 letterbox scale only when it matches the source image."""
+    if not isinstance(transform, dict):
+        return None
+
+    width = getattr(image_record, "width", None)
+    height = getattr(image_record, "height", None)
+    if type(width) is not int or type(height) is not int or width <= 0 or height <= 0:
+        return None
+
+    for key, expected in (("orig_w", width), ("orig_h", height)):
+        value = transform.get(key)
+        if type(value) is not int or value != expected:
+            return None
+
+    scale_value = transform.get("scale")
+    if isinstance(scale_value, bool) or not isinstance(scale_value, (int, float)):
         return None
     try:
-        import pydicom
+        scale = float(scale_value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    expected_scale = min(512 / width, 512 / height)
+    if not math.isfinite(scale) or scale <= 0 or not math.isclose(
+        scale, expected_scale, rel_tol=1e-12, abs_tol=1e-12
+    ):
+        return None
 
-        dcm = pydicom.dcmread(file_path, stop_before_pixels=True)
-        # Check Sequence of Ultrasound Regions (0018,6011)
-        us_regions = dcm.get("SequenceOfUltrasoundRegions")
-        if us_regions and len(us_regions) > 0:
-            valid_spacings = []
-            for region in us_regions:
-                # DICOM PS3.3 C.8.5.5.1: RegionSpatialFormat == 1 is 2D Ultrasound Tissue
-                spatial_format = getattr(region, "RegionSpatialFormat", None)
-                if spatial_format != 1:
-                    continue
+    expected_new_w = int(width * expected_scale)
+    expected_new_h = int(height * expected_scale)
+    expected_pad_w = (512 - expected_new_w) // 2
+    expected_pad_h = (512 - expected_new_h) // 2
+    for key, expected in (
+        ("new_w", expected_new_w),
+        ("new_h", expected_new_h),
+        ("pad_w", expected_pad_w),
+        ("pad_h", expected_pad_h),
+    ):
+        value = transform.get(key)
+        if type(value) is not int or value != expected:
+            return None
+    return scale
 
-                dx = getattr(region, "PhysicalDeltaX", None)
-                dy = getattr(region, "PhysicalDeltaY", None)
-                unit_x = getattr(region, "PhysicalUnitsXDirection", None)
-                unit_y = getattr(region, "PhysicalUnitsYDirection", None)
 
-                # Strict clinical safety (AI-01): Only PhysicalUnits=3 (Centimeters) represents 2D distance.
-                # PhysicalUnits=4 (seconds), 5 (cm/s), 7 (bpm) are time/velocity and MUST BE REJECTED.
-                if dx is not None and dy is not None and unit_x == 3 and unit_y == 3:
-                    # Validate region bounding coordinates if present (AI-02)
-                    min_x0 = getattr(region, "RegionLocationMinX0", None)
-                    max_x1 = getattr(region, "RegionLocationMaxX1", None)
-                    min_y0 = getattr(region, "RegionLocationMinY0", None)
-                    max_y1 = getattr(region, "RegionLocationMaxY1", None)
-                    if min_x0 is not None and max_x1 is not None and min_x0 >= max_x1:
-                        continue
-                    if min_y0 is not None and max_y1 is not None and min_y0 >= max_y1:
-                        continue
+def _stored_upload_replay_response(
+    db: Session,
+    image_record: ImageModel,
+    *,
+    dicom_metadata: dict | None,
+    raw_filename: str | None,
+) -> dict:
+    """Rebuild the successful upload response from the committed image row."""
+    upload_root = os.path.realpath(UPLOAD_DIR)
+    stored_path = os.path.realpath(image_record.raw_path)
+    try:
+        path_is_owned = os.path.commonpath((upload_root, stored_path)) == upload_root
+    except ValueError:
+        path_is_owned = False
+    if not path_is_owned or not os.path.isfile(stored_path):
+        raise HTTPException(
+            status_code=503,
+            detail="Ảnh đã được ghi nhận nhưng tệp nguồn chưa sẵn sàng để phát lại. Cần quản trị viên đối soát.",
+        )
 
-                    spacing_x = float(dx) * 10.0  # cm to mm
-                    spacing_y = float(dy) * 10.0  # cm to mm
-                    if (
-                        math.isfinite(spacing_x)
-                        and math.isfinite(spacing_y)
-                        and spacing_x > 0
-                        and spacing_y > 0
-                        and math.isclose(spacing_x, spacing_y, rel_tol=0.001)
-                    ):
-                        valid_spacings.append(round(spacing_x, 4))
+    study = db.query(StudyModel).filter(StudyModel.id == image_record.study_id).first()
+    if study is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Ảnh đã được ghi nhận nhưng ca khảo sát không khả dụng để phát lại.",
+        )
+    image_np = decode_ultrasound_image(stored_path)
+    if image_np is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Ảnh đã được ghi nhận nhưng không thể đọc lại tệp nguồn an toàn.",
+        )
 
-            if valid_spacings:
-                # If multiple 2D regions exist, ensure they agree
-                first_spacing = valid_spacings[0]
-                if all(math.isclose(s, first_spacing, rel_tol=0.001) for s in valid_spacings):
-                    return first_spacing
-                # Conflicting 2D regions: reject ambiguous calibration
-                return None
+    return {
+        "image_id": image_record.id,
+        "study_id": image_record.study_id,
+        "visit_no": study.visit_no,
+        "laterality": image_record.laterality,
+        "filename": image_record.filename,
+        "dimensions": [image_record.width, image_record.height],
+        "size_kb": round(os.path.getsize(stored_path) / 1024, 1),
+        "dicom_metadata": dicom_metadata,
+        "autofill_metadata": extract_file_metadata(stored_path, raw_filename),
+        "calibration": get_automatic_calibration(stored_path, image_np),
+        "message": "Ảnh đã được tải lên trước đó; dùng lại ảnh đã ghi nhận.",
+        "idempotent_replay": True,
+    }
 
-        # Check standard Pixel Spacing (0028,0030)
-        pixel_spacing = dcm.get("PixelSpacing")
-        if pixel_spacing and len(pixel_spacing) >= 2:
-            row_spacing, column_spacing = float(pixel_spacing[0]), float(pixel_spacing[1])
-            if (math.isfinite(row_spacing) and math.isfinite(column_spacing) and
-                    row_spacing > 0 and column_spacing > 0 and math.isclose(row_spacing, column_spacing, rel_tol=0.001)):
-                return round(row_spacing, 4)
-    except Exception as e:
-        print(f"[DICOM Calibration] Tag read notice: {e}")
-    return None
+
+def _stored_prediction_replay_response(
+    prediction: PredictionModel,
+    image_record: ImageModel,
+    generate_overlay: bool = False,
+    include_original_image: bool = True,
+) -> dict:
+    """Rebuild a committed inference response without running the model a second time."""
+    if not os.path.isfile(image_record.raw_path):
+        raise HTTPException(
+            status_code=503,
+            detail="Dự đoán đã được lưu nhưng ảnh nguồn không khả dụng để phát lại an toàn.",
+        )
+    img_np = decode_ultrasound_image(image_record.raw_path, grayscale=True)
+    if img_np is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Dự đoán đã được lưu nhưng ảnh nguồn không thể giải mã để phát lại an toàn.",
+        )
+    stored_measurements = prediction.measurements if isinstance(prediction.measurements, dict) else {}
+    stored_provenance = prediction.provenance_json
+    trusted_measurements = prediction_measurements_match_calibration(
+        stored_measurements,
+        get_image_calibration(image_record),
+        stored_provenance,
+    )
+    safe_measurements = (
+        stored_measurements
+        if trusted_measurements
+        else strip_unverified_physical_measurements(stored_measurements)
+    )
+    safe_provenance = (
+        stored_provenance
+        if trusted_measurements
+        else strip_unverified_physical_measurements(stored_provenance)
+    )
+    try:
+        _, padded_gray, _, iqa_report = preprocessor.preprocess_for_inference(img_np)
+        if generate_overlay:
+            binary_mask = InferenceEngine.rle_to_mask(prediction.raw_mask_rle)
+            overlay = InferenceEngine.generate_overlay_base64(padded_gray, binary_mask, safe_measurements)
+        else:
+            overlay = None
+    except (KeyError, TypeError, ValueError, cv2.error) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Dự đoán đã được lưu nhưng bản ghi không thể dựng lại an toàn.",
+        ) from exc
+
+    if include_original_image:
+        original_encoded, original_buffer = cv2.imencode(".png", padded_gray)
+        if not original_encoded:
+            raise HTTPException(status_code=503, detail="Không thể dựng lại ảnh nguồn đã lưu.")
+        orig_b64 = "data:image/png;base64," + base64.b64encode(original_buffer).decode("ascii")
+    else:
+        orig_b64 = None
+
+    uncertainty_map_base64 = (
+        "data:image/png;base64," + base64.b64encode(prediction.uncertainty_map_png).decode("ascii")
+        if prediction.uncertainty_map_png
+        else None
+    )
+    extras = prediction.response_extras_json or {}
+    return {
+        "image_id": image_record.id,
+        "prediction_id": prediction.id,
+        "study_id": image_record.study_id,
+        "filename": image_record.filename,
+        "confidence_score": prediction.confidence_score,
+        "inference_time_ms": prediction.inference_time_ms,
+        "iqa": extras.get("iqa") or iqa_report,
+        "measurements": safe_measurements,
+        "acoustic_profile": extras.get("acoustic_profile"),
+        "cdss_classification": extras.get("cdss_classification"),
+        "rle_mask": prediction.raw_mask_rle,
+        "overlay_base64": overlay,
+        "original_image_base64": orig_b64,
+        "uncertainty_map_base64": uncertainty_map_base64,
+        "uncertainty": extras.get("uncertainty"),
+        "quality_gate": extras.get("quality_gate"),
+        "provenance": safe_provenance,
+        "timings": extras.get("timings"),
+        "ai_diagnosis": extras.get("ai_diagnosis"),
+        "unified_findings": extras.get("unified_findings"),
+        "idempotent_replay": True,
+    }
 
 
 @router.post("/api/upload")
@@ -161,38 +342,58 @@ async def upload_image(
     file: UploadFile = File(...),
     study_id: str | None = Form(None),
     laterality: str | None = Form(None),
-    anonymized_pid: str | None = Form(None),
-    patient_age: str | None = Form(None),
+    anonymized_pid: str | None = Form(None, max_length=64),
+    patient_age: str | None = Form(None, max_length=20),
     pixel_spacing_mm: float | None = Form(None),
+    idempotency_key: UUID | None = Header(None, alias="Idempotency-Key"),
+    lease_token: str | None = Header(None, alias="X-Case-Lease-Token"),
+    page_instance_id: str | None = Header(None, alias="X-Case-Page-Instance-Id"),
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user),
+    current_user: UserModel = Depends(require_clinical),
 ):
     """
     Upload an ultrasound image, validate format & size, store securely, and attach to a study.
     """
+    if anonymized_pid is not None:
+        anonymized_pid = anonymized_pid.strip()
+        if not anonymized_pid:
+            raise HTTPException(status_code=422, detail="PID must not be blank.")
     validate_pixel_spacing(pixel_spacing_mm)
     if laterality is not None and laterality not in {"R", "L"}:
         raise HTTPException(status_code=422, detail="Bên khảo sát phải là R hoặc L.")
     study = db.query(StudyModel).filter(StudyModel.id == study_id).first() if study_id else None
     if study_id and study is None:
         raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại.")
-    if laterality and study and study.ovary_side != "BOTH":
-        raise HTTPException(status_code=422, detail="Ảnh R/L chỉ được gắn vào ca khảo sát hai bên.")
-    if study_id and laterality:
-        existing = db.query(ImageModel).filter(
-            ImageModel.study_id == study_id, ImageModel.laterality == laterality
-        ).first()
-        if existing:
-            raise HTTPException(status_code=409, detail="Ca khám đã có ảnh cho bên khảo sát này.")
-    safe_filename = os.path.basename(file.filename or "uploaded_image.png")
-    ext = os.path.splitext(safe_filename)[1].lower()
+    if SYNTHETIC_DEMO_MODE and study is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Chế độ demo yêu cầu ca DEMO-SYNTHETIC-* đã được tạo trước khi tải ảnh.",
+        )
+    existing_study_id = study.id if study else None
+    if existing_study_id:
+        verify_active_case_lease_readonly(
+            db,
+            existing_study_id,
+            current_user,
+            lease_token,
+            page_instance_id,
+        )
+    if laterality and study:
+        allowed_lateralities = {
+            "BOTH": {"L", "R"},
+            "LEFT": {"L"},
+            "RIGHT": {"R"},
+        }.get(study.ovary_side)
+        if allowed_lateralities is not None and laterality not in allowed_lateralities:
+            raise HTTPException(status_code=422, detail="Bên ảnh không khớp với phạm vi bên đã khai báo cho ca khảo sát.")
+    ext = os.path.splitext(file.filename or "uploaded_image.png")[1].lower()
     if ext not in [".png", ".jpg", ".jpeg", ".dcm"]:
         raise HTTPException(
             status_code=400, detail="Định dạng file không hợp lệ. Vui lòng chọn ảnh PNG, JPG, JPEG hoặc DICOM (.dcm)."
         )
 
-    contents = await file.read()
-    if len(contents) > 20 * 1024 * 1024:
+    contents = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=413, detail="Dung lượng file quá lớn (> 20MB). Vui lòng nén hoặc chọn file nhỏ hơn."
         )
@@ -200,28 +401,105 @@ async def upload_image(
     if len(contents) < 64:
         raise HTTPException(status_code=400, detail="File ảnh rỗng hoặc kích thước quá nhỏ (< 64 bytes).")
     uploaded_hash = hashlib.sha256(contents).hexdigest()
+    if SYNTHETIC_DEMO_MODE and uploaded_hash not in SYNTHETIC_DEMO_ALLOWED_UPLOAD_SHA256:
+        raise HTTPException(
+            status_code=422,
+            detail="Chế độ demo chỉ chấp nhận fixture tổng hợp đã được cấu hình.",
+        )
+    source_content_sha256 = uploaded_hash
+    upload_key_digest = None
+    upload_request_digest = None
+    if isinstance(idempotency_key, UUID):
+        upload_key_digest, upload_request_digest = upload_idempotency_digests(
+            idempotency_key,
+            current_user.id,
+            {
+                "study_id": study_id,
+                "laterality": laterality,
+                "source_content_sha256": source_content_sha256,
+                "extension": ext,
+                "pixel_spacing_mm": pixel_spacing_mm,
+                "anonymized_pid": anonymized_pid,
+                "patient_age": patient_age,
+            },
+        )
 
     dicom_metadata = None
+    image_id = str(uuid.uuid4())
     if ext == ".dcm":
         try:
             import pydicom
 
-            dicom_header = pydicom.dcmread(BytesIO(contents), stop_before_pixels=True)
-            supported_dicom = is_single_frame_ultrasound_dicom(dicom_header)
+            dicom_dataset = await run_in_threadpool(pydicom.dcmread, BytesIO(contents))
+            supported_dicom = is_single_frame_ultrasound_dicom(dicom_dataset)
         except Exception:
             supported_dicom = False
         if not supported_dicom:
             raise HTTPException(status_code=400, detail="Chỉ hỗ trợ DICOM siêu âm 2D một frame có Modality US.")
+        _preflight_dicom_dimensions(dicom_dataset)
+        burned_in_annotation = str(dicom_dataset.get("BurnedInAnnotation", "UNKNOWN")).strip().upper()
+        if burned_in_annotation != "NO":
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "DICOM có chữ định danh trong pixel hoặc chưa xác nhận trạng thái. "
+                    "Hãy rà soát và loại bỏ thông tin định danh trước khi tải lên."
+                ),
+            )
+        dicom_study_key = study.id if study else image_id
+        dicom_series_key = f"{dicom_study_key}:{laterality or image_id}"
+        await run_in_threadpool(
+            minimize_dicom_patient_metadata,
+            dicom_dataset,
+            study_key=dicom_study_key,
+            series_key=dicom_series_key,
+            instance_key=image_id,
+        )
+        sanitized = BytesIO()
+        try:
+            await run_in_threadpool(dicom_dataset.save_as, sanitized)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="DICOM cannot be safely normalized.") from exc
+        contents = sanitized.getvalue()
+        if len(contents) > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="Processed DICOM exceeds the upload size limit.")
+        uploaded_hash = hashlib.sha256(contents).hexdigest()
         dicom_metadata = {
             "modality": "US",
             "number_of_frames": 1,
-            "study_instance_uid": str(dicom_header.get("StudyInstanceUID", "")) or None,
-            "series_instance_uid": str(dicom_header.get("SeriesInstanceUID", "")) or None,
-            "deidentified_boundary": "clinical_raw_storage",
+            "privacy_processing": {
+                "status": "partial_metadata_minimization",
+                "pixel_data_reviewed": False,
+                "burned_in_annotation": str(dicom_dataset.get("BurnedInAnnotation", "UNKNOWN")),
+            },
         }
+    else:
+        # Corrupt or unsupported raster bytes continue through the normal 400 path.
+        await run_in_threadpool(_preflight_raster_dimensions, contents)
+
+    if upload_key_digest is not None:
+        previous_upload = (
+            db.query(ImageModel)
+            .filter(ImageModel.upload_idempotency_key_digest == upload_key_digest)
+            .first()
+        )
+        if previous_upload is not None:
+            if previous_upload.upload_idempotency_request_digest != upload_request_digest:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Khóa thử lại đã được dùng cho một yêu cầu tải ảnh khác.",
+                )
+            return _stored_upload_replay_response(
+                db,
+                previous_upload,
+                dicom_metadata=dicom_metadata,
+                raw_filename=file.filename,
+            )
 
     if study:
         for existing_image in db.query(ImageModel).filter(ImageModel.study_id == study.id):
+            if existing_image.source_content_sha256 == source_content_sha256:
+                raise HTTPException(status_code=409, detail="Ảnh này đã tồn tại trong ca khảo sát.")
             if existing_image.file_hash == uploaded_hash:
                 raise HTTPException(status_code=409, detail="Ảnh này đã tồn tại trong ca khảo sát.")
             if existing_image.file_hash:
@@ -233,72 +511,115 @@ async def upload_image(
             except FileNotFoundError:
                 continue
 
-    image_id = str(uuid.uuid4())
     save_filename = f"{image_id}{ext}"
     file_path = os.path.join(UPLOAD_DIR, save_filename)
-
-    with open(file_path, "wb") as f:
-        f.write(contents)
+    response_payload = None
 
     try:
+        # Release SQLite's preflight read snapshot before slow decode. The lease
+        # is checked again after decode, then renewed in the write transaction.
+        db.close()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
         # Extract DICOM calibration spacing if available
-        calibrated_spacing = extract_dicom_calibration_spacing(file_path)
+        calibrated_spacing = await run_in_threadpool(extract_dicom_calibration_spacing, file_path)
         if dicom_metadata is not None:
             dicom_metadata["calibrated_spacing_mm"] = calibrated_spacing
 
         # Read image with OpenCV to get dimensions and verify validity
-        img_np = decode_ultrasound_image(file_path)
+        img_np = await run_in_threadpool(decode_ultrasound_image, file_path)
 
         if img_np is None:
             raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế. File có thể bị hỏng.")
 
+        quality = await run_in_threadpool(preprocessor.validate_ultrasound_suitability, img_np)
+        if not quality.get("is_acceptable", quality.get("is_suitable", False)):
+            raise HTTPException(status_code=422, detail=quality.get("error_message") or "Ảnh không phù hợp để phân tích siêu âm. Hãy chọn ảnh khác.")
+
         h, w = img_np.shape[:2]
-        if h * w > 25_000_000:
+        if h * w > MAX_DECODED_IMAGE_PIXELS:
             raise HTTPException(status_code=413, detail="Kích thước điểm ảnh giải mã quá lớn (> 25 triệu pixels).")
 
+        if existing_study_id:
+            # This is the transaction boundary for lease semantics: expiry at
+            # this checkpoint returns 423; after renewal, the lease update and
+            # image/audit writes remain held together through commit or rollback.
+            require_active_case_lease(
+                db,
+                existing_study_id,
+                current_user,
+                lease_token,
+                page_instance_id,
+            )
+            study = db.query(StudyModel).filter(StudyModel.id == existing_study_id).first()
+            if not study:
+                raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.")
+            check_facility_access(current_user, study.facility_id)
+
         target_study_id = study.id if study else None
-        if not study_id:
-            anonymized_pid = anonymized_pid or f"ANON-UPLOAD-{uuid.uuid4().hex[:12].upper()}"
-            patient = db.query(PatientModel).filter(PatientModel.anonymized_pid == anonymized_pid).first()
-            if not patient:
-                patient = PatientModel(
-                    id=str(uuid.uuid4()), anonymized_pid=anonymized_pid, age_bucket=patient_age
+        if study is not None and laterality in {"L", "R"}:
+            existing_side_count = (
+                db.query(ImageModel.id)
+                .filter(ImageModel.study_id == study.id, ImageModel.laterality == laterality)
+                .count()
+            )
+            if existing_side_count >= 20:
+                raise HTTPException(
+                    status_code=413,
+                    detail="Mỗi bên chỉ được lưu tối đa 20 ảnh tĩnh trong một ca nghiên cứu.",
                 )
-                db.add(patient)
+        if not study_id:
+            is_global_admin = current_user.role == "ADMIN" and not current_user.facility_id
+            if not is_global_admin and not current_user.facility_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Tài khoản chưa được gán cơ sở y tế. Vui lòng liên hệ quản trị viên.",
+                )
+            assigned_facility_id = current_user.facility_id
+            if not assigned_facility_id:
+                raise HTTPException(status_code=403, detail="Chọn một cơ sở trước khi tạo ca khám.")
+
+            clean_pid = anonymized_pid.strip() if anonymized_pid else None
+            patient = get_or_create_patient(
+                db,
+                clean_pid,
+                patient_age,
+                facility_id=assigned_facility_id,
+            ) if clean_pid else None
+            if patient:
                 db.flush()
 
             study_id = str(uuid.uuid4())
             study = StudyModel(
                 id=study_id,
-                patient_id=patient.id,
+                patient=patient,
+                patient_id=patient.id if patient else None,
                 study_code=f"STD-{datetime.now().strftime('%y%m%d')}-{uuid.uuid4().hex[:4].upper()}",
                 study_date=datetime.now().strftime("%Y-%m-%d"),
                 status="PENDING",
                 device_vendor=None,
                 probe_type=None,
+                facility_id=assigned_facility_id,
             )
             db.add(study)
             db.flush()
             target_study_id = study_id
-        else:
-            try:
-                db.expire(study)
-                study_check = db.query(StudyModel).filter(StudyModel.id == target_study_id).first()
-                if not study_check:
-                    raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.")
-            except (ObjectDeletedError, StaleDataError):
-                raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.")
 
         image_record = ImageModel(
             id=image_id,
             study_id=target_study_id,
-            filename=safe_filename,
+            filename=save_filename,
             laterality=laterality,
             raw_path=file_path,
             file_hash=uploaded_hash,
+            source_content_sha256=source_content_sha256,
+            upload_idempotency_key_digest=upload_key_digest,
+            upload_idempotency_request_digest=upload_request_digest,
             width=w,
             height=h,
             pixel_spacing_mm=pixel_spacing_mm if pixel_spacing_mm is not None else calibrated_spacing,
+            calibration_source=("MANUAL" if pixel_spacing_mm is not None else "DICOM" if calibrated_spacing is not None else None),
         )
         db.add(image_record)
 
@@ -309,7 +630,6 @@ async def upload_image(
             action_type="UPLOAD_IMAGE",
             actor_id=current_user.username,
             details={
-                "filename": safe_filename,
                 "dimensions": [w, h],
                 "size_kb": round(len(contents) / 1024, 1),
                 "study_id": target_study_id,
@@ -318,63 +638,269 @@ async def upload_image(
         )
         db.add(audit_log)
 
+        autofill_meta = extract_file_metadata(file_path, file.filename)
+        autofill_calib = get_automatic_calibration(file_path, img_np)
+
+        response_payload = {
+            "image_id": image_id,
+            "study_id": target_study_id,
+            "visit_no": study.visit_no if study is not None else None,
+            "laterality": laterality,
+            "filename": save_filename,
+            "dimensions": [w, h],
+            "size_kb": round(len(contents) / 1024, 1),
+            "dicom_metadata": dicom_metadata,
+            "autofill_metadata": autofill_meta,
+            "calibration": autofill_calib,
+            "message": "Upload và kiểm tra file thành công.",
+            "idempotent_replay": False,
+        }
+
         try:
             db.commit()
         except IntegrityError as exc:
+            db.rollback()
+            if upload_key_digest is not None:
+                committed_upload = (
+                    db.query(ImageModel)
+                    .filter(ImageModel.upload_idempotency_key_digest == upload_key_digest)
+                    .first()
+                )
+                if committed_upload is not None:
+                    if committed_upload.upload_idempotency_request_digest != upload_request_digest:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="Khóa thử lại đã được dùng cho một yêu cầu tải ảnh khác.",
+                        ) from exc
+                    try:
+                        os.remove(file_path)
+                    except FileNotFoundError:
+                        pass
+                    return _stored_upload_replay_response(
+                        db,
+                        committed_upload,
+                        dicom_metadata=dicom_metadata,
+                        raw_filename=file.filename,
+                    )
             orig_str = str(getattr(exc, "orig", exc))
-            if "uq_study_file_hash" in orig_str or "images.study_id, images.file_hash" in orig_str:
+            if ("uq_study_file_hash" in orig_str or "images.study_id, images.file_hash" in orig_str
+                    or "uq_study_source_content_sha256" in orig_str
+                    or "images.study_id, images.source_content_sha256" in orig_str):
                 raise HTTPException(status_code=409, detail="Ảnh này đã tồn tại trong ca khảo sát.") from exc
-            if "uq_study_laterality" in orig_str or "images.study_id, images.laterality" in orig_str:
-                raise HTTPException(status_code=409, detail="Ca khám đã có ảnh cho bên khảo sát này.") from exc
             if "FOREIGN KEY" in orig_str.upper() or "foreign key" in orig_str.lower():
                 raise HTTPException(status_code=404, detail="Mã ca khám không tồn tại hoặc đã bị xóa.") from exc
             raise
-    except Exception:
+    except VisitNumberCapacityExceeded as exc:
         db.rollback()
-        if os.path.exists(file_path):
+        raise HTTPException(
+            status_code=503,
+            detail="Đã hết dải Visit No 6 chữ số. Cần quản trị viên xử lý trước khi tạo lượt mới.",
+        ) from exc
+    except Exception:
+        rollback_error_type = None
+        try:
+            db.rollback()
+        except Exception as rollback_error:
+            rollback_error_type = type(rollback_error).__name__
+            logger.critical(
+                "Upload transaction rollback failed; reconciling durable state.",
+                extra={
+                    "upload_rollback_failure": True,
+                    "rollback_error_type": rollback_error_type,
+                },
+            )
+
+        try:
+            bind = db.get_bind()
+        except Exception:
+            bind = None
+        try:
+            db.close()
+        except Exception as close_error:
+            logger.critical(
+                "Upload session close failed during transaction reconciliation.",
+                extra={
+                    "upload_session_close_failure": True,
+                    "close_error_type": type(close_error).__name__,
+                },
+            )
+
+        commit_state = _verify_upload_commit(bind, image_id, file_path, uploaded_hash)
+        if commit_state is True and response_payload is not None:
+            logger.critical(
+                "Upload commit raised after the image and audit record were persisted; returning verified result.",
+                extra={"upload_commit_error_after_persist": True},
+            )
+            return response_payload
+        if commit_state is None:
+            logger.critical(
+                "Upload commit outcome is uncertain; staged file retained for database safety.",
+                extra={
+                    "upload_commit_state_unknown": True,
+                    "rollback_error_type": rollback_error_type,
+                },
+            )
+            raise
+
+        try:
+            os.remove(file_path)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            cleanup_db = None
             try:
-                os.remove(file_path)
-            except OSError:
-                pass
+                if bind is None:
+                    raise RuntimeError("Could not obtain database bind for cleanup outbox")
+                cleanup_db = Session(bind=bind)
+                pending_ids = enqueue_upload_deletions(cleanup_db, [file_path], UPLOAD_DIR)
+                cleanup_db.commit()
+                retry_pending_file_deletions(cleanup_db, UPLOAD_DIR, pending_ids)
+            except Exception as cleanup_error:
+                cleanup_rollback_error_type = None
+                if cleanup_db is not None:
+                    try:
+                        cleanup_db.rollback()
+                    except Exception as rollback_error:
+                        cleanup_rollback_error_type = type(rollback_error).__name__
+                logger.critical(
+                    "Upload cleanup and cleanup-outbox persistence both failed; orphan may remain.",
+                    extra={
+                        "upload_cleanup_double_failure": True,
+                        "cleanup_error_type": type(cleanup_error).__name__,
+                        "cleanup_rollback_error_type": cleanup_rollback_error_type,
+                    },
+                )
+            finally:
+                if cleanup_db is not None:
+                    try:
+                        cleanup_db.close()
+                    except Exception as close_error:
+                        logger.critical(
+                            "Upload cleanup session close failed.",
+                            extra={
+                                "upload_cleanup_session_close_failure": True,
+                                "close_error_type": type(close_error).__name__,
+                            },
+                        )
         raise
 
-    return {
-        "image_id": image_id,
-        "study_id": target_study_id,
-        "laterality": laterality,
-        "filename": safe_filename,
-        "dimensions": [w, h],
-        "size_kb": round(len(contents) / 1024, 1),
-        "dicom_metadata": dicom_metadata,
-        "message": "Upload và kiểm tra file thành công.",
-    }
+    return response_payload
 
 
-@router.get("/api/images/{image_id}/viewer-source", dependencies=[Depends(require_clinical)])
-def get_viewer_source(image_id: str, db: Session = Depends(get_db)):
+@router.post("/api/intake/extract-metadata", dependencies=[Depends(require_clinical)])
+async def extract_intake_metadata(file: UploadFile = File(...), validate_quality: bool = False):
+    """
+    Extracts intake metadata, laterality, and calibration preview from an ultrasound file
+    before committing to a study.
+    """
+    contents = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(contents) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File quá lớn (> 20MB).")
+    if len(contents) < 64:
+        raise HTTPException(status_code=400, detail="File rỗng hoặc quá nhỏ (< 64 bytes).")
+    if SYNTHETIC_DEMO_MODE and hashlib.sha256(contents).hexdigest() not in SYNTHETIC_DEMO_ALLOWED_UPLOAD_SHA256:
+        raise HTTPException(
+            status_code=422,
+            detail="Chế độ demo chỉ chấp nhận fixture tổng hợp đã được cấu hình.",
+        )
+
+    filename = file.filename or "unknown.png"
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".png", ".jpg", ".jpeg", ".dcm"]:
+        raise HTTPException(status_code=400, detail="Định dạng file không hợp lệ. Vui lòng chọn PNG, JPG, JPEG hoặc DICOM (.dcm).")
+
+    if ext == ".dcm":
+        try:
+            import pydicom
+
+            dicom_header = await run_in_threadpool(
+                pydicom.dcmread, BytesIO(contents), stop_before_pixels=True
+            )
+        except Exception:
+            dicom_header = None
+        if dicom_header is not None:
+            _preflight_dicom_dimensions(dicom_header)
+    else:
+        await run_in_threadpool(_preflight_raster_dimensions, contents)
+
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+        tmp.write(contents)
+        tmp_path = tmp.name
+
+    try:
+        meta = await run_in_threadpool(extract_file_metadata, tmp_path, filename)
+        decoded = await run_in_threadpool(decode_ultrasound_image, tmp_path)
+        if decoded is None:
+            raise HTTPException(status_code=400, detail="Không thể đọc nội dung file ảnh y tế.")
+        if validate_quality:
+            quality = await run_in_threadpool(preprocessor.validate_ultrasound_suitability, decoded)
+            if not quality.get("is_acceptable", quality.get("is_suitable", False)):
+                raise HTTPException(status_code=422, detail=quality.get("error_message") or "Ảnh không phù hợp để phân tích siêu âm. Hãy chọn ảnh khác.")
+        calib = await run_in_threadpool(get_automatic_calibration, tmp_path, decoded)
+        return {
+            "filename": filename,
+            "metadata": meta,
+            "calibration": calib,
+        }
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+
+
+@router.get("/api/images/{image_id}/viewer-source")
+def get_viewer_source(
+    image_id: str,
+    enable_caliper_removal: bool = False,
+    denoise_method: Literal["none", "lee", "srad", "median"] = "none",
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
     """Return the same preprocessed pixels used for inference when reopening a case."""
     image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not image_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy ảnh của ca khảo sát.")
+    study = db.query(StudyModel).filter(StudyModel.id == image_record.study_id).first() if image_record.study_id else None
+    if hasattr(current_user, "dependency"):
+        facility_id = getattr(study, "facility_id", None) or "FAC-DEFAULT-TEST"
+        current_user = db.query(UserModel).filter_by(role="DOCTOR").first() or UserModel(
+            id="test-doctor", username="doctor", role="DOCTOR", facility_id=facility_id
+        )
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     if not os.path.isfile(image_record.raw_path):
         raise HTTPException(status_code=404, detail="Không tìm thấy tệp ảnh gốc trên máy chủ.")
     decoded = decode_ultrasound_image(image_record.raw_path, grayscale=True)
     if decoded is None:
         raise HTTPException(status_code=422, detail="Không thể giải mã ảnh của ca khảo sát.")
-    _, padded_gray, _, _ = preprocessor.preprocess_for_inference(decoded)
+    try:
+        _, padded_gray, _, _ = preprocessor.preprocess_for_inference(
+            decoded,
+            enable_caliper_removal=enable_caliper_removal,
+            denoise_method=denoise_method,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     encoded, buffer = cv2.imencode(".png", padded_gray)
     if not encoded:
         raise HTTPException(status_code=500, detail="Không thể tạo ảnh cho viewer.")
-    return {"image_id": image_id, "original_image_base64": f"data:image/png;base64,{base64.b64encode(buffer).decode('ascii')}"}
+    return {
+        "image_id": image_id,
+        "original_image_base64": f"data:image/png;base64,{base64.b64encode(buffer).decode('ascii')}",
+        "caliper_removed": bool(enable_caliper_removal),
+        "denoise_method": str(denoise_method),
+    }
 
 
-@router.get("/api/images/{image_id}/mask.png", dependencies=[Depends(require_clinical)])
+@router.get("/api/images/{image_id}/mask.png")
 def export_source_mask(
     image_id: str,
     kind: Literal["ai", "reviewed"] = "reviewed",
     review_id: str | None = None,
     prediction_id: str | None = None,
     db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
 ):
     """Export the selected binary mask in the decoded source image's pixel space."""
     if kind == "ai" and review_id is not None:
@@ -385,6 +911,9 @@ def export_source_mask(
     image_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not image_record or not os.path.isfile(image_record.raw_path):
         raise HTTPException(status_code=404, detail="Source image unavailable.")
+
+    study = db.query(StudyModel).filter(StudyModel.id == image_record.study_id).first() if image_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
 
     if kind == "reviewed":
         if review_id is not None:
@@ -427,11 +956,6 @@ def export_source_mask(
     )
 
 
-def get_image_calibration(image_record):
-    dicom_spacing = extract_dicom_calibration_spacing(image_record.raw_path) if os.path.isfile(image_record.raw_path) else None
-    return calibration_metadata(image_record.pixel_spacing_mm, dicom_spacing)
-
-
 def load_decoded_source(image_record):
     if image_record is None or not os.path.isfile(image_record.raw_path):
         raise HTTPException(status_code=404, detail="Source image unavailable.")
@@ -444,13 +968,19 @@ def load_decoded_source(image_record):
     return decoded
 
 
-@router.get("/api/images/{image_id}/source.png", dependencies=[Depends(require_clinical)])
-def export_decoded_source(image_id: str, db: Session = Depends(get_db)):
+@router.get("/api/images/{image_id}/source.png")
+def export_decoded_source(
+    image_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
     """Return the full decoded raster, without CLAHE, letterboxing or viewer filters."""
     record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh nguồn.")
+    study = db.query(StudyModel).filter(StudyModel.id == record.study_id).first() if record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     decoded = load_decoded_source(record)
-    if record.raw_path.lower().endswith(".dcm") and decoded.ndim == 3:
-        decoded = cv2.cvtColor(decoded, cv2.COLOR_RGB2BGR)
     encoded, buffer = cv2.imencode(".png", decoded)
     if not encoded:
         raise HTTPException(status_code=500, detail="Source export failed.")
@@ -460,10 +990,19 @@ def export_decoded_source(image_id: str, db: Session = Depends(get_db)):
     })
 
 
-@router.post("/api/images/{image_id}/measurements", dependencies=[Depends(require_clinical)])
-def source_mask_measurements(image_id: str, req: MaskMeasurementsRequest, db: Session = Depends(get_db)):
+@router.post("/api/images/{image_id}/measurements")
+def source_mask_measurements(
+    image_id: str,
+    req: MaskMeasurementsRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
     """Measure the supplied editable mask in actual source pixels; do not persist it."""
     record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh.")
+    study = db.query(StudyModel).filter(StudyModel.id == record.study_id).first() if record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     decoded = load_decoded_source(record)
     return measure_source_mask(
         decoded, req.rle_mask, preprocessor, model_registry.get_primary_adapter().engine,
@@ -472,7 +1011,13 @@ def source_mask_measurements(image_id: str, req: MaskMeasurementsRequest, db: Se
 
 
 @router.post("/api/validate-image", response_model=ImageValidationResult)
-def validate_image_quality(image_id: str, db: Session = Depends(get_db)):
+def validate_image_quality(
+    image_id: str,
+    lease_token: str | None = Header(None, alias="X-Case-Lease-Token"),
+    page_instance_id: str | None = Header(None, alias="X-Case-Page-Instance-Id"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """
     Performs pre-inference Image Quality Assessment (IQA) & Modality Validation.
     Verifies ultrasound format, resolution, blur, saturation, and exposure.
@@ -480,6 +1025,18 @@ def validate_image_quality(image_id: str, db: Session = Depends(get_db)):
     img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not img_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
+    if not img_record.study_id:
+        raise HTTPException(status_code=409, detail="Ảnh chưa thuộc một ca khảo sát có thể chỉnh sửa.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first()
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
+    require_active_case_lease(
+        db,
+        img_record.study_id,
+        current_user,
+        lease_token,
+        page_instance_id,
+        allow_reviewed=True,
+    )
     file_path = img_record.raw_path
 
     if not os.path.exists(file_path):
@@ -496,7 +1053,7 @@ def validate_image_quality(image_id: str, db: Session = Depends(get_db)):
         entity_name="image",
         entity_id=image_id,
         action_type="VALIDATE_IQA",
-        actor_id="system_iqa_service",
+        actor_id=current_user.username,
         details={
             "is_acceptable": validation["is_suitable"],
             "iqa_score": validation["iqa_score"],
@@ -517,21 +1074,108 @@ def validate_image_quality(image_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/api/predict/{image_id}", response_model=PredictionResponse)
-def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: Session = Depends(get_db)):
+def run_ai_prediction(
+    image_id: str,
+    pixel_spacing_mm: float | None = None,
+    generate_overlay: bool = False,
+    include_overlay: bool | None = None,
+    include_original_image: bool = True,
+    enable_caliper_removal: bool = False,
+    denoise_method: Literal["none", "lee", "srad", "median"] = "none",
+    model_key: str | None = None,
+    lease_token: str | None = Header(None, alias="X-Case-Lease-Token"),
+    page_instance_id: str | None = Header(None, alias="X-Case-Page-Instance-Id"),
+    idempotency_key: UUID | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     """
-    Executes end-to-end preprocessing, Attention U-Net inference via ModelRegistry,
+    Executes end-to-end preprocessing and manifest-selected model inference via ModelRegistry,
     uncertainty estimation, and automated caliper measurement.
     Rejects unsuitable images with HTTP 422.
     """
-    validate_pixel_spacing(pixel_spacing_mm)
-    if not model_registry.get_primary_adapter().is_loaded:
-        raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
+    should_generate_overlay = generate_overlay if include_overlay is None else include_overlay
     img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not img_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first() if img_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
     file_path = img_record.raw_path
     filename = img_record.filename
     study_id = img_record.study_id
+
+    if study_id:
+        study_status = db.query(StudyModel.status).filter(StudyModel.id == study_id).scalar()
+        if (study_status or "").upper() in _FINAL_STATUSES:
+            raise HTTPException(
+                status_code=409,
+                detail="Ca khám đã hoàn tất rà soát hoặc đã khóa, không thể chạy lại dự đoán AI.",
+            )
+
+    if not image_id.startswith("sample_"):
+        if not study_id:
+            raise HTTPException(status_code=409, detail="Ảnh chưa thuộc một ca khảo sát có thể chỉnh sửa.")
+        require_active_case_lease(
+            db,
+            study_id,
+            current_user,
+            lease_token,
+            page_instance_id,
+            allow_reviewed=True,
+        )
+
+    validate_pixel_spacing(pixel_spacing_mm)
+    stored_calibration = get_image_calibration(img_record)
+    pixel_spacing = (
+        pixel_spacing_mm
+        if pixel_spacing_mm is not None
+        else stored_calibration["pixel_spacing_mm"]
+    )
+    calibration_source = (
+        "MANUAL" if pixel_spacing_mm is not None
+        else stored_calibration["calibration_source"]
+    )
+    prediction_key_digest = None
+    prediction_request_digest = None
+    if isinstance(idempotency_key, UUID):
+        prediction_key_digest, prediction_request_digest = prediction_idempotency_digests(
+            idempotency_key,
+            current_user.id,
+            {
+                "image_id": image_id,
+                "source_sha256": img_record.source_content_sha256 or img_record.file_hash,
+                "pixel_spacing_mm": pixel_spacing,
+                "calibration_source": calibration_source,
+            },
+        )
+        previous_prediction = (
+            db.query(PredictionModel)
+            .filter(PredictionModel.idempotency_key_digest == prediction_key_digest)
+            .first()
+        )
+        if previous_prediction is not None:
+            if previous_prediction.idempotency_request_digest != prediction_request_digest:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Khóa thử lại đã được dùng cho một yêu cầu phân tích ảnh khác.",
+                )
+            return _stored_prediction_replay_response(
+                previous_prediction,
+                img_record,
+                generate_overlay=should_generate_overlay,
+                include_original_image=include_original_image,
+            )
+
+    if not model_registry.get_primary_adapter().is_loaded:
+        raise HTTPException(status_code=503, detail="Checkpoint mô hình chưa được nạp hoặc không khớp SHA-256 đã chọn.")
+
+    if model_key is not None:
+        selected_adapter = model_registry.get_adapter(model_key)
+        if selected_adapter is None:
+            raise HTTPException(status_code=422, detail="Mã mô hình không tồn tại.")
+        if (not selected_adapter.is_loaded
+                or getattr(selected_adapter, "ADAPTER_MODE", None) == "FALLBACK_TO_PRIMARY_MODEL"):
+            raise HTTPException(status_code=503, detail="Mô hình được chọn chưa có triển khai và checkpoint độc lập đã xác minh.")
 
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File ảnh không tồn tại trên ổ đĩa.")
@@ -553,23 +1197,37 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
     start_time = datetime.now()
 
     # 1. Preprocess & IQA
-    tensor, padded_gray, transform_params, iqa_report = preprocessor.preprocess_for_inference(img_np)
+    try:
+        tensor, padded_gray, transform_params, iqa_report = preprocessor.preprocess_for_inference(
+            img_np,
+            enable_caliper_removal=enable_caliper_removal,
+            denoise_method=denoise_method,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
     # 2. Run Pure Neural Network Inference via ModelRegistry
-    pixel_spacing = pixel_spacing_mm if pixel_spacing_mm is not None else calibration_metadata(img_record.pixel_spacing_mm)["pixel_spacing_mm"]
-    if pixel_spacing_mm is not None:
-        img_record.pixel_spacing_mm = pixel_spacing_mm
-    roi_mask = transform_params.get("roi_mask")
     scale = float(transform_params.get("scale", 1.0))
     inference_result = model_registry.predict(
-        tensor, padded_gray, pixel_spacing_mm=pixel_spacing, roi_mask=roi_mask, scale=scale
+        tensor,
+        padded_gray,
+        pixel_spacing_mm=pixel_spacing,
+        model_key=model_key,
+        scale=scale,
+        generate_overlay=should_generate_overlay,
     )
+
+    if isinstance(inference_result.get("measurements"), dict):
+        inference_result["measurements"]["calibration_source"] = calibration_source
 
     inference_duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
-    # Encode original 512x512 gray to base64
-    _, orig_buffer = cv2.imencode(".png", padded_gray)
-    orig_b64 = f"data:image/png;base64,{base64.b64encode(orig_buffer).decode('utf-8')}"
+    # Encode original 512x512 gray to base64 if requested
+    if include_original_image:
+        _, orig_buffer = cv2.imencode(".png", padded_gray)
+        orig_b64 = f"data:image/png;base64,{base64.b64encode(orig_buffer).decode('utf-8')}"
+    else:
+        orig_b64 = None
 
     clean_transform = {
         "scale": float(transform_params.get("scale", 1.0)),
@@ -601,25 +1259,55 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
         "threshold": float(getattr(engine_obj, "threshold", 0.5)),
         "native_shape": [int(img_np.shape[0]), int(img_np.shape[1])],
         "transform": clean_transform,
-        "model_version": inference_result.get("provenance", {}).get("model_version", "AttentionUNet-v1.2"),
+        "model_version": inference_result.get("provenance", {}).get("model_version", "unspecified"),
         "pixel_spacing_mm": inference_result.get("provenance", {}).get("pixel_spacing_mm"),
+        "calibration_source": calibration_source,
         "created_at": datetime.now(UTC).isoformat(),
+    }
+
+    # Include source decoding and classification in the end-to-end server timing.
+    classification_start = time.perf_counter()
+    classification = image_classifier.predict(decode_ultrasound_image(file_path))
+    classification_duration_ms = (time.perf_counter() - classification_start) * 1000.0
+    pipeline_duration_ms = (time.perf_counter() - pipeline_start) * 1000.0
+    forward_ms = inference_result.get("timings", {}).get("model_forward_ms")
+    timings = {
+        "model_forward_ms": round(float(forward_ms), 2) if forward_ms is not None else None,
+        "server_pipeline_ms": round(float(pipeline_duration_ms), 2),
+        "classification_ms": round(float(classification_duration_ms), 2),
+    }
+    response_extras = {
+        "iqa": iqa_report,
+        "uncertainty": inference_result.get("uncertainty"),
+        "quality_gate": inference_result.get("quality_gate"),
+        "timings": timings,
+        "acoustic_profile": inference_result.get("acoustic_profile"),
+        "cdss_classification": inference_result.get("cdss_classification"),
+        "ai_diagnosis": classification,
+        "unified_findings": None,
     }
 
     prediction_id = None
     # If real DB record, save prediction and update study status
     if not image_id.startswith("sample_"):
+        if pixel_spacing_mm is not None:
+            img_record.pixel_spacing_mm = pixel_spacing_mm
+            img_record.calibration_source = "MANUAL"
         prediction_id = str(uuid.uuid4())
         pred_record = PredictionModel(
             id=prediction_id,
             image_id=image_id,
-            model_version=inference_result.get("provenance", {}).get("model_version", "AttentionUNet-v1.2"),
+            model_version=inference_result.get("provenance", {}).get("model_version", "unspecified"),
             inference_time_ms=inference_duration_ms,
             confidence_score=inference_result["confidence_score"],
             iqa_score=iqa_report["iqa_score"],
             raw_mask_rle=inference_result["rle_mask"],
             measurements=inference_result["measurements"],
             provenance_json=provenance_payload,
+            uncertainty_map_png=inference_result.get("uncertainty_map_png"),
+            idempotency_key_digest=prediction_key_digest,
+            idempotency_request_digest=prediction_request_digest,
+            response_extras_json=response_extras,
         )
         db.add(pred_record)
 
@@ -647,14 +1335,29 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
             },
         )
         db.add(audit_log)
-        db.commit()
-
-    pipeline_duration_ms = (time.perf_counter() - pipeline_start) * 1000.0
-    forward_ms = inference_result.get("timings", {}).get("model_forward_ms")
-    timings = {
-        "model_forward_ms": round(float(forward_ms), 2) if forward_ms is not None else None,
-        "server_pipeline_ms": round(float(pipeline_duration_ms), 2),
-    }
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            if prediction_key_digest is not None:
+                committed_prediction = (
+                    db.query(PredictionModel)
+                    .filter(PredictionModel.idempotency_key_digest == prediction_key_digest)
+                    .first()
+                )
+                if committed_prediction is not None:
+                    if committed_prediction.idempotency_request_digest != prediction_request_digest:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="Khóa thử lại đã được dùng cho một yêu cầu phân tích ảnh khác.",
+                        ) from exc
+                    return _stored_prediction_replay_response(
+                        committed_prediction,
+                        img_record,
+                        generate_overlay=should_generate_overlay,
+                        include_original_image=include_original_image,
+                    )
+            raise
 
     return {
         "image_id": image_id,
@@ -668,12 +1371,23 @@ def run_ai_prediction(image_id: str, pixel_spacing_mm: float | None = None, db: 
         "acoustic_profile": inference_result.get("acoustic_profile"),
         "cdss_classification": inference_result.get("cdss_classification"),
         "rle_mask": inference_result["rle_mask"],
-        "overlay_base64": inference_result["overlay_base64"],
+        "overlay_base64": inference_result.get("overlay_base64") if should_generate_overlay else None,
         "original_image_base64": orig_b64,
+        "uncertainty_map_base64": (
+            "data:image/png;base64,"
+            + base64.b64encode(inference_result["uncertainty_map_png"]).decode("ascii")
+            if inference_result.get("uncertainty_map_png")
+            else None
+        ),
         "uncertainty": inference_result.get("uncertainty"),
         "quality_gate": inference_result.get("quality_gate"),
         "provenance": provenance_payload,
         "timings": timings,
+        # Image classification comes from its separate hash-verified checkpoint,
+        # never from segmentation geometry; it does not establish histology.
+        "ai_diagnosis": classification,
+        "unified_findings": None,
+        "idempotent_replay": False,
     }
 
 
@@ -684,6 +1398,8 @@ def calibrate_image_spacing(
     pixel_spacing_mm: float | None = None,
     distance_mm: float | None = None,
     distance_pixels: float | None = None,
+    lease_token: str | None = Header(None, alias="X-Case-Lease-Token"),
+    page_instance_id: str | None = Header(None, alias="X-Case-Page-Instance-Id"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(require_clinical),
 ):
@@ -695,6 +1411,8 @@ def calibrate_image_spacing(
     img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
     if not img_record:
         raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first() if img_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
 
     spacing = None
     if pixel_spacing_mm is not None:
@@ -708,7 +1426,14 @@ def calibrate_image_spacing(
             detail="Vui lòng cung cấp pixel_spacing_mm hợp lệ (> 0) hoặc thông số khoảng cách chuẩn.",
         )
     spacing = validate_pixel_spacing(round(spacing, 4))
-    img_record.pixel_spacing_mm = spacing
+    require_active_case_lease(
+        db,
+        img_record.study_id,
+        current_user,
+        lease_token,
+        page_instance_id,
+        allow_reviewed=True,
+    )
 
     # If prediction exists, update measurements with calibrated spacing
     prediction = (
@@ -718,18 +1443,35 @@ def calibrate_image_spacing(
         .first()
     )
     updated_measurements = None
+    updated_provenance = None
     if prediction and prediction.raw_mask_rle:
+        prov = dict(prediction.provenance_json) if isinstance(prediction.provenance_json, dict) else {}
+        calib_scale = _validated_prediction_letterbox_scale(prov.get("transform"), img_record)
+        if calib_scale is None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Không thể cập nhật số đo vì provenance letterbox của dự đoán không hợp lệ; "
+                    "hãy chạy lại phân tích ảnh trước."
+                ),
+            )
         engine = model_registry.get_primary_adapter().engine
         mask = engine.rle_to_mask(prediction.raw_mask_rle)
-        prov = dict(prediction.provenance_json or {})
-        transform = prov.get("transform") or {}
-        calib_scale = float(transform.get("scale", 1.0))
-        effective_spacing = (spacing / calib_scale) if calib_scale > 0 else spacing
+        if mask.shape != (512, 512):
+            raise HTTPException(
+                status_code=409,
+                detail="Không thể cập nhật số đo vì kích thước mặt nạ dự đoán không hợp lệ; hãy chạy lại phân tích ảnh.",
+            )
+        effective_spacing = validate_pixel_spacing(spacing / calib_scale)
         updated_measurements = engine.extract_calipers_and_measurements(mask, pixel_spacing_mm=effective_spacing)
+        if updated_measurements.get("calibrated") is not True:
+            raise HTTPException(
+                status_code=422,
+                detail="Tỷ lệ hiệu chuẩn không an toàn để tính lại số đo; không có dữ liệu nào được cập nhật.",
+            )
         updated_measurements["calibrated"] = True
         updated_measurements["pixel_spacing_mm"] = spacing
         updated_measurements["calibration_source"] = "MANUAL"
-        prediction.measurements = updated_measurements
 
         # AI-09: Synchronize provenance_json and preserve original inference provenance separately
         from datetime import UTC
@@ -745,10 +1487,17 @@ def calibrate_image_spacing(
         if "original_inference_pixel_spacing_mm" not in prov:
             prov["original_inference_pixel_spacing_mm"] = old_spacing
         prov["pixel_spacing_mm"] = spacing
+        prov["calibration_source"] = "MANUAL"
         prov["calibration_history"] = calib_history
         prov["last_calibrated_at"] = datetime.now(UTC).isoformat()
         prov["calibrated_by"] = current_user.username
-        prediction.provenance_json = prov
+        updated_provenance = prov
+
+    img_record.pixel_spacing_mm = spacing
+    img_record.calibration_source = "MANUAL"
+    if updated_measurements is not None:
+        prediction.measurements = updated_measurements
+        prediction.provenance_json = updated_provenance
 
     audit = AuditLogModel(
         entity_name="image",
@@ -767,3 +1516,67 @@ def calibrate_image_spacing(
         "measurements": updated_measurements,
         "message": f"Đã hiệu chuẩn tỉ lệ vật lý: {spacing} mm/pixel.",
     }
+
+
+
+@router.post("/api/v1/inference/interactive-prompt", include_in_schema=False)
+def run_interactive_prompt_segmentation(_req: InteractivePromptRequest):
+    """Fail closed until a validated, reviewed interactive-segmentation workflow exists."""
+    raise HTTPException(
+        status_code=501,
+        detail=(
+            "Interactive prompt segmentation is disabled in this RUO build because no validated model implementation is available."
+        ),
+    )
+
+
+class ClassifyLesionRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    mask_rle: dict[str, Any] | None = None
+    pixel_spacing_mm: float | None = Field(default=None, gt=0, allow_inf_nan=False, strict=True)
+
+
+@router.post("/api/images/{image_id}/classify")
+def classify_lesion(
+    image_id: str,
+    payload: ClassifyLesionRequest | None = None,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_clinical),
+):
+    """
+    Classifies ovarian pathology across 8 MMOTU disease categories given an image and optional mask.
+    Combines ResNet-34 pathology classification, morphological measurements, and DiagnosticReasoningEngine.
+    """
+    img_record = db.query(ImageModel).filter(ImageModel.id == image_id).first()
+    if not img_record:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi ảnh y tế trên hệ thống.")
+    study = db.query(StudyModel).filter(StudyModel.id == img_record.study_id).first() if img_record.study_id else None
+    check_facility_access(current_user, getattr(study, 'facility_id', None) if study else None)
+
+    image_np = load_decoded_source(img_record)
+
+    mask_np = None
+    pixel_spacing = None
+    if payload:
+        pixel_spacing = validate_pixel_spacing(payload.pixel_spacing_mm)
+        if payload.mask_rle is not None:
+            try:
+                from backend.services.inference_engine import InferenceEngine
+                if payload.mask_rle.get("shape") != [512, 512]:
+                    raise ValueError("Expected viewer mask in 512×512 coordinates.")
+                mask_np = InferenceEngine.rle_to_mask(payload.mask_rle)
+                _, transform = preprocessor.letterbox_resize(image_np)
+                mask_np = preprocessor.inverse_letterbox_mask(mask_np, transform)
+            except Exception as exc:
+                raise HTTPException(status_code=422, detail=f"Dữ liệu mask RLE không hợp lệ: {exc}")
+
+    if pixel_spacing is None:
+        pixel_spacing = get_image_calibration(img_record)["pixel_spacing_mm"]
+
+    from backend.services.disease_classifier import DiseaseClassifierService
+    classifier = DiseaseClassifierService()
+    try:
+        result = classifier.predict_disease(image_np, mask=mask_np, pixel_spacing_mm=pixel_spacing)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return result

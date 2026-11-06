@@ -1,59 +1,31 @@
-"""Train Standard U-Net on every local Vinmec_2D and Vinmec_CEUS image-mask pair."""
+"""Train Standard U-Net on an image-level Train/Validation split."""
 
 import argparse
-import csv
 import hashlib
 import json
 import time
 from pathlib import Path
 
-import cv2
-import numpy as np
 import torch
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
 
-from ai_training.dataset_loader import OvarianUltrasoundDataset
-from ai_training.train_baseline_unet import ComboLoss, compute_batch_dice
+from ai_training.train_baseline_unet import ComboLoss, compute_batch_dice, load_train_val_datasets
 from backend.models.unet import StandardUNet
 
-GROUPS = (
-    ("Vinmec_2D_train", "Vinmec_2D/train/train_image", "Vinmec_2D/train/train_label/label"),
-    ("Vinmec_2D_test", "Vinmec_2D/test/image", "Vinmec_2D/test/label/black_write"),
-    ("Vinmec_CEUS", "Vinmec_CEUS/image", "Vinmec_CEUS/label"),
-)
 
+def train_full(split_dir: Path, output_dir: Path, epochs: int = 12, batch_size: int = 2) -> Path:
+    if epochs < 1 or batch_size < 1:
+        raise ValueError("Epochs and batch size must be positive")
 
-def discover_pairs(data_dir: Path) -> list[tuple[str, Path, Path]]:
-    pairs = []
-    for group, image_dir, mask_dir in GROUPS:
-        images = {path.stem: path for path in (data_dir / image_dir).glob("*.JPG")}
-        masks = {path.stem: path for path in (data_dir / mask_dir).glob("*.PNG")}
-        if not images or images.keys() != masks.keys():
-            raise ValueError(f"Missing image or mask in {group}: images={len(images)}, masks={len(masks)}")
-        for stem in sorted(images):
-            image = cv2.imread(str(images[stem]), cv2.IMREAD_GRAYSCALE)
-            mask = cv2.imread(str(masks[stem]), cv2.IMREAD_GRAYSCALE)
-            if image is None or mask is None or image.shape != mask.shape:
-                raise ValueError(f"Invalid image-mask pair: {group}/{stem}")
-            if not set(np.unique(mask)).issubset({0, 255}):
-                raise ValueError(f"Non-binary mask: {group}/{stem}")
-            pairs.append((f"{group}_{stem}", images[stem], masks[stem]))
-    return pairs
-
-
-def train_full(data_dir: Path, output_dir: Path, epochs: int = 12, batch_size: int = 2) -> Path:
-    pairs = discover_pairs(data_dir)
+    split_dir = Path(split_dir)
+    train_dataset, val_dataset, manifest = load_train_val_datasets(split_dir)
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    manifest = output_dir / "full_unet_manifest.csv"
-    with manifest.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.writer(stream)
-        writer.writerow(("case_id", "image_path", "mask_path"))
-        writer.writerows((case_id, image.as_posix(), mask.as_posix()) for case_id, image, mask in pairs)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
-    dataset = OvarianUltrasoundDataset(str(manifest), is_train=True)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(device)
     criterion = ComboLoss(bce_weight=0.5, dice_weight=0.5)
@@ -64,13 +36,19 @@ def train_full(data_dir: Path, output_dir: Path, epochs: int = 12, batch_size: i
     latest = output_dir / "full_unet_latest.pth"
     final = output_dir / "full_unet_final.pth"
     history = []
+    best_val_dice = float("-inf")
     started = time.time()
-    print(f"Training {len(pairs)} image-mask pairs on {device}; {epochs} epochs, batch size {batch_size}", flush=True)
+    print(
+        f"Training {len(train_dataset)} image-level training pairs on {device}; "
+        f"validation pairs={len(val_dataset)}, {epochs} epochs, batch size {batch_size}",
+        flush=True,
+    )
 
     for epoch in range(1, epochs + 1):
         model.train()
-        loss_sum = dice_sum = 0.0
-        for batch in loader:
+        train_loss_sum = train_dice_sum = 0.0
+        optimizer_steps = 0
+        for batch in train_loader:
             images = batch["image"].to(device)
             masks = batch["mask"].to(device)
             optimizer.zero_grad(set_to_none=True)
@@ -78,28 +56,85 @@ def train_full(data_dir: Path, output_dir: Path, epochs: int = 12, batch_size: i
                 logits = model(images)
                 loss = criterion(logits, masks)
             scaler.scale(loss).backward()
+            previous_scale = scaler.get_scale()
             scaler.step(optimizer)
             scaler.update()
-            loss_sum += loss.item()
-            dice_sum += compute_batch_dice(logits.detach(), masks)
-        scheduler.step()
-        row = {"epoch": epoch, "train_loss": loss_sum / len(loader), "train_dice": dice_sum / len(loader)}
-        history.append(row)
-        torch.save(model.state_dict(), latest)
-        history_path.write_text(json.dumps(history, indent=2), encoding="utf-8")
-        print(f"Epoch {epoch}/{epochs}: loss={row['train_loss']:.4f}, train_dice={row['train_dice']:.4f}", flush=True)
+            optimizer_steps += scaler.get_scale() >= previous_scale
+            count = images.shape[0]
+            train_loss_sum += loss.item() * count
+            train_dice_sum += compute_batch_dice(logits.detach(), masks) * count
 
+        model.eval()
+        val_dice_sum = 0.0
+        with torch.no_grad():
+            for batch in val_loader:
+                images = batch["image"].to(device)
+                masks = batch["mask"].to(device)
+                with torch.amp.autocast("cuda", enabled=device.type == "cuda"):
+                    logits = model(images)
+                val_dice_sum += compute_batch_dice(logits, masks) * images.shape[0]
+
+        if optimizer_steps:
+            scheduler.step()
+        train_loss = train_loss_sum / len(train_dataset)
+        train_dice = train_dice_sum / len(train_dataset)
+        val_dice = val_dice_sum / len(val_dataset)
+        improved = val_dice > best_val_dice
+        if improved:
+            best_val_dice = val_dice
+            torch.save(model.state_dict(), latest)
+        record = {
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "train_dice": train_dice,
+            "val_dice": val_dice,
+            "is_best": improved,
+        }
+        history.append(record)
+        history_path.write_text(json.dumps(history, indent=2) + "\n", encoding="utf-8")
+        print(
+            f"Epoch {epoch}/{epochs}: loss={train_loss:.4f}, "
+            f"train_dice={train_dice:.4f}, val_dice={val_dice:.4f}",
+            flush=True,
+        )
+
+    if not latest.is_file():
+        raise RuntimeError("Validation did not produce a selectable checkpoint")
     latest.replace(final)
     digest = hashlib.sha256(final.read_bytes()).hexdigest()
+    manifest_path = split_dir / "manifest.json"
+    run_config = {
+        "architecture": "Standard U-Net (base_filters=32)",
+        "identity_status": "image_level_verified",
+        "split_level": "image-level",
+        "patient_level_independence_verified": False,
+        "split_dir": str(split_dir.resolve()),
+        "split_manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "train_count": len(train_dataset),
+        "validation_count": len(val_dataset),
+        "test_split_image_data_used": False,
+        "selection_metric": "validation Dice",
+        "best_validation_dice": best_val_dice,
+        "checkpoint": str(final.resolve()),
+        "checkpoint_sha256": digest,
+        "duration_seconds": round(time.time() - started, 2),
+    }
+    (output_dir / "full_unet_run_config.json").write_text(
+        json.dumps(run_config, indent=2) + "\n", encoding="utf-8"
+    )
     print(f"Finished in {(time.time() - started) / 60:.1f} min; checkpoint={final}; sha256={digest}", flush=True)
     return final
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", type=Path, default=Path("dataset"))
-    parser.add_argument("--output-dir", type=Path, default=Path("checkpoints"))
+    parser.add_argument(
+        "--split-dir",
+        type=Path,
+        default=Path("ai_training/splits/unified_vinmec_clean_2026-10-06"),
+    )
+    parser.add_argument("--output-dir", type=Path, default=Path("checkpoints/full_unet"))
     parser.add_argument("--epochs", type=int, default=12)
     parser.add_argument("--batch-size", type=int, default=2)
     args = parser.parse_args()
-    train_full(args.data_dir, args.output_dir, args.epochs, args.batch_size)
+    train_full(args.split_dir, args.output_dir, args.epochs, args.batch_size)

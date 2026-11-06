@@ -1,0 +1,10 @@
+[
+  {
+    "page": 1,
+    "text": "KẾT QUẢ KHẢO SÁT\nTHÔNG TIN NGHIÊN CỨU RUO\nPhạm vi: nghiên cứu kỹ thuật · Rà soát nội dung: bác sĩ phụ trách · Xác thực chữ ký số: ngoài phạm vi tài liệu này\nPID: SYN-\n75A6A9D7F7E34ADD8F2671D32064EC6\nD\nVisit: 000001\nNgày khảo sát: 04/11/2026\nTHÔNG TIN CA\nMã ca\nSTD-261104-E71B\nTrạng thái lưu rà soát\nĐã lưu rà soát cho các ảnh trong hồ sơ\nTrạng thái lưu phản ánh dữ liệu rà soát; mô tả, O-RADS và kết luận\nđược quản lý riêng.\nKẾT QUẢ GHI NHẬN\nBÊN TRÁI\n1 ảnh tĩnh đã được gắn với bên này. Số đo và nhận\nđịnh được liệt kê riêng theo từng ảnh ở các trang\nhình ảnh.\nBÊN PHẢI\nChưa có ảnh khảo sát bên này.\nTHÔNG TIN HỖ TRỢ\nModel\nU-Net++ (ResNet34 ImageNet + scSE Attention)\nCheckpoint · SHA-256\n67624bbb0e50e236df7b5c82736eaadab1ff1fff5547c5e813bca545c2dd2045\nReviewer ID\ndoctor\nTHÔNG TIN BẢN GHI\nSố đo hỗ trợ được tính từ lớp phủ và ghi rõ nguồn ngay dưới số đo; ảnh gốc cùng lớp phủ được trình bày ở phần\nhình ảnh. Mô tả và O-RADS hiển thị từ bản ghi rà soát. Hệ thống hỗ trợ phân đoạn và tổng hợp thông tin; bác sĩ\nphụ trách hoàn thiện phần kết luận và kế hoạch chuyên môn.\nStudy ID: 315036cb-9514-4f6e-9d1a-61f2d8bf1325\nRevision: 2\nTrang 1/2\n"
+  },
+  {
+    "page": 2,
+    "text": "HÌNH ẢNH KHẢO SÁT ·\nẢNH 1\nPID: SYN-\n75A6A9D7F7E34ADD8F2671D32064EC6D\nVisit: 000001\nBuồng trứng trái\nTHÔNG TIN NGHIÊN CỨU RUO\nPhạm vi: nghiên cứu kỹ thuật · Rà soát nội dung: bác sĩ phụ trách · Xác thực chữ ký số: ngoài phạm vi tài liệu này\nBÊN TRÁI\nẢnh 1\nMask đã được bác sĩ rà soát\nẢNH GỐC\nLỚP PHỦ\nMô tả: đã ghi nhận · O-RADS: đã ghi nhận\nChưa có vùng phân đoạn trong mask để hiển thị số đo.\nO-RADS do bác sĩ ghi nhận\nO-RADS 2\nMô tả\nSynthetic morphology audit\nGhi chú\nSynthetic independent physician note\nTHÔNG TIN RÀ SOÁT\nLớp phủ hỗ trợ định vị vùng và hiển thị cùng ảnh gốc để bác sĩ đối chiếu.\nTrạng thái lưu mask và nội dung mô tả, phân tầng được quản lý riêng.\nTài liệu; chữ ký số và chỉ định điều trị theo quy trình chuyên môn của cơ sở.\nStudy ID: 315036cb-9514-4f6e-9d1a-61f2d8bf1325\nRevision: 2\nTrang 2/2\n"
+  }
+]

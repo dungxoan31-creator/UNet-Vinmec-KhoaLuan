@@ -6,8 +6,17 @@ from pathlib import Path
 def resolve_dataset_path(root: Path, recorded: str) -> Path:
     relative = recorded.replace("\\", "/")
     original = root / relative
-    if original.is_file():
+    if original.is_file() or original.is_dir():
         return original
+
+    relocated_directories = {
+        "dataset/Vinmec/Vinmec_2d/images": "dataset/2d/images",
+        "dataset/Vinmec/Vinmec_2d/annotations": "dataset/2d/masks",
+        "dataset/Vinmec/Vinmec_3d/images": "dataset/3d/images",
+        "dataset/Vinmec/Vinmec_3d/annotations": "dataset/3d/masks",
+    }
+    if relative in relocated_directories:
+        return root / relocated_directories[relative]
 
     parts = relative.split("/")
     if len(parts) < 4 or parts[0] != "dataset":

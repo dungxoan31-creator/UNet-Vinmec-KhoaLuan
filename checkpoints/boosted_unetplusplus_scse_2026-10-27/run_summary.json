@@ -1,0 +1,65 @@
+{
+  "architecture": "U-Net++ (resnet34) with scse attention",
+  "encoder": "resnet34",
+  "attention": "scse",
+  "init_checkpoint": "checkpoints\\boosted_unetplusplus_multi_source_2026-10-27\\stage1_mmotu\\boosted_unetplusplus_mmotu_stage1_best.pth",
+  "loss": "AdvancedHybridLoss(0.5 FocalTversky + 0.3 SoftDice + 0.2 BCE)",
+  "epochs_requested": 20,
+  "epochs_completed": 13,
+  "best_epoch": 7,
+  "best_checkpoint": "C:\\Users\\Dung\\Documents\\UNet-Vinmec-KhoaLuan\\checkpoints\\boosted_unetplusplus_scse_2026-10-27\\boosted_resnet34_scse_best.pth",
+  "best_checkpoint_sha256": "67624bbb0e50e236df7b5c82736eaadab1ff1fff5547c5e813bca545c2dd2045",
+  "best_validation": {
+    "loss": 0.199354140311755,
+    "dice": 0.8312618733073203,
+    "iou": 0.7471145101341543,
+    "recall": 0.8714234488837631,
+    "precision": 0.8363568745764375,
+    "specificity": 0.9797096053024758
+  },
+  "tta_threshold_calibration": {
+    "threshold_0.30": {
+      "loss": 0.19510816967255967,
+      "dice": 0.8338478812353958,
+      "iou": 0.7506147355780302,
+      "recall": 0.8799629554810096,
+      "precision": 0.8340969310656824,
+      "specificity": 0.978938414407085
+    },
+    "threshold_0.35": {
+      "loss": 0.19510816967255967,
+      "dice": 0.834663905213241,
+      "iou": 0.7518321950762841,
+      "recall": 0.8763540680855926,
+      "precision": 0.8387139788355382,
+      "specificity": 0.9800232522148301
+    },
+    "threshold_0.40": {
+      "loss": 0.19510816967255967,
+      "dice": 0.8351150751745461,
+      "iou": 0.7526343508531333,
+      "recall": 0.8725741792157337,
+      "precision": 0.8429559924003996,
+      "specificity": 0.9810167577482636
+    },
+    "threshold_0.45": {
+      "loss": 0.19510816967255967,
+      "dice": 0.8353390818756149,
+      "iou": 0.7532254661460942,
+      "recall": 0.8687268255460084,
+      "precision": 0.8469284425417302,
+      "specificity": 0.9819494261098216
+    },
+    "threshold_0.50": {
+      "loss": 0.19510816967255967,
+      "dice": 0.835622526150517,
+      "iou": 0.7538255060024046,
+      "recall": 0.8650223074227833,
+      "precision": 0.8507892881217112,
+      "specificity": 0.9828469464607027
+    }
+  },
+  "total_duration_seconds": 2897.98,
+  "patient_level_independence_verified": false,
+  "test_split_accessed": false
+}

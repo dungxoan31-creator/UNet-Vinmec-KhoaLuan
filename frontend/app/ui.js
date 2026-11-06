@@ -18,6 +18,7 @@ const paths = {
     "M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3m18 0v-3a4 4 0 0 0-3-4M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8m8-7a4 4 0 0 1 0 7",
   chart: "M4 3v18h17M8 16v-4m5 4V7m5 9V4",
   settings: "M4 7h16M4 17h16M8 4v6m8 4v6",
+  ruler: "M4 20 20 4M7 17l3 3m-1-7 3 3m1-7 3 3m1-7 3 3",
   bell: "M18 8a6 6 0 0 0-12 0c0 8-3 8-3 10h18c0-2-3-2-3-10m-11 13h4",
   search: "M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14m5-2 6 6",
   arrow: "M4 12h16m-6-6 6 6-6 6",
@@ -34,6 +35,8 @@ const paths = {
   file: "M4 2h10l6 6v14H4zm10 0v6h6M8 13h8m-8 4h8",
   warning: "m12 2 11 20H1zm0 7v5m0 4h.01",
   plus: "M12 4v16M4 12h16",
+  edit: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
+  trash: "M3 6h18m-2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
   fit: "M3 9V3h6m6 0h6v6M3 15v6h6m6 0h6v-6",
   polygon: "m4 4 16 2-3 15-15-4z",
   history: "M3 12a9 9 0 1 0 3-7L2 9m0-6v6h6m4-3v6l4 2",
@@ -47,7 +50,7 @@ export const badge = (status) =>
 export const field = (label, name, type = "text", value = "", extra = "") =>
   `<label class="field">${esc(label)}<input name="${esc(name)}" type="${type}" value="${esc(value)}" ${extra}></label>`;
 export const pageHead = (title, description = "", actions = "") =>
-  `<div class="page-heading"><div><p class="eyebrow">KHÔNG GIAN LÀM VIỆC</p><h1>${esc(title)}</h1>${description ? `<p class="muted">${esc(description)}</p>` : ""}</div><div class="actions">${actions}</div></div>`;
+  `<div class="page-heading"><div><h1>${esc(title)}</h1>${description ? `<p class="muted">${esc(description)}</p>` : ""}</div><div class="actions">${actions}</div></div>`;
 export const empty = (
   title = "Chưa có dữ liệu",
   detail = "Dữ liệu sẽ xuất hiện tại đây khi có bản ghi phù hợp.",
@@ -65,11 +68,15 @@ export function toast(message, error = false) {
   node.role = error ? "alert" : "status";
   node.textContent = message;
   $("#toasts").append(node);
-  setTimeout(() => node.remove(), 6000);
+  setTimeout(() => node.remove(), error ? 6000 : 1200);
 }
 export function modal(title, content, onSubmit = null) {
   const d = $("#modal");
   d.innerHTML = `<form method="dialog"><div class="dialog-head"><h2>${esc(title)}</h2><button class="icon-btn" value="cancel" aria-label="Đóng">${icon("close")}</button></div><div class="dialog-body">${content}</div></form>`;
+  d.querySelectorAll('button[value="cancel"]').forEach((button) => {
+    button.type = "button";
+    button.onclick = () => d.close("cancel");
+  });
   if (onSubmit)
     d.querySelector("form").addEventListener("submit", (e) => {
       if (e.submitter?.value === "cancel") return;

@@ -1,4 +1,3 @@
-import { state } from "./state.js";
 import { request } from "./api.js";
 
 import {
@@ -17,71 +16,75 @@ export async function renderModels(target) {
   const response = await request("/api/admin/models");
   const rows = response.registered_models || response.items || [];
   const reload = () => window.dispatchEvent(new CustomEvent("ova:rerender"));
-  target.innerHTML = `<div class="banner info">SHA-256 và trạng thái checkpoint lấy từ máy chủ. Đăng ký metadata không đồng nghĩa mô hình đã được kiểm chứng.</div><div class="filters">${button("Đăng ký checkpoint", "register-model", "primary")}</div><section class="panel">${rows.map((m) => `<div class="list-row"><div><h3>${esc(m.name || m.model_name || m.model_id)}</h3><p>${m.is_loaded ? "Đã nạp" : "Chưa nạp"} · ${esc(m.architecture || "Chưa có kiến trúc")}</p><p class="mono">SHA-256: ${esc(m.checksum || "Chưa được máy chủ xác minh")}</p></div><div class="actions"><button class="btn small" data-deploy="${esc(m.model_id)}" ${m.is_loaded ? "disabled" : ""}>${"Triển khai"}</button><button class="btn small danger" data-remove="${esc(m.model_id)}" ${m.is_loaded ? "disabled" : ""}>Gỡ đăng ký</button></div></div>`).join("") || empty("Chưa có checkpoint")}</section>`;
+
+  target.innerHTML =
+    `<div class="banner info" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">` +
+    `<div><strong>QUẢN LÝ KHO MÔ HÌNH (MODEL REGISTRY &amp; MODEL ZOO)</strong>` +
+    `<p class="small muted" style="margin:2px 0 0 0;">Trạng thái nạp do máy chủ cung cấp. Chỉ mô hình đã nạp và xác minh checkpoint được dùng cho suy luận nghiên cứu (RUO); các adapter tham chiếu chưa có triển khai độc lập.</p></div>` +
+    `</div>` +
+    `<div class="filters" style="margin:12px 0;">${button("Đăng ký metadata mô hình", "register-model", "primary")}</div>` +
+    `<section class="panel" style="display:flex; flex-direction:column; gap:8px;">${rows
+      .map(
+        (model) =>
+          `<div class="list-row" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #f1f5f9;">` +
+          `<div>` +
+          `<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">` +
+          `<h3 style="margin:0; font-size:14.5px; font-weight:700; color:#0f172a;">${esc(model.name || model.model_id || "Mô hình")}</h3>` +
+          `<span class="badge" style="background:${model.is_loaded ? '#dcfce7' : '#fee2e2'}; color:${model.is_loaded ? '#15803d' : '#b91c1c'}; font-weight:700; font-size:11px; padding:2px 8px; border-radius:4px;">` +
+          `${model.is_candidate ? "Candidate metadata — không dùng suy luận" : model.is_loaded ? "Mô hình phục vụ đã nạp" : "Chưa nạp"}</span>` +
+          `</div>` +
+          `<p style="margin:4px 0 2px 0; color:#334155; font-size:13px;">${esc(model.architecture || "Chưa có kiến trúc")} <span class="small muted">(v${esc(model.version || "1.0.0")})</span></p>` +
+          `<p class="mono" style="font-size:12px; color:#0369a1; background:#f0f9ff; padding:3px 8px; border-radius:4px; display:inline-block; border:1px solid #bae6fd; margin:4px 0 0 0;">SHA-256: ${esc(model.checksum || "Chưa được máy chủ xác minh")}</p>` +
+          `${model.checkpoint ? `<p class="small muted mono" style="margin:3px 0 0 0; font-size:11px; color:#64748b;">Đường dẫn: ${esc(model.checkpoint)}</p>` : ""}` +
+          `</div>` +
+          (model.is_candidate
+            ? `<div class="actions"><button class="btn small danger" data-remove="${esc(model.model_id)}">Gỡ metadata</button></div>`
+            : "") +
+          `</div>`,
+      )
+      .join("") || empty("Chưa có mô hình")}</section>`;
+
   $("[data-action=register-model]", target).onclick = () =>
     modal(
-      "Đăng ký checkpoint",
+      "Đăng ký metadata mô hình",
       field("Mã mô hình", "model_id", "text", "", 'required maxlength="64"') +
         field("Tên hiển thị", "name", "text", "", 'required maxlength="100"') +
         `<label class="field">Kiến trúc<select name="architecture"><option>U-Net</option><option>U-Net++</option></select></label>` +
-        field(
-          "Mã artifact trên máy chủ",
-          "artifact_id",
-          "text",
-          "",
-          'required maxlength="128"',
-        ) +
-        '<p class="small muted">Không nhập đường dẫn tùy ý hoặc SHA giả. Máy chủ phải xác minh artifact, hash và khả năng nạp trước khi triển khai.</p><button class="btn primary" type="submit">Đăng ký</button>',
-      async (e, d) => {
-        const b = e.submitter;
-        if (b.disabled) return;
-        b.disabled = true;
+        field("Mã artifact tham chiếu", "artifact_id", "text", "", 'required maxlength="128"') +
+        '<p class="small muted">Đăng ký chỉ lưu thông tin tham chiếu. Hệ thống chưa xác minh nội dung, hash hoặc khả năng nạp; candidate không được dùng để suy luận.</p><button class="btn primary" type="submit">Lưu metadata</button>',
+      async (event, dialog) => {
+        const submit = event.submitter;
+        if (submit.disabled) return;
+        submit.disabled = true;
         try {
-          const body = Object.fromEntries(new FormData(e.target));
-          {
-            await request("/api/admin/models/register", {
-              method: "POST",
-              body,
-            });
-          }
-          d.close();
+          await request("/api/admin/models/register", {
+            method: "POST",
+            body: Object.fromEntries(new FormData(event.target)),
+          });
+          dialog.close();
           reload();
-        } catch (err) {
-          toast(err.message, true);
+        } catch (error) {
+          toast(error.message, true);
         } finally {
-          b.disabled = false;
+          submit.disabled = false;
         }
       },
     );
-  for (const action of ["deploy", "remove"])
-    $$("[data-" + action + "]", target).forEach(
-      (b) =>
-        (b.onclick = async () => {
-          const id = b.dataset[action];
-          if (
-            !(await confirmAction(
-              action === "deploy"
-                ? "Triển khai mô hình?"
-                : "Gỡ đăng ký mô hình?",
-              "Không thay đổi provenance của các dự đoán đã lưu.",
-            ))
-          )
-            return;
-          b.disabled = true;
-          try {
-            {
-              await request(
-                "/api/admin/models/" +
-                  encodeURIComponent(id) +
-                  (action === "deploy" ? "/deploy" : ""),
-                { method: action === "deploy" ? "POST" : "DELETE" },
-              );
-            }
-            reload();
-          } catch (e) {
-            toast(e.message, true);
-            b.disabled = false;
-          }
-        }),
-    );
+
+  $$('[data-remove]', target).forEach((control) => {
+    control.onclick = async () => {
+      const modelId = control.dataset.remove;
+      if (!(await confirmAction("Gỡ metadata candidate?", modelId))) return;
+      control.disabled = true;
+      try {
+        await request(`/api/admin/models/${encodeURIComponent(modelId)}`, {
+          method: "DELETE",
+        });
+        reload();
+      } catch (error) {
+        toast(error.message, true);
+        control.disabled = false;
+      }
+    };
+  });
 }

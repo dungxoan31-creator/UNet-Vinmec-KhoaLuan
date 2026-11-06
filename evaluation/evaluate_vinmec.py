@@ -13,6 +13,7 @@ import torch
 
 from ai_training.dataset_loader import cv2_imread_unicode
 from ai_training.metrics_clinical import compute_dataset_clinical_summary, compute_sample_clinical_metrics
+from ai_training.train_baseline_unet import validate_training_split_identity
 from backend.models.unet import StandardUNet
 from backend.services.preprocessor import UltrasoundPreprocessor
 
@@ -67,6 +68,14 @@ def _write_png(path: Path, image: np.ndarray) -> None:
     encoded.tofile(str(path))
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def _labeled_panel(image: np.ndarray, label: str) -> np.ndarray:
     height, width = image.shape[:2]
     heading = np.full((32, width, 3), 255, dtype=np.uint8)
@@ -84,16 +93,43 @@ def evaluate(
 ) -> dict:
     if split not in {"val", "test"}:
         raise ValueError("split must be val or test")
-    if not 0 < threshold < 1:
-        raise ValueError("threshold must be between zero and one")
-    splits_dir, checkpoint, output_dir = map(Path, (splits_dir, checkpoint, output_dir))
-    pairs = _read_pairs(splits_dir, split)
-    checkpoint_sha256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
-    if expected_sha256 is not None and checkpoint_sha256 != expected_sha256:
+    if isinstance(threshold, bool):
+        raise ValueError("threshold must be a finite number between zero and one")
+    try:
+        threshold = float(threshold)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("threshold must be a finite number between zero and one") from exc
+    if not np.isfinite(threshold) or not 0 < threshold < 1:
+        raise ValueError("threshold must be a finite number between zero and one")
+
+    splits_dir, checkpoint, output_dir = (Path(path).resolve() for path in (splits_dir, checkpoint, output_dir))
+    patient_split_status = "not_checked_for_validation"
+    if split == "test" and expected_sha256 is None:
+        raise ValueError("Test evaluation requires a locked checkpoint hash")
+
+    if expected_sha256 is not None and (
+        not isinstance(expected_sha256, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha256)
+    ):
+        raise ValueError("expected_sha256 must be a 64-character SHA-256 digest")
+    if not checkpoint.is_file():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
+    checkpoint_sha256 = _sha256(checkpoint)
+    if expected_sha256 is not None and checkpoint_sha256.lower() != expected_sha256.lower():
         raise ValueError("Checkpoint checksum does not match locked selection")
+    if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
+        raise FileExistsError(f"Refusing to overwrite existing evaluation artifacts: {output_dir}")
+
+    if split == "test":
+        patient_split_status = validate_training_split_identity(splits_dir)
+        if patient_split_status != "patient_level_verified":
+            raise ValueError("Patient-level independence is not verified for Test evaluation")
+
+    pairs = _read_pairs(splits_dir, split)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = StandardUNet(in_channels=1, num_classes=1, base_filters=32).to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True), strict=True)
+    if _sha256(checkpoint) != checkpoint_sha256:
+        raise ValueError("Checkpoint changed after provenance verification")
     model.eval()
     preprocessor = UltrasoundPreprocessor(target_size=(512, 512))
     rows = []
@@ -134,12 +170,23 @@ def evaluate(
         writer.writeheader()
         writer.writerows(rows)
     summary = {
+        "evaluation_scope": (
+            "test_replay; checkpoint selection and label provenance not verified"
+            if split == "test"
+            else "validation"
+        ),
         "split": split,
         "count": len(rows),
         "threshold": threshold,
         "preprocessing": "grayscale, 512x512 letterbox, CLAHE, divide by 255; inverse nearest-neighbor mask resize",
         "checkpoint_sha256": checkpoint_sha256,
-        "patient_split_status": "Not asserted by this evaluator; consult audited split manifest",
+        "patient_split_status": patient_split_status,
+        "patient_level_independence_verified": patient_split_status == "patient_level_verified",
+        "source_patient_identity_verified": patient_split_status == "patient_level_verified",
+        "label_provenance_verified": False,
+        "test_inference_performed": split == "test",
+        "test_split_used_for_model_selection": None if split == "test" else False,
+        "independent_test_performance_claim_supported": False,
         "comparison_panel_count": len(rows),
         "comparison_panel_order": ["Image", "Ground Truth", "Prediction", "Overlay"],
         "dice_mean_all_cases": float(np.mean([row["dice"] for row in rows])),

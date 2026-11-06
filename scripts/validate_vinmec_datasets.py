@@ -10,11 +10,15 @@ import argparse
 import csv
 import hashlib
 import json
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from backend.core.dataset_paths import resolve_dataset_path
 from scripts.audit_segmentation_datasets import audit_dataset, read_image
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
@@ -84,8 +88,8 @@ def _load_m1_source_warnings(root: Path) -> list[dict[str, str]]:
             for record in csv.DictReader(stream):
                 if record.get("is_empty_mask", "").lower() != "true":
                     continue
-                image = root / record["image_path"]
-                fallback_path = root / record["mask_path"]
+                image = resolve_dataset_path(root, record["image_path"])
+                fallback_path = resolve_dataset_path(root, record["mask_path"])
                 fallback_array = read_image(fallback_path, -1) if fallback_path.is_file() else None
                 native = None
                 for image_part, target_part in adapters:
@@ -115,6 +119,7 @@ def _load_m1_source_warnings(root: Path) -> list[dict[str, str]]:
                     "fallback_mask_readable": str(fallback_array is not None).lower(),
                     "fallback_mask_empty": str(fallback_array is not None and not np.any(fallback_array)).lower(),
                     "fallback_mask_shape": "x".join(map(str, fallback_array.shape[:2])) if fallback_array is not None else "",
+                    "native_target_exists": str(native is not None and native.is_file()).lower(),
                     "native_target_pixels": str(target_pixels) if target_pixels is not None else "",
                     "native_target_shape_matches": str(shape_matches).lower(),
                     "split": split,
@@ -131,7 +136,7 @@ def _read_csv_assignments(root: Path, csv_path: Path, split: str, assignments: d
     with csv_path.open(newline="", encoding="utf-8-sig") as stream:
         for row in csv.DictReader(stream):
             rel = row.get("image_path", "")
-            image = (root / rel).resolve() if rel and not Path(rel).is_absolute() else Path(rel)
+            image = resolve_dataset_path(root, rel).resolve() if rel and not Path(rel).is_absolute() else Path(rel)
             if not image.is_file():
                 continue
             digest = sha256(image)
@@ -143,10 +148,19 @@ def _read_csv_assignments(root: Path, csv_path: Path, split: str, assignments: d
 def _split_assignments(root: Path) -> tuple[dict[str, set], dict[str, list[dict[str, str]]]]:
     assignments: dict[str, set] = defaultdict(set)
     details: dict[str, list[dict[str, str]]] = defaultdict(list)
-    # Existing split snapshots are read as evidence only; no split is rewritten.
+    # Source and archived snapshots are evidence only; synthetic mock splits are excluded.
+    snapshots = (
+        ("root", root / "ai_training/splits"),
+        ("vinmec_2d", root / "ai_training/splits/vinmec_2d"),
+        ("vinmec_2d_retrain", root / "ai_training/splits/vinmec_2d_retrain_2026-10-03"),
+        ("archive_pre_pid", root / "ai_training/splits/archive_pre_pid"),
+        ("archive_milestone_1", root / "ai_training/splits/archive_milestone_1"),
+        ("unified", root / "ai_training/splits/unified_vinmec_clean_2026-10-06"),
+    )
+    for snapshot, split_dir in snapshots:
+        for split in ("train", "val", "test"):
+            _read_csv_assignments(root, split_dir / f"{split}.csv", f"{snapshot}_{split}", assignments, details)
     for split in ("train", "val", "test"):
-        _read_csv_assignments(root, root / "ai_training/splits/vinmec_2d" / f"{split}.csv", split, assignments, details)
-        _read_csv_assignments(root, root / "ai_training/splits/archive_milestone_1" / f"{split}.csv", f"m1_{split}", assignments, details)
         for csv_path in (root / "ai_training/splits/full_dataset_2026-10-03").rglob(f"{split}.csv"):
             if csv_path.is_file():
                 _read_csv_assignments(root, csv_path, f"full_{split}", assignments, details)
@@ -193,6 +207,227 @@ def _split_kind(label: str) -> str:
     return token
 
 
+def _read_optional_csv(path: Path) -> list[dict[str, str]] | None:
+    if not path.is_file():
+        return None
+    with path.open(newline="", encoding="utf-8-sig") as stream:
+        return list(csv.DictReader(stream))
+
+
+def _source_test_row_count(rows: list[dict[str, str]] | None) -> int | None:
+    if rows is None:
+        return None
+    count = 0
+    for row in rows:
+        path = str(row.get("image_path") or "").replace("\\", "/").lower()
+        if "/test/" in f"/{path.strip('/')}/":
+            count += 1
+    return count
+
+
+def _read_legacy_vinmec_2d_split_evidence(root: Path) -> dict:
+    split_dir = root / "ai_training/splits/full_dataset_2026-10-03/vinmec_split_2d"
+    manifest_path = split_dir / "manifest.json"
+    manifest = {}
+    manifest_readable = False
+    if manifest_path.is_file():
+        try:
+            loaded = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                manifest = loaded
+                manifest_readable = True
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    split_rows = {split: _read_optional_csv(split_dir / f"{split}.csv") for split in ("train", "val", "test")}
+    split_counts = {
+        split: len(rows) if rows is not None else None
+        for split, rows in split_rows.items()
+    }
+    source_test_rows = {split: _source_test_row_count(split_rows[split]) for split in ("train", "val")}
+    m1_counts = {
+        split: len(rows) if rows is not None else None
+        for split in ("train", "val", "test")
+        for rows in (_read_optional_csv(root / "ai_training/splits/archive_milestone_1" / f"{split}.csv"),)
+    }
+    return {
+        "manifest_exists": manifest_path.is_file(),
+        "manifest_readable": manifest_readable,
+        "source_test_included_in_pool": manifest.get("source_test_included_in_pool"),
+        "split_level": manifest.get("split_level"),
+        "source_test_rows_in_train_val": source_test_rows,
+        "source_test_count": sum(source_test_rows.values()) if all(value is not None for value in source_test_rows.values()) else None,
+        "split_counts": split_counts,
+        "m1_counts": m1_counts,
+    }
+
+
+def _active_split_integrity(root: Path, observed_image_hashes: dict[Path, str] | None = None) -> dict:
+    split_dir = root / "ai_training/splits/unified_vinmec_clean_2026-10-06"
+    manifest_path = split_dir / "manifest.json"
+    manifest = {}
+    if manifest_path.is_file():
+        try:
+            loaded = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                manifest = loaded
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    rows_by_split = {
+        split: _read_optional_csv(split_dir / f"{split}.csv")
+        for split in ("train", "val", "test")
+    }
+    counts = {split: len(rows) if rows is not None else None for split, rows in rows_by_split.items()}
+    declared_hashes: dict[str, set[str]] = {split: set() for split in rows_by_split}
+    actual_hashes: dict[str, set[str]] = {split: set() for split in rows_by_split}
+    invalid_hash_rows = 0
+    hash_mismatches = 0
+    missing_images = 0
+    missing_masks = 0
+    missing_pairs = 0
+    patient_ids_present = 0
+    patient_ids_by_split: dict[str, set[str]] = {split: set() for split in rows_by_split}
+
+    for split, rows in rows_by_split.items():
+        for row in rows or []:
+            recorded_hash = str(row.get("image_sha256") or "").strip().lower()
+            valid_hash = len(recorded_hash) == 64 and all(char in "0123456789abcdef" for char in recorded_hash)
+            if valid_hash:
+                declared_hashes[split].add(recorded_hash)
+            else:
+                invalid_hash_rows += 1
+            patient_id = str(row.get("patient_id") or "").strip()
+            patient_ids_present += bool(patient_id)
+            if patient_id:
+                patient_ids_by_split[split].add(patient_id)
+
+            image_path = resolve_dataset_path(root, str(row.get("image_path") or ""))
+            mask_path = resolve_dataset_path(root, str(row.get("mask_path") or ""))
+            image_exists, mask_exists = image_path.is_file(), mask_path.is_file()
+            missing_images += not image_exists
+            missing_masks += not mask_exists
+            missing_pairs += not (image_exists and mask_exists)
+            if image_exists:
+                resolved_image = image_path.resolve()
+                actual_hash = (observed_image_hashes or {}).get(resolved_image) or sha256(resolved_image)
+                actual_hashes[split].add(actual_hash)
+                if valid_hash and actual_hash.lower() != recorded_hash:
+                    hash_mismatches += 1
+
+    def overlap_count(hash_sets: dict[str, set[str]]) -> int:
+        splits = tuple(hash_sets)
+        return sum(
+            len(hash_sets[left] & hash_sets[right])
+            for index, left in enumerate(splits)
+            for right in splits[index + 1:]
+        )
+
+    declared_overlap = overlap_count(declared_hashes)
+    actual_overlap = overlap_count(actual_hashes)
+    expected_counts = manifest.get("split_counts")
+    counts_match = (
+        all(counts[split] is not None and type(expected_counts.get(split)) is int and counts[split] == expected_counts[split] for split in counts)
+        if isinstance(expected_counts, dict)
+        else None
+    )
+    total_rows = sum(len(rows) if rows is not None else 0 for rows in rows_by_split.values())
+    patient_id_overlap_count = sum(
+        len(patient_ids_by_split[left] & patient_ids_by_split[right])
+        for index, left in enumerate(rows_by_split)
+        for right in tuple(rows_by_split)[index + 1:]
+    )
+    patient_ids_complete = total_rows > 0 and patient_ids_present == total_rows
+    patient_level_verified = manifest.get("source_patient_identity_verified") is True and (
+        manifest.get("patient_ids_verified") is True or manifest.get("identity_level") == "patient_verified"
+    ) and patient_ids_complete and patient_id_overlap_count == 0 and counts_match is True and all(
+        count is not None and count > 0 for count in counts.values()
+    )
+    image_hash_validation_complete = (
+        invalid_hash_rows == 0 and hash_mismatches == 0 and missing_images == 0
+    )
+    image_level_training_ready = (
+        counts_match is True
+        and all(count is not None and count > 0 for count in counts.values())
+        and image_hash_validation_complete
+        and missing_masks == 0
+        and declared_overlap == 0
+        and actual_overlap == 0
+    )
+    patient_independent_evaluation_allowed = (
+        patient_level_verified
+        and image_level_training_ready
+    )
+
+    return {
+        "manifest_exists": manifest_path.is_file(),
+        "manifest_status": manifest.get("status"),
+        "identity_limit": manifest.get("identity_limit"),
+        "patient_level_verified": patient_level_verified,
+        "patient_ids_present": patient_ids_present,
+        "patient_id_rows_missing_count": total_rows - patient_ids_present,
+        "patient_id_overlap_count": patient_id_overlap_count,
+        "record_counts": counts,
+        "manifest_counts_match_csv": counts_match,
+        "image_level_training_ready": image_level_training_ready,
+        "patient_independent_evaluation_allowed": patient_independent_evaluation_allowed,
+        "declared_hash_overlap_count": declared_overlap,
+        "actual_hash_overlap_count": actual_overlap,
+        "invalid_hash_row_count": invalid_hash_rows,
+        "recorded_hash_mismatch_count": hash_mismatches,
+        "missing_image_count": missing_images,
+        "missing_mask_count": missing_masks,
+        "missing_pair_count": missing_pairs,
+        "image_hash_validation_complete": image_hash_validation_complete,
+        "image_hash_split_disjoint": declared_overlap == 0 and actual_overlap == 0 and invalid_hash_rows == 0 and hash_mismatches == 0,
+    }
+
+
+def _summarize_m1_empty_masks(all_rows: list[dict], provenance_exists: bool) -> dict:
+    rows = [row for row in all_rows if row.get("status") == "derived_empty_mask_requires_source_label_review"]
+    count = len(rows)
+    fallback_present = sum(row.get("fallback_mask_exists") == "true" for row in rows)
+    fallback_readable = sum(row.get("fallback_mask_readable") == "true" for row in rows)
+    fallback_empty = sum(row.get("fallback_mask_empty") == "true" for row in rows)
+    native_found = sum(row.get("native_target_exists") == "true" for row in rows)
+    native_positive = sum(
+        row.get("native_target_exists") == "true"
+        and str(row.get("native_target_pixels", "")).isdigit()
+        and int(row["native_target_pixels"]) > 0
+        for row in rows
+    )
+    native_shape_matches = sum(
+        row.get("native_target_exists") == "true" and row.get("native_target_shape_matches") == "true"
+        for row in rows
+    )
+
+    if not count:
+        audit_note = "No archived M1 empty-mask records were found."
+    elif native_positive:
+        audit_note = f"{native_positive} archived M1 fallback records map to positive native labels; neither target is silently substituted."
+    elif fallback_present < count or native_found < count:
+        audit_note = (
+            f"Archived M1 CSVs identify {count} fallback-mask records, but current fallback masks "
+            f"({fallback_present}/{count}) or native source labels ({native_found}/{count}) are unavailable; "
+            "their prior conflict claims cannot be revalidated from this workspace."
+        )
+    else:
+        audit_note = "Archived M1 fallback masks and native source labels were located; no target was silently substituted."
+
+    return {
+        "count": count,
+        "provenance_exists": provenance_exists,
+        "fallback_masks_present": fallback_present,
+        "fallback_masks_readable": fallback_readable,
+        "fallback_masks_empty": fallback_empty,
+        "fallback_mask_shapes": dict(Counter(row.get("fallback_mask_shape", "") for row in rows if row.get("fallback_mask_shape"))),
+        "native_source_labels_found": native_found,
+        "native_source_labels_positive": native_positive,
+        "native_source_shape_matches": native_shape_matches,
+        "audit_note": audit_note,
+    }
+
+
 def audit(root: Path, output_dir: Path) -> dict:
     root = root.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -204,6 +439,9 @@ def audit(root: Path, output_dir: Path) -> dict:
     channel_stats: dict[str, dict[str, Counter]] = defaultdict(lambda: {"image_channels": Counter(), "target_channels": Counter(), "image_formats": Counter(), "target_formats": Counter()})
 
     for dataset_name, group_name, image_rel, target_rel, target_role, split, variants in ADAPTERS:
+        source_image_rel, source_target_rel = image_rel, target_rel
+        image_rel = resolve_dataset_path(root, image_rel).relative_to(root).as_posix()
+        target_rel = resolve_dataset_path(root, target_rel).relative_to(root).as_posix()
         rows, issues, counters = audit_dataset(root, group_name, image_rel, target_rel, variants)
         group_rows = []
         root_role_counts[dataset_name][target_role] += counters["annotations"]
@@ -249,6 +487,8 @@ def audit(root: Path, output_dir: Path) -> dict:
             "dataset": dataset_name,
             "image_directory": image_rel,
             "target_directory": target_rel,
+            "source_image_directory": source_image_rel,
+            "source_target_directory": source_target_rel,
             "target_role": target_role,
             "source_split_label": split,
             "pair_audit": counters,
@@ -354,19 +594,80 @@ def audit(root: Path, output_dir: Path) -> dict:
     split_manifests = {}
     for name in (
         "ai_training/splits/vinmec_2d/manifest.json",
+        "ai_training/splits/vinmec_2d_retrain_2026-10-03/manifest.json",
+        "ai_training/splits/unified_vinmec_clean_2026-10-06/manifest.json",
         "ai_training/splits/archive_milestone_1/README.md",
         "ai_training/splits/full_dataset_2026-10-03/manifest.json",
     ):
         p = root / name
         split_manifests[name] = {"exists": p.is_file(), "sha256": sha256(p) if p.is_file() else None}
     full_m1_provenance = root / "dataset/vinmec_ovarian/empty_masks/PROVENANCE.json"
+    legacy_split_evidence = _read_legacy_vinmec_2d_split_evidence(root)
+    observed_image_hashes = {
+        (root / relative_path).resolve(): digest
+        for digest, occurrences in image_occurrences.items()
+        for _, relative_path in occurrences
+    }
+    active_split_integrity = _active_split_integrity(root, observed_image_hashes)
+    m1_empty_masks = _summarize_m1_empty_masks(all_rows, full_m1_provenance.is_file())
+    missing_source_directories = sum(
+        issue.get("reason") in {"image directory does not exist", "annotation directory does not exist"}
+        for issue in all_issues
+    )
+    blocking_conditions = [
+        "No verified source Patient ID mapping is available; patient-level leakage cannot be ruled out."
+    ]
+    if active_split_integrity["missing_pair_count"]:
+        blocking_conditions.append(
+            f"The active unified split references {active_split_integrity['missing_pair_count']} image/mask pairs unavailable in the current workspace."
+        )
+    if active_split_integrity["declared_hash_overlap_count"] or active_split_integrity["actual_hash_overlap_count"]:
+        blocking_conditions.append("The active unified split contains image SHA-256 overlap across partitions.")
+    if active_split_integrity["recorded_hash_mismatch_count"]:
+        blocking_conditions.append(
+            f"{active_split_integrity['recorded_hash_mismatch_count']} active split image SHA-256 values do not match available source files."
+        )
+    if active_split_integrity["manifest_counts_match_csv"] is False:
+        blocking_conditions.append("The active unified split CSV row counts do not match its manifest.")
+    if missing_source_directories:
+        blocking_conditions.append(
+            f"{missing_source_directories} recorded source directories are absent; the audit covers only available canonical data and cannot revalidate those roots."
+        )
+    if duplicate_hash_count:
+        blocking_conditions.append(
+            f"{duplicate_hash_count} exact-image SHA-256 groups occur more than once in the scanned roots and require source-level reconciliation."
+        )
+    blocking_conditions.append(
+        "The observed schemas provide one annotation/label/mask target per image, not three distinct target files."
+    )
+    if m1_empty_masks["native_source_labels_positive"]:
+        blocking_conditions.append(
+            f"{m1_empty_masks['native_source_labels_positive']} archived M1 fallback records map to positive native labels; source-label review is required."
+        )
+    elif m1_empty_masks["count"] and (
+        m1_empty_masks["fallback_masks_present"] < m1_empty_masks["count"]
+        or m1_empty_masks["native_source_labels_found"] < m1_empty_masks["count"]
+    ):
+        blocking_conditions.append(
+            f"{m1_empty_masks['count']} archived M1 fallback records cannot be fully revalidated because referenced source files are unavailable; provenance is absent."
+        )
+    if legacy_split_evidence["source_test_included_in_pool"] is True:
+        source_test_count = legacy_split_evidence["source_test_count"]
+        source_test_description = f"{source_test_count} source Test records" if source_test_count is not None else "source Test records"
+        blocking_conditions.append(
+            f"The legacy sample-level Vinmec_2D split pools {source_test_description} into Train/Validation; it cannot support an independent Test result."
+        )
+    if len(split_conflicts):
+        blocking_conditions.append(
+            f"{len(split_conflicts)} image hashes have incompatible split assignments in available manifests."
+        )
     summary = {
         "status": "BLOCKED_BEFORE_TRAINING",
         "project_root": str(root),
         "framework": "PyTorch",
         "training_entrypoints": {
-            "baseline": "ai_training/train_baseline_unet.py (defaults to the canonical image-level manifest; explicit opt-in required until source patient IDs are verified)",
-            "full_data": "ai_training/train_full_unet.py (currently includes the source test folder in its training pair groups and has no validation loader; unsafe for requested run)",
+            "baseline": "ai_training/train_baseline_unet.py (accepts image-level splits after image/mask, SHA-256, and binary-mask validation; research development only)",
+            "full_data": "ai_training/train_full_unet.py (does not require patient IDs; loads Train and Validation only, selects by validation Dice, and leaves Test image data held out)",
         },
         "datasets": roots_summary,
         "dataset_table_before_training": table_rows,
@@ -379,8 +680,9 @@ def audit(root: Path, output_dir: Path) -> dict:
         "existing_split_conflicts": {
             "conflicting_image_hash_count": len(split_conflicts),
             "details_csv": "reports/dataset_validation_split_conflicts.csv",
-            "interpretation": "The same exact image appears in incompatible train/validation/test assignments across available source manifests; no assignment was selected.",
+            "interpretation": "The same exact image appears in incompatible train/validation/test assignments across active and archived source snapshots; these cross-snapshot conflicts do not identify which historic assignment is authoritative.",
         },
+        "active_split_integrity": active_split_integrity,
         "four_path_mapping": {
             "required_fields": list(REQUIRED_FIELDS),
             "status": "NOT_ESTABLISHED",
@@ -388,35 +690,24 @@ def audit(root: Path, output_dir: Path) -> dict:
             "canonical_index_written": False,
         },
         "split_and_leakage": {
-            "source_patient_ids_verified": False,
+            "source_patient_ids_verified": active_split_integrity["patient_level_verified"],
+            "image_level_training_ready": active_split_integrity["image_level_training_ready"],
             "m1_patient_codes_are_synthetic": True,
-            "full_dataset_2026_10_03_manifest_includes_source_test_in_pool_for_vinmec_2d": True,
-            "existing_full_dataset_split_level": "sample-level",
-            "vinmec_2d_source_test_count": 382,
-            "vinmec_2d_current_train_val_test_counts": {"train": 697, "val": 123, "test": 382},
-            "m1_counts": {"train": 215, "val": 46, "test": 46},
-            "source_splits_or_duplicate_hash_conflicts_require_review": True,
+            "full_dataset_2026_10_03_manifest_includes_source_test_in_pool_for_vinmec_2d": legacy_split_evidence["source_test_included_in_pool"],
+            "existing_full_dataset_split_level": legacy_split_evidence["split_level"],
+            "vinmec_2d_source_test_count": legacy_split_evidence["source_test_count"],
+            "vinmec_2d_source_test_rows_in_train_val": legacy_split_evidence["source_test_rows_in_train_val"],
+            "vinmec_2d_current_train_val_test_counts": legacy_split_evidence["split_counts"],
+            "m1_counts": legacy_split_evidence["m1_counts"],
+            "source_splits_or_duplicate_hash_conflicts_require_review": bool(
+                legacy_split_evidence["source_test_included_in_pool"] is True
+                or split_conflicts
+                or duplicate_hash_count
+            ),
         },
-        "m1_empty_masks": {
-            "count": sum(1 for row in all_rows if row["status"] == "derived_empty_mask_requires_source_label_review"),
-            "provenance_exists": full_m1_provenance.is_file(),
-            "fallback_masks_present": sum(1 for row in all_rows if row.get("fallback_mask_exists") == "true"),
-            "fallback_masks_readable": sum(1 for row in all_rows if row.get("fallback_mask_readable") == "true"),
-            "fallback_masks_empty": sum(1 for row in all_rows if row.get("fallback_mask_empty") == "true"),
-            "fallback_mask_shapes": dict(Counter(row.get("fallback_mask_shape", "") for row in all_rows if row.get("fallback_mask_shape"))),
-            "native_source_labels_found": sum(1 for row in all_rows if row["status"] == "derived_empty_mask_requires_source_label_review" and row.get("label_path")),
-            "native_source_labels_positive": sum(1 for row in all_rows if row["status"] == "derived_empty_mask_requires_source_label_review" and row.get("native_target_pixels", "0").isdigit() and int(row["native_target_pixels"]) > 0),
-            "native_source_shape_matches": sum(1 for row in all_rows if row["status"] == "derived_empty_mask_requires_source_label_review" and row.get("native_target_shape_matches") == "true"),
-            "audit_note": "Each fallback is linked through its archived M1 CSV to an image and the separate native source label path. These records remain unresolved because the fallback target is empty while the associated native target is positive; neither is silently substituted.",
-        },
+        "m1_empty_masks": m1_empty_masks,
         "tracked_split_evidence": split_manifests,
-        "blocking_conditions": [
-            "No verified source Patient ID mapping across the six roots; patient-level leakage cannot be ruled out.",
-            "Exact image content is duplicated across the named roots; the six folders are overlapping copies/derivations, not six independent datasets.",
-            "The requested distinct annotation/label/mask paths are not present in the observed schemas; one target file per image is available.",
-            "Thirty-five M1 fallback masks conflict with positive native labels and the referenced provenance file is absent.",
-            "The full-data training entrypoint currently includes the source Test folder in training and does not use a validation set.",
-        ],
+        "blocking_conditions": blocking_conditions,
         "issues_csv": "reports/dataset_validation_issues.csv",
         "samples_csv": "reports/dataset_validation_samples.csv",
         "no_source_files_modified": True,
@@ -431,7 +722,7 @@ def audit(root: Path, output_dir: Path) -> dict:
         for dataset, values in roots_summary.items():
             writer.writerow({"dataset": dataset, **{field: values.get(field, "") for field in fields if field != "dataset"}})
     with (output_dir / "dataset_validation_samples.csv").open("w", newline="", encoding="utf-8-sig") as stream:
-        fields = ("dataset", "group", "case_id", "sample_id", "patient_id", "image_path", "annotation_path", "label_path", "mask_path", "fallback_mask_exists", "fallback_mask_readable", "fallback_mask_empty", "fallback_mask_shape", "native_target_pixels", "native_target_shape_matches", "target_role", "split", "split_evidence", "image_sha256", "status", "issue")
+        fields = ("dataset", "group", "case_id", "sample_id", "patient_id", "image_path", "annotation_path", "label_path", "mask_path", "fallback_mask_exists", "fallback_mask_readable", "fallback_mask_empty", "fallback_mask_shape", "native_target_exists", "native_target_pixels", "native_target_shape_matches", "target_role", "split", "split_evidence", "image_sha256", "status", "issue")
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(all_rows)

@@ -1,0 +1,413 @@
+﻿file,status,reason
+backend/__init__.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/app/config.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/main.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/middleware.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/app/security.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/core/calibration.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/case_idempotency.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/dataset_paths.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/hitl_event_types.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/hitl_session_domains.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/image_utils.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/mmotu_labels.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/patient_identity.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/prediction_idempotency.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/study_domains.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/synthetic_demo.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/upload_idempotency.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/core/__init__.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/db/database.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/models/attention_unet.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/models/losses.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/models/metrics.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/models/unet.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/models/__init__.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/schemas/schemas.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/backup_service.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/calibration_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/case_lease_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/cdss_engine.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/clinical_templates.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/correction_access.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/diagnostic_engine.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/dicom_privacy.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/disease_classifier.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/email_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/facility_service.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/file_deletion_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/image_classifier.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/image_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/inference_engine.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/lesion_reconciliation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/measurement_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/metadata_extractor.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/model_service.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/morphology_extractor.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/patient_identity.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/preprocessor.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/services/region_assignment_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/region_clinical_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/report_generator.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/research_export.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/review_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/review_validation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/segmentation_candidates.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/source_measurements.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/services/ultrasound_enhancement.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/app/routers/admin.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/routers/auth.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/app/routers/cases.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/routers/corrections.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/app/routers/evaluation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/app/routers/health.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/routers/hitl.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+backend/app/routers/inference.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/routers/reviews.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/routers/v1_endpoints.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/routers/visits.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+backend/app/routers/__init__.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/index.html,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/README.md,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/slides.html,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/vinmec_logo.svg,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/admin-audit.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/admin-directory.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/admin-metadata.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/admin-models.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/admin-reports.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/admin-users.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/admin.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/adnex.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/api.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/approval-images.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/approval.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/assessment-layout.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/auth.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/branding.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/cases.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/cdss-panel.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/coordinates.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/corrections.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/demo-patients.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/dicom-inspect.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/draft-phrases.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/environment-notices.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/evaluation-images.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/evaluation.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/form-validator.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/hitl-tracker.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/i18n.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/image-classification.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/image-source.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/intake-session.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/intake.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/laterality-hint.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/latest-measurement-queue.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/leases.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/main.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/mask-tools.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/measure-worker.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/measurement-fallback.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/navigation.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/notifications.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/onboarding.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/package.json,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/patient-compare.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/patients.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/personal.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/region-review.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/report-preview.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/research-candidate.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/research-report-draft.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/review-content.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/review.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/state.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/ui.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/uncertainty-map.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/upload.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/viewer-shortcuts.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/viewer.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/voice-dictation.js,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/app/workflow.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/app/worklist.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/css/admin-workspace.css,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/css/admin.css,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/css/report-preview.css,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/css/workspace-tokens.css,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/css/workspace.css,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+frontend/css/workstation-premium.css,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/js/slides.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/assets/brand/inter-latin.woff2,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/assets/brand/inter-vietnamese.woff2,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/assets/brand/README.md,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+frontend/assets/brand/vinmec-logo.png,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/dataset_loader.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/external_dataset_adapters.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/finetune_2d_unet.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/loss.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/metrics_clinical.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/mmotu_label_schema.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/search_classifier_8class.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/train_baseline_unet.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/train_boosted_unetplusplus.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/train_classifier_8class.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/train_full_unet.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/train_multi_source_boosted.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/train_standard_unet_gray_imagenet_norm.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/train_unetplusplus_resnet34.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+ai_training/splits/de_cuong_split_manifest.json,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/patient_mapping.json,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/test.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/train.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/val.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/mmotu_2d_official_2026-10-27/manifest.json,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/mmotu_2d_official_2026-10-27/train.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/mmotu_2d_official_2026-10-27/val.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/all_samples.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/all_samples_patient_split.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/manifest.json,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/patient_cohort_metadata.json,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/patient_mapping_simulated.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/test.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/train.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/unified_vinmec_clean_2026-10-06/val.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/vinmec_2d/manifest.json,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/vinmec_2d/test.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/vinmec_2d/train.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+ai_training/splits/vinmec_2d/val.csv,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/audit_reproductions_20261101.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/auto_pid_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/browser_hitl_smoke.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/clinical_panel_live.cjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/clinical_roundtrip_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/clinical_safety_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/conftest.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+tests/doctor_workflow_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/email_registration_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/fixture_factory.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/frontend_workflow_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/intake_duplicate_metadata_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/interface_smoke.cjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/isolated_browser_cleanup_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/patient_split_fixture.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/product_brand_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/product_runtime.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/prototype_modules_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/region_review.test.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/resource_integration_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/seed_synthetic_signed_prelim_queue.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/serve_isolated_app.py,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+tests/synthetic_admin_user_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_2d_measurement_limits.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_admin_metadata_privacy.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_admin_reports.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_admin_user_onboarding_r3.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_adnex_panel.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_advanced_loss.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_api_body_validation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_api_contracts_r4.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_api_session.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_approval_image_cleanup.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_architecture_dependencies.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_assign_synthetic_pids.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_async_image_decode_r6.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_audit_remediation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_audit_remediation_regression.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_auth_boundaries.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_auth_rate_limiting.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_auth_registration.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_auth_router_dependency_boundary.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_autofill_state.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_baseline_evaluator_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_boosted_trainer.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_boosted_unetplusplus_scse_loading.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_caliper_phantom_validation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_assignment.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_creation_concurrency.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_delete_integrity.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_idempotency.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_integrity_upgrade.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_laterality.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_leases.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_case_request_contracts.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_cdss_boundary_30mm_r8.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_cdss_fail_closed.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_cdss_panel.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_cdss_synthetic_case_matrix.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_cdss_validation_flow.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_classifier_accuracy_search.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_clinical_macro_templates.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_correction_workflow.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_cuda_cpu_fallback.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_database_reference_integrity.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_database_startup_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_database_url_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_dataset_paths.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_diagnostic_engine.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_dicom_scope_guard.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_disease_classification_pipeline.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_docker_build_context.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_draft_phrases.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_duplicate_upload.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_e2e_synthetic_data_boundary.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_email_registration_storage.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_email_service.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_email_verification_api.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_error_analysis_v1.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluate_vinmec.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_api.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_artifact_provenance.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_error_analysis.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_image_cleanup.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_protocol_v1.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_report.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_router_paths.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_evaluation_run_v1.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_eval_model_script.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_external_datasets_adapter.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_external_vinmec_selection.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_facility_isolation_p0.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_feature_flags.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_feedback_validation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_fe_01_save_race_guard.cjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_fe_02_report_preview.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_finalize_selected_test_gate.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_finetune_2d.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_follicle_watershed.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_form_validator.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_frontend_clinical_copy.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_frontend_intake_patient_id.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_full_training_data.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_gpu_soak_benchmark.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_health_readiness_privacy.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_historical_evidence_guard.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_hitl_analysis.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_hitl_contract.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_hitl_events.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_image_classification_ui.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_image_classifier_serving.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_image_decode_limits.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_image_source.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_inference_admission.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_inference_edge_cases.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_inference_parity_v1.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_inference_postprocess.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_intake_autofill_services.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_intake_patient_crud.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_intake_quality_preflight.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_intake_session.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_intake_visit.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_interactive_prompt_api.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_laterality_filename_hint.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_latest_measurement_queue.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_lease_heartbeat.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_lesion_reconciliation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_live_caliper_viewer_api.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_live_follicle_counting.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_live_ui_features.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_mask_component_connectivity.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_mask_flood_fill.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_measurement_fallback.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_model_registry_fail_closed.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_model_selection.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_morphology_extractor_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_multi_source_pipeline.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_nnunet_dataset_preparation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_overlay_default_false.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_password_reset_flow.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_patient_crud_e2e.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_patient_friendly_report.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_patient_identity.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_patient_id_optional_r2.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_patient_store_crud.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_payload_pruning_r9.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_persistent_notifications.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_pid_nine_digits.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_prediction_idempotency.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_prediction_provenance.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_prepare_splits_guard.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_preprocessing_enhancement.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_preprocessor_empty_input.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_protected_clinical_api.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_prototype_extensions.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_prototype_release_failures.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_proxy_auth_rate_limiting.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_region_clinical.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_release_documentation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_release_evidence.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_report_generator_security.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_request_body_limit.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_research_candidate.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_research_export.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_research_report_draft.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_resource_integration.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_retraining.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_review_batch.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_review_content.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_review_region_candidates.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_review_save.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_review_save_button_busy_guard.cjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_rle_decoder_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_runtime_configuration.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_runtime_dependency_contract.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_runtime_package_boundary.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_schema_migration_r10.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_security_headers.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_segmentation_candidates.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_segmentation_candidate_api.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_segmentation_metrics_v1.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_slides.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_source_mask_export.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_spacing_numeric_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_sqlite_to_postgres_migration.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_synthetic_demo_config.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_synthetic_e2e_fixtures.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_synthetic_patient_split.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_tenant_admin_hardening.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_toast_lifetimes.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_training_split_safety.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_train_classifier_8class.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_ui_events_telemetry.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_ui_icons.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_uncertainty_heatmap.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_uncertainty_map_display.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_uncertainty_map_migration.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_unetplusplus_inference.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_unetplusplus_training_metrics.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_unet_refinement.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_unified_vinmec_evaluation.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_unified_vinmec_split_builder.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_unknown_laterality.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_user_study_summary.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_use_cases_73_74_75.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_v1_segment_limits.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_v21_active_learning_review.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_v21_cdss_integration.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_v21_report_generator.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_v21_schemas.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_verified_checkpoint_loading.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_viewer_custom_chips.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_viewer_geometry_r7.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_viewer_mask_draft.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_viewer_overlay_toggle.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_viewer_shortcuts.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_vinmec_api_smoke.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_vinmec_clean_dataset.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_vinmec_dataset_validator.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_vinmec_pipeline.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_visits_and_multifacility.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_visit_constraints_r5.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_visit_number_format.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_visit_patientless_study.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_voice_dictation.mjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/test_workspace_a11y_contrast.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/validation_files.cjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/workstation_viewer_e2e.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/e2e/test_comprehensive_workstation.js,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/helpers/app_state_wait.cjs,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/helpers/fixture_factory.py,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+tests/helpers/isolated_browser.cjs,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+tests/helpers/synthetic_fixtures.cjs,PARTIALLY TESTED,Relevant excerpts inspected; module not exhaustively audited
+deploy/nginx/nginx.conf,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim
+deploy/systemd/ovarian-ai-backend.service,NOT TESTED,Inventory/discovery only; runtime may exercise imports but no full-file audit claim

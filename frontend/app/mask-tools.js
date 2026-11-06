@@ -14,6 +14,10 @@ export function components(mask) {
         x < 511 ? p + 1 : -1,
         y > 0 ? p - 512 : -1,
         y < 511 ? p + 512 : -1,
+        x > 0 && y > 0 ? p - 513 : -1,
+        x < 511 && y > 0 ? p - 511 : -1,
+        x > 0 && y < 511 ? p + 511 : -1,
+        x < 511 && y < 511 ? p + 513 : -1,
       ])
         if (v >= 0 && mask[v] && !visited[v]) {
           visited[v] = 1;
@@ -63,6 +67,32 @@ export function cleanMask(mask, action) {
     }
     for (let i = 0; i < out.length; i++)
       if (!mask[i] && !exterior[i]) out[i] = 1;
+  }
+  return out;
+}
+export function floodFill(mask, startX, startY, fillVal = 1) {
+  if (startX < 0 || startX >= 512 || startY < 0 || startY >= 512) return mask;
+  const startIdx = startY * 512 + startX;
+  const target = mask[startIdx];
+  if (target === fillVal) return mask;
+  const out = mask.slice();
+  const q = [startIdx];
+  out[startIdx] = fillVal;
+  for (let n = 0; n < q.length; n++) {
+    const p = q[n],
+      x = p % 512,
+      y = Math.floor(p / 512);
+    for (const v of [
+      x > 0 ? p - 1 : -1,
+      x < 511 ? p + 1 : -1,
+      y > 0 ? p - 512 : -1,
+      y < 511 ? p + 512 : -1,
+    ]) {
+      if (v >= 0 && mask[v] === target && out[v] !== fillVal) {
+        out[v] = fillVal;
+        q.push(v);
+      }
+    }
   }
   return out;
 }
