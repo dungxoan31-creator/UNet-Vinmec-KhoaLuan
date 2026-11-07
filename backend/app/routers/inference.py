@@ -21,11 +21,10 @@ from typing import Any, Literal
 from uuid import UUID
 
 import cv2
-from backend.services.image_classifier import image_classifier
-from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 from PIL import Image
+from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
@@ -58,14 +57,15 @@ from backend.schemas.schemas import (
     PredictionResponse,
 )
 from backend.services.calibration_service import get_automatic_calibration
-from backend.services.facility_service import check_facility_access
 from backend.services.case_lease_service import (
     _FINAL_STATUSES,
     require_active_case_lease,
     verify_active_case_lease_readonly,
 )
 from backend.services.dicom_privacy import minimize_dicom_patient_metadata
+from backend.services.facility_service import check_facility_access
 from backend.services.file_deletion_service import enqueue_upload_deletions, retry_pending_file_deletions
+from backend.services.image_classifier import image_classifier
 from backend.services.image_service import (
     decode_ultrasound_image,
     extract_dicom_calibration_spacing,

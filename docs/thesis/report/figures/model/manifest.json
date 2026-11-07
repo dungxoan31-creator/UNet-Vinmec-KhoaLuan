@@ -1,0 +1,60 @@
+{
+  "generated_from_existing_artifacts": true,
+  "new_inference_performed": false,
+  "checkpoint_for_test_panels": "417828fa74349d0f7909434f9ad1ad7cb3258b64d41d3d756e2e80569744697d",
+  "privacy_visual_check": "159.JPG and 1295.JPG visually inspected; no names, birth dates, patient IDs visible in the selected pixels; source authorization remains to be verified before external publication",
+  "figures": [
+    {
+      "figure": "duong-loss",
+      "sources": [
+        "checkpoints\\standard_unet_gray_imagenet_norm_2026-10-06\\training_history.json",
+        "checkpoints\\unetplusplus_resnet34_2026-10-06\\training_history.json"
+      ]
+    },
+    {
+      "figure": "duong-dice",
+      "sources": [
+        "checkpoints\\standard_unet_gray_imagenet_norm_2026-10-06\\training_history.json",
+        "checkpoints\\unetplusplus_resnet34_2026-10-06\\training_history.json"
+      ]
+    },
+    {
+      "figure": "so-sanh-validation",
+      "sources": [
+        "evaluation\\milestone_3_2026-10-06\\model_comparison_validation.json"
+      ]
+    },
+    {
+      "figure": "phan-bo-test-standard",
+      "sources": [
+        "evaluation\\milestone_3_2026-10-06\\test_per_image.csv"
+      ]
+    },
+    {
+      "figure": "phan-doan-test-khop-cao",
+      "sources": [
+        "dataset/Vinmec/Vinmec_2d/images/159.JPG",
+        "dataset/Vinmec/Vinmec_2d/annotations/159_binary.PNG",
+        "evaluation/milestone_3_2026-10-06/predictions/5ed60f609c0d9a2444035e6bf8201da3dd14599da91767bbd6310c801ebecfbc.png",
+        "evaluation\\milestone_3_2026-10-06\\test_per_image.csv"
+      ]
+    },
+    {
+      "figure": "phan-doan-test-bo-sot",
+      "sources": [
+        "dataset/Vinmec/Vinmec_2d/images/1295.JPG",
+        "dataset/Vinmec/Vinmec_2d/annotations/1295_binary.PNG",
+        "evaluation/milestone_3_2026-10-06/predictions/2e9db9a9d87ec6a67fb27637cd5fa96636fd5b9a19bf57be0102d1fe39e7896b.png",
+        "evaluation\\milestone_3_2026-10-06\\test_per_image.csv"
+      ]
+    },
+    {
+      "figure": "tien-xu-ly-thuc-te",
+      "sources": [
+        "dataset/2d/images/159.JPG",
+        "dataset/2d/masks/159_binary.PNG",
+        "backend/services/preprocessor.py"
+      ]
+    }
+  ]
+}

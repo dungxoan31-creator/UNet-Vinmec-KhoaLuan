@@ -38,8 +38,8 @@ from backend.db.database import (
     UserModel,
 )
 from backend.schemas.schemas import BatchReviewRequest, DoctorReviewRequest
-from backend.services.facility_service import check_facility_access
 from backend.services.case_lease_service import require_active_case_lease
+from backend.services.facility_service import check_facility_access
 from backend.services.image_service import decode_ultrasound_image, get_image_calibration
 from backend.services.review_validation import validate_review_mask
 from backend.services.source_measurements import measure_source_mask

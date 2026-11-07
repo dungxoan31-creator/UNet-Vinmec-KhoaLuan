@@ -8,6 +8,7 @@ Global Administrator.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from fastapi import HTTPException
 
 if TYPE_CHECKING:

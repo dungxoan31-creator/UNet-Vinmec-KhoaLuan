@@ -1,0 +1,9 @@
+flowchart LR
+    A["Tọa độ con trỏ màn hình"] --> B["Trừ vị trí viewport"]
+    B --> C["Nghịch đảo zoom và pan"]
+    C --> D["Tọa độ lưới mô hình 512 × 512"]
+    D --> E["Loại padding letterbox"]
+    E --> F["Ánh xạ về pixel ảnh nguồn"]
+    F --> G{"Có spacing hợp lệ?"}
+    G -->|"Có"| H["Quy đổi số đo có nguồn hiệu chuẩn"]
+    G -->|"Không"| J["Giữ đơn vị px và px²"]

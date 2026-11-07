@@ -29,11 +29,10 @@ import csv
 import hashlib
 import json
 import os
-import shutil
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import cv2
 import numpy as np
@@ -52,7 +51,7 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_split_records(csv_path: Path) -> List[Dict[str, str]]:
+def load_split_records(csv_path: Path) -> list[dict[str, str]]:
     """Load case records from a split CSV file."""
     if not csv_path.exists():
         raise FileNotFoundError(f"Split CSV not found: {csv_path}")
@@ -72,7 +71,7 @@ def convert_single_case(
     dst_mask_path: Path,
     file_mode: str = "copy",
     dry_run: bool = False,
-) -> Tuple[str, bool, Optional[str]]:
+) -> tuple[str, bool, str | None]:
     """Process a single image and mask case for nnU-Net.
 
     Ensures:
@@ -97,7 +96,7 @@ def convert_single_case(
                 os.symlink(src_image_path.resolve(), dst_image_path)
                 os.symlink(src_mask_path.resolve(), dst_mask_path)
                 return case_id, True, None
-            except OSError as err:
+            except OSError:
                 # Fall back to copy if symlink privilege is not held (common on Windows)
                 pass
 
@@ -146,9 +145,9 @@ def generate_nnunet_dataset_json(
     channel_name: str = "US",
     file_ending: str = ".png",
     dry_run: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generate canonical nnU-Net v2 dataset.json metadata file."""
-    dataset_json: Dict[str, Any] = {
+    dataset_json: dict[str, Any] = {
         "channel_names": {
             "0": channel_name,
         },
@@ -175,18 +174,18 @@ def generate_nnunet_dataset_json(
 
 
 def generate_splits_final_json(
-    train_ids: List[str],
-    val_ids: List[str],
+    train_ids: list[str],
+    val_ids: list[str],
     output_folder: Path,
     num_folds: int = 5,
     dry_run: bool = False,
-) -> List[Dict[str, List[str]]]:
+) -> list[dict[str, list[str]]]:
     """Generate splits_final.json compatible with nnU-Net manual splits.
 
     Fold 0 is configured with the exact official MMOTU train and validation split.
     Folds 1..(num_folds-1) rotate or subdivide the dataset to satisfy the 5-fold format.
     """
-    splits: List[Dict[str, List[str]]] = []
+    splits: list[dict[str, list[str]]] = []
 
     # Fold 0: Exact official MMOTU split
     splits.append({
@@ -225,10 +224,10 @@ def prepare_mmotu_dataset(
     channel_name: str = "US",
     val_mode: str = "train_with_split",
     file_mode: str = "copy",
-    limit: Optional[int] = None,
+    limit: int | None = None,
     dry_run: bool = False,
     num_workers: int = 4,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute complete dataset transformation into nnU-Net v2 format."""
     train_records = load_split_records(train_csv)
     val_records = load_split_records(val_csv)
@@ -255,8 +254,8 @@ def prepare_mmotu_dataset(
 
     # Determine assignments based on val_mode
     tasks = []
-    train_case_ids: List[str] = []
-    val_case_ids: List[str] = []
+    train_case_ids: list[str] = []
+    val_case_ids: list[str] = []
 
     for row in train_records:
         cid = row["case_id"]
@@ -293,7 +292,7 @@ def prepare_mmotu_dataset(
         raise ValueError(f"Unknown val_mode: {val_mode}. Choose 'train_with_split' or 'test'.")
 
     # Run conversion tasks
-    errors: List[str] = []
+    errors: list[str] = []
     if num_workers > 1 and not dry_run:
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
             futures = [
@@ -327,7 +326,7 @@ def prepare_mmotu_dataset(
     )
 
     # Create splits_final.json
-    splits_json = generate_splits_final_json(
+    generate_splits_final_json(
         train_ids=train_case_ids,
         val_ids=val_case_ids,
         output_folder=output_dir,

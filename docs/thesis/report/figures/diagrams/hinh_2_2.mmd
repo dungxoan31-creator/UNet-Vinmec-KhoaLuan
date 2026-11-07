@@ -1,0 +1,9 @@
+flowchart LR
+    A["Xác định yêu cầu"] --> B["Thiết kế dữ liệu và luồng"]
+    B --> C["Hiện thực một nhóm chức năng"]
+    C --> D["Kiểm thử theo tiêu chí nghiệm thu"]
+    D --> E{"Đủ bằng chứng?"}
+    E -->|"Có"| F["Ghi nhận phiên bản và giới hạn"]
+    E -->|"Chưa"| B
+    F --> G["Mở rộng chức năng tiếp theo"]
+    G --> A

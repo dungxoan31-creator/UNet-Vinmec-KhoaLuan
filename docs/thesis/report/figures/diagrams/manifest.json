@@ -1,0 +1,290 @@
+[
+  {
+    "number": "1.1",
+    "caption": "Mối liên hệ giữa bối cảnh thực tập, phân tích nghiệp vụ và sản phẩm khóa luận",
+    "source": "hinh_1_1.mmd",
+    "image": "hinh_1_1.png",
+    "orientation": 1,
+    "width": 276,
+    "height": 658
+  },
+  {
+    "number": "1.2",
+    "caption": "Bài toán hỗ trợ phân đoạn với người sử dụng giữ quyền quyết định",
+    "source": "hinh_1_2.mmd",
+    "image": "hinh_1_2.png",
+    "orientation": 0,
+    "width": 746.96875,
+    "height": 980.375
+  },
+  {
+    "number": "2.1",
+    "caption": "Các nhóm trách nhiệm của kiến trúc ứng dụng web nghiên cứu",
+    "source": "hinh_2_1.mmd",
+    "image": "hinh_2_1.png",
+    "orientation": 0,
+    "width": 560,
+    "height": 521.5
+  },
+  {
+    "number": "2.2",
+    "caption": "Vòng phát triển và kiểm chứng được áp dụng cho bản mẫu",
+    "source": "hinh_2_2.mmd",
+    "image": "hinh_2_2.png",
+    "orientation": 1,
+    "width": 428,
+    "height": 910.609375
+  },
+  {
+    "number": "2.3",
+    "caption": "Kiến trúc Standard U-Net base_filters=32 được hiện thực trong dự án",
+    "source": "hinh_2_3.mmd",
+    "image": "hinh_2_3.png",
+    "orientation": 1,
+    "width": 843.9296875,
+    "height": 1184.5
+  },
+  {
+    "number": "2.4",
+    "caption": "Luồng tính loss và chọn checkpoint trong cấu hình đối sánh",
+    "source": "hinh_2_4.mmd",
+    "image": "hinh_2_4.png",
+    "orientation": 0,
+    "width": 512.58203125,
+    "height": 794.5
+  },
+  {
+    "number": "2.5",
+    "caption": "Chuỗi chuyển đổi tọa độ và điều kiện quy đổi đơn vị đo",
+    "source": "hinh_2_5.mmd",
+    "image": "hinh_2_5.png",
+    "orientation": 1,
+    "width": 531.96875,
+    "height": 987.5625
+  },
+  {
+    "number": "3.1",
+    "caption": "Quy trình As-Is tham chiếu cho phân tích nghiệp vụ",
+    "source": "hinh_3_1.mmd",
+    "image": "hinh_3_1.png",
+    "orientation": 0,
+    "width": 560,
+    "height": 969
+  },
+  {
+    "number": "3.2",
+    "caption": "Quy trình To-Be của luồng phân đoạn và rà soát nghiên cứu",
+    "source": "hinh_3_2.mmd",
+    "image": "hinh_3_2.png",
+    "orientation": 0,
+    "width": 702,
+    "height": 1491.921875
+  },
+  {
+    "number": "3.3",
+    "caption": "Phân rã chức năng BFD của hệ thống nghiên cứu",
+    "source": "hinh_3_3.mmd",
+    "image": "hinh_3_3.png",
+    "orientation": 1,
+    "width": 844,
+    "height": 1045
+  },
+  {
+    "number": "3.4",
+    "caption": "Sơ đồ ngữ cảnh CD của phạm vi hệ thống",
+    "source": "hinh_3_4.mmd",
+    "image": "hinh_3_4.png",
+    "orientation": 1,
+    "width": 876,
+    "height": 439
+  },
+  {
+    "number": "3.5",
+    "caption": "DFD mức 0 của luồng dữ liệu nghiên cứu",
+    "source": "hinh_3_5.mmd",
+    "image": "hinh_3_5.png",
+    "orientation": 1,
+    "width": 967.3203125,
+    "height": 1132.76318359375
+  },
+  {
+    "number": "3.6",
+    "caption": "DFD mức 1 của chức năng tiếp nhận ca và ảnh",
+    "source": "hinh_3_6.mmd",
+    "image": "hinh_3_6.png",
+    "orientation": 0,
+    "width": 573.48046875,
+    "height": 945.0715942382812
+  },
+  {
+    "number": "3.7",
+    "caption": "DFD mức 1 của pipeline kiểm tra và phân đoạn",
+    "source": "hinh_3_7.mmd",
+    "image": "hinh_3_7.png",
+    "orientation": 0,
+    "width": 799,
+    "height": 913.5748901367188
+  },
+  {
+    "number": "3.8",
+    "caption": "DFD mức 1 của lưu rà soát và trình bày phiếu nghiên cứu",
+    "source": "hinh_3_8.mmd",
+    "image": "hinh_3_8.png",
+    "orientation": 1,
+    "width": 821.03125,
+    "height": 975.041259765625
+  },
+  {
+    "number": "3.9",
+    "caption": "Use Case tổng quát, phân biệt lõi và workflow mở rộng",
+    "source": "hinh_3_9.mmd",
+    "image": "hinh_3_9.png",
+    "orientation": 0,
+    "width": 569.7627563476562,
+    "height": 740.5
+  },
+  {
+    "number": "3.10",
+    "caption": "Sequence của luồng lõi từ cặp ảnh đến rà soát nghiên cứu",
+    "source": "hinh_3_10.mmd",
+    "image": "hinh_3_10.png",
+    "orientation": 0,
+    "width": 1280,
+    "height": 978
+  },
+  {
+    "number": "3.11",
+    "caption": "Máy trạng thái Study của backend hiện hữu",
+    "source": "hinh_3_11.mmd",
+    "image": "hinh_3_11.png",
+    "orientation": 0,
+    "width": 445.078125,
+    "height": 620
+  },
+  {
+    "number": "3.12",
+    "caption": "Máy trạng thái workflow mục tiêu, chưa được backend legacy thực thi đầy đủ",
+    "source": "hinh_3_12.mmd",
+    "image": "hinh_3_12.png",
+    "orientation": 0,
+    "width": 711.9296875,
+    "height": 855.5
+  },
+  {
+    "number": "3.13",
+    "caption": "Kiến trúc logic của frontend, backend, model và lưu trữ",
+    "source": "hinh_3_13.mmd",
+    "image": "hinh_3_13.png",
+    "orientation": 0,
+    "width": 737.875,
+    "height": 874.728515625
+  },
+  {
+    "number": "3.14",
+    "caption": "Các không gian tọa độ và điều kiện chuyển sang đơn vị vật lý",
+    "source": "hinh_3_14.mmd",
+    "image": "hinh_3_14.png",
+    "orientation": 1,
+    "width": 589.3203125,
+    "height": 521.5
+  },
+  {
+    "number": "3.15",
+    "caption": "Ranh giới transaction và xử lý conflict hash trong upload",
+    "source": "hinh_3_15.mmd",
+    "image": "hinh_3_15.png",
+    "orientation": 0,
+    "width": 725.28125,
+    "height": 912
+  },
+  {
+    "number": "3.16",
+    "caption": "ERD rút gọn, chỉ thể hiện các khóa ngoại vật lý hiện có",
+    "source": "hinh_3_16.mmd",
+    "image": "hinh_3_16.png",
+    "orientation": 0,
+    "width": 1135.8125,
+    "height": 886
+  },
+  {
+    "number": "3.17",
+    "caption": "Mô hình quan hệ và các tham chiếu logic cần kiểm ở ứng dụng",
+    "source": "hinh_3_17.mmd",
+    "image": "hinh_3_17.png",
+    "orientation": 0,
+    "width": 816.265625,
+    "height": 661
+  },
+  {
+    "number": "3.18",
+    "caption": "Tổ chức phiên bản dữ liệu và giới hạn kiểm soát rò rỉ",
+    "source": "hinh_3_18.mmd",
+    "image": "hinh_3_18.png",
+    "orientation": 0,
+    "width": 709.51171875,
+    "height": 712
+  },
+  {
+    "number": "3.19",
+    "caption": "Chuỗi xử lý cặp ảnh–mask của các lượt chạy so sánh",
+    "source": "hinh_3_19.mmd",
+    "image": "hinh_3_19.png",
+    "orientation": 1,
+    "width": 559.0078125,
+    "height": 683.5
+  },
+  {
+    "number": "3.21",
+    "caption": "Kiến trúc Standard U-Net đúng theo module mô hình của dự án",
+    "source": "hinh_3_21.mmd",
+    "image": "hinh_3_21.png",
+    "orientation": 0,
+    "width": 826.1328125,
+    "height": 1127.5
+  },
+  {
+    "number": "3.22",
+    "caption": "Cấu hình U-Net++/ResNet34 được huấn luyện trong dự án",
+    "source": "hinh_3_22.mmd",
+    "image": "hinh_3_22.png",
+    "orientation": 1,
+    "width": 276,
+    "height": 712
+  },
+  {
+    "number": "3.23",
+    "caption": "Vòng huấn luyện và lựa chọn checkpoint trên Validation",
+    "source": "hinh_3_23.mmd",
+    "image": "hinh_3_23.png",
+    "orientation": 0,
+    "width": 471.01953125,
+    "height": 1333.875
+  },
+  {
+    "number": "3.26",
+    "caption": "Luồng tính các chỉ số phân đoạn ở cấp pixel và cấp tập ảnh",
+    "source": "hinh_3_26.mmd",
+    "image": "hinh_3_26.png",
+    "orientation": 0,
+    "width": 1041.1640625,
+    "height": 547
+  },
+  {
+    "number": "3.31",
+    "caption": "Quy trình phân tích nguyên nhân sai khác giữa prediction và mask tham chiếu",
+    "source": "hinh_3_31.mmd",
+    "image": "hinh_3_31.png",
+    "orientation": 0,
+    "width": 844,
+    "height": 1026
+  },
+  {
+    "number": "3.32",
+    "caption": "Luồng suy luận đến rà soát và lưu mask do người sử dụng kiểm soát",
+    "source": "hinh_3_32.mmd",
+    "image": "hinh_3_32.png",
+    "orientation": 0,
+    "width": 1384,
+    "height": 737
+  }
+]

@@ -1,0 +1,24 @@
+flowchart LR
+    BS["DOCTOR / BS"] --> UC1(["Đăng nhập"])
+    BS --> UC2(["Tiếp nhận cặp ảnh"])
+    BS --> UC3(["Xem và sửa mask"])
+    BS --> UC4(["Lưu rà soát"])
+    BS --> UC5(["Mở lại và phiếu nghiên cứu"])
+    QT["ADMIN / QT"] --> UC1
+    QT --> UC6(["Đọc quản trị và audit"])
+    QT --> UC7(["Xóa ca: admin legacy"])
+    subgraph CORE["Phạm vi lõi nối API"]
+        UC1
+        UC2
+        UC3
+        UC4
+        UC5
+        UC6
+        UC7
+    end
+    TK["TK: vai trò mục tiêu"] --> UC8(["Duyệt độc lập hoặc trả lại"])
+    TK --> UC9(["Khóa và bản bổ sung"])
+    subgraph EXT["Mở rộng: demo và contract server cần có"]
+        UC8
+        UC9
+    end

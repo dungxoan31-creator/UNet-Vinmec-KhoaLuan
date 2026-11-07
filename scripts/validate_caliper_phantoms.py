@@ -12,7 +12,7 @@ import json
 import math
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -64,7 +64,7 @@ def calculate_icc_2_1(data: np.ndarray) -> float:
     return float(np.clip(icc, -1.0, 1.0))
 
 
-def calculate_bland_altman(measured: np.ndarray, ground_truth: np.ndarray) -> Dict[str, float]:
+def calculate_bland_altman(measured: np.ndarray, ground_truth: np.ndarray) -> dict[str, float]:
     """Compute Bland-Altman bias, limits of agreement, and confidence intervals."""
     diff = measured - ground_truth
     mean_bias = float(np.mean(diff))
@@ -84,7 +84,7 @@ def calculate_bland_altman(measured: np.ndarray, ground_truth: np.ndarray) -> Di
     }
 
 
-def generate_synthetic_phantoms(n: int = 50, seed: int = 20261030) -> List[Dict[str, Any]]:
+def generate_synthetic_phantoms(n: int = 50, seed: int = 20261030) -> list[dict[str, Any]]:
     """Generate 50 synthetic lesion phantoms with known ground-truth major & minor axes."""
     rng = np.random.RandomState(seed)
     phantoms = []
@@ -250,7 +250,7 @@ def perturb_mask(mask: np.ndarray, iteration: int, rng: np.random.RandomState) -
     return cv2.warpAffine(mask, m, (w, h), flags=cv2.INTER_NEAREST)
 
 
-def run_phantom_validation(n_phantoms: int = 50, n_iterations: int = 5) -> Dict[str, Any]:
+def run_phantom_validation(n_phantoms: int = 50, n_iterations: int = 5) -> dict[str, Any]:
     """Execute complete validation across all phantoms and repetitions."""
     engine = InferenceEngine(device="cpu")
     phantoms = generate_synthetic_phantoms(n=n_phantoms)

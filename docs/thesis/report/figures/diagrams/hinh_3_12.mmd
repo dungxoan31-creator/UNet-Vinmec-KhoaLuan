@@ -1,0 +1,17 @@
+stateDiagram-v2
+    state "Đã tải đủ ảnh" as UPLOADED
+    state "AI hoàn tất hai bên" as AI_DONE
+    state "Đang rà soát" as IN_REVIEW
+    state "Đã ký sơ bộ" as SIGNED_PRELIM
+    state "Đã duyệt" as APPROVED
+    state "Bị trả lại" as REJECTED
+    state "Đã khóa" as LOCKED
+    [*] --> UPLOADED
+    UPLOADED --> AI_DONE: "Hai prediction hoàn tất"
+    AI_DONE --> IN_REVIEW: "Bắt đầu rà soát"
+    IN_REVIEW --> SIGNED_PRELIM: "BS xem đủ hai ảnh và gửi phiên bản"
+    SIGNED_PRELIM --> APPROVED: "TK khác người ký duyệt"
+    SIGNED_PRELIM --> REJECTED: "TK trả lại kèm lý do"
+    REJECTED --> IN_REVIEW: "Sửa theo phản hồi"
+    APPROVED --> LOCKED: "Khóa phiên bản"
+    LOCKED --> IN_REVIEW: "Tạo bản bổ sung; giữ bản cũ"

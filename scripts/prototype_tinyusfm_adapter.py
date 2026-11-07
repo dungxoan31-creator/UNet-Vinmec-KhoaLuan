@@ -13,12 +13,9 @@ This script explores and benchmarks:
 
 from __future__ import annotations
 
-import os
 import sys
 import time
-from functools import partial
 from pathlib import Path
-from typing import List, Tuple
 
 import torch
 import torch.nn as nn
@@ -33,14 +30,13 @@ if str(TINYUSFM_DIR) not in sys.path:
     sys.path.insert(0, str(TINYUSFM_DIR))
 
 import segmentation_models_pytorch as smp
-from segmentation_models_pytorch.decoders.unetplusplus.decoder import UnetPlusPlusDecoder
-from segmentation_models_pytorch.base.heads import SegmentationHead
-from timm.layers import resample_abs_pos_embed
 
 # Import TinyUSFM building blocks
 from model.tinyusfm import TinyUSFM
-from model.tinyusfm_seg import MAEBackbone, Feature2Pyramid_Scale, FPNHead
-
+from model.tinyusfm_seg import Feature2Pyramid_Scale, FPNHead, MAEBackbone
+from segmentation_models_pytorch.base.heads import SegmentationHead
+from segmentation_models_pytorch.decoders.unetplusplus.decoder import UnetPlusPlusDecoder
+from timm.layers import resample_abs_pos_embed
 
 # ============================================================================
 # 1. Adaptable TinyUSFM Backbone for Arbitrary Image Resolution & Grayscale
@@ -56,13 +52,13 @@ class AdaptableTinyUSFMBackbone(MAEBackbone):
 
     def __init__(
         self,
-        img_size: int | Tuple[int, int] = (512, 512),
+        img_size: int | tuple[int, int] = (512, 512),
         patch_size: int = 16,
         in_channels: int = 1,
         embed_dims: int = 192,
         num_layers: int = 12,
         num_heads: int = 12,
-        out_indices: Tuple[int, ...] = (3, 5, 7, 11),
+        out_indices: tuple[int, ...] = (3, 5, 7, 11),
         drop_path_rate: float = 0.1,
     ):
         super().__init__(
@@ -79,7 +75,7 @@ class AdaptableTinyUSFMBackbone(MAEBackbone):
         self.expected_in_channels = in_channels
         self.target_img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
 
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         # Adapt single channel grayscale to 3 channels for foundation model feature extraction
         if x.shape[1] == 1 and self.expected_in_channels == 1:
             x = x.repeat(1, 3, 1, 1)
@@ -110,7 +106,7 @@ class AdaptableTinyUSFMBackbone(MAEBackbone):
 
     def load_pretrained_weights_with_resampling(
         self, state_dict: dict, verbose: bool = True
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[list[str], list[str]]:
         """Load pretrained TinyUSFM weights and interpolate pos_embed if resolution differs."""
         mapped_dict = {}
         for k, v in state_dict.items():
@@ -204,7 +200,7 @@ class TinyUSFM_UnetPlusPlus_Encoder(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         # High resolution boundary stages
         s0_stem = self.stem_stage0(x)  # [B, 32, H, W]
         s1 = self.stem_stage1(s0_stem)  # [B, 32, H/2, W/2]

@@ -1,0 +1,9 @@
+flowchart LR
+ A["Ảnh nguồn xám"] --> B["Letterbox 512×512; bilinear"]
+ M["Mask nguồn > 0"] --> N["Letterbox đồng bộ; nearest"]
+ B --> C["CLAHE: clip 2, grid 8×8"]
+ C --> D["Augmentation nếu là Train"]
+ N --> D
+ D --> E["Ảnh /255; mask 0/1"]
+ E --> F["Mean 0,449; std 0,226 cho comparator"]
+ F --> G["Tensor B×1×512×512"]

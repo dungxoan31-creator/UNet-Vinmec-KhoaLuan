@@ -29,13 +29,13 @@ if hasattr(sys.stdout, "reconfigure"):
 import cv2
 import numpy as np
 
+from backend.core.calibration import normalize_pixel_spacing
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
 from backend.services.disease_classifier import DiseaseClassifierService
+from backend.services.image_service import decode_ultrasound_image
 from backend.services.inference_engine import InferenceEngine
 from backend.services.preprocessor import UltrasoundPreprocessor
-from backend.core.calibration import normalize_pixel_spacing
 from backend.services.source_measurements import measure_source_mask
-from backend.services.image_service import decode_ultrasound_image
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("predict_image_mask_disease")
@@ -132,7 +132,7 @@ def render_visualization(
     status_color = (0, 255, 0) if status == "PREDICTED" else (0, 165, 255)
     cv2.putText(panel_info, f"Trang thai: {status}", (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.65, status_color, 2)
     y += 35
-    cv2.putText(panel_info, f"Benh du doan (Top 1):", (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+    cv2.putText(panel_info, "Benh du doan (Top 1):", (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
     y += 28
     cv2.putText(panel_info, f"{label_vi}", (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
     y += 25
@@ -149,7 +149,7 @@ def render_visualization(
     top3 = diagnosis.get("top3", [])
     bar_max_w = 260
     for item in top3:
-        class_key, class_vi, p = item[0], item[1], item[2]
+        _, class_vi, p = item[0], item[1], item[2]
         y += 28
         short_name = class_vi[:25]
         cv2.putText(panel_info, f"{short_name}: {p * 100:.1f}%", (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1)

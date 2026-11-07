@@ -109,7 +109,8 @@ def seed(data_dir: Path, case_count: int) -> dict:
     manifest_path = data_dir / "DEMO_DATA_MANIFEST.json"
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if manifest.get("database") != str(db_path):
+        manifest_db = manifest.get("database")
+        if manifest_db and Path(manifest_db).name != db_path.name:
             raise SystemExit("Existing demo manifest points to a different database; refusing to reuse it.")
         for secret_name in (".patient_pid_hmac_secret", ".app_jwt_secret"):
             secret_path = data_dir / secret_name

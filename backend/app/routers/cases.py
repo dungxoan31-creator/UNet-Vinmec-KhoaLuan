@@ -51,7 +51,6 @@ from backend.schemas.schemas import (
     CaseClaimResponse,
     CaseCreateResponse,
     CaseDetailResponse,
-    CaseImageSummary,
     CaseIntakeSidesRequest,
     CaseItem,
     CaseLeaseReleaseRequest,
@@ -59,11 +58,9 @@ from backend.schemas.schemas import (
     CaseSearchRequest,
     CreateCaseRequest,
     WorkspaceCaseSearchResponse,
-    WorkspaceCaseSearchResult,
 )
 from backend.services.case_lease_service import acquire_case_lease, release_case_lease, require_active_case_lease
 from backend.services.correction_access import (
-    pending_correction,
     require_case_edit_access,
     require_case_read_access,
 )

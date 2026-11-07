@@ -1,0 +1,12 @@
+flowchart TB
+ A["Mask tham chiếu Y"] --> C["Đối chiếu từng pixel 512×512"]
+ B["Prediction tại ngưỡng 0,5"] --> C
+ C --> T["TP: cả hai tiền cảnh"]
+ C --> P["FP: chỉ prediction tiền cảnh"]
+ C --> N["FN: chỉ tham chiếu tiền cảnh"]
+ C --> Z["TN: cả hai nền"]
+ T --> D["Dice, IoU, Recall, Precision theo ảnh"]
+ P --> D
+ N --> D
+ Z --> S["Specificity nền pixel"]
+ D --> M["Trung bình macro trên tập"]

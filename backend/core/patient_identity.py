@@ -20,7 +20,7 @@ def patient_pid_secret() -> bytes:
             from backend.app.config import DATA_DIR
             secret_file = os.path.join(DATA_DIR, ".patient_pid_hmac_secret")
             if os.path.isfile(secret_file):
-                with open(secret_file, "r", encoding="ascii") as sf:
+                with open(secret_file, encoding="ascii") as sf:
                     value = sf.read().strip()
             elif os.environ.get("APP_ENVIRONMENT", "LOCAL") in ("LOCAL", "TEST", "DEV", "DEVELOPMENT"):
                 import secrets

@@ -40,7 +40,7 @@ def _signing_key() -> str:
             from backend.app.config import DATA_DIR
             secret_file = os.path.join(DATA_DIR, ".app_jwt_secret")
             if os.path.isfile(secret_file):
-                with open(secret_file, "r", encoding="ascii") as sf:
+                with open(secret_file, encoding="ascii") as sf:
                     key = sf.read().strip()
             elif os.environ.get("APP_ENVIRONMENT", "LOCAL") in ("LOCAL", "TEST", "DEV", "DEVELOPMENT"):
                 generated = secrets.token_urlsafe(48)

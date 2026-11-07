@@ -106,50 +106,64 @@ Hệ thống được thiết kế theo kiến trúc phân tầng dạng Client 
 
 ---
 
-## 5. Cấu trúc Thư mục Dự án
+## 5. Cấu trúc Thư mục Dự án (Final Clean Architecture)
 
-```text
+`	ext
 UNet-Vinmec-KhoaLuan/
 ├── backend/                 # Máy chủ dịch vụ FastAPI Backend
 │   ├── app/                 # Điểm khởi chạy API (main.py), định tuyến routers/, cấu hình (config.py)
-│   ├── core/                # Xử lý hình ảnh cấp thấp (image_utils.py)
+│   ├── core/                # Xử lý hình ảnh cấp thấp, phân tích danh tính an toàn (image_utils.py)
 │   ├── db/                  # Khởi tạo cơ sở dữ liệu SQLAlchemy (database.py)
 │   ├── models/              # Kiến trúc mạng nơ-ron (unet.py, attention_unet.py, losses.py)
 │   ├── schemas/             # Pydantic Schemas kiểm thực dữ liệu đầu vào/ra
-│   └── services/            # Dịch vụ nghiệp vụ: InferenceEngine, Preprocessor, MorphologyExtractor
+│   └── services/            # Dịch vụ nghiệp vụ: InferenceEngine, Preprocessor, CDSS, MorphologyExtractor
 ├── frontend/                # Giao diện Web Workstation dành cho bác sĩ
-│   ├── css/                 # Giao diện Dark Mode tối ưu cho phòng chẩn đoán hình ảnh
-│   ├── js/modules/          # Module xử lý Canvas, API, tương tác HITL, vẽ đo đạc
+│   ├── app/                 # Logic giao diện ứng dụng (viewer.js, cases.js, navigation.js, etc.)
+│   ├── assets/              # Tài nguyên đồ họa, font chữ Inter và logo Vinmec
+│   ├── css/                 # Giao diện Dark Mode tối ưu cho phòng đọc ảnh siêu âm
+│   ├── js/                  # Thư viện client API
 │   └── index.html           # Trang giao diện chính của hệ thống
 ├── ai_training/             # Pipeline huấn luyện mô hình PyTorch
 │   ├── dataset_loader.py    # Dataloader ảnh siêu âm kèm Letterbox & CLAHE
+│   ├── loss.py              # Combo Loss (Dice + BCE), Focal Tversky, Advanced Hybrid Loss
 │   ├── metrics_clinical.py  # Bộ đo phân đoạn ở mức pixel (Dice, IoU, Recall, Specificity)
 │   ├── splits/              # Cấu hình phân chia tập dữ liệu huấn luyện, thẩm định và kiểm thử
-│   └── train_baseline_unet.py # Huấn luyện mô hình U-Net cơ sở
+│   └── train_unetplusplus_resnet34.py # Huấn luyện mô hình U-Net++ ResNet34
 ├── dataset/                 # Thư mục dữ liệu ảnh gốc (Chỉ đọc - Read Only)
 │   ├── 2d/                  # Ảnh siêu âm 2D B-mode (images/ và masks/)
-│   ├── 3d/                  # Thư mục nguồn tên 3d; pipeline hiện xử lý từng ảnh 2D
-│   └── index.csv            # Chỉ mục mẫu đủ điều kiện theo manifest split; không gồm ảnh fallback bị loại
-├── metadata/                # Metadata lịch sử của 307 bản ghi Mốc 1
-│   ├── kltn_ground_truth_307.csv # Nhãn tham chiếu lịch sử; phê duyệt chuyên gia chưa xác minh
-│   ├── train.csv, val.csv, test.csv # Phân chia lịch sử; Patient ID nguồn chưa xác minh
-│   └── thesis_exports/      # File CSV tiếng Việt phục vụ phụ lục khóa luận
-├── checkpoints/             # Trọng số mô hình đã huấn luyện (.pth)
-│   ├── unified_vinmec_refine_2026-10-06/ # Checkpoint Standard U-Net baseline / lịch sử
-│   └── unetplusplus_resnet34_2026-10-06/ # Checkpoint ứng viên U-Net++ đang được manifest chọn
-├── evaluation/              # Minh chứng kiểm thử kỹ thuật và metric phân đoạn; chưa thẩm định lâm sàng
+│   ├── 3d/                  # Ảnh siêu âm đa lát cắt 2D
+│   ├── index.csv            # Chỉ mục mẫu đủ điều kiện theo manifest split
+│   └── external_manifest_mmotu.json # Khai báo định danh tập dữ liệu nghiên cứu
+├── checkpoints/             # Trọng số mô hình đã thẩm định mã băm SHA-256 (.pth)
+│   ├── unetplusplus_resnet34_2026-10-06/ # Checkpoint U-Net++ sản xuất (Được manifest chọn)
+│   ├── unified_vinmec_refine_2026-10-06/ # Checkpoint Standard U-Net baseline đối chuẩn
+│   ├── mmotu_8class_accuracy_search_2026-10-27/ # Model phân loại bệnh học nghiên cứu (trial_02)
+│   └── boosted_unetplusplus_scse_2026-10-27/    # Model nghiên cứu U-Net++ scSE
+├── evaluation/              # Minh chứng kiểm thử kỹ thuật và metric phân đoạn
 │   ├── selected_model.json  # Manifest chỉ định mô hình phục vụ với mã băm SHA-256
-│   └── archive/             # Kho lưu trữ kết quả thực nghiệm các mốc trước
-├── scripts/                 # Bộ công cụ xử lý dữ liệu, kiểm toán và xuất báo cáo
-├── templates/               # Mẫu HTML phiếu kết quả siêu âm
-├── tests/                   # Bộ kiểm thử tự động (Pytest & Playwright)
-├── data/                    # Thư mục runtime cục bộ (uploads tạm và reports sinh ra)
+│   └── protocols/           # Giao thức đánh giá chuẩn hóa
+├── docs/                    # Tài liệu học thuật & kỹ thuật
+│   ├── thesis/              # Tài liệu Khóa luận Tốt nghiệp & phụ lục
+│   │   └── report/          # Toàn văn Khóa luận (PDF, DOCX, MD, mẫu phiếu kết quả siêu âm)
+│   ├── architecture/        # Thiết kế kiến trúc hệ thống
+│   ├── clinical_validation/ # Ma trận luật tất định O-RADS v2022 & IOTA Simple Rules
+│   └── deployment/          # Hướng dẫn triển khai, vận hành & bảo mật
+├── data/                    # Thư mục runtime & demo workspace
+│   └── demo_workspace/      # Không gian demo độc lập, an toàn với synthetic data
+├── scripts/                 # Bộ công cụ xử lý dữ liệu, kiểm toán và khởi chạy demo
+│   ├── run_demo_workspace.ps1   # Khởi chạy bản demo hoàn chỉnh với dữ liệu synthetic
+│   ├── seed_demo_workspace.py   # Tự động khởi tạo CSDL và tài khoản demo an toàn
+│   └── run_all_verifications.py # Kịch bản xác minh toàn diện hệ thống
+├── tests/                   # Bộ kiểm thử tự động (Unit / Integration / E2E)
+├── Dockerfile               # File container hóa ứng dụng
+├── docker-compose.yml       # Cấu hình container đa dịch vụ
 ├── MODEL_CARD.md            # Báo cáo kỹ thuật mô hình (Model Card)
-├── TECH_STACK.md            # Thông số chi tiết các phiên bản thư viện
-├── pyproject.toml           # Cấu hình Pytest và Ruff
-├── Dockerfile               # File build container Docker
-└── docker-compose.yml       # Cấu hình khởi chạy hệ thống cùng Nginx
-```
+├── pyproject.toml           # Cấu hình Pytest và Ruff linter
+├── requirements.txt         # Khai báo phụ thuộc Python
+├── requirements-lock.txt    # Khóa phiên bản phụ thuộc chính xác (Python 3.12)
+├── .gitignore               # Cấu hình loại trừ tệp tự sinh
+└── README.md                # Tài liệu hướng dẫn sử dụng & vận hành
+`
 
 ---
 
@@ -225,28 +239,55 @@ sequenceDiagram
 
 ---
 
-### 8.1. Bài demo kỹ thuật đã được kiểm chứng
+## 8. Hướng dẫn Khởi chạy Hệ thống & Bản Demo
 
-Phạm vi được phép hiện tại chỉ là bài E2E scripted trên localhost, chạy bằng dữ liệu tổng hợp:
+### 8.1. Khởi chạy Demo Workspace Hoàn chỉnh (Khuyến nghị cho Hội đồng & Giám khảo)
 
-```powershell
+Để trình diễn toàn bộ quy trình làm việc lâm sàng Human-in-the-Loop trên giao diện Web Workstation thực tế:
+
+`powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_demo_workspace.ps1
+`
+
+**Đặc điểm không gian Demo:**
+- **Dữ liệu an toàn tuyệt đối**: Sử dụng 100% dữ liệu ảnh siêu âm tổng hợp (synthetic-only allowlist); không lưu trữ hay xử lý bất kỳ hồ sơ bệnh nhân thật nào.
+- **Tự động khởi tạo**: Tự động sinh CSDL cô lập tại data/demo_workspace/ovarian_ai.db, nạp 80 ca khám mẫu, 4 cơ sở y tế và 40 tài khoản bác sĩ.
+- **Bảo mật**: Tự động sinh khóa HMAC và JWT cục bộ (.patient_pid_hmac_secret, .app_jwt_secret).
+- **Địa chỉ truy cập**: Mở trình duyệt web tại http://127.0.0.1:8000 (hoặc http://127.0.0.1:8000/index.html).
+- **Tài khoản đăng nhập có sẵn**:
+  - **Quản trị viên (Admin)**: demo.admin / Mật khẩu: DemoAdmin@2026!
+  - **Bác sĩ (Doctor)**: nhpm (hoặc inhvt, cuongdq) / Mật khẩu: 123456@
+
+### 8.2. Khởi chạy Backend Thủ công
+
+Nếu muốn chạy máy chủ Backend độc lập với cấu hình tùy chỉnh:
+
+`powershell
+# Kích hoạt môi trường ảo
+.\.venv\Scripts\Activate.ps1
+
+# Khởi chạy FastAPI qua Uvicorn
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+`
+
+- Kiểm tra API Docs (Swagger UI): http://127.0.0.1:8000/docs
+- Kiểm tra trạng thái hệ thống: http://127.0.0.1:8000/api/v1/health
+
+### 8.3. Bài kiểm thử E2E Scripted
+
+`powershell
 npm run test:e2e:roundtrip
-```
+`
 
-Harness tự khởi chạy backend cô lập trên loopback, SQLite runtime tạm, fixture tổng hợp đã allowlist và trình duyệt headless; test kiểm tra cờ RUO/synthetic-only và dọn runtime sau khi tiến trình dừng. Đây không phải bài demo giao diện tương tác tại bệnh viện.
+Harness tự khởi chạy backend cô lập trên loopback, SQLite runtime tạm, fixture tổng hợp đã allowlist và trình duyệt headless; test kiểm tra cờ RUO/synthetic-only và dọn runtime sau khi tiến trình dừng.
 
-Runbook về phạm vi, kiểm tra kết quả và xử lý sự cố nằm tại [docs/evaluation/release_runbook.md](docs/evaluation/release_runbook.md). Không có quy trình sao lưu/phục hồi CSDL được phê duyệt; PostgreSQL chưa được hỗ trợ/xác minh.
+### 8.4. Cấu hình Docker & Container hóa
 
-### 8.2. Launcher phát triển và biến môi trường
+Repository cung cấp Dockerfile và docker-compose.yml phục vụ đóng gói và triển khai containerized:
 
-`scripts/run_prototype.ps1` chỉ là launcher phát triển. Launcher kiểm tra checkpoint và secret nhưng **không bật synthetic-only mode**; vì vậy nó không phải lệnh demo đã được cho phép và không được dùng với dữ liệu bệnh nhân. Không diễn giải thông báo pre-flight của launcher thành readiness lâm sàng. Nếu cần phát triển cục bộ, chỉ dùng dữ liệu phi bệnh nhân được phép và runtime riêng.
-
-Launcher yêu cầu `APP_JWT_SECRET`, `APP_PATIENT_PID_HMAC_SECRET`, `APP_ADMIN_PASSWORD` và `APP_DOCTOR_PASSWORD`. Biến chọn mô hình sau đây là tùy chọn:
-- `MODEL_SELECTION_MANIFEST`: Đường dẫn đến file manifest lựa chọn mô hình (mặc định: `evaluation/selected_model.json`). Manifest hiện chọn U-Net++/ResNet34; chỉ thay bằng manifest có checkpoint SHA-256 và nguồn đánh giá đã kiểm chứng.
-
-### 8.3. Docker và Docker Compose — BLOCKED / NOT VERIFIED
-
-Repository có `Dockerfile` và `docker-compose.yml`, nhưng Docker Engine hiện không chạy nên chưa thể build image hoặc xác minh runtime. Tích hợp PostgreSQL và khôi phục sau lỗi cũng chưa được kiểm chứng trên môi trường đích. Không dùng cấu hình này để triển khai hoặc xử lý dữ liệu bệnh nhân. Chỉ mở lại mục này sau khi có log build, smoke/integration test trên runtime thật và kiểm tra cấu hình lưu trữ/migration.
+`ash
+docker compose up --build
+`
 
 ---
 

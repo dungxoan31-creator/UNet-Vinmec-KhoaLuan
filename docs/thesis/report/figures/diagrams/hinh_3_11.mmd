@@ -1,0 +1,10 @@
+stateDiagram-v2
+    state "Đã tạo ca" as PENDING
+    state "Có kết quả AI" as ANALYZED
+    state "Đã rà soát một phần" as PARTIALLY_REVIEWED
+    state "Đã lưu rà soát nghiên cứu" as REVIEWED
+    [*] --> PENDING
+    PENDING --> ANALYZED: "Predict đầu tiên thành công"
+    ANALYZED --> PARTIALLY_REVIEWED: "BOTH nhưng chưa đủ review L/R"
+    PARTIALLY_REVIEWED --> REVIEWED: "Đã có review cho L và R"
+    ANALYZED --> REVIEWED: "Ca đơn bên hoặc đủ review"

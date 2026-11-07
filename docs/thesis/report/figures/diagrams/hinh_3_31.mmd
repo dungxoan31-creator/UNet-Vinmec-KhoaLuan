@@ -1,0 +1,9 @@
+flowchart TB
+ A["Ảnh có Dice thấp hoặc FP/FN lớn"] --> B["Kiểm cặp ảnh-mask và đường dẫn"]
+ B --> C["Kiểm letterbox, threshold, checkpoint"]
+ C --> D["Đối chiếu quy ước nhãn và ảnh gốc"]
+ D --> E["Rà soát chuyên môn nếu có hồ sơ hợp lệ"]
+ E --> F{"Nguồn sai khác đã xác minh?"}
+ F -->|"Dữ liệu/nhãn"| G["Sửa phiên bản dữ liệu; lưu lịch sử"]
+ F -->|"Mô hình"| H["Thí nghiệm mới theo protocol"]
+ F -->|"Chưa rõ"| I["Giữ kết luận mở; không gán nguyên nhân"]

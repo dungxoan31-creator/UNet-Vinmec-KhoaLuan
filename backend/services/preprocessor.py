@@ -10,8 +10,7 @@ import cv2
 import numpy as np
 import torch
 
-
-from backend.services.ultrasound_enhancement import CaliperInpainter, SpeckleFilter
+from backend.services.ultrasound_enhancement import SpeckleFilter
 
 
 class UltrasoundPreprocessor:

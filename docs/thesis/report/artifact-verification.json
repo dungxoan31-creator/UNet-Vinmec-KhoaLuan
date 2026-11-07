@@ -1,0 +1,209 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "check": "Sequential unique captions",
+      "passed": true,
+      "evidence": {
+        "Hình 1": 2,
+        "Bảng 1": 3,
+        "Hình 2": 5,
+        "Bảng 2": 1,
+        "Bảng 3": 34,
+        "Hình 3": 72
+      }
+    },
+    {
+      "check": "All 79 figures embedded",
+      "passed": true,
+      "evidence": 79
+    },
+    {
+      "check": "All 38 numbered tables and 3 front/appendix tables",
+      "passed": true,
+      "evidence": 41
+    },
+    {
+      "check": "Three main chapters",
+      "passed": true,
+      "evidence": [
+        "CHƯƠNG 1. TỔNG QUAN VỀ CƠ SỞ THỰC TẬP, BỐI CẢNH ÁP DỤNG VÀ ĐỀ TÀI NGHIÊN CỨU",
+        "CHƯƠNG 2. CƠ SỞ LÝ THUYẾT VÀ CÔNG CỤ HỖ TRỢ THỰC HIỆN ĐỀ TÀI",
+        "CHƯƠNG 3. XÂY DỰNG HỆ THỐNG HỖ TRỢ PHÂN ĐOẠN SIÊU ÂM BUỒNG TRỨNG"
+      ]
+    },
+    {
+      "check": "At least sample length in editable prose/tables",
+      "passed": true,
+      "evidence": {
+        "report": 45414,
+        "sample": 23457
+      }
+    },
+    {
+      "check": "No image placeholders or TODO",
+      "passed": true,
+      "evidence": "Checked actual Word text"
+    },
+    {
+      "check": "Faculty A4/margins",
+      "passed": true,
+      "evidence": [
+        [
+          21.0,
+          29.7,
+          2.5,
+          2.5,
+          3.5,
+          2.5
+        ],
+        [
+          21.0,
+          29.7,
+          2.5,
+          2.5,
+          3.5,
+          2.5
+        ],
+        [
+          21.0,
+          29.7,
+          2.5,
+          2.5,
+          3.5,
+          2.5
+        ]
+      ]
+    },
+    {
+      "check": "Normal Times New Roman 13 / line 1.3",
+      "passed": true,
+      "evidence": "TNR 13; 1.3"
+    },
+    {
+      "check": "Front Roman and body Arabic restart",
+      "passed": true,
+      "evidence": "Roman front; Arabic from Lời mở đầu"
+    },
+    {
+      "check": "PDF >= 50 pages",
+      "passed": true,
+      "evidence": 184
+    },
+    {
+      "check": "All figures and tables appear in PDF",
+      "passed": true,
+      "evidence": "Captions located in exported PDF"
+    },
+    {
+      "check": "No Word field errors",
+      "passed": true,
+      "evidence": "No field error messages in PDF"
+    },
+    {
+      "check": "Updated main contents and figure/table lists",
+      "passed": true,
+      "evidence": {
+        "PAGEREF_entries": 235
+      }
+    }
+  ],
+  "pdf_pages": 184,
+  "inspection_pages": [
+    {
+      "pdf_page": 1,
+      "image": "page-001.png",
+      "text_start": " \n \nĐẠI HỌC KINH TẾ QUỐC DÂN \nTRƯỜNG CÔNG NGHỆ \nKHOA HỆ THỐNG THÔNG TIN QUẢN LÝ \nKHÓA LUẬN TỐT NGHIỆP \nXÂY DỰNG HỆ THỐNG HỖ TRỢ PHÂN ĐOẠN TỔN \nTHƯƠNG TRÊN ẢNH S"
+    },
+    {
+      "pdf_page": 2,
+      "image": "page-002.png",
+      "text_start": " \n \nĐẠI HỌC KINH TẾ QUỐC DÂN \nTRƯỜNG CÔNG NGHỆ \nKHOA HỆ THỐNG THÔNG TIN QUẢN LÝ \nKHÓA LUẬN TỐT NGHIỆP \nXÂY DỰNG HỆ THỐNG HỖ TRỢ PHÂN ĐOẠN TỔN \nTHƯƠNG TRÊN ẢNH S"
+    },
+    {
+      "pdf_page": 3,
+      "image": "page-003.png",
+      "text_start": "i \n \nMỤC LỤC \nLỜI MỞ ĐẦU ............................................................................................... 1 \nCHƯƠNG 1. TỔNG QUAN VỀ CƠ SỞ THỰC TẬ"
+    },
+    {
+      "pdf_page": 4,
+      "image": "page-004.png",
+      "text_start": "ii \n \n2.2.1. Tích chập và biểu diễn đặc trưng .............................................. 19 \n2.2.2. Standard U-Net làm mô hình cơ sở ......................."
+    },
+    {
+      "pdf_page": 18,
+      "image": "page-018.png",
+      "text_start": "1 \n \nLỜI MỞ ĐẦU \nTrong một hệ thống hỗ trợ đọc ảnh, giá trị của AI không chỉ nằm ở việc tạo \nmột đầu ra tự động mà còn ở khả năng người sử dụng nhìn thấy, kiểm "
+    },
+    {
+      "pdf_page": 20,
+      "image": "page-020.png",
+      "text_start": "3 \n \nCHƯƠNG 1. TỔNG QUAN VỀ CƠ SỞ THỰC TẬP, BỐI CẢNH ÁP DỤNG \nVÀ ĐỀ TÀI NGHIÊN CỨU \n1.1. Giới thiệu tổng quan về cơ sở thực tập \n1.1.1. Thông tin khái quát và c"
+    },
+    {
+      "pdf_page": 32,
+      "image": "page-032.png",
+      "text_start": "15 \n \nCHƯƠNG 2. CƠ SỞ LÝ THUYẾT VÀ CÔNG CỤ HỖ TRỢ THỰC HIỆN \nĐỀ TÀI \n2.1. Các khái niệm cơ bản của đề tài nghiên cứu \n2.1.1. Ảnh siêu âm, vùng quan tâm và mặt n"
+    },
+    {
+      "pdf_page": 45,
+      "image": "page-045.png",
+      "text_start": "28 \n \nCHƯƠNG 3. XÂY DỰNG HỆ THỐNG HỖ TRỢ PHÂN ĐOẠN SIÊU ÂM \nBUỒNG TRỨNG \n3.1. Mô tả bài toán \n3.1.1. Đặt vấn đề \nBài toán của khóa luận là xây dựng một hệ thống"
+    },
+    {
+      "pdf_page": 47,
+      "image": "page-047.png",
+      "text_start": "30 \n \nảnh raster với DICOM, bởi DICOM có thể chứa dữ liệu đa khung, metadata định \ndanh và thông tin thước đo. \nỞ giai đoạn quan sát, người sử dụng xem vùng qua"
+    },
+    {
+      "pdf_page": 69,
+      "image": "page-069.png",
+      "text_start": "52 \n \n3.2.9. Biểu đồ Use Case tổng quát \nBiểu đồ Use Case dưới dạng Mermaid thể hiện tác nhân và các ca sử dụng \ntrong ranh giới bản mẫu. Mermaid không cung cấp"
+    },
+    {
+      "pdf_page": 86,
+      "image": "page-086.png",
+      "text_start": "69 \n \n \nHình 3.16: ERD rút gọn, chỉ thể hiện các khóa ngoại vật lý hiện có \nNguồn: Tác giả đọc các cột và relationship SQLAlchemy [17]. Hình chỉ giữ khóa \nnhận "
+    },
+    {
+      "pdf_page": 111,
+      "image": "page-111.png",
+      "text_start": "94 \n \n \nHình 3.23: Vòng huấn luyện và lựa chọn checkpoint trên Validation \nNguồn: tác giả mô hình hóa mã trainer [16]. Test không nằm trong vòng tối ưu \nhay chọ"
+    },
+    {
+      "pdf_page": 112,
+      "image": "page-112.png",
+      "text_start": "95 \n \nstopping không làm dừng trước ngân sách 30 epoch. Lịch sử Train/Validation \nvẫn được giữ đầy đủ để phân tích diễn biến, thay vì chỉ công bố một con số cực"
+    },
+    {
+      "pdf_page": 119,
+      "image": "page-119.png",
+      "text_start": "102 \n \n \nHình 3.29: Ví dụ Standard U-Net chồng khớp cao với mask tham chiếu trên \nTest \nNguồn: ảnh 159.JPG, mask nguồn và prediction lưu dưới sample hash \n5ed60"
+    },
+    {
+      "pdf_page": 132,
+      "image": "page-132.png",
+      "text_start": "115 \n \n \nHình 3.38: Thông báo phiên hết hạn và đường quay lại đăng nhập \nNguồn: ảnh chụp ứng dụng; kiểm thử phiên được trình bày ở mục 3.7 [18], [19]. \n3.6.3. D"
+    },
+    {
+      "pdf_page": 136,
+      "image": "page-136.png",
+      "text_start": "119 \n \n \nHình 3.42: Màn tiếp nhận với hai ô tải Trái và Phải riêng biệt \nNguồn: ảnh chụp frontend; không chứa ảnh bệnh nhân [18]. \nSau khi đủ cặp, frontend tạo "
+    },
+    {
+      "pdf_page": 176,
+      "image": "page-176.png",
+      "text_start": "159 \n \nKẾT LUẬN \nKết quả đạt được \nĐề tài xây dựng một cách tiếp cận liên kết ba thành phần: quy trình nghiệp \nvụ có người kiểm soát, mô hình phân đoạn pixel và"
+    },
+    {
+      "pdf_page": 179,
+      "image": "page-179.png",
+      "text_start": "162 \n \nTÀI LIỆU THAM KHẢO \n[1] O. Ronneberger, P. Fischer và T. Brox, “U-Net: Convolutional \nNetworks for Biomedical Image Segmentation,” 2015, arXiv:1505.04597"
+    },
+    {
+      "pdf_page": 184,
+      "image": "page-184.png",
+      "text_start": "167 \n \nkhông; có nhận ra đơn vị px khi chưa hiệu chuẩn không; có biết tác vụ đã lưu \nserver hay chỉ còn nháp không; có hiểu lý do bị từ chối và phiên bản ca đan"
+    }
+  ]
+}

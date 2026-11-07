@@ -30,16 +30,16 @@ from backend.db.database import (
     get_db,
 )
 from backend.schemas.schemas import (
+    AdminAnalyticsSummary,
     AdminCreateUserRequest,
     AdminCreateUserResponse,
     AdminDepartmentCreateRequest,
     AdminDepartmentUpdateRequest,
+    AdminDrilldownCaseItem,
     AdminModelRegistrationRequest,
     AdminResetPasswordRequest,
     AdminSettingsRequest,
     AdminUpdateUserRequest,
-    AdminAnalyticsSummary,
-    AdminDrilldownCaseItem,
     AuditLogItem,
     DoctorProductivityItem,
 )

@@ -1,0 +1,11 @@
+flowchart TB
+ A["Kiểm manifest; khởi tạo mạng,<br/>AdamW và scheduler"] --> C["Train từng batch:<br/>forward → ComboLoss → backward<br/>GradScaler và optimizer step"]
+ C --> H["Validation: no_grad,<br/>macro Dice và scheduler step"]
+ H --> J{"Dice tốt hơn best?"}
+ J -->|"Có"| K["Lưu best;<br/>reset patience"]
+ J -->|"Không"| L["Tăng số epoch<br/>không cải thiện"]
+ K --> M["Lưu last và training_history"]
+ L --> M
+ M --> N{"Đủ epoch hoặc<br/>hết patience?"}
+ N -->|"Chưa"| C
+ N -->|"Rồi"| O["Lưu run config và SHA-256"]

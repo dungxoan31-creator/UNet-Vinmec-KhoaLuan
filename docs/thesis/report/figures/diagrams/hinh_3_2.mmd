@@ -1,0 +1,13 @@
+flowchart TD
+    A["Chọn ảnh Trái và ảnh Phải"] --> B{"Đủ hai ảnh hợp lệ?"}
+    B -->|"Chưa đủ"| C["Hiển thị bên thiếu hoặc file lỗi"]
+    C --> A
+    B -->|"Đủ"| D["Tạo ca BOTH và tải ảnh L/R"]
+    D --> E["Kiểm tra IQA từng ảnh"]
+    E --> F{"Pipeline cho phép phân đoạn?"}
+    F -->|"Không"| G["Báo lý do, thay ảnh hoặc dùng nhánh thủ công được hỗ trợ"]
+    F -->|"Có"| H["Chạy mô hình và lưu Prediction"]
+    H --> I["Hiển thị hai bên, cảnh báo và đơn vị"]
+    I --> J["Người dùng xem, sửa hoặc bỏ mặt nạ"]
+    J --> K["Lưu Review từng ảnh và Audit"]
+    K --> L["Mở lại hoặc xem phiếu nghiên cứu"]

@@ -1,0 +1,7 @@
+flowchart LR
+    R["Người rà soát nghiên cứu"] -->|"Ảnh L/R, yêu cầu, chỉnh mask"| S["0. Hệ thống hỗ trợ phân đoạn HITL"]
+    S -->|"Ảnh, đề xuất AI, số đo, trạng thái lưu"| R
+    Q["Quản trị bản mẫu"] -->|"Yêu cầu metadata và nhật ký"| S
+    S -->|"Thông tin vận hành theo quyền hiện có"| Q
+    N["Người nghiên cứu mô hình"] -->|"Checkpoint và artifact đã khóa"| S
+    S -->|"Kết quả suy luận và metric truy vết"| N

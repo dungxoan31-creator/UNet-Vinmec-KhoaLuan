@@ -12,8 +12,6 @@ import csv
 import hashlib
 import json
 import logging
-import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +62,7 @@ def audit_splits(splits_dir: str) -> dict[str, Any]:
             folders[folder_name] = {}
 
         hashes = set()
-        with open(file, "r", encoding="utf-8") as f:
+        with open(file, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             hash_col = next(
                 (c for c in reader.fieldnames or [] if "hash" in c.lower() or "sha256" in c.lower()),

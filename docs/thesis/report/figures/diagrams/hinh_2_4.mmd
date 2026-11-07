@@ -1,0 +1,12 @@
+flowchart TB
+    A["Batch ảnh và mask Train"] --> B["Forward: logit"]
+    B --> C["BCEWithLogits"]
+    B --> D["Sigmoid và Soft Dice"]
+    A --> C
+    A --> D
+    C --> E["Loss = 0,5 BCE + 0,5 Dice"]
+    D --> E
+    E --> F["Backward: tính gradient"]
+    F --> G["AdamW: cập nhật trọng số"]
+    G --> H["Đánh giá Validation không cập nhật"]
+    H --> J["Lưu checkpoint theo mean Validation Dice"]

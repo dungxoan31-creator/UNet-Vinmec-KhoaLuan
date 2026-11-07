@@ -9,7 +9,7 @@ import json
 import math
 import statistics
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -156,7 +156,7 @@ def _add_calibration(
 def _base_report() -> dict[str, Any]:
     return {
         "schema_version": "1.0",
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
         "status": "BLOCKED",
         "benchmark_performed": False,
         "patient_level_independence_verified": False,

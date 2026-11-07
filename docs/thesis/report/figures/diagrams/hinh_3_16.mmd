@@ -1,0 +1,32 @@
+erDiagram
+    PATIENTS ||--o{ STUDIES : "có khảo sát"
+    STUDIES ||--o{ IMAGES : "có ảnh"
+    IMAGES ||--o{ PREDICTIONS : "có dự đoán"
+    IMAGES ||--o{ REVIEWS : "có rà soát"
+    PATIENTS {
+        string id PK
+        string anonymized_pid UK
+    }
+    STUDIES {
+        string id PK
+        string patient_id FK
+    }
+    IMAGES {
+        string id PK
+        string study_id FK
+    }
+    PREDICTIONS {
+        string id PK
+        string image_id FK
+    }
+    REVIEWS {
+        string id PK
+        string image_id FK
+    }
+    USERS {
+        string id PK
+        string username UK
+    }
+    AUDIT_LOGS {
+        int id PK
+    }

@@ -1,0 +1,13 @@
+flowchart LR
+    U["Người rà soát"] -->|"Action, RLE, notes"| P41["4.1 Kiểm role và quan hệ ID"]
+    D1[("D1 Image và Prediction")] --> P41
+    P41 --> P42["4.2 Kiểm RLE và action-mask"]
+    P42 --> P43["4.3 Đo trên ảnh nguồn; kiểm spacing"]
+    D2[("D2 File và hiệu chuẩn")] --> P43
+    P43 --> P44["4.4 Ghi Review, Audit, trạng thái"]
+    P44 --> D3[("D3 Review nghiên cứu")]
+    D3 --> P51["5.1 Đọc dữ liệu và nguồn ảnh"]
+    D1 --> P51
+    D2 --> P51
+    P51 --> P52["5.2 Dựng phiếu A4 có cảnh báo"]
+    P52 -->|"Phiếu xem trước hoặc in trình duyệt"| U

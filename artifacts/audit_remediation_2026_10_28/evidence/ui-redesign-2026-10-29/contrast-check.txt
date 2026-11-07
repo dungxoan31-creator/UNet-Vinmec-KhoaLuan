@@ -1,0 +1,11 @@
+primary text / surface: 12.28:1 - PASS AA normal text
+secondary text / surface: 4.76:1 - PASS AA normal text
+link / surface: 6.73:1 - PASS AA normal text
+primary button text / button: 6.73:1 - PASS AA normal text
+warning text / warning surface: 7.45:1 - PASS AA normal text
+success text / success surface: 6.26:1 - PASS AA normal text
+error text / danger surface: 5.74:1 - PASS AA normal text
+info text / info surface: 6.70:1 - PASS AA normal text
+focus light / white: 6.73:1 - PASS AA normal text
+viewer focus / viewer dark: 16.50:1 - PASS AA normal text
+EXIT_CODE=0

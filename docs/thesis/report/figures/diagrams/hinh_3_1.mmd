@@ -1,0 +1,9 @@
+flowchart TD
+    A["Tiếp nhận ảnh và thông tin khảo sát"] --> B["Kiểm tra ảnh, bên và khả năng quan sát"]
+    B --> C{"Ảnh đủ điều kiện để đọc?"}
+    C -->|"Không"| D["Yêu cầu bổ sung hoặc chọn lại ảnh"]
+    D --> A
+    C -->|"Có"| E["Người đọc quan sát và khoanh vùng"]
+    E --> F["Ghi nhận số đo nếu có thước chuẩn"]
+    F --> G["Lưu mô tả và kết quả khoanh vùng"]
+    G --> H["Tra cứu lại khi cần"]

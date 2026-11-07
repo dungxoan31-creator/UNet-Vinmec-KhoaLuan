@@ -1,0 +1,14 @@
+{
+  "status": "BLOCKED",
+  "blocker": "Inference returned HTTP 503 because the selected checkpoint is not loaded or its SHA-256 does not match the verified selection.",
+  "apiStatus": 503,
+  "ui": {
+    "route": "intake",
+    "busy": false,
+    "syntheticDemoMode": true,
+    "predictionIds": [],
+    "visibleError": "2 ảnh đã xác nhận bên. Sẵn sàng phân đoạn từng ảnh."
+  },
+  "pageErrors": [],
+  "scope": "synthetic-only disposable browser, server, and SQLite runtime; login, responsive intake, and isolated case creation executed"
+}

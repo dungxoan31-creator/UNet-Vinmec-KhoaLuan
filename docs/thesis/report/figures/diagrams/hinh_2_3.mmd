@@ -1,0 +1,15 @@
+flowchart LR
+    I["Đầu vào: 1 × 512 × 512"] --> E1["Encoder 1: 32 × 512 × 512"]
+    E1 --> E2["Encoder 2: 64 × 256 × 256"]
+    E2 --> E3["Encoder 3: 128 × 128 × 128"]
+    E3 --> E4["Encoder 4: 256 × 64 × 64"]
+    E4 --> B["Bottleneck: 512 × 32 × 32"]
+    B --> D4["Decoder 4: 256 × 64 × 64"]
+    D4 --> D3["Decoder 3: 128 × 128 × 128"]
+    D3 --> D2["Decoder 2: 64 × 256 × 256"]
+    D2 --> D1["Decoder 1: 32 × 512 × 512"]
+    D1 --> O["Conv 1 × 1: logit 1 × 512 × 512"]
+    E4 -.->|"Nối đặc trưng"| D4
+    E3 -.->|"Nối đặc trưng"| D3
+    E2 -.->|"Nối đặc trưng"| D2
+    E1 -.->|"Nối đặc trưng"| D1

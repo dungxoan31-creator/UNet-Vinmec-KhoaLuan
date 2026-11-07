@@ -1,0 +1,7 @@
+flowchart LR
+ I["Ảnh xám chuẩn hóa"] --> E["Encoder ResNet34; khởi tạo ImageNet"]
+ E --> F1["Đặc trưng nhiều độ phân giải"]
+ F1 --> N["Decoder U-Net++; các skip lồng"]
+ N --> H["Đầu ra 1 lớp, activation=None"]
+ H --> L["Logits 512×512"]
+ L --> S["Sigmoid khi đánh giá/suy luận"]

@@ -1,0 +1,8 @@
+flowchart TD
+    P["patients: PK id; UK anonymized_pid"] -->|"FK patient_id"| S["studies: PK id"]
+    S -->|"FK study_id"| I["images: PK id; UK study_id + file_hash"]
+    I -->|"FK image_id"| PR["predictions: PK id"]
+    I -->|"FK image_id"| R["reviews: PK id"]
+    PR -.->|"Tham chiếu được API kiểm; chưa có FK"| R
+    U["users: PK id; UK username"] -.->|"Username actor; chưa có FK"| R
+    U -.->|"actor_id chuỗi"| A["audit_logs: PK id tự tăng"]

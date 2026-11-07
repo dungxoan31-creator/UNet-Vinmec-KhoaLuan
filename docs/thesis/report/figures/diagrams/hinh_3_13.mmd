@@ -1,0 +1,16 @@
+flowchart TB
+    subgraph CLIENT["Trình duyệt: Workspace mới"]
+        ROUTE["Hash router và RBAC giao diện"] --> STATE["State ca, phiên, side, nháp"]
+        STATE --> VIEW["Canvas, tools, worker đo preview"]
+        STATE --> HTTP["API adapter, abort, progress"]
+    end
+    subgraph SERVER["FastAPI và dịch vụ nghiên cứu"]
+        API["Auth, cases, inference, reviews"] --> VALID["Pydantic và validation nghiệp vụ"]
+        VALID --> ORM["SQLAlchemy Session"]
+        VALID --> MODEL["Model Registry và PyTorch"]
+        MODEL --> PRE["Preprocess và geometry"]
+        ORM --> DB[("SQLite: bảy bảng")]
+        API --> FILE[("Kho ảnh theo UUID")]
+    end
+    HTTP -->|"Bearer và JSON / multipart"| API
+    API -->|"IDs, RLE, ảnh, trạng thái"| HTTP

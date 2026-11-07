@@ -21,9 +21,9 @@ from pydantic import (
     model_validator,
 )
 
-VisitNumber = Annotated[StrictStr, StringConstraints(pattern=r"^[0-9]{6}$", min_length=6, max_length=6)]
-
 from backend.core.hitl_event_types import CLIENT_HITL_EVENT_TYPES
+
+VisitNumber = Annotated[StrictStr, StringConstraints(pattern=r"^[0-9]{6}$", min_length=6, max_length=6)]
 
 ORADS_REVIEW_VALUE = Literal[
     "",
@@ -1479,13 +1479,6 @@ class NotificationListResponse(BaseModel):
 
     items: list[NotificationResponseItem]
     total: int
-
-
-class NotificationReadRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    ids: list[str] = Field(default_factory=list)
-
 
 
 class CDSSMultiLesionEvaluateRequest(BaseModel):

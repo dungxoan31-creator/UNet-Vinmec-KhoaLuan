@@ -4,10 +4,8 @@ Ported from MIC-DKFZ/MedNeXt (Apache-2.0)
 Specialized for 2D Ultrasound Ovarian Lesion Segmentation with Large Kernel (7x7) Depthwise Convolutions.
 """
 
-import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class MedNeXtBlock2D(nn.Module):

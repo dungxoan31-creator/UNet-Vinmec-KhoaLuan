@@ -1,0 +1,207 @@
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/static/assets/brand/inter-vietnamese.woff2") format("woff2");
+  unicode-range:
+    U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1,
+    U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329,
+    U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/static/assets/brand/inter-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+:root {
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Geist Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --text-base: 15px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 18px;
+
+  --dur: 120ms;
+  --dur-fast: 80ms;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --topbar-height: 72px;
+  --sidebar-width: 240px;
+  --statusbar-height: 36px;
+  --notice-stack-height: 36px;
+  --sheet-inset: 0px;
+  --content-gutter: 24px;
+
+  /* VINMEC brand foundation. */
+  --brand-blue: #187DBB;
+  --brand-blue-dark: #0059B8;
+  --brand-gold: #D99A2B;
+  --brand-gold-light: #FFF3D8;
+  --background: #F2F8FC;
+  --surface: #FFFFFF;
+  --surface-soft: #EAF4FA;
+  --sidebar: #102A43;
+  --sidebar-hover: #1C4665;
+  --primary: #187DBB;
+  --primary-hover: #0059B8;
+  --primary-action: #0059B8;
+  --primary-action-hover: #004A99;
+  --on-primary-action: #FFFFFF;
+  --secondary: #EAF4FA;
+  --accent: #187DBB;
+  --text-primary: #243746;
+  --text-secondary: #64748B;
+  --border: #E2E8F0;
+  --success: #16805D;
+  --success-text: #12654A;
+  --warning: #B7791F;
+  --warning-text: #6D470E;
+  --error: #C93636;
+  --error-text: #B42323;
+  --info: #1479B8;
+
+  /* Backward-compatible semantic aliases used by existing components. */
+  --bg: #F2F8FC;
+  --subtle: #EAF4FA;
+  --hover: #E5F1F8;
+  --border-strong: #B8CBD8;
+  --control-border: #64748B;
+  --text: #243746;
+  --muted: #64748B;
+  --accent-text: #0059B8;
+  --accent-hover: #0059B8;
+  --accent-soft: #EAF4FA;
+  --brand-blue-start: #187DBB;
+  --brand-blue-end: #0059B8;
+  --brand-green: #16805D;
+  --on-accent: #FFFFFF;
+  --focus: #0059B8;
+  --success-soft: #E7F5EF;
+  --on-success: #FFFFFF;
+  --warning-soft: #FFF3D8;
+  --danger: #C93636;
+  --danger-soft: #FDECEC;
+  --info-text: #075985;
+  --info-soft: #E7F3FA;
+  --mask: #62E9E0;
+  --scrim: rgba(16, 42, 67, 0.48);
+
+  /* Clinical laterality remains distinct and unchanged. */
+  --side-left: #0d9488;
+  --side-left-soft: #f0fdfa;
+  --side-left-text: #0f766e;
+  --side-left-on: #0f172a;
+  --side-right: #ea580c;
+  --side-right-soft: #fff7ed;
+  --side-right-text: #c2410c;
+  --side-right-on: #0f172a;
+
+  /* O-RADS strata retain their existing meanings and visual ordering. */
+  --orads-1-bg: #f1f5f9;
+  --orads-1-text: #334155;
+  --orads-1-border: #cbd5e1;
+  --orads-2-bg: #dcfce7;
+  --orads-2-text: #166534;
+  --orads-2-border: #86efac;
+  --orads-3-bg: #e0f2fe;
+  --orads-3-text: #0369a1;
+  --orads-3-border: #7dd3fc;
+  --orads-4-bg: #fef3c7;
+  --orads-4-text: #92400e;
+  --orads-4-border: #fcd34d;
+  --orads-5-bg: #fee2e2;
+  --orads-5-text: #991b1b;
+  --orads-5-border: #fca5a5;
+
+  --shadow: 0 10px 28px rgba(16, 42, 67, 0.16);
+  --shadow-small: 0 4px 14px rgba(16, 42, 67, 0.12);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --z-shell: 20;
+  --z-modal: 100;
+  --z-toast: 200;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0B0E11;
+  --bg: #0B0E11;
+  --surface: #14181C;
+  --surface-soft: #1A2026;
+  --subtle: #1A2026;
+  --hover: #222A32;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --control-border: #8497A8;
+  --text: #F1F5F9;
+  --muted: #A3B3C2;
+  --text-primary: #F1F5F9;
+  --text-secondary: #A3B3C2;
+  --primary-action: #56B5E8;
+  --primary-action-hover: #89D4F8;
+  --on-primary-action: #08263A;
+  --accent: #56B5E8;
+  --accent-text: #89D4F8;
+  --accent-hover: #89D4F8;
+  --accent-soft: rgba(24, 125, 187, 0.2);
+  --on-accent: #08263A;
+  --focus: #89D4F8;
+  --success: #6EE7B7;
+  --success-text: #6EE7B7;
+  --success-soft: #064E3B;
+  --on-success: #0B0E11;
+  --warning: #FCD34D;
+  --warning-text: #FCD34D;
+  --warning-soft: #451A03;
+  --danger: #FCA5A5;
+  --error-text: #FCA5A5;
+  --danger-soft: #450A0A;
+  --info: #7DD3FC;
+  --info-text: #7DD3FC;
+  --info-soft: #0C3D59;
+  --brand-green: #6EE7B7;
+
+  /* Clinical laterality (dark theme). */
+  --side-left: #14b8a6;
+  --side-left-soft: #134e4a;
+  --side-left-text: #2dd4bf;
+  --side-right: #f97316;
+  --side-right-soft: #431407;
+  --side-right-text: #fb923c;
+
+  /* O-RADS strata (dark theme), with the same 1–5 mapping. */
+  --orads-1-bg: #1e293b;
+  --orads-1-text: #94a3b8;
+  --orads-1-border: #334155;
+  --orads-2-bg: #064e3b;
+  --orads-2-text: #6ee7b7;
+  --orads-2-border: #059669;
+  --orads-3-bg: #0c4a6e;
+  --orads-3-text: #7dd3fc;
+  --orads-3-border: #0284c7;
+  --orads-4-bg: #451a03;
+  --orads-4-text: #fcd34d;
+  --orads-4-border: #b45309;
+  --orads-5-bg: #450a0a;
+  --orads-5-text: #fca5a5;
+  --orads-5-border: #b91c1c;
+
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+  --shadow-small: 0 4px 14px rgba(0, 0, 0, 0.32);
+}

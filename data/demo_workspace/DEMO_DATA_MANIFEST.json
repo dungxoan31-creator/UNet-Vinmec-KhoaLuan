@@ -1,0 +1,37 @@
+{
+  "dataset": "synthetic_demo_only",
+  "database": "E:\\UNet-Vinmec-KhoaLuan\\data\\demo_workspace\\ovarian_ai.db",
+  "created_at": "2026-11-01T07:49:40+00:00",
+  "counts": {
+    "facilities": 4,
+    "users": 49,
+    "doctors": 40,
+    "technicians": 4,
+    "cases": 80,
+    "visits": 80,
+    "images": 160,
+    "pending_corrections": 16,
+    "patient_records": 0,
+    "prediction_records": 0,
+    "review_records": 0
+  },
+  "fixture_sha256": {
+    "synthetic_left.png": "e97ff9a1f4a184036e5a596ac8f95e7e46745fea16e9f34dca455667cee69f6d",
+    "synthetic_right.png": "ac94ff3b1919720e2d27b83dd2830bd7ed19d7b52ad22e507ffbbbfc6b386ea3",
+    "synthetic_letterbox_640x480.png": "4f422963e577e48a8feeb26406f7a25334934b282f9579008916b6fa157bc17f",
+    "synthetic_left.jpg": "1599f902abc445b7c2ab897760ea7e7969bb3b675cc49ec48a840326b047596c",
+    "synthetic_ovary.dcm": "0bd98f53874ef9d8cdeebee600f88cf8b5c2a005d6f951bd614a239100d34404"
+  },
+  "credentials": {
+    "demo_admin_usernames": [
+      "demo.admin",
+      "demo.admin.f01",
+      "demo.admin.f02",
+      "demo.admin.f03",
+      "demo.admin.f04"
+    ],
+    "admin_password": "DemoAdmin@2026!",
+    "staff_password": "123456@"
+  },
+  "safety": "Synthetic images only; no patient IDs, predictions, or clinician reviews were generated."
+}

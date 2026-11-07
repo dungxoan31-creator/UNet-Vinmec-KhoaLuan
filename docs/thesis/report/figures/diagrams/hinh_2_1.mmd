@@ -1,0 +1,7 @@
+flowchart TB
+    A["Trình duyệt: giao diện, state và Canvas"] -->|"Yêu cầu REST"| B["FastAPI: xác thực và nghiệp vụ"]
+    B --> C["Dịch vụ PyTorch: tiền xử lý và suy luận"]
+    B --> D["SQLAlchemy: truy cập dữ liệu"]
+    D --> E["SQLite: ca, ảnh, dự đoán, rà soát"]
+    C -->|"Mask và thông tin mô hình"| B
+    B -->|"JSON và dữ liệu ảnh"| A

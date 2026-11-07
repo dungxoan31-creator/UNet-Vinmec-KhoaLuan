@@ -1,0 +1,10 @@
+flowchart TD
+    U["Người dùng"] -->|"PID, thông tin ca"| P11["1.1 Tạo hoặc tìm Patient; tạo Study"]
+    P11 --> D1[("D1 Patient và Study")]
+    U -->|"File, study_id, L/R"| P12["1.2 Kiểm tra extension, byte, side"]
+    D1 -->|"Ca tồn tại và BOTH"| P12
+    P12 -->|"Nội dung hợp lệ sơ bộ"| P13["1.3 Hash và giải mã ảnh"]
+    P13 -->|"Byte ảnh theo UUID"| D2[("D2 Kho ảnh nguồn")]
+    P13 -->|"Image và SHA-256"| P14["1.4 Ghi Image và Audit trong DB"]
+    P14 --> D3[("D3 Images; unique Study và hash")]
+    P14 -->|"image_id, kích thước hoặc lỗi 409"| U

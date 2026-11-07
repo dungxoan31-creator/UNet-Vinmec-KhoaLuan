@@ -1,0 +1,12 @@
+flowchart TB
+ A["Kho ảnh và mặt nạ"] --> B["Đối chiếu cặp và SHA-256 ảnh"]
+ B --> C["1.639 nội dung ảnh duy nhất"]
+ C --> D["35 cặp ngoài split theo manifest"]
+ C --> E["1.604 cặp trong split đóng băng"]
+ E --> F["Train: 661 ảnh"]
+ E --> G["Validation: 541 ảnh"]
+ E --> H["Test: 402 ảnh"]
+ F --> I["Kiểm hash giao tập và nguồn mã"]
+ G --> I
+ H --> I
+ I --> J["Độc lập bệnh nhân: cần xác minh nguồn"]

@@ -1,0 +1,17 @@
+{
+    "channel_names": {
+        "0": "US"
+    },
+    "labels": {
+        "background": 0,
+        "lesion": 1
+    },
+    "numTraining": 1469,
+    "file_ending": ".png",
+    "name": "MMOTU",
+    "description": "MMOTU 2D Ultrasound Ovarian Lesion Binary Segmentation (Ceiling Benchmark)",
+    "reference": "MMOTU Dataset (OTU_2d) / Graduation Thesis Benchmark",
+    "licence": "Research purpose only (MMOTU dataset terms apply)",
+    "release": "2.0",
+    "converted_by": "nnU-Net Benchmark Architect"
+}

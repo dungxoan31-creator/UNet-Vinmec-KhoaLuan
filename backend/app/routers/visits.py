@@ -9,31 +9,26 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
+from backend.app.security import get_current_user, require_admin, require_clinical
 from backend.core.patient_identity import (
     normalize_source_patient_id,
     patient_id_digest,
     patient_pid_secret,
 )
-from backend.services.patient_identity import get_or_create_patient
-
-from backend.app.security import get_current_user, require_admin, require_clinical
 from backend.db.database import (
     AuditLogModel,
     FacilityModel,
     ImageModel,
-    PatientModel,
     StudyModel,
     UserModel,
     VisitModel,
     generate_visit_code,
     get_db,
 )
-from backend.services.facility_service import check_facility_access
 from backend.schemas.schemas import (
     FacilityCreateRequest,
     FacilityResponse,
@@ -42,6 +37,8 @@ from backend.schemas.schemas import (
     VisitResponse,
     VisitStudySummary,
 )
+from backend.services.facility_service import check_facility_access
+from backend.services.patient_identity import get_or_create_patient
 
 logger = logging.getLogger("workstation.visits")
 
@@ -364,7 +361,7 @@ def list_facilities(
     current_user: UserModel = Depends(get_current_user),
 ):
     """List all registered facilities."""
-    facilities = db.query(FacilityModel).filter(FacilityModel.is_active == True).order_by(FacilityModel.facility_code).all()
+    facilities = db.query(FacilityModel).filter(FacilityModel.is_active).order_by(FacilityModel.facility_code).all()
     return [
         FacilityResponse(
             id=f.id,

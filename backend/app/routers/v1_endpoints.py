@@ -41,12 +41,12 @@ from backend.schemas.schemas import (
     SegmentationCandidateResponse,
 )
 from backend.services.case_lease_service import require_active_case_lease
+from backend.services.facility_service import check_facility_access
 from backend.services.image_service import (
     decode_ultrasound_image,
     get_image_calibration,
     validate_pixel_spacing,
 )
-from backend.services.facility_service import check_facility_access
 from backend.services.inference_engine import InferenceEngine
 from backend.services.review_service import persist_single_review
 from backend.services.segmentation_candidates import build_mask_candidate

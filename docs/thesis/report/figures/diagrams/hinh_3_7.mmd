@@ -1,0 +1,10 @@
+flowchart TD
+    D1[("D1 Image và file nguồn")] --> P21["2.1 Decode và kiểm tra suitability"]
+    P21 -->|"Ảnh được phép xử lý"| P22["2.2 Tiền xử lý và letterbox 512"]
+    D2[("D2 Checkpoint, adapter, cấu hình")] --> P23["2.3 Forward mô hình"]
+    P22 -->|"Tensor và transform"| P23
+    P23 -->|"Bản đồ xác suất"| P24["2.4 Ngưỡng, mask và số đo"]
+    P24 --> P25["2.5 Lưu Prediction và Audit"]
+    P25 --> D3[("D3 Prediction")]
+    P25 -->|"RLE, ảnh viewer, provenance"| U["Giao diện rà soát"]
+    P21 -->|"Không đạt"| E["Lỗi có lý do; chưa tạo prediction"]

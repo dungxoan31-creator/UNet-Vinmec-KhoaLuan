@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from backend.app.config import model_registry, preprocessor
 from backend.app.security import get_current_user, require_clinical
 from backend.db.database import ImageModel, RegionAssignmentBatchModel, ReviewModel, StudyModel, UserModel, get_db
-from backend.services.facility_service import check_facility_access
 from backend.schemas.schemas import (
     BatchReviewRequest,
     BatchReviewResponse,
@@ -21,6 +20,7 @@ from backend.schemas.schemas import (
     RegionCDSSAssessmentRequest,
     ResearchExportRequest,
 )
+from backend.services.facility_service import check_facility_access
 from backend.services.inference_engine import InferenceEngine
 from backend.services.lesion_reconciliation import review_component_candidates
 from backend.services.region_assignment_service import (

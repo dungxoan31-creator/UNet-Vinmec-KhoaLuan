@@ -10,11 +10,11 @@ Enables Human-in-the-Loop (HITL) interactive refinement via:
 3. Auto-Prompting from automated model bounding boxes
 """
 
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Any, List, Optional, Tuple
 
 
 class PromptEncoder(nn.Module):
@@ -23,7 +23,7 @@ class PromptEncoder(nn.Module):
     Standardized interface matching Segment Anything Model (SAM) prompt encoder.
     """
 
-    def __init__(self, embed_dim: int = 256, input_image_size: Tuple[int, int] = (512, 512)):
+    def __init__(self, embed_dim: int = 256, input_image_size: tuple[int, int] = (512, 512)):
         super().__init__()
         self.embed_dim = embed_dim
         self.input_image_size = input_image_size
@@ -34,10 +34,10 @@ class PromptEncoder(nn.Module):
 
     def forward(
         self,
-        points: Optional[torch.Tensor] = None,  # (B, N, 2) in [0, 512]
-        labels: Optional[torch.Tensor] = None,  # (B, N) int
-        boxes: Optional[torch.Tensor] = None,   # (B, 4) in [0, 512]
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        points: torch.Tensor | None = None,  # (B, N, 2) in [0, 512]
+        labels: torch.Tensor | None = None,  # (B, N) int
+        boxes: torch.Tensor | None = None,   # (B, 4) in [0, 512]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Returns:
             sparse_embeddings: (B, N_prompts, embed_dim)
@@ -158,9 +158,9 @@ class InteractiveMedSAMModel(nn.Module):
     def forward(
         self,
         image_512: torch.Tensor,
-        points: Optional[torch.Tensor] = None,
-        labels: Optional[torch.Tensor] = None,
-        boxes: Optional[torch.Tensor] = None,
+        points: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
+        boxes: torch.Tensor | None = None,
     ) -> torch.Tensor:
         image_embeddings = self.image_encoder(image_512)
         sparse_prompts, dense_prompts = self.prompt_encoder(points=points, labels=labels, boxes=boxes)

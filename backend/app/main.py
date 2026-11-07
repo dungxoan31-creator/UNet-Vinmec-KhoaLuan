@@ -36,9 +36,9 @@ from backend.app.routers import (
     reviews_router,
     v1_router,
 )
-from backend.app.routers.visits import router as visits_router
 from backend.app.routers.corrections import router as corrections_router
 from backend.app.routers.patient_directory import router as patient_directory_router
+from backend.app.routers.visits import router as visits_router
 from backend.app.security import get_current_user
 from backend.core.image_utils import cv2_imread_unicode, cv2_imwrite_unicode
 from backend.core.synthetic_demo import is_loopback_client

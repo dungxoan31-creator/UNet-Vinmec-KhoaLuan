@@ -1,0 +1,704 @@
+[
+  {
+    "kind": "Hình",
+    "number": "1.1",
+    "caption": "Mối liên hệ giữa bối cảnh thực tập, phân tích nghiệp vụ và sản phẩm khóa luận",
+    "part": "chuong-1.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "1.1",
+    "caption": "Các nhu cầu thông tin và điểm kiểm soát của bản mẫu",
+    "part": "chuong-1.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "1.2",
+    "caption": "Bài toán hỗ trợ phân đoạn với người sử dụng giữ quyền quyết định",
+    "part": "chuong-1.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "1.2",
+    "caption": "Đối chiếu kế hoạch đề cương với hồ sơ thực hiện hiện tại",
+    "part": "chuong-1.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "1.3",
+    "caption": "Đối tượng thụ hưởng, giá trị kỳ vọng và giới hạn chứng minh",
+    "part": "chuong-1.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "2.1",
+    "caption": "Các nhóm trách nhiệm của kiến trúc ứng dụng web nghiên cứu",
+    "part": "chuong-2.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "2.2",
+    "caption": "Vòng phát triển và kiểm chứng được áp dụng cho bản mẫu",
+    "part": "chuong-2.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "2.3",
+    "caption": "Kiến trúc Standard U-Net base_filters=32 được hiện thực trong dự án",
+    "part": "chuong-2.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "2.4",
+    "caption": "Luồng tính loss và chọn checkpoint trong cấu hình đối sánh",
+    "part": "chuong-2.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "2.1",
+    "caption": "Vai trò của các công trình liên quan trong lựa chọn phương pháp",
+    "part": "chuong-2.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "2.5",
+    "caption": "Chuỗi chuyển đổi tọa độ và điều kiện quy đổi đơn vị đo",
+    "part": "chuong-2.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.1",
+    "caption": "Đối chiếu các giai đoạn tham chiếu với giải pháp thông tin đề xuất",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.2",
+    "caption": "Danh mục yêu cầu chức năng và mức triển khai",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.3",
+    "caption": "Yêu cầu phi chức năng, phương pháp xác minh và giới hạn",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.4",
+    "caption": "Đặc tả UC-01 — Tiếp nhận ca và cặp ảnh hai bên",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.5",
+    "caption": "Đặc tả UC-02 — Suy luận và hiển thị mặt nạ đề xuất",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.6",
+    "caption": "Đặc tả UC-03 — Chỉnh mặt nạ và lưu rà soát nghiên cứu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.7",
+    "caption": "Đặc tả UC-04 — Mở lại ca và xem phiếu nghiên cứu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.8",
+    "caption": "User Stories và Acceptance Criteria của vòng HITL",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.1",
+    "caption": "Quy trình As-Is tham chiếu cho phân tích nghiệp vụ",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.2",
+    "caption": "Quy trình To-Be của luồng phân đoạn và rà soát nghiên cứu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.3",
+    "caption": "Phân rã chức năng BFD của hệ thống nghiên cứu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.4",
+    "caption": "Sơ đồ ngữ cảnh CD của phạm vi hệ thống",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.5",
+    "caption": "DFD mức 0 của luồng dữ liệu nghiên cứu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.6",
+    "caption": "DFD mức 1 của chức năng tiếp nhận ca và ảnh",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.7",
+    "caption": "DFD mức 1 của pipeline kiểm tra và phân đoạn",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.8",
+    "caption": "DFD mức 1 của lưu rà soát và trình bày phiếu nghiên cứu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.9",
+    "caption": "Use Case tổng quát, phân biệt lõi và workflow mở rộng",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.10",
+    "caption": "Sequence của luồng lõi từ cặp ảnh đến rà soát nghiên cứu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.11",
+    "caption": "Máy trạng thái Study của backend hiện hữu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.12",
+    "caption": "Máy trạng thái workflow mục tiêu, chưa được backend legacy thực thi đầy đủ",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.13",
+    "caption": "Kiến trúc logic của frontend, backend, model và lưu trữ",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.9",
+    "caption": "Hợp đồng API chính đang được sử dụng",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.10",
+    "caption": "Phân loại lỗi và phản hồi mong đợi của giao diện",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.14",
+    "caption": "Các không gian tọa độ và điều kiện chuyển sang đơn vị vật lý",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.15",
+    "caption": "Ranh giới transaction và xử lý conflict hash trong upload",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.11",
+    "caption": "Các hợp đồng server cần bổ sung để hoàn thiện workflow mục tiêu",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.12",
+    "caption": "Các thực thể, mục đích và quan hệ nghiệp vụ",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.16",
+    "caption": "ERD rút gọn, chỉ thể hiện các khóa ngoại vật lý hiện có",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.17",
+    "caption": "Mô hình quan hệ và các tham chiếu logic cần kiểm ở ứng dụng",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.13",
+    "caption": "Từ điển bảng patients",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.14",
+    "caption": "Từ điển bảng studies",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.15",
+    "caption": "Từ điển bảng images",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.16",
+    "caption": "Từ điển bảng predictions",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.17",
+    "caption": "Từ điển bảng reviews",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.18",
+    "caption": "Từ điển bảng audit_logs",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.19",
+    "caption": "Từ điển bảng users",
+    "part": "chuong-3-nghiep-vu-thiet-ke.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.20",
+    "caption": "Đối chiếu dữ liệu dự kiến và dữ liệu thực nghiệm",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.18",
+    "caption": "Tổ chức phiên bản dữ liệu và giới hạn kiểm soát rò rỉ",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.19",
+    "caption": "Chuỗi xử lý cặp ảnh–mask của các lượt chạy so sánh",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.20",
+    "caption": "Minh họa letterbox và CLAHE từ ảnh nguồn thực tế",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.21",
+    "caption": "Kích thước đặc trưng Standard U-Net khi đầu vào 512×512",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.21",
+    "caption": "Kiến trúc Standard U-Net đúng theo module mô hình của dự án",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.22",
+    "caption": "Cấu hình U-Net++/ResNet34 được huấn luyện trong dự án",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.22",
+    "caption": "Cấu hình huấn luyện của hai lượt so sánh đồng chuẩn hóa",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.23",
+    "caption": "Vòng huấn luyện và lựa chọn checkpoint trên Validation",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.24",
+    "caption": "Loss theo epoch của hai lượt so sánh đồng chuẩn hóa",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.25",
+    "caption": "Dice theo epoch và khoảng cách giữa Train với Validation",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.26",
+    "caption": "Luồng tính các chỉ số phân đoạn ở cấp pixel và cấp tập ảnh",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.23",
+    "caption": "So sánh hai cấu hình trên cùng 541 ảnh Validation",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.27",
+    "caption": "Dice, IoU, Recall và Precision tại best checkpoint của hai cấu hình",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.24",
+    "caption": "Kết quả Test lịch sử của Standard U-Net tích hợp",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.28",
+    "caption": "Phân bố chất lượng từng ảnh của Standard U-Net trên Test lịch sử",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.29",
+    "caption": "Ví dụ Standard U-Net chồng khớp cao với mask tham chiếu trên Test",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.30",
+    "caption": "Ví dụ prediction bỏ sót vùng tiền cảnh của mask tham chiếu",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.25",
+    "caption": "Một số mẫu lỗi truy được về hồ sơ thí nghiệm",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.31",
+    "caption": "Quy trình phân tích nguyên nhân sai khác giữa prediction và mask tham chiếu",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.32",
+    "caption": "Luồng suy luận đến rà soát và lưu mask do người sử dụng kiểm soát",
+    "part": "chuong-3-mo-hinh.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.26",
+    "caption": "Nguyên tắc giao diện và cách kiểm tra",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.33",
+    "caption": "Giao diện đăng nhập và lựa chọn chế độ demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.34",
+    "caption": "Màn yêu cầu khôi phục mật khẩu trong luồng thiết kế",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.35",
+    "caption": "Màn đặt lại mật khẩu và kiểm tra dữ liệu nhập",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.36",
+    "caption": "Màn đổi mật khẩu lần đầu",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.37",
+    "caption": "Màn xác thực OTP theo thiết kế frontend",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.38",
+    "caption": "Thông báo phiên hết hạn và đường quay lại đăng nhập",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.39",
+    "caption": "Dashboard bác sĩ với các tác vụ cần xử lý",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.40",
+    "caption": "Dashboard trưởng khoa và hàng chờ duyệt trong demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.41",
+    "caption": "Dashboard quản trị hệ thống, tách khỏi công việc đọc ảnh",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.42",
+    "caption": "Màn tiếp nhận với hai ô tải Trái và Phải riêng biệt",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.43",
+    "caption": "Worklist với tìm kiếm, bộ lọc và trạng thái ca",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.44",
+    "caption": "Trạng thái chọn nhiều ca và thanh thao tác hàng loạt",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.45",
+    "caption": "Workstation dark theme với đường viền và công cụ rà soát",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.27",
+    "caption": "Phím tắt và điều kiện sử dụng trong Workstation",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.46",
+    "caption": "Modal tóm tắt hai bên trước ký sơ bộ trong demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.47",
+    "caption": "Hàng chờ duyệt theo thiết kế vai trò trưởng khoa",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.48",
+    "caption": "Màn đối chiếu ảnh, mask rà soát và mask AI khi duyệt",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.49",
+    "caption": "Trạng thái tạo phiên bản hiệu chỉnh và giữ bản trước",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.50",
+    "caption": "Chi tiết ca với timeline và lịch sử phiên bản trong demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.51",
+    "caption": "Phiếu kết quả nghiên cứu A4 với ba hình cho mỗi bên",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.52",
+    "caption": "Tra cứu PID giả danh và lịch sử khảo sát minh họa",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.53",
+    "caption": "Đối chiếu hai lần khảo sát và bảng số đo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.54",
+    "caption": "Màn đánh giá mô hình, phân biệt dữ liệu thật và trạng thái demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.55",
+    "caption": "Quản trị người dùng, vai trò và trạng thái tài khoản trong demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.56",
+    "caption": "Quản lý khoa/phòng và liên kết người dùng trong demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.57",
+    "caption": "Model Registry và trạng thái triển khai mô hình",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.58",
+    "caption": "Audit Trail với danh sách sự kiện chỉ đọc",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.59",
+    "caption": "Bộ lọc audit theo tác nhân, hành vi và thời gian",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.60",
+    "caption": "Danh sách metadata ca dành cho quản trị, không hiển thị ảnh",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.61",
+    "caption": "Cấu hình IQA, đơn vị và mẫu phiếu trong demo",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.62",
+    "caption": "Trạng thái hệ thống và tác vụ sao lưu",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.63",
+    "caption": "Hồ sơ và thông tin tài khoản người sử dụng",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.64",
+    "caption": "Tùy chọn giao diện, ngôn ngữ và thao tác viewer",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.65",
+    "caption": "Danh sách thông báo và phân biệt chưa đọc",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.66",
+    "caption": "Trạng thái đánh dấu thông báo đã đọc",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.67",
+    "caption": "Trợ giúp, phím tắt và hướng dẫn dùng bản mẫu",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.68",
+    "caption": "Màn không đủ quyền truy cập",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.69",
+    "caption": "Màn không tìm thấy đường dẫn hoặc tài nguyên",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.70",
+    "caption": "Màn thông báo bảo trì và khả năng thử lại",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.71",
+    "caption": "Bố cục Worklist trên tablet",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Hình",
+    "number": "3.72",
+    "caption": "Bố cục hàng chờ duyệt trên tablet",
+    "part": "chuong-3-giao-dien.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.28",
+    "caption": "Các lớp kiểm thử và bằng chứng hiện có",
+    "part": "chuong-3-kiem-thu-trien-khai.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.29",
+    "caption": "Kiểm thử tiếp nhận hai ảnh và chặn ca thiếu bên",
+    "part": "chuong-3-kiem-thu-trien-khai.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.30",
+    "caption": "Kiểm thử chuyển đổi tọa độ và bảo toàn letterbox",
+    "part": "chuong-3-kiem-thu-trien-khai.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.31",
+    "caption": "Kiểm thử lưu hai review và bảo toàn phạm vi nghiên cứu",
+    "part": "chuong-3-kiem-thu-trien-khai.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.32",
+    "caption": "Kiểm thử phân quyền xóa và tính nguyên tử khi tạo ca",
+    "part": "chuong-3-kiem-thu-trien-khai.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.33",
+    "caption": "Kiểm thử draft, lease và request cũ",
+    "part": "chuong-3-kiem-thu-trien-khai.md"
+  },
+  {
+    "kind": "Bảng",
+    "number": "3.34",
+    "caption": "Môi trường và trạng thái xác minh",
+    "part": "chuong-3-kiem-thu-trien-khai.md"
+  }
+]

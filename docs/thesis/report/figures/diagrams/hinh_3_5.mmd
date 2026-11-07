@@ -1,0 +1,18 @@
+flowchart LR
+    U["Người rà soát"] -->|"Ảnh và hồ sơ giả danh"| P1["1.0 Tiếp nhận ca"]
+    P1 -->|"Patient, Study, Image"| D1[("D1 Hồ sơ ca")]
+    P1 -->|"Byte ảnh nguồn"| D2[("D2 Kho ảnh")]
+    D1 -->|"Image và đường dẫn"| P2["2.0 Kiểm tra và phân đoạn"]
+    D2 -->|"Ảnh"| P2
+    D5[("D5 Checkpoint và cấu hình")] -->|"Trọng số, tiền xử lý"| P2
+    P2 -->|"RLE và thông số"| D3[("D3 Prediction")]
+    D3 -->|"Đề xuất AI"| P3["3.0 Quan sát và chỉnh sửa"]
+    D2 -->|"Ảnh nguồn để đối chiếu"| P3
+    U -->|"Nét sửa, quyết định"| P3
+    P3 -->|"Mask cuối và ghi chú"| P4["4.0 Lưu rà soát"]
+    P4 -->|"Review riêng"| D4[("D4 Review và Audit")]
+    D1 --> P5["5.0 Tra cứu và phiếu nghiên cứu"]
+    D2 --> P5
+    D3 --> P5
+    D4 --> P5
+    P5 -->|"Ca và phiếu"| U

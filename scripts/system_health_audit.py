@@ -1,6 +1,5 @@
 """Comprehensive System Health and Integrity Audit for FE, BE, UI/UX, API, and AI."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -22,7 +21,7 @@ backend_files = list(Path("backend").rglob("*.py"))
 syntax_errors = []
 for p in backend_files:
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             compile(f.read(), str(p), "exec")
     except Exception as e:
         syntax_errors.append((str(p), str(e)))
@@ -84,8 +83,9 @@ print("\n" + "=" * 60)
 print("3. CHECKING DATABASE SCHEMA & IMMUTABILITY TRIGGERS")
 print("=" * 60)
 try:
-    from backend.db.database import SessionLocal, init_db
     from sqlalchemy import text
+
+    from backend.db.database import SessionLocal, init_db
     init_db()
     with SessionLocal() as db:
         # Check triggers
@@ -168,7 +168,7 @@ try:
     overall = res_multi.get("overall_category")
 
     if cat_99 == "O-RADS 2" and cat_100 == "O-RADS 3" and overall == "O-RADS 3":
-        print(f"PASS: CDSS reasoning verified:")
+        print("PASS: CDSS reasoning verified:")
         print(f"  99.9 mm -> {cat_99}")
         print(f"  100.0 mm -> {cat_100}")
         print(f"  Multi-lesion worst-case -> {overall}")

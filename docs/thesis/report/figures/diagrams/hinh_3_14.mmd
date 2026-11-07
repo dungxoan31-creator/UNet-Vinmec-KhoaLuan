@@ -1,0 +1,6 @@
+flowchart LR
+    S["Màn hình: clientX, clientY"] -->|"Trừ rect và pan; chia zoom"| M["Model-space 512 x 512"]
+    M -->|"Bỏ padding; scale và offset nguồn"| O["Ảnh nguồn: W x H"]
+    O -->|"Chỉ khi spacing hợp lệ"| P["Kích thước vật lý: mm, cm2"]
+    O -->|"Thiếu spacing"| X["Chỉ báo px và px2"]
+    M -->|"Encode mask nhị phân"| R["RLE gửi API"]

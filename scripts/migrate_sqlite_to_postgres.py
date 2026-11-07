@@ -106,7 +106,7 @@ def setup_postgresql_schema(pg_url: str) -> bool:
     logger.info("Initializing PostgreSQL schema using SQLAlchemy models...")
     os.environ["DATABASE_URL"] = pg_url
     try:
-        from backend.db.database import Base, create_engine, _ensure_audit_immutability_postgres
+        from backend.db.database import Base, _ensure_audit_immutability_postgres, create_engine
         norm_url = pg_url
         if norm_url.startswith("postgres://"):
             norm_url = "postgresql+psycopg://" + norm_url[len("postgres://"):]

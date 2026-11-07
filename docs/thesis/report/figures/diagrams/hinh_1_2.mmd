@@ -1,0 +1,12 @@
+flowchart TB
+    I["Ảnh siêu âm Trái và Phải"] --> P["Kiểm tra và chuẩn hóa từng ảnh"]
+    P --> M["AI tạo mặt nạ gợi ý"]
+    M --> V["Người sử dụng đối chiếu ảnh gốc"]
+    V --> D{"Kết quả rà soát"}
+    D -->|"Chấp nhận"| A["Giữ mặt nạ gợi ý"]
+    D -->|"Cần sửa"| E["Hiệu chỉnh mặt nạ làm việc"]
+    D -->|"Không phù hợp"| R["Từ chối hoặc vẽ lại"]
+    A --> S["Lưu bản rà soát nghiên cứu"]
+    E --> S
+    R --> S
+    S --> O["Phiếu tóm tắt có nhãn nghiên cứu"]

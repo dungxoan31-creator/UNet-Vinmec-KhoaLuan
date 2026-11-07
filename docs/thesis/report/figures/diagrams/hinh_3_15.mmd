@@ -1,0 +1,9 @@
+flowchart TD
+    A["Upload đã vượt kiểm tra và ghi file UUID"] --> B["Thêm Image có study_id và file_hash"]
+    B --> C["Thêm AuditLog"]
+    C --> D{"Commit DB thành công?"}
+    D -->|"Có"| E["Trả image_id"]
+    D -->|"Conflict hash"| F["Rollback transaction"]
+    F --> G["Thử xóa file mới"]
+    G --> H["Trả HTTP 409"]
+    D -->|"Lỗi khác"| I["Không tuyên bố upload thành công"]

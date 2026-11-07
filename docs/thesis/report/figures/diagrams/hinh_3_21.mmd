@@ -1,0 +1,15 @@
+flowchart TB
+ I["Input 1×512×512"] --> E1["Encoder 32×512×512"]
+ E1 --> E2["Encoder 64×256×256"]
+ E2 --> E3["Encoder 128×128×128"]
+ E3 --> E4["Encoder 256×64×64"]
+ E4 --> B["Bottleneck 512×32×32"]
+ B --> D4["Up + concat + ConvBlock; 256×64×64"]
+ E4 -. "Skip trực tiếp" .-> D4
+ D4 --> D3["Up + concat + ConvBlock; 128×128×128"]
+ E3 -. "Skip trực tiếp" .-> D3
+ D3 --> D2["Up + concat + ConvBlock; 64×256×256"]
+ E2 -. "Skip trực tiếp" .-> D2
+ D2 --> D1["Up + concat + ConvBlock; 32×512×512"]
+ E1 -. "Skip trực tiếp" .-> D1
+ D1 --> O["Conv 1×1; logits 1×512×512"]
